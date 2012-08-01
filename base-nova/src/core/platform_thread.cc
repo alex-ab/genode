@@ -108,13 +108,8 @@ int Platform_thread::start(void *ip, void *sp)
 		return -6;
 	}
 
-	/*
-	 * For the first thread of a new PD, use the initial stack pointer for
-	 * reporting the thread's UTCB address.
-	 */
 	addr_t pd_utcb = Native_config::context_area_virtual_base() +
-	                 Native_config::context_area_virtual_size() -
-	                 get_page_size();
+	                 Native_config::context_virtual_size() - get_page_size();
 
 	_sel_exc_base = cap_selector_allocator()->alloc(NUM_INITIAL_PT_LOG2);
 

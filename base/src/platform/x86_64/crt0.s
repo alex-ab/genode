@@ -14,6 +14,7 @@
 /*--- .text (program code) -------------------------*/
 	.text
 	.global _start
+	.global _start_restart
 
 _start:
 
@@ -22,7 +23,10 @@ _start:
 
 	/* XXX Switch to our own stack.  */
 	leaq _stack_high@GOTPCREL(%rip),%rax
-	movq (%rax), %rsp
+	movq (%rax), %rax
+
+_start_restart:
+	mov %rax, %rsp
 
 	/* Clear the base pointer so that stack backtraces will work.  */
 	xorq %rbp,%rbp

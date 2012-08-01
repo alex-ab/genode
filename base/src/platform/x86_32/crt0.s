@@ -14,12 +14,17 @@
 /*--- .text (program code) -------------------------*/
 	.text
 	.global _start
+	.global _start_restart
 
 _start:
 	mov %esp, __initial_sp
 
 	/* XXX Switch to our own stack.  */
-	leal _stack_high, %esp
+	leal _stack_high, %eax
+
+_start_restart:
+
+	mov %eax, %esp
 
 	/* Clear the base pointer so that stack backtraces will work.  */
 	xor %ebp,%ebp

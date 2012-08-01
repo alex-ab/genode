@@ -54,7 +54,18 @@ void Thread_base::_init_platform_thread()
 	 * Allocate capability selectors for the thread's execution context,
 	 * running semaphore and exception handler portals.
 	 */
-	_tid.ec_sel     = ~0UL;
+	_tid.ec_sel     = Native_thread::INVALID_INDEX;
+
+	/* main thread cap we get from the parent */
+	addr_t stack_current = reinterpret_cast<addr_t>(stack_top());
+	if ((Native_config::context_area_virtual_base() <= stack_current) && 
+	    (stack_current < Native_config::context_area_virtual_base() +
+	                     Native_config::context_virtual_size())) {
+		_thread_cap     = env()->parent()->main_thread_cap();
+		_tid.exc_pt_sel = 0;
+		return;
+	}
+
 	_tid.exc_pt_sel = cap_selector_allocator()->alloc(NUM_INITIAL_PT_LOG2);
 
 	/* create thread at core */
@@ -76,7 +87,7 @@ void Thread_base::_deinit_platform_thread()
 {
 	using namespace Nova;
 
-	if (_tid.ec_sel != ~0UL) {
+	if (_tid.ec_sel != Native_thread::INVALID_INDEX) {
 		revoke(Obj_crd(_tid.ec_sel, 0));
 		cap_selector_allocator()->free(_tid.ec_sel, 0);
 	}
@@ -106,7 +117,7 @@ void Thread_base::_deinit_platform_thread()
 
 void Thread_base::start()
 {
-	if (_tid.ec_sel != ~0UL)
+	if (_tid.ec_sel != Native_thread::INVALID_INDEX)
 		throw Cpu_session::Thread_creation_failed();
 
 	using namespace Genode;
