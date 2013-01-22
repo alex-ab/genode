@@ -184,6 +184,33 @@ namespace Pci {
 				pci_config->write(_bus, _device, _function, address, value, size);
 			}
 	};
+
+
+	class Device_config_extended : public Genode::List<Device_config_extended>::Element
+	{
+		private:
+
+			Genode::uint32_t _bdf;
+			Genode::Io_mem_dataspace_capability _io_mem_cap;
+
+		public:
+
+			Device_config_extended(Genode::uint8_t bus, Genode::uint8_t dev,
+			                       Genode::uint8_t func,
+			                       Genode::Io_mem_dataspace_capability cap)
+			:
+				_bdf((bus << 8) | ((dev & 0x1f) << 3) | (func & 0x7)),
+				_io_mem_cap(cap) { }
+
+			bool is_bdf(Genode::uint8_t bus, Genode::uint8_t dev, Genode::uint8_t func)
+			{
+				Genode::uint32_t bdf = (bus << 8) | ((dev & 0x1f) << 3) | (func & 0x7);
+				return bdf == _bdf;
+			}
+
+			Genode::Io_mem_dataspace_capability io_mem_cap() {
+				return _io_mem_cap; }
+	};
 }
 
 #endif /* _DEVICE_CONFIG_H_ */

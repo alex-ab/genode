@@ -22,6 +22,7 @@
 using namespace Genode;
 using namespace Pci;
 
+Genode::List<Device_config_extended>  Pci::Session_component::_bdf_list;
 
 int main(int argc, char **argv)
 {
@@ -30,7 +31,7 @@ int main(int argc, char **argv)
 	/*
 	 * Initialize server entry point
 	 */
-	enum { STACK_SIZE = sizeof(addr_t)*1024 };
+	enum { STACK_SIZE = 2 * sizeof(addr_t)*1024 };
 	static Cap_connection cap;
 	static Rpc_entrypoint ep(&cap, STACK_SIZE, "pci_ep");
 
