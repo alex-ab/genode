@@ -77,6 +77,7 @@ namespace Pci {
 			Genode::Allocator              *_md_alloc;
 			Genode::List<Device_component>  _device_list;
 
+			static Genode::List<Device_config_extended>  _bdf_list;
 
 			/**
 			 * Scan PCI busses for a device
@@ -181,13 +182,28 @@ namespace Pci {
 				if (!_find_next(bus, device, function, &config, &config_access))
 					return Device_capability();
 
+				/* get new bdf values */
+				bus      = config.bus_number();
+				device   = config.device_number();
+				function = config.function_number();
+
+				/* lookup if we have a extended pci config space */
+				Device_config_extended * ext = _bdf_list.first();
+				for (; ext && !ext->is_bdf(bus, device, function);
+				     ext = ext->next()) { };
+
+				Genode::Io_mem_dataspace_capability cap;
+				if (ext)
+					cap = ext->io_mem_cap();
+
 				/*
 				 * A device was found. Create a new device component for the
 				 * device and return its capability.
 				 *
 				 * FIXME: check and adjust session quota
 				 */
-				Device_component *device_component = new (_md_alloc) Device_component(config);
+				Device_component *device_component =
+					new (_md_alloc) Device_component(config, cap);
 
 				if (!device_component)
 					return Device_capability();
@@ -210,6 +226,24 @@ namespace Pci {
 
 				/* FIXME: adjust quota */
 				destroy(_md_alloc, device);
+			}
+
+			void set_config_extended(Device_capability device_cap,
+			                         Genode::Io_mem_dataspace_capability cap)
+			{
+				if (!cap.valid())
+					return;
+
+				Genode::Object_pool<Device_component>::Guard
+					device(_ep->lookup_and_lock(device_cap));
+
+				if (!device)
+					return;
+			
+				Genode::uint8_t bus, dev, func;	
+				device->bus_address(&bus, &dev, &func);
+
+				_bdf_list.insert(new (_md_alloc) Device_config_extended(bus, dev, func, cap));
 			}
 	};
 

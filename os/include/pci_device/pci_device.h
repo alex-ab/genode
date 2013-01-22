@@ -15,6 +15,7 @@
 #define _INCLUDE__PCI_DEVICE__PCI_DEVICE_H_
 
 #include <base/rpc.h>
+#include <io_mem_session/io_mem_session.h>
 
 namespace Pci {
 
@@ -147,6 +148,12 @@ namespace Pci {
 		virtual void config_write(unsigned char address, unsigned value,
 		                          Access_size size) = 0;
 
+		/**
+		 * Provide mapping to device configuration space of 4k, known as
+		 * "Enhanced Configuration Access Mechanism (ECAM) for PCI Express
+		 */
+		virtual Genode::Io_mem_dataspace_capability config_extended() = 0;
+
 
 		/***************************
 		 ** Convenience functions **
@@ -196,10 +203,12 @@ namespace Pci {
 		           unsigned char, Access_size);
 		GENODE_RPC(Rpc_config_write, void, config_write,
 		           unsigned char, unsigned, Access_size);
+		GENODE_RPC(Rpc_config_extended, Genode::Io_mem_dataspace_capability,
+		           config_extended);
 
 		GENODE_RPC_INTERFACE(Rpc_bus_address, Rpc_vendor_id, Rpc_device_id,
 		                     Rpc_class_code, Rpc_resource, Rpc_config_read,
-		                     Rpc_config_write);
+		                     Rpc_config_write, Rpc_config_extended);
 	};
 }
 

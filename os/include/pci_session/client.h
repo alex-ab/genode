@@ -32,6 +32,10 @@ namespace Pci {
 
 		void release_device(Device_capability device) {
 			call<Rpc_release_device>(device); }
+
+		void set_config_extended(Device_capability device_cap,
+		                         Genode::Io_mem_dataspace_capability io_cap) {
+			call<Rpc_set_config_extended>(device_cap, io_cap); }
 	};
 }
 
