@@ -483,7 +483,7 @@ class Ahci_device
 
 		void _setup_memory()
 		{
-			_ds = env()->ram_session()->alloc(0x1000);
+			_ds = env()->ram_session()->alloc(0x1000, false);
 			addr_t   phys = Dataspace_client(_ds).phys_addr();
 			uint8_t *virt = (uint8_t *)env()->rm_session()->attach(_ds);
 
@@ -511,12 +511,14 @@ class Ahci_device
 		 */
 		void _identify_device()
 		{
-			Ram_dataspace_capability ds = env()->ram_session()->alloc(0x1000);
+			Ram_dataspace_capability ds = env()->ram_session()->alloc(0x1000, false);
 			uint16_t *dev_info = (uint16_t *)env()->rm_session()->attach(ds);
 
 			enum { IDENTIFY_DEVICE = 0xec };
 			try {
-				_cmd_table->setup_command(IDENTIFY_DEVICE, 0, 0, Dataspace_client(ds).phys_addr());
+				addr_t phys = Dataspace_client(ds).phys_addr();
+				PERR("touch memory - virt %p phys %lx value=%x", dev_info, phys, *dev_info);
+				_cmd_table->setup_command(IDENTIFY_DEVICE, 0, 0, phys);
 				_execute_command();
 
 				/* XXX: just read 32 bit for now */
