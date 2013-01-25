@@ -36,6 +36,10 @@ namespace Pci {
 		void set_config_extended(Device_capability device_cap,
 		                         Genode::Io_mem_dataspace_capability io_cap) {
 			call<Rpc_set_config_extended>(device_cap, io_cap); }
+
+		Genode::Ram_dataspace_capability alloc_dma_mem(Device_capability device_cap,
+		                                               Genode::size_t size) {
+			return call<Rpc_alloc_dma_mem>(device_cap, size); }
 	};
 }
 

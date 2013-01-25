@@ -245,6 +245,12 @@ namespace Pci {
 
 				_bdf_list.insert(new (_md_alloc) Device_config_extended(bus, dev, func, cap));
 			}
+
+			Genode::Ram_dataspace_capability alloc_dma_mem(Device_capability device_cap,
+			                                               Genode::size_t size)
+			{
+				return Genode::env()->ram_session()->alloc(size, false);
+			}
 	};
 
 
