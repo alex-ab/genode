@@ -55,6 +55,11 @@ namespace Pci {
 		virtual void set_config_extended(Device_capability,
 		                                 Genode::Io_mem_dataspace_capability) = 0;
 
+		/**
+		 *
+		 */
+		virtual Genode::Ram_dataspace_capability alloc_dma_mem(Device_capability,
+		                                                       Genode::size_t) = 0;
 		/*********************
 		 ** RPC declaration **
 		 *********************/
@@ -65,9 +70,12 @@ namespace Pci {
 		GENODE_RPC(Rpc_release_device, void, release_device, Device_capability);
 		GENODE_RPC(Rpc_set_config_extended, void, set_config_extended, 
 		           Device_capability, Genode::Io_mem_dataspace_capability);
+		GENODE_RPC(Rpc_alloc_dma_mem, Genode::Ram_dataspace_capability,
+		           alloc_dma_mem, Device_capability, Genode::size_t);
 
 		GENODE_RPC_INTERFACE(Rpc_first_device, Rpc_next_device,
-		                     Rpc_release_device, Rpc_set_config_extended);
+		                     Rpc_release_device, Rpc_set_config_extended,
+		                     Rpc_alloc_dma_mem);
 	};
 }
 
