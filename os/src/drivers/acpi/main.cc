@@ -161,7 +161,9 @@ class Pci_policy : public Genode::Slave_policy, public Pci::Provider
 
 		char const **_permitted_services() const
 		{
-			static char const *permitted_services[] = { "CPU", "CAP", "RM", "LOG", "IO_PORT", 0 };
+			static char const *permitted_services[] = { "CPU", "CAP", "RM",
+			                                            "LOG", "IO_PORT",
+			                                            "SIGNAL", 0};
 			return permitted_services;
 		};
 
@@ -178,7 +180,10 @@ class Pci_policy : public Genode::Slave_policy, public Pci::Provider
 				session = static_cap_cast<Pci::Session>(Root_client(_cap).session(args));
 			} catch (...) { return; }
 
-			Acpi::rewrite_irq(session);
+			char buf[256];
+
+			Acpi::configure_pci_devices(session, buf, sizeof(buf));
+			Slave_policy::configure(buf);
 
 			/* announce PCI/IRQ services to parent */
 			static Pci::Root pci_root(*this);
@@ -195,7 +200,9 @@ class Pci_policy : public Genode::Slave_policy, public Pci::Provider
 		Pci_policy(Genode::Rpc_entrypoint &slave_ep,
 		           Genode::Rpc_entrypoint &pci_ep,
 		           Genode::Rpc_entrypoint &irq_ep)
-		: Slave_policy("pci_drv", slave_ep), _pci_ep(pci_ep), _irq_ep(irq_ep)
+		:
+			Slave_policy("pci_drv", slave_ep, Genode::env()->ram_session()),
+			 _pci_ep(pci_ep), _irq_ep(irq_ep)
 		{ }
 
 		bool announce_service(const char             *service_name,
@@ -224,6 +231,7 @@ int main(int argc, char **argv)
 	using namespace Genode;
 
 	enum { STACK_SIZE = 2*4096 };
+
 	static Cap_connection cap;
 	static Rpc_entrypoint ep(&cap, STACK_SIZE, "acpi_ep");
 
@@ -234,6 +242,7 @@ int main(int argc, char **argv)
 	/* use 'pci_drv' as slave service */
 	static Rpc_entrypoint pci_ep(&cap, STACK_SIZE, "pci_slave");
 	static Pci_policy     pci_policy(pci_ep, ep, irq_ep);
+	pci_policy.configure("<config></config>");
 	static Genode::Slave  pci_slave(pci_ep, pci_policy, 1024 * 1024);
 
 	Genode::sleep_forever();

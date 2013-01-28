@@ -22,14 +22,18 @@ class Acpi
 	public:
 
 		/**
-		 * Rewrite PCI-config space with GSIs found in ACPI tables
+		 * Rewrite PCI-config space with GSIs found in ACPI tables and
+		 * add pointers to extended PCI config space (since PCI Express)
 		 */
-		static void rewrite_irq(Pci::Session_capability &session);
+		static void configure_pci_devices(Pci::Session_capability &session,
+		                                  char * config_space,
+		                                  Genode::size_t config_space_max);
 
 		/**
 		 * Return override GSI for IRQ
 		 */
 		static unsigned override(unsigned irq, unsigned *mode);
+
 };
 
 #endif /* _ACPI_H_ */
