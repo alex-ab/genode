@@ -178,7 +178,7 @@ class Pci_policy : public Genode::Slave_policy, public Pci::Provider
 				session = static_cap_cast<Pci::Session>(Root_client(_cap).session(args));
 			} catch (...) { return; }
 
-			Acpi::rewrite_irq(session);
+			Acpi::configure_pci_devices(session);
 
 			/* announce PCI/IRQ services to parent */
 			static Pci::Root pci_root(*this);
