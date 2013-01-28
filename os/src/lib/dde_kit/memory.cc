@@ -102,7 +102,7 @@ class Backing_store_allocator : public Allocator
 
 			/* setup virt->phys and phys->virt mappings */
 			void  *virt = ram_ds->local_addr<void>();
-			addr_t phys = Dataspace_client(ram_ds->cap()).phys_addr();
+			addr_t phys = Dataspace_client(ram_ds->cap(), virt).phys_addr();
 
 			dde_kit_pgtab_set_region_with_size(virt, phys, size);
 

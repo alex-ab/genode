@@ -32,8 +32,11 @@ namespace Genode {
 			Xml_node _config_xml_node()
 			{
 				if (_config_ds.valid())
-					return Xml_node(env()->rm_session()->attach(_config_ds),
-					                Genode::Dataspace_client(_config_ds).size());
+				{
+					char * addr = env()->rm_session()->attach(_config_ds);
+					return Xml_node(addr,
+					                Genode::Dataspace_client(_config_ds, addr).size());
+				}
 				else
 					return Xml_node("<config/>");
 			}

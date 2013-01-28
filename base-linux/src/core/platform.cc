@@ -155,7 +155,7 @@ Platform_env_base::Rm_session_mmap::_dataspace_size(Capability<Dataspace> ds_cap
 	if (!core_env()->entrypoint()->is_myself()) {
 		/* release Rm_session_mmap::_lock during RPC */
 		_lock.unlock();
-		Genode::size_t size = Dataspace_client(ds_cap).size();
+		Genode::size_t size = Dataspace_client(ds_cap, 0).size();
 		_lock.lock();
 		return size;
 	}
@@ -193,7 +193,7 @@ bool Platform_env_base::Rm_session_mmap::_dataspace_writable(Dataspace_capabilit
 	if (!core_env()->entrypoint()->is_myself()) {
 		/* release Rm_session_mmap::_lock during RPC */
 		_lock.unlock();
-		bool writable = Dataspace_client(ds_cap).writable();
+		bool writable = Dataspace_client(ds_cap, 0).writable();
 		_lock.lock();
 		return writable;
 	}

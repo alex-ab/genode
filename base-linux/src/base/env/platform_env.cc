@@ -31,7 +31,7 @@ Genode::size_t
 Platform_env_base::Rm_session_mmap::_dataspace_size(Dataspace_capability ds)
 {
 	if (ds.valid())
-		return Dataspace_client(ds).size();
+		return Dataspace_client(ds, 0).size();
 
 	return Dataspace_capability::deref(ds)->size();
 }
@@ -46,7 +46,7 @@ int Platform_env_base::Rm_session_mmap::_dataspace_fd(Dataspace_capability ds)
 bool
 Platform_env_base::Rm_session_mmap::_dataspace_writable(Dataspace_capability ds)
 {
-	return Dataspace_client(ds).writable();
+	return Dataspace_client(ds, 0).writable();
 }
 
 

@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 	void *addr = env()->rm_session()->attach(sub_rm.dataspace());
 
 	printf("attached sub dataspace at local address 0x%p\n", addr);
-	Dataspace_client client(sub_rm.dataspace());
+	Dataspace_client client(sub_rm.dataspace(), addr);
 	printf("sub dataspace size is %u should be %u\n", client.size(), MANAGED_SIZE);
 
 	/*

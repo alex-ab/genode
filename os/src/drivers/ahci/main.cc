@@ -484,8 +484,8 @@ class Ahci_device
 		void _setup_memory()
 		{
 			_ds = env()->ram_session()->alloc(0x1000, false);
-			addr_t   phys = Dataspace_client(_ds).phys_addr();
 			uint8_t *virt = (uint8_t *)env()->rm_session()->attach(_ds);
+			addr_t   phys = Dataspace_client(_ds, virt).phys_addr();
 
 			/* setup command list (size 1k naturally aligned) */
 			_port->cmd_list_base(phys);
@@ -516,7 +516,7 @@ class Ahci_device
 
 			enum { IDENTIFY_DEVICE = 0xec };
 			try {
-				addr_t phys = Dataspace_client(ds).phys_addr();
+				addr_t phys = Dataspace_client(ds, dev_info).phys_addr();
 				PERR("touch memory - virt %p phys %lx value=%x", dev_info, phys, *dev_info);
 				_cmd_table->setup_command(IDENTIFY_DEVICE, 0, 0, phys);
 				_execute_command();

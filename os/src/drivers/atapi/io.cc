@@ -236,7 +236,7 @@ extern "C" int dma_pci_config( void )
 
 	Dataspace_capability ds_cap = env()->ram_session()->alloc(PRD_BUF_SIZE);
 	unsigned long *prd_addr = env()->rm_session()->attach(ds_cap);
-	Dataspace_client ds_client(ds_cap);
+	Dataspace_client ds_client(ds_cap, prd_addr);
 
 	Genode::printf("PRD base at %08lx (physical) at %08lx (virtual)\n",
 	               ds_client.phys_addr(), (long)prd_addr);

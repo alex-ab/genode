@@ -77,7 +77,7 @@ class Track : Thread<8192>
 				return;
 			}
 
-			Dataspace_client ds_client(ds_cap);
+			Dataspace_client ds_client(ds_cap, base);
 
 			if (verbose)
 				PDBG("%s size is %zu Bytes (attached to %p)",

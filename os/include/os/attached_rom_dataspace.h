@@ -26,8 +26,8 @@ namespace Genode {
 
 			Rom_connection            _rom;
 			Rom_dataspace_capability  _ds;
-			size_t                    _size;
 			void                     *_local_addr;
+			size_t                    _size;
 
 		public:
 
@@ -41,8 +41,8 @@ namespace Genode {
 			:
 				_rom(name),
 				_ds(_rom.dataspace()),
-				_size(Dataspace_client(_ds).size()),
-				_local_addr(env()->rm_session()->attach(_ds))
+				_local_addr(env()->rm_session()->attach(_ds)),
+				_size(Dataspace_client(_ds, _local_addr).size())
 			{ }
 
 			/**

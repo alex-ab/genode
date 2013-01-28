@@ -122,7 +122,7 @@ namespace Block {
 				_driver_factory(driver_factory),
 				_driver(*_driver_factory.create()),
 				_rq_ds(rq_ds),
-				_rq_thread(tx_sink(), _driver, Dataspace_client(rq_ds).phys_addr())
+				_rq_thread(tx_sink(), _driver, Dataspace_client(rq_ds, tx_sink()->ds_local_base()).phys_addr())
 			{ }
 
 			/**

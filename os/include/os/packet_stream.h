@@ -382,7 +382,7 @@ class Packet_stream_base
 			_ack_queue_offset(_submit_queue_offset + submit_queue_size),
 			_bulk_buffer_offset(_ack_queue_offset + ack_queue_size)
 		{
-			Genode::size_t ds_size = Genode::Dataspace_client(_ds_cap).size();
+			Genode::size_t ds_size = Genode::Dataspace_client(_ds_cap, _ds_local_base).size();
 
 			if ((Genode::size_t)_bulk_buffer_offset >= ds_size)
 				throw Transport_dataspace_too_small();
@@ -777,6 +777,8 @@ class Packet_stream_sink : private Packet_stream_base
 
 		Genode::Dataspace_capability dataspace() {
 			return Packet_stream_base::_dataspace(); }
+
+		void * ds_local_base() { return _ds_local_base; }
 };
 
 #endif /* _INCLUDE__OS__PACKET_STREAM_H_ */
