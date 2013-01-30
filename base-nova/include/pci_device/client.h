@@ -22,6 +22,8 @@
 
 #include <util/touch.h>
 
+extern "C" bool genode_iommu;
+
 namespace Pci {
 
 	struct Device_client : public Genode::Rpc_client<Device>
@@ -47,6 +49,10 @@ namespace Pci {
 			if (res != Nova::NOVA_OK)
 				PWRN("assign pci failed %u - device will not work if iommu is "
 			         "enabled", res);
+
+			/* set iommu as on */
+			if (!genode_iommu && (res == Nova::NOVA_OK))
+				genode_iommu = true;
 
 			env()->rm_session()->detach(config_space);
  		}

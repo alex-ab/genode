@@ -20,6 +20,9 @@
 
 using namespace Genode;
 
+/* store information about whether iommu is (presumable) on or off */
+bool genode_iommu = false;
+
 Native_utcb *main_thread_utcb()
 {
 	return reinterpret_cast<Native_utcb *>(
