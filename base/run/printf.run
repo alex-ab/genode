@@ -18,7 +18,7 @@ install_config {
 
 build_boot_image "core init test-printf"
 
-append qemu_args "-nographic -m 64"
+append qemu_args " -m 64"
 
 run_genode_until {-1 = -1 = -1} 10
 

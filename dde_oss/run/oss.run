@@ -89,11 +89,11 @@ install_config $config
 #
 
 set boot_modules {
-	core init timer pci_drv oss_drv acpi_drv sample.raw test-audio_out }
+	core init timer pci_drv oss_drv acpi_drv test-audio_out }
 
 build_boot_image $boot_modules
 
-append qemu_args " -m 256 -soundhw ac97 -nographic"
+append qemu_args " -m 256 -soundhw ac97 "
 
 run_genode_until forever
 

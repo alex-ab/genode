@@ -22,7 +22,7 @@
 #include <util/string.h>
 
 
-static const bool read_only = false;
+static const bool read_only = true;
 
 class Worker : public Genode::Thread<8192>
 {
@@ -100,7 +100,7 @@ class Worker : public Genode::Thread<8192>
 				return;
 			}
 
-			if (cmp)
+			if (!read_only && cmp)
 				compare(block, src, dst);
 
 			modify(src, dst, val);
@@ -164,7 +164,7 @@ class Worker : public Genode::Thread<8192>
 					source->release_packet(source->get_acked_packet());
 				}
 			}
-
+			PERR("done");
 			env()->parent()->close(_blk_con.cap());
 			env()->parent()->exit(0);
 		}
