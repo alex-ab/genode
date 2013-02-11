@@ -174,6 +174,11 @@ namespace Genode {
 				return 0;
 			}
 
+			Pd_session_capability pd_session_cap() {
+				PWRN("%s:%u not implemented", __FILE__, __LINE__);
+				return Pd_session_capability();
+			}
+
 			void reload_parent_cap(Capability<Parent>::Dst, long) { }
 	};
 
