@@ -34,7 +34,8 @@ SRC_CC       = \
                context_area.cc \
                echo.cc \
                dump_alloc.cc \
-               cpu_session_extension.cc
+               cpu_session_extension.cc \
+               pd_session_extension.cc
 
 INC_DIR      = $(REP_DIR)/src/core/include \
                $(GEN_CORE_DIR)/include
