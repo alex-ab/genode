@@ -24,6 +24,7 @@
 #include <cpu_session/cpu_session.h>
 #include <cpu_session/capability.h>
 #include <pd_session/pd_session.h>
+#include <pd_session/capability.h>
 #include <base/allocator.h>
 #include <base/snprintf.h>
 #include <base/lock.h>
@@ -68,6 +69,7 @@ namespace Genode {
 			 * Pd session of the program
 			 */
 			virtual Pd_session *pd_session() = 0;
+			virtual Pd_session_capability pd_session_cap() = 0;
 
 			/**
 			 * Heap backed by the ram_session of the
