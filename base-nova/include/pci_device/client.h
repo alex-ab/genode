@@ -19,6 +19,7 @@
 #include <pci_device/pci_device.h>
 #include <base/rpc_client.h>
 #include <io_mem_session/io_mem_session.h>
+#include <pd_session/client.h>
 
 #include <util/touch.h>
 
@@ -45,13 +46,13 @@ namespace Pci {
 			
 			touch_read(reinterpret_cast<unsigned char const *>(config_space));
 
-			uint8_t res = Nova::assign_pci(0, (addr_t)config_space, 0);
-			if (res != Nova::NOVA_OK)
-				PWRN("assign pci failed %u - device will not work if iommu is "
-			         "enabled", res);
+			Genode::Pd_session_client client(Genode::env()->pd_session_cap());
+			bool res = client.assign_pci(reinterpret_cast<addr_t>(config_space));
+			if (!res)
+				PWRN("assignment of pci to driver task failed");
 
 			/* set iommu as on */
-			if (!genode_iommu && (res == Nova::NOVA_OK))
+			if (!genode_iommu && res)
 				genode_iommu = true;
 
 			env()->rm_session()->detach(config_space);
