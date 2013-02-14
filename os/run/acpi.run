@@ -8,6 +8,7 @@ if {![have_spec x86]} {
 #
 set build_components {
 	core init drivers/timer drivers/pci drivers/acpi drivers/ahci
+	drivers/pci/nova
 	test/pci test/block
 }
 build $build_components
@@ -92,6 +93,9 @@ install_config $config
 set boot_modules {
 	core init timer pci_drv acpi_drv ahci_drv
 	test-pci test-block
+}
+if {[have_spec nova]} {
+	append boot_modules {pci_device_pd}
 }
 
 build_boot_image $boot_modules
