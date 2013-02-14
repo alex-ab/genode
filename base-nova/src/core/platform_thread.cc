@@ -125,6 +125,8 @@ int Platform_thread::start(void *ip, void *sp)
 
 	Obj_crd initial_pts(_sel_exc_base, NUM_INITIAL_PT_LOG2);
 
+	bool thread_global = reinterpret_cast<addr_t>(ip) > 0x30000;
+
 	uint8_t res;
 
 	/* create lock for EC used by lock_helper */
@@ -173,9 +175,9 @@ int Platform_thread::start(void *ip, void *sp)
 	}
 
 	/* create first thread in task */
-	enum { THREAD_GLOBAL = true };
-	res = create_ec(_sel_ec(), pd_sel, _cpu_no, pd_utcb, 0, 0,
-	                THREAD_GLOBAL);
+	res = create_ec(_sel_ec(), pd_sel, _cpu_no, pd_utcb,  
+	                thread_global ? 0 : pd_utcb + get_page_size(), 0,
+	                thread_global);
 	if (res != NOVA_OK) {
 		PERR("create_ec returned %d", res);
 		goto cleanup_pd;
@@ -190,20 +192,22 @@ int Platform_thread::start(void *ip, void *sp)
 	_pager->initial_eip((addr_t)ip);
 	_pager->initial_esp((addr_t)sp);
 
-	/* let the thread run */
-	res = create_sc(_sel_sc(), pd_sel, _sel_ec(), Qpd());
-	if (res != NOVA_OK) {
-		/*
-		 * Reset pd cap since thread got not running and pd cap will
-		 * be revoked during cleanup.
-		 */
-		_pd->assign_pd(Native_thread::INVALID_INDEX);
-		_pager->client_set_ec(Native_thread::INVALID_INDEX);
-		_pager->initial_eip(0);
-		_pager->initial_esp(0);
+	if (thread_global) {
+		/* let the thread run */
+		res = create_sc(_sel_sc(), pd_sel, _sel_ec(), Qpd());
+		if (res != NOVA_OK) {
+			/*
+			 * Reset pd cap since thread got not running and pd cap will
+			 * be revoked during cleanup.
+			 */
+			_pd->assign_pd(Native_thread::INVALID_INDEX);
+			_pager->client_set_ec(Native_thread::INVALID_INDEX);
+			_pager->initial_eip(0);
+			_pager->initial_esp(0);
 
-		PERR("create_sc returned %d", res);
-		goto cleanup_ec;
+			PERR("create_sc returned %d", res);
+			goto cleanup_ec;
+		}
 	}
 
 	return 0;
