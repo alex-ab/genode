@@ -130,6 +130,10 @@ class Sd_card : public Block::Driver
 			throw Io_error(); }
 
 		bool dma_enabled() { return false; }
+
+		Ram_dataspace_capability alloc_dma_buffer(size_t size) {
+			/* no dma - no buffer */
+			return Ram_dataspace_capability(); }
 };
 
 #endif /* _SD_CARD_H_ */
