@@ -22,11 +22,12 @@
 
 #include "pci_device_component.h"
 #include "pci_config_access.h"
+#include "pci_device_pd_ipc.h"
 
 namespace Pci {
 
 	/**
-	 * Check if given PCI bus was found on inital scan
+	 * Check if given PCI bus was found on initial scan
 	 *
 	 * This tremendously speeds up further scans by other drivers.
 	 */
@@ -78,9 +79,10 @@ namespace Pci {
 			Genode::Rpc_entrypoint         *_ep;
 			Genode::Allocator              *_md_alloc;
 			Genode::List<Device_component>  _device_list;
+			Pd_control_client              *_child;
 
 			/**
-			 * Scan PCI busses for a device
+			 * Scan PCI buses for a device
 			 *
 			 * \param bus                start scanning at bus number
 			 * \param device             start scanning at device number
@@ -160,8 +162,10 @@ namespace Pci {
 			 * Constructor
 			 */
 			Session_component(Genode::Rpc_entrypoint *ep,
-			                  Genode::Allocator      *md_alloc):
-				_ep(ep), _md_alloc(md_alloc) { }
+			                  Genode::Allocator      *md_alloc,
+			                  Pd_control_client      *child)
+			:
+				_ep(ep), _md_alloc(md_alloc), _child(child) { }
 
 			/**
 			 * Destructor
@@ -233,6 +237,8 @@ namespace Pci {
 				/* lookup if we have a extended pci config space */
 				Genode::Io_mem_dataspace_capability cap;
 				cap = lookup_config_space(bus, device, function);
+				if (_child && cap.valid())
+					_child->assign_pci(cap);
 
 				/*
 				 * A device was found. Create a new device component for the
@@ -269,7 +275,14 @@ namespace Pci {
 			Genode::Ram_dataspace_capability alloc_dma_buffer(Device_capability device_cap,
 			                                                  Genode::size_t size)
 			{
-				return Genode::env()->ram_session()->alloc(size, false);
+				Genode::Ram_dataspace_capability ram =
+					Genode::env()->ram_session()->alloc(size, false);
+
+				if (!ram.valid() || !_child)
+					return ram;
+
+				_child->attach_dma_mem(ram);
+				return ram;
 			}
 	};
 
@@ -278,7 +291,8 @@ namespace Pci {
 	{
 		private:
 
-			Genode::Cap_session *_cap_session;
+			/* for now we have only one device pd for all pci devices */
+			Pd_control_client        *_pd_device_client;
 
 		protected:
 
@@ -287,7 +301,8 @@ namespace Pci {
 				/* FIXME: extract quota from args */
 				/* FIXME: pass quota to session-component constructor */
 
-				return new (md_alloc()) Session_component(ep(), md_alloc());
+				return new (md_alloc()) Session_component(ep(), md_alloc(),
+				                                          _pd_device_client);
 			}
 
 		public:
@@ -300,11 +315,16 @@ namespace Pci {
 			 * \param md_alloc  meta-data allocator for allocating PCI-session
 			 *                  components and PCI-device components
 			 */
-			Root(Genode::Rpc_entrypoint *ep,
-			     Genode::Allocator      *md_alloc)
+			Root(Genode::Rpc_entrypoint *ep, Genode::Allocator *md_alloc,
+			     Genode::size_t pci_device_pd_ram_quota,
+			     Genode::Capability <Pd_control> pci_device_pd)
 			:
-				Genode::Root_component<Session_component>(ep, md_alloc)
+				Genode::Root_component<Session_component>(ep, md_alloc),
+				_pd_device_client(0)
 			{
+				if (pci_device_pd.valid())
+					_pd_device_client = new (md_alloc) Pd_control_client(pci_device_pd);
+
 				/* enforce initial bus scan */
 				bus_valid();
 			}
