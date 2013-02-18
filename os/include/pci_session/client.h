@@ -32,6 +32,10 @@ namespace Pci {
 
 		void release_device(Device_capability device) {
 			call<Rpc_release_device>(device); }
+
+		Genode::Ram_dataspace_capability alloc_dma_buffer(Device_capability device_cap,
+		                                                  Genode::size_t size) {
+			return call<Rpc_alloc_dma_buffer>(device_cap, size); }
 	};
 }
 
