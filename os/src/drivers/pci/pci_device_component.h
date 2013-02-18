@@ -19,6 +19,8 @@
 #include <base/rpc_server.h>
 #include <base/printf.h>
 
+#include <io_mem_session/io_mem_session.h>
+
 #include "pci_device_config.h"
 
 namespace Pci {
@@ -29,14 +31,18 @@ namespace Pci {
 		private:
 
 			Device_config _device_config;
+			Genode::Io_mem_dataspace_capability _config_extended;
 
 		public:
 
 			/**
 			 * Constructor
 			 */
-			Device_component(Device_config device_config):
-				_device_config(device_config) { }
+			Device_component(Device_config device_config,
+			                 Genode::Io_mem_dataspace_capability &io_mem_cap)
+			:
+				_device_config(device_config),
+				_config_extended(io_mem_cap) { }
 
 			Device_config config() { return _device_config; }
 
@@ -88,6 +94,9 @@ namespace Pci {
 
 				_device_config.write(&config_access, address, value, size);
 			}
+
+			Genode::Io_mem_dataspace_capability config_extended() {
+				return _config_extended; }
 	};
 }
 

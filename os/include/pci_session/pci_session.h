@@ -55,10 +55,12 @@ namespace Pci {
 		 *********************/
 
 		GENODE_RPC(Rpc_first_device, Device_capability, first_device);
-		GENODE_RPC(Rpc_next_device, Device_capability, next_device, Device_capability);
+		GENODE_RPC(Rpc_next_device, Device_capability, next_device,
+		           Device_capability);
 		GENODE_RPC(Rpc_release_device, void, release_device, Device_capability);
 
-		GENODE_RPC_INTERFACE(Rpc_first_device, Rpc_next_device, Rpc_release_device);
+		GENODE_RPC_INTERFACE(Rpc_first_device, Rpc_next_device,
+		                     Rpc_release_device);
 	};
 }
 

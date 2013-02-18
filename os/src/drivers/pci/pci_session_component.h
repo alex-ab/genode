@@ -18,6 +18,8 @@
 #include <pci_session/pci_session.h>
 #include <root/component.h>
 
+#include <io_mem_session/connection.h>
+
 #include "pci_device_component.h"
 #include "pci_config_access.h"
 
@@ -77,7 +79,6 @@ namespace Pci {
 			Genode::Allocator              *_md_alloc;
 			Genode::List<Device_component>  _device_list;
 
-
 			/**
 			 * Scan PCI busses for a device
 			 *
@@ -119,6 +120,39 @@ namespace Pci {
 				return false;
 			}
 
+			/**
+			 * List containing extended PCI config space information
+			 */
+			static Genode::List<Config_space> &config_space_list() {
+				static Genode::List<Config_space> config_space;
+				return config_space;
+			}
+
+			/**
+			 * Find for a given PCI device described by the bus:dev:func triple
+			 * the corresponding extended 4K PCI config space address.
+			 * A io mem dataspace is created and returned.
+			 */
+			Genode::Io_mem_dataspace_capability
+			lookup_config_space(Genode::uint8_t bus, Genode::uint8_t dev,
+			                    Genode::uint8_t func)
+			{
+				using namespace Genode;
+
+				uint32_t bdf = (bus << 8) | ((dev & 0x1f) << 3) | (func & 0x7);
+				addr_t config_space = 0;
+
+				Config_space *e = config_space_list().first();
+				for (; e && !config_space; e = e->next())
+					config_space = e->lookup_config_space(bdf);
+		
+				if (!config_space)
+					return Io_mem_dataspace_capability();
+						
+				Io_mem_connection io_mem(config_space, 0x1000);
+				io_mem.on_destruction(Io_mem_connection::KEEP_OPEN);
+				return io_mem.dataspace();
+			}
 
 		public:
 
@@ -137,6 +171,16 @@ namespace Pci {
 				/* release all elements of the session's device list */
 				while (_device_list.first())
 					release_device(_device_list.first()->cap());
+			}
+
+			static void add_config_space(Genode::uint32_t bdf_start,
+			                             Genode::uint32_t func_count,
+			                             Genode::addr_t base)
+			{
+				using namespace Genode;
+				config_space_list().insert(new (env()->heap()) Config_space(bdf_start,
+				                                                      func_count,
+				                                                      base));
 			}
 
 
@@ -181,13 +225,23 @@ namespace Pci {
 				if (!_find_next(bus, device, function, &config, &config_access))
 					return Device_capability();
 
+				/* get new bdf values */
+				bus      = config.bus_number();
+				device   = config.device_number();
+				function = config.function_number();
+
+				/* lookup if we have a extended pci config space */
+				Genode::Io_mem_dataspace_capability cap;
+				cap = lookup_config_space(bus, device, function);
+
 				/*
 				 * A device was found. Create a new device component for the
 				 * device and return its capability.
 				 *
 				 * FIXME: check and adjust session quota
 				 */
-				Device_component *device_component = new (_md_alloc) Device_component(config);
+				Device_component *device_component =
+					new (_md_alloc) Device_component(config, cap);
 
 				if (!device_component)
 					return Device_capability();
@@ -247,6 +301,40 @@ namespace Pci {
 			{
 				/* enforce initial bus scan */
 				bus_valid();
+			}
+
+			void parse_config()
+			{
+				static bool updated = false;
+
+				/* only permitted once */
+				if (updated)
+					return;
+				updated = true;
+
+				using namespace Genode;
+
+				try {
+					unsigned i;
+					for (i = 0; i < config()->xml_node().num_sub_nodes(); i++)
+					{
+						Xml_node node = config()->xml_node().sub_node(i);
+						uint32_t bdf_start  = 0;
+						uint32_t func_count = 0;
+						addr_t   base       = 0;
+						node.sub_node("start").value(&bdf_start);
+						node.sub_node("count").value(&func_count);
+						node.sub_node("base").value(&base);
+
+						PINF("%2u BDF start %x, functions: 0x%x, physical base "
+						     "0x%lx", i, bdf_start, func_count, base);
+
+						Session_component::add_config_space(bdf_start,
+						                                    func_count, base);
+					}
+				} catch (...) {
+					PERR("PCI config space data could not be parsed.");
+				}
 			}
 	};
 
