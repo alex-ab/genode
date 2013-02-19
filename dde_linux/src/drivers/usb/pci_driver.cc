@@ -18,6 +18,7 @@
 /* Linux includes */
 #include <lx_emul.h>
 
+#include "mem.h"
 
 struct  bus_type pci_bus_type;
 
@@ -179,6 +180,9 @@ class Pci_driver
  ** Linux interface **
  *********************/
 
+static Pci::Device_capability pci_device_cap;
+static Pci::Connection pci;
+
 int pci_register_driver(struct pci_driver *drv)
 {
 	dde_kit_log(DEBUG_PCI, "DRIVER name: %s", drv->name);
@@ -189,7 +193,6 @@ int pci_register_driver(struct pci_driver *drv)
 		return -ENODEV;
 
 	using namespace Genode;
-	Pci::Connection pci;
 
 	bool found = false;
 
@@ -209,6 +212,7 @@ int pci_register_driver(struct pci_driver *drv)
 			try {
 				pci_drv = new (env()->heap()) Pci_driver(drv, cap, id);
 				pci.on_destruction(Pci::Connection::KEEP_OPEN);
+				pci_device_cap = cap;
 				found = true;
 			} catch (...) {
 				destroy(env()->heap(), pci_drv);
@@ -297,3 +301,9 @@ const char *pci_name(const struct pci_dev *pdev)
 	return "dummy";
 }
 
+Genode::Ram_dataspace_capability Genode::Mem::alloc_dma_mem(size_t size)
+{
+	using namespace Genode;
+	Ram_dataspace_capability ram_cap = pci.alloc_dma_mem(pci_device_cap, size);
+	return ram_cap;
+}
