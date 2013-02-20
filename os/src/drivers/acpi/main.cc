@@ -231,7 +231,17 @@ int main(int argc, char **argv)
 {
 	using namespace Genode;
 
-	enum { STACK_SIZE = 2*4096 };
+	enum { STACK_SIZE = 2*4096, ACPI_MEMORY_SIZE = 2 * 1024 * 1024 };
+
+	/* reserve portion for acpi and give rest to pci_drv */
+	Genode::addr_t avail_size = Genode::env()->ram_session()->avail();
+	if (avail_size < ACPI_MEMORY_SIZE) {
+		PERR("not enough memory");
+		return 1;
+	}
+	avail_size -= ACPI_MEMORY_SIZE;
+	PINF("available memory for ACPI %d kiB, for PCI_DRV %lu kiB",
+	     ACPI_MEMORY_SIZE / 1024, avail_size / 1024);
 
 	static Cap_connection cap;
 	static Rpc_entrypoint ep(&cap, STACK_SIZE, "acpi_ep");
@@ -244,7 +254,7 @@ int main(int argc, char **argv)
 	static Rpc_entrypoint pci_ep(&cap, STACK_SIZE, "pci_slave");
 	static Pci_policy     pci_policy(pci_ep, ep, irq_ep);
 	pci_policy.configure("<config></config>");
-	static Genode::Slave  pci_slave(pci_ep, pci_policy, 1024 * 1024);
+	static Genode::Slave  pci_slave(pci_ep, pci_policy, avail_size);
 
 	Genode::sleep_forever();
 	return 0;
