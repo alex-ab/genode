@@ -105,7 +105,7 @@ append_if [have_spec acpi] config {
 
 append_if [expr ![have_spec acpi] && [have_spec pci]] config {
 	<start name="pci_drv">
-		<resource name="RAM" quantum="2M"/>
+		<resource name="RAM" quantum="3M"/>
 		<provides> <service name="PCI"/> </provides>
 	</start> }
 
