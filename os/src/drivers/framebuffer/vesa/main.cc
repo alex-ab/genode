@@ -125,8 +125,11 @@ namespace Framebuffer {
 					_fb_addr = Genode::env()->rm_session()->attach(_fb_ds);
 				}
 
-				if (_buffered)
-					PINF("using buffered output");
+				if (_buffered) {
+					Dataspace_client ds_client(_bb_ds);
+					PINF("using buffered output - phys addr %lx, size %zx",
+					     ds_client.phys_addr(), buf_size);
+				}
 			}
 
 			/**
