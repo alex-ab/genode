@@ -12,6 +12,7 @@
 proc install_pxe_bootloader_to_run_dir { } {
 	exec cp [genode_dir]/tool/boot/pulsar [run_dir]/boot/pulsar
 	exec cp [genode_dir]/tool/boot/bender [run_dir]/boot/bender
+	exec cp [genode_dir]/tool/boot/morbo [run_dir]/boot/morbo
 }
 
 ##
@@ -89,6 +90,7 @@ proc build_boot_image {binaries} {
 	#
 	set fh [open "[run_dir]/config-52-54-00-12-34-56" "WRONLY CREAT TRUNC"]
 	puts $fh " exec /boot/bender"
+	puts $fh " load /boot/morbo"
 	puts $fh " load /hypervisor iommu serial"
 	puts $fh " load /genode/core"
 	puts $fh " load /genode/config"
