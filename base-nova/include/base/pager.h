@@ -79,6 +79,7 @@ namespace Genode {
 			static void _exception_handler(addr_t portal_id);
 
 			static Nova::Utcb * _check_handler(Thread_base *&, Pager_object *&);
+
 		public:
 
 			Pager_object(unsigned long badge, unsigned affinity);
@@ -186,6 +187,14 @@ namespace Genode {
 			 */
 			Thread_capability thread_cap() { return _thread_cap; } const
 			void thread_cap(Thread_capability cap) { _thread_cap = cap; }
+
+			/**
+			 * Used by platform_thread code to get pager cap of main thread
+			 */
+			Pager_capability pager_cap() {
+				return reinterpret_cap_cast<Pager_object>(
+				       Object_pool<Pager_object>::Entry::cap());
+			}
 
 			/**
 			 * Make sure nobody is in the handler anymore by doing an IPC to a

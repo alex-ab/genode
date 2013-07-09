@@ -119,11 +119,13 @@ int Platform_thread::start(void *ip, void *sp)
 	addr_t remap_src[] = { _pd->parent_pt_sel(),
 	                       _pager->exc_pt_sel() + PT_SEL_STARTUP,
 	                       _pager->exc_pt_sel() + PT_SEL_RECALL,
-	                       sm_ec_sel };
+	                       sm_ec_sel,
+	                       _pager->pager_cap().local_name() };
 	addr_t remap_dst[] = { PT_SEL_PARENT,
 	                       PT_SEL_STARTUP,
 	                       PT_SEL_RECALL,
-	                       SM_SEL_EC };
+	                       SM_SEL_EC,
+	                       PT_PAGER_MAIN };
 	addr_t pd_sel;
 
 	Obj_crd initial_pts(_sel_exc_base, NUM_INITIAL_PT_LOG2);

@@ -54,6 +54,10 @@ class Main_thread : public Genode::Thread<STACK_SIZE_MAIN_THREAD> {
 
 				return;
 			}
+
+			/* remember pager cap of main thread */
+			_pager_cap = reinterpret_cap_cast<Pager_object>(
+			             Native_capability(Nova::PT_PAGER_MAIN));
 		}
 
 		void entry() {}
