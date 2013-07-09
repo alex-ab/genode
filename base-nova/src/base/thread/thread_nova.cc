@@ -155,12 +155,18 @@ void Thread_base::start()
 
 	/* request exception portals for normal threads */
 	if (!_tid.is_vcpu) {
-		for (unsigned i = 0; i < PT_SEL_PARENT; i++)
-			request_event_portal(_pager_cap, _tid.exc_pt_sel, i);
+		Thread_base * myself = Thread_base::myself();
 
-		request_event_portal(_pager_cap, _tid.exc_pt_sel, PT_SEL_STARTUP);
-		request_event_portal(_pager_cap, _tid.exc_pt_sel, SM_SEL_EC);
-		request_event_portal(_pager_cap, _tid.exc_pt_sel, PT_SEL_RECALL);
+		for (unsigned i = 0; i < PT_SEL_PARENT; i++)
+			request_event_portal(myself->_pager_cap, _tid.exc_pt_sel, i,
+			                     _pager_cap);
+
+		request_event_portal(myself->_pager_cap, _tid.exc_pt_sel,
+		                     PT_SEL_STARTUP, _pager_cap);
+		request_event_portal(myself->_pager_cap, _tid.exc_pt_sel, SM_SEL_EC,
+		                     _pager_cap);
+		request_event_portal(myself->_pager_cap, _tid.exc_pt_sel,
+		                     PT_SEL_RECALL, _pager_cap);
 
 		/* default: we don't accept any mappings or translations */
 		Utcb * utcb_obj = reinterpret_cast<Utcb *>(utcb());

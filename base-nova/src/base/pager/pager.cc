@@ -27,6 +27,7 @@ using namespace Nova;
 enum { PF_HANDLER_STACK_SIZE = sizeof(addr_t) * 1024 };
 extern Genode::addr_t __core_pd_sel;
 
+static Pager_entrypoint * global_pager_entrypoint = 0;
 
 Utcb * Pager_object::_check_handler(Thread_base *&myself, Pager_object *&obj)
 {
@@ -186,28 +187,62 @@ void Pager_object::_startup_handler()
 void Pager_object::_invoke_handler()
 {
 	Thread_base  *myself;
-	Pager_object *obj;
-	Utcb         *utcb = _check_handler(myself, obj);
+	Pager_object *obj_myself;
 
-	/* send single portal as reply */
-	addr_t event = utcb->msg_words() != 1 ? 0 : utcb->msg[0];
+	Utcb         *utcb = _check_handler(myself, obj_myself);
+
+	addr_t       event = utcb->msg[0];
+	Utcb::Item   *item = utcb->get_item(0);
+	Crd      pager_cap = Crd(0);
+
+	/* expecting one word and one translated object capability item */
+	if (utcb->msg_words() != 1 || utcb->msg_items() != 1 || !item ||
+	    item->is_del())
+		goto error;
+
+	pager_cap = Crd(item->crd);
+	if (pager_cap.is_null())
+		goto error;
+
+	if (!global_pager_entrypoint) {
+		PERR("pager entrypoint invalid");
+		goto error;
+	}
+
+	{
+		Object_pool<Pager_object>::Guard obj_pager(global_pager_entrypoint->lookup_and_lock(pager_cap.base()));
+		if (!obj_pager) {
+			PERR("could not find pager_object");
+			goto error;
+		}
+
+		/* send single portal as reply */
+		utcb->mtd    = 0;
+		utcb->set_msg_word(0);
+
+		if (event < PT_SEL_PARENT || event == PT_SEL_STARTUP ||
+		    event == SM_SEL_EC    || event == PT_SEL_RECALL) {
+
+			/*
+			 * Caller is requesting the SM cap of thread
+			 * this object is paging - it is stored at SM_SEL_EC_CLIENT
+			 */
+			if (event == SM_SEL_EC) event = SM_SEL_EC_CLIENT;
+
+			/* send single portal as reply */
+			bool res = utcb->append_item(Obj_crd(obj_pager->exc_pt_sel() + event,
+		    	                         0), 0);
+			/* one item ever fits on the UTCB */
+			(void)res;
+		}
+	}
+
+	reply(myself->stack_top());
+
+	error:
+
 	utcb->mtd = 0;
 	utcb->set_msg_word(0);
-
-	if (event < PT_SEL_PARENT || event == PT_SEL_STARTUP ||
-	    event == SM_SEL_EC    || event == PT_SEL_RECALL) {
-
-		/*
-		 * Caller is requesting the SM cap of thread
-		 * this object is paging - it is stored at SM_SEL_EC_CLIENT
-		 */
-		if (event == SM_SEL_EC) event = SM_SEL_EC_CLIENT;
-
-		bool res = utcb->append_item(Obj_crd(obj->exc_pt_sel() + event,
-		                                     0), 0);
-		/* one item ever fits on the UTCB */
-		(void)res;
-	}
 
 	reply(myself->stack_top());
 }
@@ -351,6 +386,11 @@ Pager_object::Pager_object(unsigned long badge, unsigned affinity)
 		class Create_state_notifiy_sm_failed { };
 		throw Create_state_notifiy_sm_failed();
 	}
+
+	/* open translate window to be able to speak about pager objects not
+	 * residing on the same CPU */ 
+	Utcb *utcb = (Utcb *)Thread_base::utcb();
+	utcb->crd_xlt = Obj_crd(0, ~0UL);
 }
 
 
@@ -379,6 +419,9 @@ Pager_object::~Pager_object()
 
 Pager_capability Pager_entrypoint::manage(Pager_object *obj)
 {
+	if (!global_pager_entrypoint)
+		global_pager_entrypoint = this;
+
 	/* request creation of portal bind to pager thread */
 	Native_capability pager_thread_cap(obj->ec_sel());
 	Native_capability cap_session =
