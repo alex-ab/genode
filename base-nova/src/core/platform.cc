@@ -38,8 +38,7 @@ Native_utcb *main_thread_utcb();
 
 
 /**
- * Initial value of esp register, saved by the crt0 startup code
- *
+ * Initial value of esp register, saved by the crt0 startup code.
  * This value contains the address of the hypervisor information page.
  */
 extern addr_t __initial_sp;
@@ -341,7 +340,8 @@ Platform::Platform() :
 	if (verbose_boot_info) {
 		printf("Hypervisor %s VMX\n", hip->has_feature_vmx() ? "features" : "does not feature");
 		printf("Hypervisor %s SVM\n", hip->has_feature_svm() ? "features" : "does not feature");
-		printf("Hypervisor reports %u CPU%c\n", _cpus, _cpus > 1 ? 's' : ' ');
+		printf("Hypervisor reports %u CPU%c - boot CPU is %lu\n",
+		       _cpus, _cpus > 1 ? 's' : ' ', boot_cpu());
 	}
 
 	/* initialize core allocators */
