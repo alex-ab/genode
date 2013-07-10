@@ -18,6 +18,12 @@
 
 _start:
 
+	movq __initial_ax@GOTPCREL(%rip), %rbx
+	movq %rax, (%rbx)
+
+	movq __initial_di@GOTPCREL(%rip), %rbx
+	movq %rdi, (%rbx)
+
 	movq __initial_sp@GOTPCREL(%rip), %rax
 	movq %rsp, (%rax)
 
@@ -26,7 +32,7 @@ _start:
 	movq (%rax), %rax
 
 _start_restart:
-	mov %rax, %rsp
+	movq %rax, %rsp
 
 	/* Clear the base pointer so that stack backtraces will work.  */
 	xorq %rbp,%rbp
@@ -59,6 +65,10 @@ _stack_low:
 	.global	_stack_high
 _stack_high:
 
-	/* initial value of the RSP register */
+	/* initial value of the RSP, RAX and RDI register */
 	.globl	__initial_sp
+	.globl	__initial_ax
+	.globl	__initial_di
 __initial_sp: .space 8
+__initial_ax: .space 8
+__initial_di: .space 8
