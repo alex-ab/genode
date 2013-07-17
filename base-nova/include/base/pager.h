@@ -37,6 +37,7 @@ namespace Genode {
 			void start() { }
 
 			unsigned long _badge;  /* used for debugging */
+			unsigned _affinity;
 
 			/**
 			 * User-level signal handler registered for this pager object via
@@ -222,7 +223,7 @@ namespace Genode {
 
 
 	/**
-	 * Dummy pager entrypoint
+	 * Pager entrypoint
 	 */
 	class Pager_entrypoint : public Object_pool<Pager_object>
 	{
@@ -232,9 +233,7 @@ namespace Genode {
 
 		public:
 
-			Pager_entrypoint(Cap_session *cap_session,
-			                 Pager_activation_base *a = 0)
-			: _cap_session(cap_session) { }
+			Pager_entrypoint(Cap_session *, Pager_activation_base * = 0);
 
 			/**
 			 * Return capability for 'Pager_object'

@@ -34,7 +34,9 @@ SRC_CC       = main.cc \
                cpu_session_extension.cc \
                pd_session_extension.cc \
                core_printf.cc \
-               pager.cc
+               pager.cc \
+               xcpu.cc
+
 
 INC_DIR      = $(REP_DIR)/src/core/include \
                $(REP_DIR)/src/base/console \
@@ -60,3 +62,4 @@ vpath %.cc                         $(REP_DIR)/src/core
 vpath cap_sel_alloc.cc             $(REP_DIR)/src/base/env
 vpath main_thread.cc               $(REP_DIR)/src/base/env
 vpath pager.cc                     $(REP_DIR)/src/base/pager
+vpath xcpu.cc                      $(REP_DIR)/src/base/pager

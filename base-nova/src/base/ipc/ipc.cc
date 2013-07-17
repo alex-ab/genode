@@ -168,6 +168,32 @@ void Ipc_client::_call()
 
 	/* establish the mapping via a portal traversal */
 	uint8_t res = Nova::call(Ipc_ostream::_dst.local_name());
+
+	/* handle xCPU case and use the xCPU IPC emulation via core */
+	if (res == Nova::NOVA_INV_CPU) {
+		/* save first word after the last word */
+		utcb->msg[utcb->msg_words() + 1] = utcb->msg[0]; //XXX check that we don't overwrite typed items */
+		/* increment to be transferred words */
+		utcb->items += 2;
+		/* tell core that we want to do a cross CPU IPC */
+		utcb->msg[0] = ~0UL;
+
+		/* solely map items - don't translate */
+		for (unsigned i = 0; i < utcb->msg_items(); i++) {
+			struct Utcb::Item * item = utcb->get_item(i);
+			item->hotspot = (item->hotspot & ~0x3UL) | 0x1UL;
+		}
+
+		/* add translate item to tell core whom we wanted to call */
+		enum { FROM_OWN_PD = false, NO_GUEST_VM = false, TRANSLATE_MAP = true };
+		if (!utcb->append_item(Obj_crd(Ipc_ostream::_dst.local_name(), 0),
+		                       0, FROM_OWN_PD, NO_GUEST_VM, TRANSLATE_MAP))
+			nova_die();
+
+		/* call core to emulate the IPC */
+		res = Nova::call(Thread_base::myself()->tid().exc_pt_sel + PT_SEL_STARTUP); 
+	}
+
 	if (res != Nova::NOVA_OK) {
 		/* If an error occurred, reset word&item count (not done by kernel). */
 		utcb->set_msg_word(0);

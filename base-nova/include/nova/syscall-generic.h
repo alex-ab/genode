@@ -77,7 +77,7 @@ namespace Nova {
 		NOVA_INV_SELECTOR   = 4,
 		NOVA_INV_PARAMETER  = 5,
 		NOVA_INV_FEATURE    = 6,
-		NOVA_INV_CPU_NUMBER = 7,
+		NOVA_INV_CPU        = 7,
 		NOVA_INVD_DEVICE_ID = 8,
 	};
 
@@ -529,7 +529,7 @@ namespace Nova {
 		}
 
 		/**
-		 * Return typed item at postion i in UTCB
+		 * Return typed item at position i in UTCB
 		 *
 		 * \param i position of item requested, starts with 0
 		 */

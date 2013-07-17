@@ -1,5 +1,5 @@
 /*
- * \brief  Helper code used by core as base framework
+ * \brief  Helper code used by base framework
  * \author Alexander Boettcher
  * \date   2012-08-08
  */

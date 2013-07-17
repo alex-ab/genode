@@ -21,6 +21,8 @@
 /* NOVA includes */
 #include <nova/syscalls.h>
 
+#include "xcpu.h"
+
 using namespace Genode;
 using namespace Nova;
 
@@ -168,12 +170,24 @@ void Pager_object::_recall_handler()
 }
 
 
-void Pager_object::_startup_handler()
+void Pager_object::_startup_handler() 
 {
 	Thread_base  *myself;
 	Pager_object *obj;
 	Utcb         *utcb = _check_handler(myself, obj);
 
+	bool cross_cpu = (utcb->msg_words() > 2) && (utcb->mtd & 0x80000000UL);
+
+	if (cross_cpu) {
+		/* got a cross CPU IPC request */
+		Xcpu_ipc::handle(utcb, myself->tid().exc_pt_sel + SM_SEL_EC,
+		                 Obj_crd(cap_selector_allocator()->alloc(), 0));
+		utcb->crd_rcv = Obj_crd(cap_selector_allocator()->alloc(), 0);
+		/* items to be transferred set up by handler of Xcpu_ipc method */
+		reply(myself->stack_top());
+	}
+
+	/* normal startup exception handling */
 	utcb->ip  = obj->_initial_eip;
 	utcb->sp  = obj->_initial_esp;
 
@@ -215,6 +229,9 @@ void Pager_object::_invoke_handler()
 			PERR("could not find pager_object");
 			goto error;
 		}
+
+		/* check whether to start a new xCPU thread */
+		Xcpu_ipc::check_spawn_worker(obj_pager->_affinity, obj_pager->tid().ec_sel);
 
 		/* send single portal as reply */
 		utcb->mtd    = 0;
@@ -285,7 +302,7 @@ void Pager_object::cleanup_call()
 		     utcb, this->utcb(), res);
 }
 
-static uint8_t create_portal(addr_t pt, addr_t pd, addr_t ec, Mtd mtd,
+inline uint8_t create_portal(addr_t pt, addr_t pd, addr_t ec, Mtd mtd,
 	                         addr_t eip)
 {
 	uint8_t res = create_pt(pt, pd, ec, mtd, eip);
@@ -297,7 +314,9 @@ static uint8_t create_portal(addr_t pt, addr_t pd, addr_t ec, Mtd mtd,
 }
 
 Pager_object::Pager_object(unsigned long badge, unsigned affinity)
-: Thread_base("pager:", PF_HANDLER_STACK_SIZE), _badge(badge)
+:
+	Thread_base("pager:", PF_HANDLER_STACK_SIZE), _badge(badge),
+	_affinity(affinity)
 {
 	class Create_exception_pt_failed { };
 	uint8_t res;
@@ -391,6 +410,9 @@ Pager_object::Pager_object(unsigned long badge, unsigned affinity)
 	 * residing on the same CPU */ 
 	Utcb *utcb = (Utcb *)Thread_base::utcb();
 	utcb->crd_xlt = Obj_crd(0, ~0UL);
+
+	/* open receive window for delegation used by xCPU handling */
+	utcb->crd_rcv = Obj_crd(cap_selector_allocator()->alloc(), 0);
 }
 
 
@@ -451,3 +473,9 @@ void Pager_entrypoint::dissolve(Pager_object *obj)
 	obj->cleanup_call();
 }
 
+Pager_entrypoint::Pager_entrypoint(Cap_session *cap_session,
+                                   Pager_activation_base *) 
+: _cap_session(cap_session)
+{
+	Xcpu_ipc::init();
+}

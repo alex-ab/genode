@@ -1,0 +1,34 @@
+diff --git a/include/utcb.hpp b/include/utcb.hpp
+index d77cd16..87eb58c 100644
+--- a/include/utcb.hpp
++++ b/include/utcb.hpp
+@@ -125,8 +125,12 @@ class Utcb : public Utcb_head, private Utcb_data
+         inline Xfer *xfer() { return reinterpret_cast<Xfer *>(this) + PAGE_SIZE / sizeof (Xfer) - 1; }
+ 
+         ALWAYS_INLINE
++        inline void wrong_cpu(mword value) { if (ui() < words) mr[ui()] = value; }
++
++        ALWAYS_INLINE
+         static inline void *operator new (size_t) { return Buddy::allocator.alloc (0, Buddy::FILL_0); }
+ 
+         ALWAYS_INLINE
+         static inline void operator delete (void *ptr) { Buddy::allocator.free (reinterpret_cast<mword>(ptr)); }
++
+ };
+diff --git a/src/syscall.cpp b/src/syscall.cpp
+index 4a55821..c0cd2d4 100644
+--- a/src/syscall.cpp
++++ b/src/syscall.cpp
+@@ -114,8 +114,11 @@ void Ec::sys_call()
+     Pt *pt = static_cast<Pt *>(obj);
+     Ec *ec = pt->ec;
+ 
+-    if (EXPECT_FALSE (current->cpu != ec->xcpu))
++    if (EXPECT_FALSE (current->cpu != ec->xcpu)) {
++        if (current->utcb)
++	        current->utcb->wrong_cpu(ec->xcpu);
+         sys_finish<Sys_regs::BAD_CPU>();
++	}
+ 
+     if (EXPECT_TRUE (!ec->cont)) {
+         current->cont = ret_user_sysexit;
