@@ -82,10 +82,10 @@ void Thread_base::start()
 	addr_t utcb     = reinterpret_cast<addr_t>(&_context->utcb);
 	Utcb * utcb_obj = reinterpret_cast<Utcb *>(&_context->utcb);
 	addr_t pd_sel   = Platform_pd::pd_core_sel();
-	addr_t cpu_no   = *reinterpret_cast<addr_t *>(stack_top());
+	unsigned cpu_no = *reinterpret_cast<unsigned *>(stack_top());
 
 	/* server code sets this value */
-	if (cpu_no == ~0UL)
+	if (cpu_no == ~0U)
 		cpu_no = boot_cpu();
 
 	/* create local EC */
