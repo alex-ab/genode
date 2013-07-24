@@ -233,9 +233,6 @@ void Pager_object::_invoke_handler()
 			goto error;
 		}
 
-		/* check whether to start a new xCPU thread */
-		Xcpu_ipc::check_spawn_worker(obj_pager->_affinity, obj_pager->tid().ec_sel);
-
 		/* send single portal as reply */
 		utcb->mtd    = 0;
 		utcb->set_msg_word(0);
@@ -480,7 +477,4 @@ void Pager_entrypoint::dissolve(Pager_object *obj)
 
 Pager_entrypoint::Pager_entrypoint(Cap_session *cap_session,
                                    Pager_activation_base *) 
-: _cap_session(cap_session)
-{
-	Xcpu_ipc::init();
-}
+: _cap_session(cap_session) { }

@@ -21,8 +21,6 @@
 
 using namespace Genode;
 
-struct Xcpu_ipc::worker Xcpu_ipc::global_worker[Xcpu_ipc::MAX_SUPPORTED_CPUS];
-
 extern Genode::addr_t __core_pd_sel;
 
 void Xcpu_ipc::handle(Nova::Utcb * utcb, addr_t block_sm,
@@ -44,6 +42,7 @@ void Xcpu_ipc::handle(Nova::Utcb * utcb, addr_t block_sm,
 	void * virt_ptr = 0;
 	Genode::platform()->region_alloc()->alloc(UTCB_SIZE, &virt_ptr);
 
+	/* restore first untyped item, set by ipc.cc to signal xcpu IPC request */
 	Crd crd(item->crd);
 	utcb->msg[0]      = utcb->msg[untyped - 1];
 
@@ -51,7 +50,7 @@ void Xcpu_ipc::handle(Nova::Utcb * utcb, addr_t block_sm,
 	addr_t const ec_sel = base_sel;
 	addr_t const sc_sel = base_sel + 1;
 	addr_t const sm_sel = base_sel + 2;
-	addr_t const start_eip = reinterpret_cast<addr_t>(Xcpu_thread::startup);
+	addr_t const start_eip = reinterpret_cast<addr_t>(Xcpu_ipc::startup);
 	addr_t const virt_utcb = reinterpret_cast<addr_t>(virt_ptr);
 	Nova::Utcb * utcb_worker = reinterpret_cast<Nova::Utcb *>(virt_utcb);
 	uint8_t res = NOVA_INV_CPU;
@@ -89,7 +88,7 @@ void Xcpu_ipc::handle(Nova::Utcb * utcb, addr_t block_sm,
 	/* tell global worker thread the semaphore it finally can block on */
 	utcb_worker->tls   = sm_sel;
 	/* tell global worker about job information and about this thread */
-	Xcpu_thread::job(crd.base(), block_sm, utcb, rcv_wnd, utcb_worker);
+	Xcpu_ipc::job(crd.base(), block_sm, utcb, rcv_wnd, utcb_worker);
 
 	/* let worker run */
 	res = create_sc(sc_sel, __core_pd_sel, ec_sel, Qpd());
