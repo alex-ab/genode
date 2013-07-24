@@ -100,6 +100,19 @@ class Xcpu_thread : public Genode::Thread<4096> {
 
 	public:
 
+		static void startup() {
+			using namespace Nova;
+			Utcb * utcb; 
+			addr_t addr = reinterpret_cast<addr_t>(&utcb);
+			addr = (addr + 0x1F) & ~0xFUL;
+			utcb = reinterpret_cast<Utcb *>(*reinterpret_cast<volatile addr_t *>(addr));
+
+			_make_ipc(utcb);
+
+			/* we will get be deleted by the caller and by the kernel */
+			while(1) { sm_ctrl(utcb->tls, SEMAPHORE_DOWNZERO); }
+		}
+
 		void entry() {
 
 			using namespace Nova;
@@ -244,7 +257,8 @@ class Xcpu_ipc {
 	public:
 
 		static void handle(Nova::Utcb * utcb, addr_t block_sm,
-		                   Nova::Obj_crd rcv_wnd);
+		                   Nova::Obj_crd rcv_wnd, addr_t base_sel,
+		                   addr_t sp_high, addr_t sp_low);
 
 
 		static void init()

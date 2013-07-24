@@ -81,6 +81,20 @@ namespace Genode {
 
 			static Nova::Utcb * _check_handler(Thread_base *&, Pager_object *&);
 
+			/**
+			 * stack for xCPU IPC handling
+			 */
+			addr_t _xcpu_sel; /* cap selectors to be used for xCPU IPC thread */
+			char _stack[128]; /* sufficient for 32 as 64bit */
+
+			addr_t _stack_xcpu_top() {
+				addr_t top = reinterpret_cast<addr_t>(_stack + sizeof(_stack));
+				addr_t cut = top & ~0xFUL;
+				if (top - cut < sizeof(addr_t))
+					cut -= 0x10UL;
+				return cut;
+			}
+
 		public:
 
 			Pager_object(unsigned long badge, unsigned affinity);

@@ -181,9 +181,12 @@ void Pager_object::_startup_handler()
 	if (cross_cpu) {
 		/* got a cross CPU IPC request */
 		Xcpu_ipc::handle(utcb, myself->tid().exc_pt_sel + SM_SEL_EC,
-		                 Obj_crd(cap_selector_allocator()->alloc(), 0));
-		utcb->crd_rcv = Obj_crd(cap_selector_allocator()->alloc(), 0);
+		                 Obj_crd(cap_selector_allocator()->alloc(), 0),
+		                 obj->_xcpu_sel, obj->_stack_xcpu_top(),
+		                 reinterpret_cast<addr_t>(obj->_stack));
+
 		/* items to be transferred set up by handler of Xcpu_ipc method */
+		utcb->crd_rcv = Obj_crd(cap_selector_allocator()->alloc(), 0);
 		reply(myself->stack_top());
 	}
 
@@ -328,6 +331,7 @@ Pager_object::Pager_object(unsigned long badge, unsigned affinity)
 	addr_t pd_sel        = __core_pd_sel;
 	_pt_cleanup          = cap_selector_allocator()->alloc();
 	_sm_state_notify     = cap_selector_allocator()->alloc();
+ 	_xcpu_sel            = cap_selector_allocator()->alloc(3);
 	_state.valid         = false;
 	_state.dead          = false;
 	_state.singlestep    = false;
@@ -436,6 +440,7 @@ Pager_object::~Pager_object()
 	cap_selector_allocator()->free(_pt_cleanup, 0);
 	cap_selector_allocator()->free(sm_cap, 0);
 	cap_selector_allocator()->free(pager_obj.local_name(), 0);
+	cap_selector_allocator()->free(_xcpu_sel, 3);
 }
 
 

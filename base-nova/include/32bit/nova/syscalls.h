@@ -199,9 +199,9 @@ namespace Nova {
 	inline uint8_t create_ec(unsigned ec, unsigned pd,
 	                         mword_t cpu, mword_t utcb,
 	                         mword_t esp, mword_t evt,
-	                         bool global = 0)
+	                         bool global = 0, bool no_exc = 0)
 	{
-		return syscall_4(NOVA_CREATE_EC, global, ec, pd,
+		return syscall_4(NOVA_CREATE_EC, (no_exc << 1) | global, ec, pd,
 		                 (cpu & 0xfff) | (utcb & ~0xfff),
 		                 esp, evt);
 	}
