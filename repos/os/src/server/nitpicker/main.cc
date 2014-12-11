@@ -70,6 +70,7 @@ using Genode::Locked_ptr;
 
 
 Framebuffer::Session *tmp_fb;
+Framebuffer::Session *test_fb;
 
 
 /***************
@@ -1195,6 +1196,7 @@ struct Nitpicker::Main
 	Main(Server::Entrypoint &ep) : ep(ep)
 	{
 //		tmp_fb = &framebuffer;
+		test_fb = &framebuffer;
 
 		user_state.default_background(background);
 		user_state.stack(pointer_origin);

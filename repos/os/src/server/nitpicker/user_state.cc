@@ -46,6 +46,7 @@ void User_state::_update_all()
 	update_all_views();
 }
 
+extern Framebuffer::Session *test_fb;
 
 void User_state::handle_event(Input::Event ev)
 {
@@ -241,6 +242,11 @@ void User_state::handle_event(Input::Event ev)
 
 		_global_key_sequence = false;
 	}
+
+	/* If F10 is pressed tell parent (fb_drv assumed) to make a screenshot */
+	if ((type == Event::PRESS || type == Event::RELEASE) && keycode == 68 && test_fb)
+		test_fb->mode_sigh(Genode::Signal_context_capability());
+
 }
 
 
