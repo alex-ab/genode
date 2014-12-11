@@ -26,6 +26,8 @@
 #include <blit/blit.h>
 #include <os/config.h>
 
+#include <stdio.h>
+
 /* Local */
 #include "framebuffer.h"
 
@@ -180,7 +182,36 @@ namespace Framebuffer {
 				            _scr_mode == 16 ? Mode::RGB565 : Mode::INVALID);
 			}
 
-			void mode_sigh(Genode::Signal_context_capability) override { }
+			void mode_sigh(Genode::Signal_context_capability) override {
+
+				if (!_buffered)
+					return;
+
+				size_t const num_pixels = _scr_width * _scr_height;
+				size_t const bytes_per_pixel = 2;
+
+				static unsigned counter = 0;
+				counter ++;
+
+				char file[16];
+				Genode::snprintf(file, sizeof(file), "pic_%d.raw", counter);
+
+				FILE * fd = fopen(file, "w");
+				if (!fd) {
+					PERR("Could not create file %s for screenshot", file);
+					return;
+				}
+
+				unsigned long all = num_pixels * bytes_per_pixel;
+				size_t written = fwrite(_bb_addr, 1, all, fd);
+				if (written != all)
+					PDBG("Screenshot '%s' is incomplete %lu of %lu",
+					     file, written, all);
+				else
+					PDBG("Saved screenshot to file '%s'", file);
+
+				fclose(fd);
+			}
 
 			void sync_sigh(Genode::Signal_context_capability sigh) override
 			{
@@ -220,7 +251,7 @@ namespace Framebuffer {
 					throw Root::Invalid_args();
 				}
 
-				printf("Using video mode: %lu x %lu x %lu\n", scr_width, scr_height, scr_mode);
+				Genode::printf("Using video mode: %lu x %lu x %lu\n", scr_width, scr_height, scr_mode);
 
 				return new (md_alloc()) Session_component(scr_width, scr_height, scr_mode,
 				                                          Framebuffer_drv::hw_framebuffer(),
