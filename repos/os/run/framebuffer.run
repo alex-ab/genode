@@ -2,7 +2,7 @@
 # Build
 #
 
-set build_components { core init test/framebuffer drivers/framebuffer drivers/timer }
+set build_components { core init test/framebuffer drivers/framebuffer drivers/timer server/ram_fs}
 
 lappend_if [have_spec  pci]    build_components drivers/pci
 lappend_if [have_spec acpi]    build_components drivers/acpi
@@ -73,6 +73,15 @@ append_if [have_spec framebuffer] config {
 	<start name="fb_drv">
 		<resource name="RAM" quantum="4M"/>
 		<provides><service name="Framebuffer"/></provides>
+		<config buffered="yes">
+			<libc stdout="/dev/log" stderr="/dev/log">
+				<vfs>
+					<dir name="ram">  <fs label="from_ram_fs"/> </dir>
+					<dir name="dev"> <log/> </dir>
+					<fs />
+				</vfs>
+			</libc>
+		</config>
 	</start>}
 
 append_if [have_spec exynos5] config {
@@ -85,6 +94,17 @@ append config {
 	<start name="test-framebuffer">
 		<resource name="RAM" quantum="10M"/>
 	</start>
+	<start name="ram_fs">
+		<resource name="RAM" quantum="64M" />
+		<provides><service name="File_system"/></provides>
+		<config>
+			<content>
+				<dir name="ram"/>
+			</content>
+			<!-- constrain sessions according to their labels -->
+			<policy label="fb_drv" root="/ram" writeable="yes" />
+		</config>
+	</start>
 </config>}
 
 install_config $config
@@ -96,7 +116,9 @@ install_config $config
 # generic modules
 set boot_modules {
 	core init timer
+	ram_fs
 	test-framebuffer
+	ld.lib.so libc.lib.so
 }
 
 # platform-specific modules

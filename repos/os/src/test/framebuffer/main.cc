@@ -48,6 +48,7 @@ class Test_environment
 		{
 			_fb.refresh(0, 0, _mode.width(), _mode.height());
 			_timer.msleep(2000);
+			_fb.mode_sigh(Genode::Signal_context_capability());
 		}
 
 		Framebuffer::Mode fb_mode() const { return _mode; }
