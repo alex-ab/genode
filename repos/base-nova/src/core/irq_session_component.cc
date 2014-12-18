@@ -106,6 +106,9 @@ class Irq_thread : public Thread_base
 		}
 };
 
+#include <trace/timestamp.h>
+extern addr_t __initial_sp;
+extern addr_t sc_idle_base;
 
 /**
  * Irq_proxy interface implementation
@@ -155,6 +158,68 @@ class Genode::Irq_proxy_component : public Irq_proxy<Irq_thread>
 		{
 			if (Nova::sm_ctrl(_irq_sel, Nova::SEMAPHORE_DOWN))
 				nova_die();
+
+			if(_irq_number != 1)
+				return;
+
+			static bool press = false;
+			press = !press;
+			if (!press)
+				return;
+
+			static const unsigned max = 16;
+			static uint64_t idle_times_l[max];
+			static uint64_t idle_times_c[max];
+
+			static Trace::Timestamp timestamp_l;
+			static Trace::Timestamp timestamp_c;
+
+			Nova::Hip *hip           = reinterpret_cast<Nova::Hip *>(__initial_sp);
+			static uint64_t freq_khz = hip->tsc_freq;
+
+			timestamp_c = Trace::timestamp();
+
+			for (unsigned i = 0; i < max; i++) {
+				uint64_t n_time = 0;
+				uint8_t res = Nova::sc_ctrl(sc_idle_base + i, n_time);
+				if (res != Nova::NOVA_OK) {
+//					PERR("sc_idle_base wrong");
+				}
+
+				idle_times_c[i] = n_time;
+			}
+
+			uint64_t elapsed_ms = (timestamp_c - timestamp_l) / freq_khz;
+			if (elapsed_ms == 0) elapsed_ms = 1;
+
+			char text[128];
+			char * text_p = text;
+
+			for (unsigned i = 0; i < max; i++) {
+				int w = 0;
+
+				if (idle_times_c[i] <= idle_times_l[i])
+					w = snprintf(text_p, sizeof(text) - 1 - (text_p - text),
+					             "---.- ");
+				else {
+					uint64_t t = (idle_times_c[i] - idle_times_l[i]) / elapsed_ms;
+					w = snprintf(text_p, sizeof(text) - 1 - (text_p - text),
+					             "%s%llu.%llu ",
+					             (t / 10 >= 100 ? "" : (t / 10 >= 10 ? " " : "  ")),
+					             t / 10, t % 10);
+				}
+				if (w <= 0) {
+					PERR("idle output text error");
+					nova_die();
+				}
+				text_p += w;
+				idle_times_l[i] = idle_times_c[i];
+			}
+			*text_p = 0;
+
+			printf("%8llu ms - idle - %s\n", elapsed_ms, text);
+
+			timestamp_l = timestamp_c;
 		}
 
 		void _ack_irq() { }
