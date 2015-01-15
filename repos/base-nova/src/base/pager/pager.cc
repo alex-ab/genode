@@ -214,7 +214,7 @@ void Pager_object::_invoke_handler()
 	utcb->set_msg_word(0);
 
 	/* native ec cap requested */
-	if (event == ~0UL) {
+	if (event == ~0UL || event == ~0UL - 2) {
 		/**
 		 * Return native EC cap with specific rights mask set.
 		 * If the cap is mapped the kernel will demote the
@@ -228,8 +228,9 @@ void Pager_object::_invoke_handler()
 		 * takes care that the EC cap itself contains
 		 * no usable rights for the clients.
 		 */
-		bool res = utcb->append_item(Obj_crd(obj->_state.sel_client_ec, 0,
-		                                     Obj_crd::RIGHT_EC_RECALL), 0);
+		addr_t ec_or_sc = obj->_state.sel_client_ec + (event == ~0UL ? 0 : 1);
+		addr_t rights = event == ~0UL ? Obj_crd::RIGHT_EC_RECALL : 0x1f;
+		bool res = utcb->append_item(Obj_crd(ec_or_sc, 0, rights), 0);
 		/* if logcount > 0 then the pager cap should also be mapped */
 		if (logcount)
 			res = utcb->append_item(Obj_crd(obj->Object_pool<Pager_object>::Entry::cap().local_name(), 0), 1);

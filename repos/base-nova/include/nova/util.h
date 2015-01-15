@@ -59,6 +59,10 @@ inline void request_native_ec_cap(Genode::Native_capability const &cap,
                                   Genode::addr_t sel, unsigned no_pager_cap = 0) {
 	request_event_portal(cap, sel , ~0UL, no_pager_cap); }
 
+inline void request_native_sc_cap(Genode::Native_capability const &cap,
+                                  Genode::addr_t sel) {
+	request_event_portal(cap, sel , ~0UL - 2, 0); }
+
 
 inline void request_signal_sm_cap(Genode::Native_capability const &cap,
                                   Genode::addr_t sel) {
