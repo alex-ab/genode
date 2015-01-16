@@ -62,6 +62,98 @@ static Genode::Cpu_session * get_cpu_session(RTTHREADTYPE type) {
 	return con[type - 1];
 }
 
+/* HACK start */
+#include <trace/timestamp.h>
+#include <os/attached_rom_dataspace.h>
+enum { MAX_PTHREAD_THREADS = 16 };
+
+static unsigned                 thread_num = 0;
+static pthread_t                threads[MAX_PTHREAD_THREADS];
+static unsigned long long       times_l[MAX_PTHREAD_THREADS];
+static unsigned long long       times_c[MAX_PTHREAD_THREADS];
+static Genode::Trace::Timestamp timestamp_l;
+static Genode::Trace::Timestamp timestamp_c;
+
+
+extern "C" void pthread_dump()
+{
+	static unsigned long long freq_khz = 0;
+
+	if (!freq_khz) {
+		Genode::Attached_rom_dataspace _ds("hypervisor_info_page");
+		Nova::Hip * const hip = _ds.local_addr<Nova::Hip>();
+		freq_khz = hip->tsc_freq;
+		PERR("freq %llu", freq_khz);
+	}
+
+	using Genode::snprintf;
+	using Genode::printf;
+
+	timestamp_c = Genode::Trace::timestamp();
+
+	for (unsigned i=0; i < MAX_PTHREAD_THREADS; i++)
+	{
+		if (!threads[i])
+			continue;
+
+		using Genode::Thread_base;
+
+		Thread_base * thread = dynamic_cast<Thread_base *>(threads[i]);
+
+		static char name[Thread_base::Context::NAME_LEN];
+		thread->name(name, sizeof(name));
+
+		printf("%2u '%s' ", i, name);
+
+		unsigned long long n_time = 0;
+		uint8_t res = Nova::sc_ctrl(thread->tid().ec_sel + 2, n_time);
+		if (res != Nova::NOVA_OK) {
+			//PERR("sc cap not valid");
+		}
+
+		times_c[i] = n_time;
+	}
+	printf("\n");
+
+	unsigned long long elapsed_ms = (timestamp_c - timestamp_l) / freq_khz;
+	if (elapsed_ms == 0) elapsed_ms = 1;
+
+	static char text[128];
+	char * text_p = text;
+
+	for (unsigned i = 0; i < MAX_PTHREAD_THREADS; i++) {
+
+		if (!threads[i])
+			continue;
+
+		int w;
+
+		if (times_c[i] <= times_l[i]) 
+			w = snprintf(text_p, sizeof(text) - 1 - (text_p - text),
+		                 "---.- ");
+		else {
+			unsigned long long t = (times_c[i] - times_l[i]) / elapsed_ms;
+			w = snprintf(text_p, sizeof(text) - 1 - (text_p - text),
+			             "%s%llu.%llu ",
+			             (t / 10 >= 100 ? "" : (t / 10 >= 10 ? " " : "  ")),
+			             t / 10, t % 10);
+		}
+
+		if (w <= 0) {
+			PERR("idle output text error");
+			nova_die();
+		}
+		text_p += w;
+		times_l[i] = times_c[i];
+	}
+	*text_p = 0;
+
+	printf("%8llu ms - %s\n", elapsed_ms, text);
+
+	timestamp_l = timestamp_c;
+}
+/* HACK end */
+
 
 extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 	                          void *(*start_routine) (void *), void *arg)
@@ -92,8 +184,14 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 */
 		Genode::Affinity::Location location;
 		if (create_emt_vcpu(thread, stack_size, attr, start_routine, arg,
-		                    cpu_session, location))
+		                    cpu_session, location)) {
+	/* HACK start */
+			threads[thread_num] = *thread;
+			thread_num ++;
+			Assert(thread_num < MAX_PTHREAD_THREADS);
+	/* HACK end */
 			return 0;
+		}
 		/* no haredware support, create normal pthread thread */
 	}
 
@@ -108,6 +206,21 @@ extern "C" int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 	*thread = thread_obj;
 
 	thread_obj->start();
+
+	/* HACK start */
+	threads[thread_num] = thread_obj;
+
+	using Genode::Thread_base;
+	Thread_base * genodethread = dynamic_cast<Thread_base *>(thread_obj);
+
+	/* request native SC cap */
+	Genode::Native_capability pager_cap(genodethread->tid().ec_sel + 1);
+	request_native_sc_cap(pager_cap, genodethread->tid().ec_sel + 2);
+
+	thread_num ++;
+	Assert(thread_num < MAX_PTHREAD_THREADS);
+
+	/* HACK end */
 
 	return 0;
 }

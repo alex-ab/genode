@@ -102,6 +102,7 @@ class Scan_code
 		}
 };
 
+extern "C" void pthread_dump();
 
 class GenodeConsole : public Console {
 
@@ -161,6 +162,8 @@ class GenodeConsole : public Console {
 						gKeyboard->PutScancode(0xe0);
 						gKeyboard->PutScancode(scan_code.ext() | release_bit);
 					}
+					if (release_bit)
+						pthread_dump();
 				}
 
 				/*

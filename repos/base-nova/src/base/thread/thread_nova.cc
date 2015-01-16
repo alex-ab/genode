@@ -117,8 +117,8 @@ void Thread_base::_deinit_platform_thread()
 	using namespace Nova;
 
 	if (_tid.ec_sel != Native_thread::INVALID_INDEX) {
-		revoke(Obj_crd(_tid.ec_sel, 1));
-		cap_map()->remove(_tid.ec_sel, 1, false);
+		revoke(Obj_crd(_tid.ec_sel, 2));
+		cap_map()->remove(_tid.ec_sel, 2, false);
 	}
 
 	revoke(Obj_crd(_tid.exc_pt_sel, NUM_INITIAL_PT_LOG2));
@@ -174,7 +174,7 @@ void Thread_base::start()
 		throw Cpu_session::Thread_creation_failed();
 
 	/* request native EC thread cap */ 
-	_tid.ec_sel = cap_map()->insert(1);
+	_tid.ec_sel = cap_map()->insert(2);
 	if (_tid.ec_sel == Native_thread::INVALID_INDEX)
 		throw Cpu_session::Thread_creation_failed();
 

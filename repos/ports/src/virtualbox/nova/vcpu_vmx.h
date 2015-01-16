@@ -48,6 +48,11 @@ class Vcpu_handler_vmx : public Vcpu_handler
 			Genode::Thread_base *myself = Genode::Thread_base::myself();
 			Utcb *utcb = reinterpret_cast<Utcb *>(myself->utcb());
 
+			/* HACK start */
+			unsigned long long value = 0;
+			_vcpu.get_vcpu_sc(myself->tid().ec_sel + 2);
+			/* HACk end */
+
 			/* configure VM exits to get */
 			next_utcb.mtd = Nova::Mtd::CTRL;
 			/* from src/VBox/VMM/VMMR0/HWVMXR0.cpp of virtualbox sources  */

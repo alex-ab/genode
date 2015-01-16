@@ -48,6 +48,7 @@ class Vmm::Vcpu_other_pd : public Vmm::Vcpu_thread
 		Genode::Cpu_session        *_cpu_session;
 
 		Genode::addr_t _exc_pt_sel;
+		Pager_capability _pager_cap;
 
 	public:
 
@@ -68,9 +69,9 @@ class Vmm::Vcpu_other_pd : public Vmm::Vcpu_thread
 			_pd_session.bind_thread(vcpu_vm);
 
 			/* create new pager object and assign it to the new thread */
-			Pager_capability pager_cap = env()->rm_session()->add_client(vcpu_vm);
+			_pager_cap = env()->rm_session()->add_client(vcpu_vm);
 
-			_cpu_session->set_pager(vcpu_vm, pager_cap);
+			_cpu_session->set_pager(vcpu_vm, _pager_cap);
 
 			/* tell parent that this will be a vCPU */
 			Thread_state state;
@@ -83,7 +84,7 @@ class Vmm::Vcpu_other_pd : public Vmm::Vcpu_thread
 			 * Delegate parent the vCPU exception portals required during PD
 			 * creation.
 			 */
-			delegate_vcpu_portals(pager_cap, exc_base());
+			delegate_vcpu_portals(_pager_cap, exc_base());
 
 			/* place the thread on CPU described by location object */
 			_cpu_session->affinity(vcpu_vm, _location);
@@ -95,10 +96,16 @@ class Vmm::Vcpu_other_pd : public Vmm::Vcpu_thread
 			 * Request native EC thread cap and put it next to the
 			 * SM cap - see Vcpu_dispatcher->sel_sm_ec description
 			 */
-			request_native_ec_cap(pager_cap, sel_ec);
+			request_native_ec_cap(_pager_cap, sel_ec);
 		}
 
 		Genode::addr_t exc_base() { return _exc_pt_sel; }
+
+		void get_vcpu_sc(addr_t sel_sc) {
+			/* request native SC cap */
+			request_native_sc_cap(_pager_cap, sel_sc);
+		}
+
 };
 
 

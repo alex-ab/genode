@@ -82,7 +82,9 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<pthread>
 		X86FXSTATE _emt_fpu_state __attribute__((aligned(0x10)));
 
 		Genode::Cap_connection _cap_connection;
+	protected:
 		Vmm::Vcpu_other_pd     _vcpu;
+	private:
 
 		Genode::addr_t _ec_sel; 
 		bool _irq_win;
