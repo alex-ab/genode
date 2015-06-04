@@ -323,8 +323,10 @@ class Table_wrapper
 					     dmar->base, dmar->limit);
 		}
 
-		Table_wrapper(addr_t base) : _base(base), _table(0)
+		Table_wrapper(addr_t base, addr_t table = ~0UL) : _base(base), _table(0)
 		{
+			if (table == ~0UL)
+{
 			/* if table is on page boundary, map two pages, otherwise one page */
 			size_t const map_size = 0x1000UL - _offset() < 8 ? 0x1000UL : 1UL;
 
@@ -337,6 +339,8 @@ class Table_wrapper
 
 			memset(_name, 0, 5);
 			memcpy(_name, _table->signature, 4);
+} else
+	_table = reinterpret_cast<Generic *>(table);
 
 			if (verbose)
 				PDBG("Table mapped '%s' at %p (from %lx) size %x", _name, _table, _base, _table->size);
@@ -1140,6 +1144,26 @@ class Acpi_table
 				}
 
 				if (dsdt) {
+					{
+						PERR("loading rom file 'dsdt' ...");
+						Attached_rom_dataspace ds("dsdt");
+
+						char * addr_char = ds.local_addr<char>();
+						unsigned long addr = reinterpret_cast<unsigned long>(addr_char);
+
+						PERR("attached rom file 'dsdt' - first 4 chars of dsdt='%c%c%c%c'", addr_char[0], addr_char[1], addr_char[2], addr_char[3]);
+
+						Table_wrapper table(addr, addr);
+
+						PERR("start parsing table 'dsdt' - table name '%s'", table.name());
+
+						Element::parse(table.table());
+						bool acpi_rewrite = Element::supported_acpi_format();
+
+						PERR("DSDT parsing done - can rewrite ? %u", acpi_rewrite);
+					}
+					while (1) {}
+
 					Table_wrapper table(dsdt);
 					if (table.is_searched()) {
 						if (verbose)

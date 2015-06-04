@@ -108,8 +108,10 @@ install_config $config
 
 # generic modules
 set boot_modules {
-	core init timer usb_drv test-input
+	core init timer usb_drv test-input dsdt
 }
+
+exec cp ${genode_dir}/repos/dde_linux/run/dsdt bin/.
 
 lappend_if [have_spec acpi]             boot_modules acpi_drv
 lappend_if [have_spec pci]              boot_modules pci_drv
@@ -121,6 +123,7 @@ build_boot_image $boot_modules
 
 append qemu_args " -m 256 -usb  -usbdevice mouse -usbdevice keyboard"
 append qemu_args " -device usb-ehci,id=ehci"
+append qemu_args " -nographic"
 
 
 run_genode_until forever
