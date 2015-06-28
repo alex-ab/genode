@@ -1,0 +1,40 @@
+source [genode_dir]/tool/run/iso.inc
+
+proc image_iso_grub_tftp_server { } { return [get_cmd_arg --image-iso_grub_tftp-server ""] }
+
+##
+# Create ISO image with the content of the run directory
+#
+proc run_image { {unused ""} } {
+
+	#
+	# Install isolinux/GRUB files and bender
+	#
+	install_iso_bootloader_to_run_dir
+
+	#
+	# Generate GRUB config file
+	#
+	set fh [open "[run_dir]/boot/grub/menu.lst" "WRONLY CREAT TRUNC"]
+	puts $fh "timeout 2"
+	puts $fh "default 0"
+	puts $fh "\ntitle Grub 0.97-os requesting Genode via tftp"
+	puts $fh " dhcp"
+	puts $fh " ifconfig --server=[image_iso_grub_tftp_server]"
+	puts $fh " root (nd)"
+	puts $fh " configfile /x86/menu.lst"
+	close $fh
+
+	puts "creating ISO image..."
+	exec rm -f "[run_dir].iso"
+	exec rm -rf "[run_dir]/genode"
+
+	#
+	# The 'create_iso' writes diagnostics to stderr, which are interpreted as
+	# execution failure by expect unless '-ignorestderr' is set on 'exec'.
+	#
+	if {[catch {exec -ignorestderr [genode_dir]/tool/create_iso iso ISO=[run_dir]} ]} {
+		puts stderr "Error: ISO image creation failed"
+		exit -5
+	}
+}
