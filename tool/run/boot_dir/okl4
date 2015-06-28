@@ -183,8 +183,9 @@ proc run_boot_dir {binaries} {
 		puts $fh "default 0"
 		puts $fh "hiddenmenu"
 		puts $fh "\ntitle Genode on OKL4"
-		puts $fh " kernel /boot/bender"
-		puts $fh " module /image.elf"
+		puts $fh " root \$(root)"
+		puts $fh " kernel \$(path)/boot/bender"
+		puts $fh " module \$(path)/image.elf"
 		puts $fh " vbeset 0x117"
 		close $fh
 	}

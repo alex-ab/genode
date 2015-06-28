@@ -141,15 +141,18 @@ proc run_boot_dir_x86 {binaries} {
 		puts $fh "timeout 0"
 		puts $fh "default 0"
 		puts $fh "\ntitle Genode on Fiasco.OC"
-		puts $fh " kernel /boot/bender"
-		puts $fh " module /fiasco/bootstrap"
-		puts $fh " module /fiasco/fiasco $fiasco_serial_esc_arg"
-		puts $fh " module /fiasco/sigma0"
-		puts $fh " module /genode/core"
-		puts $fh " module /genode/config"
+		puts $fh " root \$(root)"
+		puts $fh " kernel \$(path)/boot/bender"
+		puts $fh " module \$(path)/fiasco/bootstrap"
+		puts $fh " module \$(path)/fiasco/fiasco $fiasco_serial_esc_arg"
+		puts $fh " module \$(path)/fiasco/sigma0"
+		puts $fh " module \$(path)/genode/core"
+		puts $fh " module \$(path)/genode/config"
 		foreach binary $binaries {
 			if {$binary != "core"} {
-				puts $fh " module /genode/$binary" } }
+				puts $fh " module \$(path)/genode/$binary"
+			}
+		}
 		puts $fh " vbeset 0x117 506070"
 		close $fh
 	}

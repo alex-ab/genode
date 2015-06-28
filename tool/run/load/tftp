@@ -58,6 +58,23 @@ proc generate_tftp_config { } {
 		puts $fh " root $tftp_base$tftp_offset_dir/[run_dir]"
 		puts $fh " config config-52-54-00-12-34-56"
 		close $fh
+
+		# If booting via tftp is specified and an iso is generated, create a
+		# grub configfile to be chainloaded by another already installed grub
+		# on the target machine. The grub on the target machine could also be
+		# on the harddisk or on the usb drive and requesting via tftp this
+		# configfile.
+		if {[have_include "image/iso"]} {
+			set fh [open "$tftp_base_dir$tftp_offset_dir/menu.lst" "WRONLY CREAT TRUNC"]
+			puts $fh "timeout 2"
+			puts $fh "default 0"
+			puts $fh "set path = $tftp_base$tftp_offset_dir/[run_dir]"
+			puts $fh "set root = (nd)"
+			puts $fh "\ntitle Grub via Network (nd)"
+			puts $fh " root (nd)"
+			puts $fh " configfile $tftp_base$tftp_offset_dir/[run_dir]/boot/grub/menu.lst"
+			close $fh
+		}
 	} else {
 		puts "Warning, TFTP base directory or TFTP offset directory not set."
 	}

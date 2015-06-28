@@ -102,14 +102,15 @@ proc run_boot_dir {binaries} {
 		puts $fh "timeout 0"
 		puts $fh "default 0"
 		puts $fh "\ntitle Genode on L4ka::Pistachio"
-		puts $fh " kernel /pistachio/kickstart"
-		puts $fh " module /pistachio/kernel"
-		puts $fh " module /pistachio/sigma0"
-		puts $fh " module /genode/core"
-		puts $fh " module /genode/config"
+		puts $fh " root \$(root)"
+		puts $fh " kernel \$(path)/pistachio/kickstart"
+		puts $fh " module \$(path)/pistachio/kernel"
+		puts $fh " module \$(path)/pistachio/sigma0"
+		puts $fh " module \$(path)/genode/core"
+		puts $fh " module \$(path)/genode/config"
 		foreach binary $binaries {
 			if {$binary != "core"} {
-				puts $fh " module /genode/$binary" } }
+				puts $fh " module \$(path)/genode/$binary" } }
 		close $fh
 	}
 
