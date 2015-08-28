@@ -2,7 +2,7 @@ assert_spec nova
 
 if {[have_include "power_on/qemu"]} {
 	puts "\nRun script does not support Qemu.\n"
-	exit
+	exit 0
 }
 
 append build_components {
@@ -16,10 +16,10 @@ append build_components {
 }
 
 lappend_if [expr $use_ps2]    build_components drivers/input
-lappend_if [expr $use_usb]    build_components drivers/usb
-lappend_if [expr $use_usb]    build_components app/usb_report_filter
+lappend_if [expr $use_usb_hid || $use_usb_block] build_components drivers/usb
+lappend_if [expr $use_usb_hid || $use_usb_block] build_components app/usb_report_filter
 lappend_if [have_spec x86]    build_components drivers/rtc
-lappend_if [expr $use_ram_fs || $use_usb] build_components server/ram_fs
+lappend_if [expr $use_ram_fs || $use_usb_hid || $use_usb_block] build_components server/ram_fs
 
 source ${genode_dir}/repos/base/run/platform_drv.inc
 # override defaults of platform_drv.inc
@@ -50,7 +50,9 @@ set config {
 	<start name="timer">
 		<resource name="RAM" quantum="1M"/>
 		<provides><service name="Timer"/></provides>
-	</start>
+	</start>}
+
+append_if [expr $use_ahci_block] config {
 	<start name="ahci_drv" priority="-1">
 		<resource name="RAM" quantum="10M" />
 		<provides><service name="Block" /></provides>
@@ -61,16 +63,29 @@ set config {
 			<service name="IRQ"><child name="acpi_drv" /></service>
 			<any-service> <parent /> <any-child /></any-service>
 		</route>
-	</start>
+	</start>}
+
+append config {
 	<start name="part_blk" priority="-1">
 		<resource name="RAM" quantum="10M" />
 		<provides><service name="Block" /></provides>
-		<route>
+		<route>}
+
+append_if [expr $use_ahci_block] config {
 			<any-service><child name="ahci_drv"/> <parent/><any-child/></any-service>
 		</route>
 		<config>
 			<policy label="rump_fs" partition="4"/>
-		</config>
+		</config>}
+
+append_if [expr $use_usb_block] config {
+			<any-service><child name="usb_drv"/> <parent/><any-child/></any-service>
+		</route>
+		<config>
+			<policy label="rump_fs" partition="1"/>
+		</config>}
+
+append config {
 	</start>
 	<start name="rump_fs" priority="-1">
 		<resource name="RAM" quantum="32M" />
@@ -109,7 +124,7 @@ append_if [expr $use_ps2] config {
 		</route>
 	</start>}
 
-append_if [expr $use_usb] config {
+append_if [expr $use_usb_hid || $use_usb_block] config {
 	<start name="usb_config_fs" priority="-1">
 		<binary name="ram_fs"/>
 		<resource name="RAM" quantum="1M"/>
@@ -118,7 +133,12 @@ append_if [expr $use_usb] config {
 			<content>
 				<inline name="usb_drv.config">
 <config uhci="yes" ehci="yes" xhci="yes">
-	<hid/>
+	<hid/>}
+
+append_if [expr $use_usb_block] config {
+	<storage/>}
+
+append_if [expr $use_usb_hid || $use_usb_block] config {
 	<raw>
 		<report devices="yes"/>
 	</raw>
@@ -184,13 +204,15 @@ append_if [expr $use_usb] config {
 			</service>
 			<any-service><parent/><any-child /></any-service>
 		</route>
-	</start>
+	</start>}
 
+append_if [expr $use_usb_hid || $use_usb_block] config {
 	<start name="usb_drv" priority="-1">
 		<resource name="RAM" quantum="16M"/>
 		<provides>
 			<service name="Input"/>
 			<service name="Usb" />
+			<service name="Block"/>
 		</provides>
 		<configfile name="usb_drv.config"/>
 		<route>
@@ -199,8 +221,7 @@ append_if [expr $use_usb] config {
 			<service name="ROM" label="usb_drv.config"><child name="usb_config_rom"/></service>
 			<any-service><parent /><any-child /></any-service>
 		</route>
-	</start>
-}
+	</start>}
 
 append_if [have_spec framebuffer] config {
 	<start name="fb_drv" priority="-1">
@@ -235,13 +256,13 @@ append boot_modules {
 	virtualbox qemu-usb.lib.so
 }
 
-lappend_if [expr $use_ram_fs || $use_usb] boot_modules ram_fs
+lappend_if [expr $use_ram_fs || $use_usb_hid || $use_usb_block] boot_modules ram_fs
 lappend_if [expr $use_ram_fs]             boot_modules ${overlay_image}
 
 # platform-specific modules
 lappend_if [expr         $use_ps2] boot_modules ps2_drv
-lappend_if [expr         $use_usb] boot_modules usb_drv
-lappend_if [expr         $use_usb] boot_modules usb_report_filter
+lappend_if [expr $use_usb_hid || $use_usb_block] boot_modules usb_drv
+lappend_if [expr $use_usb_hid || $use_usb_block] boot_modules usb_report_filter
 lappend_if [have_spec framebuffer] boot_modules fb_drv
 lappend_if [have_spec         x86] boot_modules rtc_drv
 

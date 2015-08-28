@@ -9,7 +9,13 @@ set flavor   "win8"
 # Write overlay back to harddisk if set to 0
 set use_ram_fs 0
 
-set use_usb 1
+set use_usb_hid 1
 set use_ps2 [have_spec ps2]
 
+set use_usb_block 0
+set use_ahci_block 1
+
 source ${genode_dir}/repos/ports/run/vbox_win.inc
+
+run_genode_until {\[init -\> vbox\].*Guest Additions capability report:.*seamless: no, hostWindowMapping: no, graphics: no} 70
+run_genode_until {\[init -\> vbox\].*Guest Additions capability report:.*seamless: yes, hostWindowMapping: no, graphics: yes} 170 [output_spawn_id]

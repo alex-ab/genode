@@ -1,0 +1,98 @@
+#
+# Genode setup running from a USB stick and starting a VirtualBox
+# which fetches a Windows 7 image from the vary same Genode USB stick.
+#
+# Short mini howto for nova_x86_64:
+# - assumption - /dev/sdc is your USB stick
+# - assumption - you are in the genode source root directory
+# - assumption - you have prepared all external ports
+# - assumption - you have build the rump tools -> tool/tool_chain_rump
+#
+# create a nova_x86_64 build directory
+# - tool/create_builddir nova_x86_64
+#
+# Put/symlink your Windows 7 vdi to build/nova_x86_64/win7.vdi
+#
+# Set RUN_OPT in your build.conf to: RUN_OPT = --include image/disk
+#
+# Build everything:
+# - make -C build/nova_x86_64 run/vbox_usb
+#
+# Make sure that the USB is not used - all partitions are un-mounted.
+#
+# Copy disk image to your USB stick:
+# - sudo dd if=build/nova_x86_64/var/run/vbox_usb.img of=/dev/sdc
+#
+# Make sure that the USB partition of the stick is un-mounted.
+#
+# Resize USB stick partition to maximum:
+# - sudo fdisk /dev/sdc
+# -- delete partition ('d')
+# -- create partition - ('p')
+# -- write table to disk and exit ('w')
+#
+# - sudo resize2fs -p /dev/sdc1
+#
+# Mount Genode partition on USB stick and copy your Windows image to the USB
+# stick:
+#
+# - sudo mount /dev/sdc1 /media/genode
+# - cp build/nova_x86_64/win7.vdi /media/genode/.
+# - mkdir /media/genode/ram
+# - cp build/nova_x86_64/bin/overlay_win7.vdi /media/genode/ram/.
+# - umount /media/genode
+#
+# Boot your USB stick. For debugging get the serial output of the test machine.
+#
+
+set flavor   "win7"
+
+# Write overlay back to harddisk if set to 0
+set use_ram_fs 0
+
+set use_usb_hid 1
+set use_ps2 [have_spec ps2]
+
+set use_usb_block 1
+set use_ahci_block 0
+
+source ${genode_dir}/repos/ports/run/vbox_win.inc
+
+# read out the uuids of the vdi and the overlay and replace it in the .vbox
+# file
+
+set vdi_uuid [exec vboxmanage showhdinfo $vdi_image]
+set vdi_size [lindex $vdi_uuid 20] 
+set vdi_uuid [lindex $vdi_uuid 1]
+
+catch { exec rm -f bin/overlay_$flavor.vdi }
+catch { exec vboxmanage createhd --filename bin/overlay_$flavor.vdi --size $vdi_size --format vdi }
+
+set overlay_uuid [exec vboxmanage showhdinfo bin/overlay_$flavor.vdi]
+set overlay_size [lindex $overlay_uuid 20] 
+set overlay_uuid [lindex $overlay_uuid 1]
+
+puts "vdi     uuid:    $vdi_uuid size: $vdi_size MB"
+puts "overlay overlay: $overlay_uuid size: $overlay_size MB"
+
+set vbox_template [open ${genode_dir}/repos/ports/run/${vbox_file} r]
+set vbox_target [open bin/${vbox_file} w]
+
+while {[gets $vbox_template line] != -1} {
+  if {[regexp {.*-.*-.*-.*-.*Immutable} $line]} {
+    puts $vbox_target [regsub {[[:xdigit:]]+\-[[:xdigit:]]+\-[[:xdigit:]]+\-[[:xdigit:]]+\-[[:xdigit:]]+} $line $vdi_uuid]
+  } else {
+  if {[regexp {.*-.*-.*-.*-.*autoReset} $line]} {
+    puts $vbox_target [regsub {[[:xdigit:]]+\-[[:xdigit:]]+\-[[:xdigit:]]+\-[[:xdigit:]]+\-[[:xdigit:]]+} $line $overlay_uuid]
+  } else {
+  if {[regexp {Image uuid=.*-.*-.*-.*-.*} $line]} {
+    puts $vbox_target [regsub {[[:xdigit:]]+\-[[:xdigit:]]+\-[[:xdigit:]]+\-[[:xdigit:]]+\-[[:xdigit:]]+} $line $overlay_uuid]
+  } else {
+    puts $vbox_target $line 
+  }}}
+}
+
+close $vbox_template
+close $vbox_target
+
+build_boot_image $boot_modules

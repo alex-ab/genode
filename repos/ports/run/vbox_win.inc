@@ -40,7 +40,7 @@ set config_of_app {
 		<config>}
 append_if [expr $use_ps2] config_of_app {
 			<input label="ps2" /> }
-append_if [expr $use_usb] config_of_app {
+append_if [expr $use_usb_hid] config_of_app {
 			<input label="usb_hid" />}
 append config_of_app {
 		</config>
@@ -49,7 +49,7 @@ append_if [expr $use_ps2] config_of_app {
 			<service name="Input">
 				<if-arg key="label" value="ps2" /> <child name="ps2_drv" />
 			</service> }
-append_if [expr $use_usb] config_of_app {
+append_if [expr $use_usb_hid] config_of_app {
 			<service name="Input">
 				<if-arg key="label" value="usb_hid" /> <child name="usb_drv" />
 			</service> }
@@ -193,9 +193,6 @@ exec cp ${genode_dir}/repos/ports/run/${vbox_file} bin/.
 append boot_modules " ${vbox_file} "
 
 build_boot_image $boot_modules
-
-run_genode_until {\[init -\> vbox\].*Guest Additions capability report:.*seamless: no, hostWindowMapping: no, graphics: no} 70
-run_genode_until {\[init -\> vbox\].*Guest Additions capability report:.*seamless: yes, hostWindowMapping: no, graphics: yes} 170 [output_spawn_id]
 
 # cleanup bin directory - remove vbox file
 exec rm bin/${vbox_file}
