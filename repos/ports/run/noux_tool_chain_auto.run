@@ -13,6 +13,8 @@ if {[have_spec pistachio]} {
 	exit 0
 }
 
+# set to 1 to load *.tar (bash, gcc, etc.) archives from USB storage
+set use_usb_storage 0
 
 set verbose_mode      "no"
 

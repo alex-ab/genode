@@ -17,6 +17,7 @@ if {[have_spec linux]} {
 }
 
 set use_usb_input [expr ![have_spec ps2] && ![have_spec sdl] && [have_spec usb]]
+set use_usb [expr $use_usb_storage || $use_usb_input]
 
 set build_components {
 	core init drivers/timer noux/minimal lib/libc_noux
@@ -37,7 +38,10 @@ proc check_xml_syntax {xml_file} { }
 source ${genode_dir}/repos/base/run/platform_drv.inc
 append_platform_drv_build_components
 
-lappend_if $use_usb_input       build_components drivers/usb
+lappend_if $use_usb         build_components drivers/usb
+lappend_if $use_usb_storage build_components server/part_blk
+lappend_if $use_usb_storage build_components server/ffat_fs
+lappend_if $use_usb_storage build_components server/fs_rom
 
 set cc_march ""
 
@@ -137,12 +141,62 @@ append_if [have_spec ps2] config {
 		<provides><service name="Input"/></provides>
 	</start> }
 
-append_if $use_usb_input config {
+#
+# USB driver
+#
+append_if $use_usb config {
 	<start name="usb_drv">
 		<resource name="RAM" quantum="12M"/>
-		<provides><service name="Input"/></provides>
-		<config uhci="yes" ehci="no" xhci="no"> <hid/> </config>
-	</start> }
+		<provides>}
+
+append_if $use_usb_input config {
+			<service name="Input"/>}
+append_if $use_usb_storage config {
+			<service name="Block"/>}
+
+append_if $use_usb config {
+		</provides>
+		<config uhci="yes" ehci="yes" xhci="yes">}
+append_if $use_usb_input config {
+			<hid/>}
+append_if $use_usb_storage config {
+			<storage/>}
+append_if $use_usb config {
+		 </config>
+	</start>}
+
+append_if $use_usb_storage config {
+	<start name="part_blk">
+		<resource name="RAM" quantum="6M"/>
+		<provides><service name="Block"/></provides>
+		<config>
+			<policy label="ffat_fs" partition="1"/>
+		</config>
+		<route>
+			<service name="Block"> <child name="usb_drv"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="ffat_fs">
+		<resource name="RAM" quantum="4M"/>
+		<provides> <service name="File_system"/> </provides>
+		<config> <policy root="/" writeable="no" /> </config>
+		<route>
+			<service name="Block"> <child name="part_blk"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="fs_rom">
+		<resource name="RAM" quantum="160M"/>
+		<provides> <service name="ROM"/> </provides>
+		<route>
+			<service name="File_system"> <child name="ffat_fs"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+}
 
 append config {
 	<start name="terminal">
@@ -191,6 +245,9 @@ append config {
 	</start>
 }
 
+#
+# Noux configuration
+#
 append config {
 	<start name="noux">
 		<resource name="RAM" quantum="1G" />
@@ -204,15 +261,20 @@ append config {
 }
 
 foreach pkg $noux_pkgs {
-	append config "		<tar name=\"$pkg.tar\" />" }
+	append config "
+				<tar name=\"$pkg.tar\" />"}
 
-append config {			<dir name="platform"> }
+append config {
+				<dir name="platform"> }
+
 foreach pkg $platform_pkgs {
-	append config "			<dir name=\"$pkg\">
+	append config "
+					<dir name=\"$pkg\">
 						<tar name=\"$pkg.tar\" />
 					</dir>" }
 
-append config {			</dir>
+append config {
+				</dir>
 
 				<dir name="genode">
 					<tar name="genode.tar" />
@@ -241,6 +303,19 @@ append config {			</dir>
 				<arg value="--login" />
 			</start>
 		</config>
+		<route>}
+
+foreach pkg $noux_pkgs {
+	append_if $use_usb_storage config "
+			<service name=\"ROM\" label=\"$pkg.tar\"> <child name=\"fs_rom\"/> </service>"
+}
+append_if $use_usb_storage config {
+			<service name="ROM" label="genode.tar"> <child name="fs_rom"/> </service>}
+
+append config {
+			<service name="File_system"> <child name="ram_fs"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
 	</start>
 </config>
 }
@@ -262,9 +337,9 @@ set boot_modules {
 append boot_modules { gmp.lib.so mpfr.lib.so mpc.lib.so }
 
 foreach pkg $noux_pkgs {
-	lappend boot_modules "$pkg.tar" }
+	lappend_if [expr !$use_usb_storage] boot_modules "$pkg.tar" }
 
-append boot_modules { genode.tar }
+lappend_if [expr !$use_usb_storage] boot_modules genode.tar
 
 foreach pkg $platform_pkgs { append boot_modules "$pkg.tar" }
 
@@ -272,7 +347,10 @@ foreach pkg $platform_pkgs { append boot_modules "$pkg.tar" }
 lappend_if [have_spec       linux] boot_modules fb_sdl
 lappend_if [have_spec framebuffer] boot_modules fb_drv
 lappend_if [have_spec         ps2] boot_modules ps2_drv
-lappend_if $use_usb_input          boot_modules usb_drv
+lappend_if $use_usb                boot_modules usb_drv
+lappend_if $use_usb_storage        boot_modules part_blk
+lappend_if $use_usb_storage        boot_modules ffat_fs
+lappend_if $use_usb_storage        boot_modules fs_rom
 
 append_platform_drv_boot_modules
 

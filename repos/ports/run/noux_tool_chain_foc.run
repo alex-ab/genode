@@ -9,6 +9,9 @@ if {![have_spec foc_x86_32]} {
         exit 0
 }
 
+# set to 1 to load *.tar (bash, gcc, etc.) archives from USB storage
+set use_usb_storage 0
+
 # create a tar archive containing the l4 header files
 build core
 exec tar cfv bin/l4.tar -h --exclude=std_tmpl include l4
