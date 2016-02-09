@@ -39,6 +39,21 @@
 using namespace Genode;
 using namespace Nova;
 
+inline void outb(unsigned short port, uint8_t val)
+{
+	asm volatile ("outb %b0, %w1" : : "a" (val), "Nd" (port));
+}
+
+inline void vga_configure(unsigned reg_offset, unsigned reg_index,
+                          unsigned value)
+{
+	/* select the register by programming the index of the wanted register */
+	outb(0x3c0 + reg_offset, reg_index);
+	/* write the value to the actual register */
+	outb(0x3c1 + reg_offset, value);
+}
+
+unsigned short * vga_base = 0;
 
 enum { verbose_boot_info = true };
 
@@ -500,6 +515,17 @@ Platform::Platform() :
 
 		_io_mem_alloc.remove_range(base, size);
 		ram_alloc()->add_range(base, size);
+	}
+
+	/* map vga memory and enable it */
+	addr_t core_local_addr = _map_pages(0xb8, 1);
+	if (!core_local_addr)
+		error("could not map framebuffer");
+	else {
+		/* set the vga start high address to enable the vga buffer refresh */
+		vga_configure(0x14, 0xc, 0);
+		/* tell the core_console where the memory got mapped to */
+		vga_base = reinterpret_cast<unsigned short *>(core_local_addr);
 	}
 
 	/*
