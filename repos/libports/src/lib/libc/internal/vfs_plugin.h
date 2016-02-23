@@ -79,6 +79,7 @@ class Libc::Vfs_plugin : public Plugin
 		Vfs::Io_response_handler        &_response_handler;
 		Update_mtime               const _update_mtime;
 		bool                       const _pipe_configured;
+		Vfs::Env                        &_vfs_env;
 
 		/**
 		 * Sync a handle and propagate errors
@@ -111,6 +112,11 @@ class Libc::Vfs_plugin : public Plugin
 			return result;
 		}
 
+		void * _mmap_copy(::size_t length, Libc::File_descriptor *fd,
+		                  ::off_t offset);
+
+		void * _mmap_direct(Vfs::Vfs_handle * handle);
+
 	public:
 
 		Vfs_plugin(Libc::Env                &env,
@@ -124,7 +130,8 @@ class Libc::Vfs_plugin : public Plugin
 			_root_fs(env.vfs()),
 			_response_handler(handler),
 			_update_mtime(update_mtime),
-			_pipe_configured(_init_pipe_configured(config))
+			_pipe_configured(_init_pipe_configured(config)),
+			_vfs_env(vfs_env)
 		{
 			if (config.has_sub_node("libc"))
 				_root_dir.construct(vfs_env);
