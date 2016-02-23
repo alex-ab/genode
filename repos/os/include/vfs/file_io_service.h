@@ -107,7 +107,9 @@ struct Vfs::File_io_service : Interface
 
 	enum Ioctl_opcode { IOCTL_OP_UNDEFINED, IOCTL_OP_TIOCGWINSZ,
 	                    IOCTL_OP_TIOCSETAF, IOCTL_OP_TIOCSETAW,
-	                    IOCTL_OP_FIONBIO,   IOCTL_OP_DIOCGMEDIASIZE };
+	                    IOCTL_OP_FIONBIO,   IOCTL_OP_DIOCGMEDIASIZE,
+	                    IOCTL_OP_FBIOGET_VSCREENINFO,
+	                    IOCTL_OP_FBIOGET_FSCREENINFO };
 
 	enum Ioctl_value { IOCTL_VAL_NULL, IOCTL_VAL_ECHO, IOCTL_VAL_ECHONL };
 
@@ -141,6 +143,11 @@ struct Vfs::File_io_service : Interface
 		return IOCTL_ERR_INVALID;
 	}
 
+	enum Mmap_type { MMAP_COPY, MMAP_DIRECT };
+
+	virtual Mmap_type mmap_type() { return MMAP_COPY; }
+
+	virtual Dataspace_capability mmap_direct_ds() { return Dataspace_capability(); }
 
 	/**
 	 * Return true if an unblocking condition of the file is satisfied
