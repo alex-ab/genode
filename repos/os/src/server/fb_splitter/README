@@ -1,0 +1,7 @@
+EXPERIMENTAL:
+This component is a temporary feature and should not be used broadly.
+
+The Framebuffer splitter provides an underlying Framebuffer session to multiple
+clients. Normally, Framebuffer drivers allow a single client only. The splitter
+simply forwards all requests to the underlying session without further
+management except that it serializes them as it has only one entrypoint.
