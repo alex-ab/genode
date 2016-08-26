@@ -1,0 +1,225 @@
+source ${genode_dir}/repos/libports/run/qt5_common.inc
+
+#
+# Build
+#
+
+if {[have_spec hw_odroid_xu]} {
+	puts "Run script does not support this platform."
+	exit 0
+}
+
+append build_components [qt5_build_components feature]
+
+append build_components {
+	app/qt5/examples/textedit
+        server/nit_fb server/terminal
+	drivers/rtc
+        noux
+	app/nano3d
+}
+
+set use_sd_card_driver [expr [have_spec omap4] || [have_spec arndale]]
+set use_ahci_driver    [expr [have_spec x86] && ![have_spec linux]]
+set use_ahci_driver    0
+set use_sd_card_driver 0
+
+lappend_if $use_sd_card_driver       build_components drivers/sd_card
+lappend_if $use_ahci_driver          build_components drivers/ahci
+lappend_if [have_spec    acpi]       build_components drivers/acpi
+lappend_if [have_spec   linux]       build_components server/ram_fs
+lappend_if [expr ![have_spec linux]] build_components server/ffat_fs
+
+build $build_components
+
+create_boot_directory
+
+#
+# Create Qt tar archive
+
+create_qt5_fs_tar_archive "textedit" "gui"
+
+#
+# Generate config
+#
+
+append config {
+<config verbose="yes">
+	<parent-provides>}
+append config [qt5_parent_provides feature]
+append config {
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <child name="wm"/> <any-child/> </any-service>
+	</default-route>}
+
+append config [qt5_start_nodes feature]
+
+append_if $use_ahci_driver config {
+	<start name="ahci_drv">
+		<resource name="RAM" quantum="5M"/>
+		<provides> <service name="Block"/> </provides>
+		<config>
+			<policy label="ffat_fs" device="0" />
+		</config>
+	</start>}
+
+append_if $use_sd_card_driver config {
+	<start name="sd_card_drv">
+		<resource name="RAM" quantum="1M" />
+		<provides><service name="Block"/></provides>
+	</start>}
+
+append_if [have_spec linux] config {
+	<start name="ram_fs">
+		<resource name="RAM" quantum="10M"/>
+		<provides><service name="File_system"/></provides>
+		<config>
+			<!-- constrain sessions according to their labels -->
+			<policy label="textedit" root="/" writeable="yes" />
+		</config>
+	</start>}
+
+append_if [expr ![have_spec linux]] config {
+	<start name="ffat_fs">
+		<resource name="RAM" quantum="10M"/>
+		<provides><service name="File_system"/></provides>
+		<config>
+			<!-- constrain sessions according to their labels -->
+			<policy label="textedit" root="/" writeable="yes" />
+		</config>
+	</start>}
+
+append config {
+	<start name="textedit">
+		<resource name="RAM" quantum="70M"/>
+		<config xpos="3" ypos="0" width="500" height="710">
+			<libc stdout="/dev/log" stderr="/dev/log">
+				<vfs>
+					<dir name="dev"> <log/> </dir>
+					<tar name="qt5_fs_textedit.tar"/>
+					<dir name="fs">	<fs/> </dir>
+				</vfs>
+			</libc>
+		</config>
+	</start>
+
+	<start name="terminal">
+		<resource name="RAM" quantum="2M"/>
+		<provides><service name="Terminal"/></provides>
+		<config>
+			<keyboard layout="en"/>
+			<font size="12" />
+		</config>
+		<route>
+			<service name="Framebuffer"> <child name="nit_fb"/> </service>
+			<service name="Input"> <child name="nit_fb"/> </service>
+			<any-service> <parent/> <child name="wm"/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="rtc_drv">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Rtc"/></provides>
+	</start>
+
+	<start name="nit_fb">
+		<binary name="nit_fb"/>
+		<resource name="RAM" quantum="2M"/>
+		<provides><service name="Input"/><service name="Framebuffer"/></provides>
+		<config xpos="300" ypos="100" width="576" height="408" />
+	</start>
+
+	<start name="nano3d">
+		<resource name="RAM" quantum="8M"/>
+		<config painter="shaded"/>
+	</start>
+
+	<start name="noux">
+		<resource name="RAM" quantum="128M" />
+		<config>
+			<fstab>
+				<tar name="coreutils.tar" />
+				<tar name="vim.tar" />
+				<tar name="diffutils.tar" />
+				<tar name="less.tar" />
+				<tar name="bash.tar" />
+
+				<!-- Example of how to impose policy onto a file system
+				     session. The label attached to the 'fs' node is used
+				     as a key to select the policy of 'ram_fs' -->
+
+				<dir name="home"> <fs label="home" /> </dir>
+
+				<!-- The entirety of ram_fs is mounted within the '/ram'
+				     directory. -->
+
+				<dir name="ram"> <fs label="root" /> </dir>
+				<dir name="tmp"> <fs label="tmp" /> </dir>
+
+				<dir name="dev"> <rtc/> <zero/> <null/> </dir>
+
+			</fstab>
+			<start name="/bin/bash">
+				<env name="TERM" value="linux" />
+			</start>
+		</config>
+	</start>
+</config>
+}
+
+install_config $config
+
+#
+# Boot modules
+#
+
+append boot_modules [qt5_boot_modules feature]
+
+append boot_modules {
+	textedit
+	freetype.lib.so
+	gallium.lib.so
+	icu.lib.so
+	ld.lib.so
+	libc.lib.so
+	libc_pipe.lib.so
+	libm.lib.so
+	libpng.lib.so
+	jpeg.lib.so
+	pthread.lib.so
+	qt5_core.lib.so
+	qt5_gui.lib.so
+	qt5_widgets.lib.so
+	qt5_xml.lib.so
+	zlib.lib.so
+	stdcxx.lib.so
+	qt5_fs_textedit.tar
+	nit_fb terminal noux rtc_drv libc_noux.lib.so ncurses.lib.so
+	bash.tar coreutils.tar diffutils.tar less.tar vim.tar
+	nano3d
+}
+
+# platform-specific modules
+lappend_if [have_spec linux]         boot_modules ram_fs
+lappend_if [expr ![have_spec linux]] boot_modules ffat_fs
+lappend_if $use_sd_card_driver       boot_modules sd_card_drv
+lappend_if $use_ahci_driver          boot_modules ahci_drv
+
+build_boot_image $boot_modules
+
+set disk_image "bin/test.hda"
+set cmd "dd if=/dev/zero of=$disk_image bs=1024 count=65536"
+puts "creating disk image: $cmd"
+catch { exec sh -c $cmd }
+
+set cmd "mkfs.vfat -F32 $disk_image"
+puts "formating disk image with vfat file system: $cmd"
+catch { exec sh -c $cmd }
+
+append_if $use_ahci_driver qemu_args " -drive id=disk,file=$disk_image,format=raw,if=none -device ahci,id=ahci -device ide-drive,drive=disk,bus=ahci.0 -boot d"
+
+append qemu_args " -m 256 -usbdevice tablet "
+
+run_genode_until forever
+

@@ -23,8 +23,9 @@ proc qt5_build_components { feature_arg } {
 		server/nitpicker
 		server/report_rom
 		app/floating_window_layouter
-		app/decorator
+		app/themed_decorator
 		app/pointer
+		app/backdrop
 		server/wm
 	}
 
@@ -75,6 +76,7 @@ proc qt5_start_nodes { feature_arg } {
 
 				<policy label="pointer" domain="pointer"/>
 				<default-policy domain="default"/>
+				<background color="#000000"/>
 			</config>
 		</start>
 
@@ -134,11 +136,54 @@ proc qt5_start_nodes { feature_arg } {
 		</start>
 
 		<start name="decorator">
-			<binary name="decorator"/>
+			<binary name="themed_decorator"/>
 			<resource name="RAM" quantum="12M"/>
+			<config>
+				<libc>
+					<vfs>
+						<dir name="theme">
+							<inline name="metadata">
+								<theme>
+									<aura  top="8"  bottom="8" left="8" right="8"/>
+									<decor top="20" bottom="8" left="1" right="1"/>
+									<title xpos="16" ypos="9" width="32" height="20"/>
+									<closer xpos="36" ypos="10"/>
+									<maximizer xpos="10" ypos="10"/>
+								</theme>
+							</inline>
+						</dir>
+						<tar name="plain_decorator_theme.tar" />
+					</vfs>
+				</libc>
+			</config>
+			<route>
+				<service name="ROM" label="pointer"> <child name="report_rom"/> </service>
+				<service name="ROM" label="window_layout"> <child name="report_rom"/> </service>
+				<service name="Report"> <child name="report_rom"/> </service>
+				<any-service>
+					<child name="wm"/> <parent/> <any-child/>
+				</any-service>
+			</route>
+		</start>
+
+		<start name="backdrop">
+			<resource name="RAM" quantum="28M"/>
+			<config>
+				<libc>
+					<vfs>
+						<rom name="genode_logo.png"/>
+						<rom name="grid.png"/>
+						<rom name="sticks_blue.png"/>
+					</vfs>
+				</libc>
+				<fill color="#122334" />
+				<image png="sticks_blue.png" anchor="bottom_left" scale="zoom"/>
+				<image png="grid.png"        tiled="yes" alpha="200" />
+				<image png="genode_logo.png" anchor="bottom_right" alpha="150"/>
+			</config>
 			<route>
 				<any-service>
-					<child name="wm"/> <child name="report_rom"/> <parent/> <any-child/>
+					<child name="nitpicker"/> <parent/> <any-child/>
 				</any-service>
 			</route>
 		</start>
@@ -166,10 +211,17 @@ proc qt5_boot_modules { feature_arg } {
 		nitpicker
 		report_rom
 		floating_window_layouter
-		decorator
+		themed_decorator
 		wm
 		pointer
+		backdrop
+		genode_logo.png grid.png sticks_blue.png
+		plain_decorator_theme.tar
 	}
+
+	# copy backdrop PNG images to bin directory
+	foreach file { genode_logo.png grid.png sticks_blue.png } {
+		file copy -force [genode_dir]/repos/gems/src/app/backdrop/$file bin/ }
 
 	return $boot_modules
 }
