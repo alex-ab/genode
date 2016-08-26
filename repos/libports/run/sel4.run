@@ -1,5 +1,7 @@
 source ${genode_dir}/repos/libports/run/qt5_common.inc
 
+set feature(Nic) 1
+
 #
 # Build
 #
@@ -17,6 +19,8 @@ append build_components {
 	drivers/rtc
         noux
 	app/nano3d
+	server/clipboard server/loader server/tar_rom server/nit_fb app/launchpad test/nitpicker
+	app/arora
 }
 
 set use_sd_card_driver [expr [have_spec omap4] || [have_spec arndale]]
@@ -165,6 +169,47 @@ append config {
 			</start>
 		</config>
 	</start>
+
+	<start name="clipboard">
+		<resource name="RAM" quantum="4M"/>
+		<provides>
+			<service name="ROM"/>
+			<service name="Report"/>
+		</provides>
+		<config>
+			<policy label="arora -> clipboard" domain="default"  />
+		</config>
+		<route>
+			<service name="ROM"> <child name="report_rom"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+	<start name="loader">
+		<resource name="RAM" quantum="2M"/>
+		<provides><service name="Loader"/></provides>
+	</start>
+
+	<start name="arora">
+		<resource name="RAM" quantum="2G"/>
+		<config clipboard="yes">
+			<libc stdout="/dev/log" stderr="/dev/log">
+				<vfs>
+					<dir name="dev"> <log/> </dir>
+					<tar name="qt5_fs_arora.tar"/>
+				</vfs>
+			</libc>
+		</config>
+		<route>
+			<service name="Nitpicker"> <child name="wm"/> </service>
+			<service name="Report"> <child name="clipboard"/> </service>
+			<service name="ROM">
+				<if-arg key="label" value="clipboard"/> <child name="clipboard"/>
+			</service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
 </config>
 }
 
@@ -200,6 +245,36 @@ append boot_modules {
 	nano3d
 }
 
+append boot_modules {
+	clipboard
+	loader
+	tar_rom
+	nit_fb
+	launchpad
+	testnit
+	arora
+	lwip.lib.so
+	libssl.lib.so libcrypto.lib.so
+	nitpicker_plugin.tar
+}
+
+append boot_modules {
+	gallium.lib.so
+	qt5_jscore.lib.so
+	qt5_network.lib.so
+	qt5_qnitpickerviewwidget.lib.so
+	qt5_qpluginwidget.lib.so
+	qt5_ui_tools.lib.so
+	qt5_webcore.lib.so
+	qt5_webkit.lib.so
+	qt5_printsupport.lib.so
+	qt5_scriptclassic.lib.so
+	qt5_sql.lib.so
+	qt5_webkitwidgets.lib.so
+	qt5_wtf.lib.so
+	qt5_fs_arora.tar
+}
+
 # platform-specific modules
 lappend_if [have_spec linux]         boot_modules ram_fs
 lappend_if [expr ![have_spec linux]] boot_modules ffat_fs
@@ -219,7 +294,7 @@ catch { exec sh -c $cmd }
 
 append_if $use_ahci_driver qemu_args " -drive id=disk,file=$disk_image,format=raw,if=none -device ahci,id=ahci -device ide-drive,drive=disk,bus=ahci.0 -boot d"
 
-append qemu_args " -m 256 -usbdevice tablet "
+append qemu_args " -m 3048 -usbdevice tablet "
 
 run_genode_until forever
 
