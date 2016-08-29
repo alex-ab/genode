@@ -1,0 +1,33 @@
+--- src/kernel/sel4/include/plat/pc99/plat/32/plat_mode/machine/hardware.h
++++ src/kernel/sel4/include/plat/pc99/plat/32/plat_mode/machine/hardware.h
+@@ -14,7 +14,7 @@
+ /* WARNING: some of these constants are also defined in linker.lds */
+ #define PADDR_BASE  0x00000000
+ #define PADDR_LOAD  0x00100000
+-#define PPTR_BASE   0xe0000000
++#define PPTR_BASE   0xc0000000
+ #ifdef CONFIG_PAE_PAGING
+ #define PPTR_USER_TOP (PPTR_BASE & (~MASK(X86_1G_bits)))
+ #else
+--- src/kernel/sel4/src/arch/x86/32/kernel/vspace_32paging.c
++++ src/kernel/sel4/src/arch/x86/32/kernel/vspace_32paging.c
+@@ -88,7 +88,7 @@ init_boot_pd(void)
+     }
+ 
+     /* mapping of PPTR_BASE (virtual address) to PADDR_BASE up to end of virtual address space */
+-    for (i = 0; i < ((-PPTR_BASE) >> X86_4M_bits); i++) {
++    for (i = 0; i < ((0UL-PPTR_BASE) >> X86_4M_bits); i++) {
+         pde_pde_large_ptr_new_phys(
+             _boot_pd + i + (PPTR_BASE >> X86_4M_bits),
+             (i << X86_4M_bits) + PADDR_BASE, /* physical address */
+--- src/kernel/sel4/src/plat/pc99/linker.lds
++++ src/kernel/sel4/src/plat/pc99/linker.lds
+@@ -15,7 +15,7 @@ ENTRY(_start)
+ /* WARNING: constants also defined in plat/machine/hardware.h */
+ PADDR_BASE = 0x00000000;
+ PADDR_LOAD = 0x00100000;
+-KERNEL_BASE  = 0xe0000000;
++KERNEL_BASE  = 0xc0000000;
+ OUTPUT_ARCH(i386)
+ OUTPUT_FORMAT(elf32-i386)
+ 
