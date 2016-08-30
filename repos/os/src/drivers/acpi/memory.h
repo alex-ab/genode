@@ -49,8 +49,8 @@ class Acpi::Memory
 
 		Memory()
 		:
-			/* 512 MB range */
-			ACPI_REGION_SIZE_LOG2(29),
+			/* 1 GB range */
+			ACPI_REGION_SIZE_LOG2(30),
 			_rm_acpi(_rm.create(1UL << ACPI_REGION_SIZE_LOG2)),
 			_acpi_base(Genode::env()->rm_session()->attach(_rm_acpi.dataspace())),
 			_range(Genode::env()->heap())
