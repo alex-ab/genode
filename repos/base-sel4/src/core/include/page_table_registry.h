@@ -176,7 +176,7 @@ class Genode::Page_table_registry
 		};
 
 		Static_allocator<Page_table, 128>         _page_table_alloc;
-		Static_allocator<Page_table::Entry, 4 * 1024> _page_table_entry_alloc;
+		Static_allocator<Page_table::Entry, 3 * 1024> _page_table_entry_alloc;
 
 		List<Page_table> _page_tables;
 

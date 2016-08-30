@@ -35,7 +35,8 @@ proc use_gpio_drv { feature_arg } {
 
 proc use_nic_drv { feature_arg } {
 	upvar $feature_arg feature
-	return [expr {[info exists feature(Nic)]}]
+	return [expr {[info exists feature(Nic)] &&
+	              ![use_usb_drv feature]}]
 }
 
 proc use_ps2_drv { feature_arg } {
@@ -177,7 +178,7 @@ proc drivers_start_nodes { feature_arg } {
 
 	append_if [use_nic_drv feature] start_nodes {
 		<start name="nic_drv">
-			<resource name="RAM" quantum="4M"/>
+			<resource name="RAM" quantum="2M"/>
 			<provides><service name="Nic"/></provides>
 		</start>
 	}
@@ -203,6 +204,8 @@ proc drivers_start_nodes { feature_arg } {
 				<provides>}
 		append_if [info exists feature(Input)] start_nodes {
 					<service name="Input"/>}
+		append_if [info exists feature(Nic)] start_nodes {
+					<service name="Nic"/>}
 		append start_nodes {
 				</provides>
 				<config uhci="yes" ehci="yes" xhci="no">}
