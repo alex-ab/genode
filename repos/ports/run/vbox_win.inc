@@ -242,6 +242,7 @@ for { set i 1} { $i <= $use_vms } { incr i} {
 		<binary name="virtualbox5" />}
 
 	append config_of_app {
+		<exit restart="yes"/>
 		<resource name="RAM" quantum="1280M"/>}
 	if { $use_vms eq 1 } {
 		append config_of_app "
