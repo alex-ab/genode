@@ -358,6 +358,8 @@ class Init::Child : Genode::Child_policy
 		 */
 		class Child_name_is_not_unique { };
 
+		enum ON_EXIT { KEEP, RESTART, DESTROY };
+
 	private:
 
 		friend class Child_registry;
@@ -541,6 +543,10 @@ class Init::Child : Genode::Child_policy
 		Init::Child_policy_redirect_rom_file     _configfile_policy;
 		Init::Child_policy_ram_phys              _ram_session_policy;
 
+		Genode::Signal_context_capability        _exit_cap;
+		bool                                     _exited = false;
+		enum ON_EXIT                             _on_exit = ON_EXIT::KEEP;
+
 	public:
 
 		Child(Genode::Xml_node               start_node,
@@ -551,7 +557,8 @@ class Init::Child : Genode::Child_policy
 		      Genode::Service_registry      &parent_services,
 		      Genode::Service_registry      &child_services,
 		      Genode::Cap_session           &cap_session,
-		      Genode::Dataspace_capability   ldso_ds)
+		      Genode::Dataspace_capability   ldso_ds,
+		      Genode::Signal_context_capability exit_cap)
 		:
 			_list_element(this),
 			_start_node(start_node),
@@ -578,7 +585,8 @@ class Init::Child : Genode::Child_policy
 			_config_policy("config", _config.dataspace(), &_entrypoint),
 			_binary_policy("binary", _binary_rom_ds, &_entrypoint),
 			_configfile_policy("config", _config.filename()),
-			_ram_session_policy(_resources.constrain_phys)
+			_ram_session_policy(_resources.constrain_phys),
+			_exit_cap(exit_cap)
 		{
 			using namespace Genode;
 
@@ -819,13 +827,25 @@ class Init::Child : Genode::Child_policy
 			_child.notify_resource_avail();
 		}
 
+		Genode::Xml_node start_node() const { return _start_node; }
+		bool exited()                 const { return _exited; }
+		enum ON_EXIT on_exit()        const { return _on_exit; }
+
 		void exit(int exit_value) override
 		{
+			_exited = true;
+
 			try {
 				if (_start_node.sub_node("exit").attribute_value("propagate", false)) {
 					Genode::env()->parent()->exit(exit_value);
 					return;
 				}
+
+				if (_start_node.sub_node("exit").attribute_value("destroy", false))
+					_on_exit = ON_EXIT::DESTROY;
+				if (_start_node.sub_node("exit").attribute_value("restart", false))
+					_on_exit = ON_EXIT::RESTART;
+
 			} catch (...) { }
 
 			/*
@@ -834,6 +854,9 @@ class Init::Child : Genode::Child_policy
 			 * printed by the default implementation of 'Child_policy::exit'.
 			 */
 			Child_policy::exit(exit_value);
+
+			if (_exit_cap.valid() && _on_exit != ON_EXIT::KEEP)
+				Genode::Signal_transmitter(_exit_cap).submit();
 		}
 };
 

@@ -292,13 +292,16 @@ optional sub node '<exit>' with the attribute 'propagate' set to "yes".
 
 ! <config>
 !   <start name="noux">
-!     <exit propagate="yes"/>
+!     <exit propagate="yes" destroy="no" restart="no"/>
 !     ...
 !   </start>
 ! </config>
 
 The exit value specified by the exiting child is forwarded to init's parent.
 
+If the 'destroy' attribute is set the component will be destructed. If the
+'restart' attribute is set the component will be destructed and afterwards
+restarted.
 
 Using the configuration concept
 ###############################

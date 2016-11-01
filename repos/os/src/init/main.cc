@@ -231,6 +231,15 @@ class Init::Child_registry : public Name_registry, Child_list
 			return _aliases.first() ? _aliases.first() : 0;
 		}
 
+		Child * any_exited()
+		{
+			Genode::List_element<Child> *curr = first();
+			for (; curr; curr = curr->next())
+				if (curr->object()->exited())
+					return curr->object();
+			return 0;
+		}
+
 		void revoke_server(Genode::Server const *server)
 		{
 			Genode::List_element<Child> *curr = first();
@@ -303,8 +312,11 @@ int main(int, char **)
 	 */
 	Signal_receiver sig_rec;
 	Signal_context  sig_ctx_config;
+	Signal_context  sig_ctx_exit;
 	Signal_context  sig_ctx_res_avail;
 	config()->sigh(sig_rec.manage(&sig_ctx_config));
+	Signal_context_capability exit_cap = sig_rec.manage(&sig_ctx_exit);
+
 	/* prevent init to block for resource upgrades (never satisfied by core) */
 	env()->parent()->resource_avail_sigh(sig_rec.manage(&sig_ctx_res_avail));
 
@@ -346,7 +358,7 @@ int main(int, char **)
 					                            children, read_prio_levels(),
 					                            read_affinity_space(),
 					                            parent_services, child_services, cap,
-					                            ldso_ds));
+					                            ldso_ds, exit_cap));
 				}
 				catch (Rom_connection::Rom_connection_failed) {
 					/*
@@ -379,7 +391,46 @@ int main(int, char **)
 			if (signal.context() == &sig_ctx_config)
 				break;
 
-			warning("unexpected signal received - drop it");
+			if (signal.context() != &sig_ctx_exit) {
+				warning("unexpected signal received - drop it");
+				continue;
+			}
+
+			while (Init::Child * child = children.any_exited()) {
+				/* remove child so that child registry is clean */
+				children.remove(child);
+
+				Init::Child * restart = nullptr;
+				bool const destruct = child->on_exit() == Init::Child::ON_EXIT::RESTART ||
+				                      child->on_exit() == Init::Child::ON_EXIT::DESTROY;
+
+				if (child->on_exit() == Init::Child::ON_EXIT::RESTART) {
+					/* re-create child */
+					restart = new (env()->heap())
+					               Init::Child(child->start_node(), default_route_node,
+					                           children, read_prio_levels(),
+					                           read_affinity_space(),
+					                           parent_services, child_services, cap,
+					                           ldso_ds, exit_cap);
+				}
+
+				if (destruct) {
+					if (Init::config_verbose)
+						Genode::log("destructing client ", child->name());
+
+					Genode::Server const *server = child->server();
+					destroy(env()->heap(), child);
+					children.revoke_server(server);
+
+					if (restart) {
+						if (Init::config_verbose)
+							Genode::log("restarting client ", restart->name());
+						/* restart child */
+						children.insert(restart);
+						restart->start();
+					}
+				}
+			}
 		}
 
 		/* kill all currently running children */
