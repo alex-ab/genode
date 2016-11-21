@@ -19,8 +19,9 @@ install_config {
 
 build_boot_image "core init test-log"
 
-append qemu_args "-nographic -m 64"
+append qemu_args "-m 64"
 
+run_genode_until forever
 run_genode_until "Test done.*\n" 10
 
 grep_output {\[init -\> test-log\]}
