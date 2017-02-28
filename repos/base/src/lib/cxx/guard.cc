@@ -11,7 +11,12 @@
  * under the terms of the GNU Affero General Public License version 3.
  */
 
+#include <base/log.h>
+#include <base/semaphore.h>
 #include <cpu/atomic.h>
+
+
+static Genode::Semaphore sem(0);
 
 namespace __cxxabiv1 
 {
@@ -33,40 +38,73 @@ namespace __cxxabiv1
 
 	typedef int __guard;
 
+	enum State { INIT_NONE = 0, INIT_DONE = 1, IN_INIT = 0x100 };
+
 	extern "C" int __cxa_guard_acquire(__guard *guard)
 	{
 		volatile char *initialized = (char *)guard;
-		volatile int  *in_init     = (int *)guard;
+		volatile int  *in_init     = (int  *)guard;
 
-		/* check for state 3) */
-		if (*initialized) return 0;
+		int prev_state;
+		do {
+			/* check for state 3) */
+			if (*initialized) return 0;
 
-		/* atomically check and set state 2) */
-		if (!Genode::cmpxchg(in_init, 0, 0x100)) {
-			/* spin until state 3) is reached if other thread is in init */
-			while (!*initialized) ;
+			/* atomically set new state and increase blockers counter */
+			prev_state = *in_init & ~INIT_DONE;
+		} while (!Genode::cmpxchg(in_init, prev_state, prev_state + IN_INIT));
 
-			/* guard not acquired */
-			return 0;
+		/* check for state 2) */
+		if (prev_state == INIT_NONE) {
+			/*
+			 * The guard was acquired. The caller is allowed to initialize the
+			 * guarded variable and required to call __cxa_guard_release() to flag
+			 * initialization completion (and unblock other guard applicants).
+			 */
+			return 1;
 		}
 
-		/*
-		 * The guard was acquired. The caller is allowed to initialize the
-		 * guarded variable and required to call __cxa_guard_release() to flag
-		 * initialization completion (and unblock other guard applicants).
-		 */
-		return 1;
+		/* failed to acquire the guard */
+
+		/* wait until state 3) is reached while other thread is in init */
+		do {
+			/* block thread - FIFO is important here  */
+			sem.down();
+
+			/* if the wakeup was not for this thread, wake next one */
+			if (*initialized == INIT_NONE)
+				sem.up();
+		} while (*initialized == INIT_NONE);
+
+		do {
+			/* decrease blocker count */
+			prev_state = *in_init;
+		} while (!Genode::cmpxchg(in_init, prev_state, prev_state - IN_INIT));
+
+		/* if other threads block for this guard, wake next one */
+		if ((prev_state - IN_INIT) > (IN_INIT | INIT_DONE))
+			sem.up();
+
+		/* guard not acquired */
+		return 0;
 	}
 
 
 	extern "C" void __cxa_guard_release(__guard *guard)
 	{
-		volatile char *initialized = (char *)guard;
+		volatile int *in_init = (int *)guard;
 
 		/* set state 3) */
-		*initialized = 1;
+		if (Genode::cmpxchg(in_init, IN_INIT, IN_INIT | INIT_DONE))
+			return;
+
+		/* we have others waiting for us, wake one thread up */
+		while (!Genode::cmpxchg(in_init, *in_init, *in_init | INIT_DONE)) { }
+
+		sem.up();
 	}
 
 
-	extern "C" void __cxa_guard_abort(__guard *) { }
+	extern "C" void __cxa_guard_abort(__guard *) {
+		Genode::error(__func__, " called"); }
 }
