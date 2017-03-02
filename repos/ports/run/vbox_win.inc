@@ -49,6 +49,7 @@ set config_of_app {
 
 	<start name="input_merger">
 		<resource name="RAM" quantum="1M" />
+		<resource name="CPU" quantum="5" />
 		<provides>
 			<service name="Input" />
 		</provides>
@@ -75,6 +76,7 @@ append config_of_app {
 	-->
 	<start name="nic_drv" priority="-1">
 		<resource name="RAM" quantum="8M" />
+		<resource name="CPU" quantum="5" />
 		<provides>
 			<service name="Nic" />
 		</provides>
@@ -87,6 +89,7 @@ append config_of_app {
 	-->
 	<start name="audio_drv" priority="-1">
 		<resource name="RAM" quantum="9M"/>
+		<resource name="CPU" quantum="5" />
 		<provides>
 			<service name="Audio_out"/>
 			<service name="Audio_in"/>
@@ -100,6 +103,7 @@ append config_of_app {
 
 	<start name="report_rom">
 		<resource name="RAM" quantum="2M"/>
+		<resource name="CPU" quantum="5" />
 		<provides> <service name="Report"/> <service name="ROM"/> </provides>
 		<config>
 			<policy label="vbox_pointer -> hover"               report="nitpicker -> hover"/>
@@ -123,6 +127,7 @@ append config_of_app {
 
 	<start name="nitpicker" priority="-1">
 		<resource name="RAM" quantum="4M"/>
+		<resource name="CPU" quantum="5" />
 		<provides><service name="Nitpicker"/></provides>
 		<route>
 			<service name="Framebuffer"> <child name="fb_drv" /> </service>
@@ -145,6 +150,7 @@ append config_of_app {
 
 	<start name="vbox_pointer" priority="-1">
 		<resource name="RAM" quantum="1200K"/>
+		<resource name="CPU" quantum="5" />
 		<config>}
 
 for { set i 1} { $i <= $use_vms } { incr i} {
@@ -175,6 +181,7 @@ for { set i 1} { $i <= $use_vms } { incr i} {
 	append config_of_app {
 		<binary name="nit_fb"/>
 		<resource name="RAM" quantum="8M" />
+		<resource name="CPU" quantum="5" />
 		<provides>
 			<service name="Framebuffer" />
 			<service name="Input" />
@@ -200,6 +207,7 @@ append config_of_app {
 	<start name="nit_fb-config" priority="-1">
 		<binary name="dynamic_rom"/>
 		<resource name="RAM" quantum="1M"/>
+		<resource name="CPU" quantum="5" />
 		<provides> <service name="ROM"/> </provides>
 		<config>}
 
@@ -250,6 +258,7 @@ for { set i 1} { $i <= $use_vms } { incr i} {
 
 	append config_of_app {
 		<resource name="RAM" quantum="1280M"/>}
+		<resource name="CPU" quantum="5" />
 	if { $use_vms eq 1 } {
 		append config_of_app "
 		<config ld_verbose=\"yes\" vbox_file=\"${vbox_file}\" vm_name=\"${flavor}\" xhci=\"yes\">"

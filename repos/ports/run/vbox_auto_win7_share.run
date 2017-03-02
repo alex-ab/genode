@@ -141,6 +141,7 @@ set boot_modules {
 set config_of_app {
 	<start name="nic_drv" priority="-1">
 		<resource name="RAM" quantum="4M"/>
+		<resource name="CPU" quantum="5" />
 		<provides> <service name="Nic"/> </provides>
 		<route>
 			<service name="IRQ"><child name="acpi"/></service>
@@ -150,6 +151,7 @@ set config_of_app {
 
 	<start name="tcp_terminal" priority="-1">
 		<resource name="RAM" quantum="5M"/>
+		<resource name="CPU" quantum="5" />
 		<provides> <service name="Terminal"/> </provides>
 		<config>
 			<policy label_prefix="noux" port="8888"/>
@@ -158,6 +160,7 @@ set config_of_app {
 
 	<start name="noux" priority="-1">
 		<resource name="RAM" quantum="32M"/>
+		<resource name="CPU" quantum="5" />
 		<config>
 			<fstab>
 				<tar name="coreutils.tar"/>
@@ -184,6 +187,7 @@ set config_of_app {
 	<start name="ram_fs_from" priority="-1">
 		<binary name="ram_fs"/>
 		<resource name="RAM" quantum="64M"/>
+		<resource name="CPU" quantum="5" />
 		<provides><service name="File_system"/></provides>
 		<config>
 			<content>
@@ -197,6 +201,7 @@ set config_of_app {
 	<start name="ram_fs_to" priority="-1">
 		<binary name="ram_fs"/>
 		<resource name="RAM" quantum="64M"/>
+		<resource name="CPU" quantum="5" />
 		<provides><service name="File_system"/></provides>
 		<config>
 			<default-policy root="/" writeable="yes"/>
@@ -205,6 +210,7 @@ set config_of_app {
 
 	<start name="report_rom">
 		<resource name="RAM" quantum="1M"/>
+		<resource name="CPU" quantum="5" />
 		<provides> <service name="Report"/> <service name="ROM"/> </provides>
 		<config> <rom/> </config>
 	</start>
@@ -214,6 +220,7 @@ append config_of_app "
 		<binary name=\"$virtualbox_binary\"/>"
 append config_of_app {
 		<resource name="RAM" quantum="1280M"/>
+		<resource name="CPU" quantum="5" />
 		<config vbox_file="vm_auto_share.vbox" vm_name="AutoDisk">
 			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc"/>
 			<vfs>

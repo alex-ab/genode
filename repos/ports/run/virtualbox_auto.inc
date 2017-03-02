@@ -71,10 +71,12 @@ append config {
 	</default-route>
 	<start name="timer">
 		<resource name="RAM" quantum="1M"/>
+		<resource name="CPU" quantum="5" />
 		<provides><service name="Timer"/></provides>
 	</start>
 	<start name="ahci_drv" priority="-1">
 		<resource name="RAM" quantum="10M"/>
+		<resource name="CPU" quantum="5" />
 		<provides><service name="Block"/></provides>
 		<config>
 			<policy label_prefix="part_blk" device="0"/>
@@ -82,6 +84,7 @@ append config {
 	</start>
 	<start name="part_blk" priority="-1">
 		<resource name="RAM" quantum="10M"/>
+		<resource name="CPU" quantum="5" />
 		<provides><service name="Block"/></provides>
 		<route>
 			<any-service><child name="ahci_drv"/> <parent/><any-child/></any-service>
@@ -98,6 +101,7 @@ append config {
 append_if [expr $use_rumpfs] config {
 	<start name="rump_fs" priority="-1">
 		<resource name="RAM" quantum="32M"/>
+		<resource name="CPU" quantum="5" />
 		<provides><service name="File_system"/></provides>
 		<config ld_verbose="yes" fs="ext2fs">}
 
@@ -147,6 +151,7 @@ append_if [expr $use_ram_fs && $use_overlay_from_disk] config {
 	<start name="overlay_from_disk" priority="-1">
 		<binary name="fs_rom"/>
 		<resource name="RAM" quantum="32M"/>
+		<resource name="CPU" quantum="5" />
 		<provides><service name="ROM"/></provides>
 		<route>}
 append_if [expr $use_rumpfs && $use_ram_fs && $use_overlay_from_disk] config {
@@ -161,6 +166,7 @@ append_platform_drv_config
 append_if [expr $use_ps2] config {
 	<start name="ps2_drv" priority="-1">
 		<resource name="RAM" quantum="1M"/>
+		<resource name="CPU" quantum="5" />
 		<provides><service name="Input"/></provides>
 		<config/>
 	</start>}
@@ -168,6 +174,7 @@ append_if [expr $use_ps2] config {
 append_if [expr $use_cpu_load] config {
 	<start name="trace_subject_reporter" priority="-1">
 		<resource name="RAM" quantum="6M"/>
+		<resource name="CPU" quantum="5" />
 		<config period_ms="500">
 			<report activity="yes" affinity="yes"/>
 		</config>
@@ -182,6 +189,7 @@ append_if [expr $use_cpu_load] config {
 
 	<start name="cpu_load_display" priority="-1">
 		<resource name="RAM" quantum="6M"/>
+		<resource name="CPU" quantum="5" />
 		<config/>
 		<route>
 			<service name="LOG"><parent/></service>
@@ -196,6 +204,7 @@ append_if [expr $use_usb] config {
 	<start name="usb_config_fs" priority="-1">
 		<binary name="ram_fs"/>
 		<resource name="RAM" quantum="1M"/>
+		<resource name="CPU" quantum="5" />
 		<provides><service name="File_system"/></provides>
 		<config verbose="yes">
 			<content>
@@ -248,6 +257,7 @@ append_if [expr $use_usb] config {
 	<start name="usb_config_rom" priority="-1">
 		<binary name="fs_rom"/>
 		<resource name="RAM" quantum="1200K"/>
+		<resource name="CPU" quantum="5" />
 		<provides><service name="ROM"/></provides>
 		<route>
 			<service name="File_system"><child name="usb_config_fs"/></service>
@@ -257,6 +267,7 @@ append_if [expr $use_usb] config {
 
 	<start name="usb_report_filter" priority="-1">
 		<resource name="RAM" quantum="1200K"/>
+		<resource name="CPU" quantum="5" />
 		<configfile name="usb_report_filter.config"/>
 		<route>
 			<service name="Report"><child name="report_rom"/></service>
@@ -278,6 +289,7 @@ append_if [expr $use_usb] config {
 
 	<start name="usb_drv" priority="-1">
 		<resource name="RAM" quantum="16M"/>
+		<resource name="CPU" quantum="5" />
 		<provides>
 			<service name="Input"/>
 			<service name="Usb"/>
@@ -294,6 +306,7 @@ append_if [expr $use_usb] config {
 append_if [have_spec framebuffer] config {
 	<start name="fb_drv" priority="-1">
 		<resource name="RAM" quantum="8M"/>
+		<resource name="CPU" quantum="5" />
 		<provides><service name="Framebuffer"/></provides>
 		<config buffered="yes"/>
 	</start>}
@@ -301,6 +314,7 @@ append_if [have_spec framebuffer] config {
 append_if [have_spec x86] config {
 	<start name="rtc_drv" priority="-1">
 		<resource name="RAM" quantum="1M"/>
+		<resource name="CPU" quantum="5" />
 		<provides>
 			<service name="Rtc"/>
 		</provides>

@@ -115,6 +115,7 @@ proc platform_drv_config {} {
 
 		append drv_config {
 		<resource name="RAM" quantum="3M"/>
+		<resource name="CPU" quantum="5" />
 		<route>
 			<service name="IO_MEM"> <parent/> </service>
 			<service name="LOG">    <parent/> </service>
@@ -133,6 +134,7 @@ proc platform_drv_config {} {
 		append drv_config {
 		<binary name="report_rom"/>
 		<resource name="RAM" quantum="2M"/>
+		<resource name="CPU" quantum="5" />
 		<provides>
 			<service name="ROM" />
 			<service name="Report" />
@@ -158,6 +160,7 @@ proc platform_drv_config {} {
 
 		append drv_config {
 		<resource name="RAM" quantum="4M" constrain_phys="yes"/>
+		<resource name="CPU" quantum="5" />
 		<provides>
 			<service name="Platform"/>}
 
