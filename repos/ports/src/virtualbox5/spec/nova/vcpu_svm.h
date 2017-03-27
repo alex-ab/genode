@@ -118,6 +118,8 @@ class Vcpu_handler_svm : public Vcpu_handler
 				&This::_svm_default>      (exc_base, Mtd(Mtd::ALL | Mtd::FPU));
 			register_handler<VCPU_STARTUP, This,
 				&This::_svm_startup>      (exc_base, Mtd(Mtd::ALL | Mtd::FPU));
+			register_handler<SVM_INVALID, This,
+				&This::_svm_default>      (exc_base, Mtd(Mtd::ALL | Mtd::FPU));
 
 			start();
 		}

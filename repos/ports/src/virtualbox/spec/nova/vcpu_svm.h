@@ -24,6 +24,12 @@ class Vcpu_handler_svm : public Vcpu_handler
 
 		__attribute__((noreturn)) void _svm_default() { _default_handler(); }
 
+		__attribute__((noreturn)) void _svm_invalid()
+		{
+			Vmm::error("invalid guest state - dead");
+			exit(-1);
+		}
+
 		__attribute__((noreturn)) void _svm_vintr() { _irq_window(); }
 
 		__attribute__((noreturn)) void _svm_ioio()
@@ -68,8 +74,29 @@ class Vcpu_handler_svm : public Vcpu_handler
 
 			/* enable VM exits for CPUID */
 			next_utcb.mtd     = Nova::Mtd::CTRL;
-			next_utcb.ctrl[0] = SVM_CTRL1_INTERCEPT_CPUID;
-			next_utcb.ctrl[1] = 0;
+			next_utcb.ctrl[0] = SVM_CTRL1_INTERCEPT_INTR
+			                  | SVM_CTRL1_INTERCEPT_NMI
+			                  | SVM_CTRL1_INTERCEPT_INIT
+			                  | SVM_CTRL1_INTERCEPT_RDPMC
+			                  | SVM_CTRL1_INTERCEPT_CPUID
+			                  | SVM_CTRL1_INTERCEPT_RSM
+			                  | SVM_CTRL1_INTERCEPT_HLT
+			                  | SVM_CTRL1_INTERCEPT_INOUT_BITMAP
+			                  | SVM_CTRL1_INTERCEPT_MSR_SHADOW
+			                  | SVM_CTRL1_INTERCEPT_INVLPGA
+			                  | SVM_CTRL1_INTERCEPT_SHUTDOWN
+			                  | SVM_CTRL1_INTERCEPT_FERR_FREEZE;
+
+			next_utcb.ctrl[1] = SVM_CTRL2_INTERCEPT_VMRUN
+			                  | SVM_CTRL2_INTERCEPT_VMMCALL
+			                  | SVM_CTRL2_INTERCEPT_VMLOAD
+			                  | SVM_CTRL2_INTERCEPT_VMSAVE
+			                  | SVM_CTRL2_INTERCEPT_STGI
+			                  | SVM_CTRL2_INTERCEPT_CLGI
+			                  | SVM_CTRL2_INTERCEPT_SKINIT
+			                  | SVM_CTRL2_INTERCEPT_WBINVD
+			                  | SVM_CTRL2_INTERCEPT_MONITOR
+			                  | SVM_CTRL2_INTERCEPT_MWAIT;
 
 			void *exit_status = _start_routine(_arg);
 			pthread_exit(exit_status);
@@ -118,6 +145,8 @@ class Vcpu_handler_svm : public Vcpu_handler
 				&This::_svm_default>      (exc_base, Mtd(Mtd::ALL | Mtd::FPU));
 			register_handler<VCPU_STARTUP, This,
 				&This::_svm_startup>      (exc_base, Mtd(Mtd::ALL | Mtd::FPU));
+			register_handler<SVM_INVALID, This,
+				&This::_svm_invalid>      (exc_base, Mtd(Mtd::ALL | Mtd::FPU));
 
 			start();
 		}
