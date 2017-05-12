@@ -1,0 +1,38 @@
+LICENSE   := GPLv2
+VERSION   := 3.1.0
+DOWNLOADS := qemu.archive
+
+URL(qemu) := http://download.qemu-project.org/qemu-$(VERSION).tar.xz
+SHA(qemu) := 6a0508df079a0a33c2487ca936a56c12122f105b8a96a44374704bef6c69abfc
+SIG(qemu) := ${URL(qemu)}.sig
+DIR(qemu) := src/qemu-$(VERSION)
+
+PATCHES   := src/app/qemu/patches/vnc.patch src/app/qemu/patches/cdioctl.patch
+
+default : additional_steps
+additional_steps : $(DOWNLOADS)
+	cd ${DIR(qemu)} && \
+	./configure --prefix=/tmp/qemu-$(VERSION) --disable-tpm --disable-vnc --disable-kvm --disable-vhost-net --disable-vhost-crypto --target-list=i386-softmmu,arm-softmmu,x86_64-softmmu && \
+	make && \
+	sed -i '/CONFIG_SYSMACROS 1/d' config-host.h && \
+	sed -i '/CONFIG_LINUX 1/d' config-host.h && \
+	sed -i '/HAVE_STRCHRNUL 1/d' config-host.h && \
+	sed -i '/CONFIG_FALLOCATE_PUNCH_HOLE 1/d' config-host.h && \
+	sed -i '/CONFIG_FALLOCATE_ZERO_RANGE 1/d' config-host.h && \
+	sed -i '/CONFIG_SLIRP 1/d' config-host.h && \
+	sed -i '/CONFIG_TPM 1/d' config-host.h && \
+	sed -i '/CONFIG_LIVE_BLOCK_MIGRATION 1/d' config-host.h && \
+	sed -i '/CONFIG_MALLOC_TRIM 1/d' config-host.h && \
+	sed -i '/CONFIG_EPOLL_CREATE1 1/d' config-host.h && \
+	sed -i '/CONFIG_ACCEPT4 1/d' config-host.h && \
+	sed -i '/CONFIG_AF_VSOCK 1/d' config-host.h && \
+	sed -i '/CONFIG_INOTIFY1 1/d' config-host.h && \
+	sed -i '/CONFIG_VHOST_NET_USED 1/d' config-host.h && \
+	sed -i '/CONFIG_PTHREAD_SETNAME_NP 1/d' config-host.h && \
+	sed -i '/CONFIG_L2TPV3 1/d' config-host.h && \
+	sed -i '/CONFIG_PPOLL 1/d' config-host.h && \
+	sed -i '/CONFIG_PREADV 1/d' config-host.h && \
+	sed -i '/CONFIG_POSIX_FALLOCATE 1/d' config-host.h && \
+	sed -i '/CONFIG_EVENTFD 1/d' config-host.h && \
+	sed -i '/CONFIG_PIPE2 1/d' config-host.h && \
+	sed -i '/CONFIG_PRCTL_PR_SET_TIMERSLACK 1/d' config-host.h

@@ -1,0 +1,49 @@
+build "core init timer app/qemu"
+
+create_boot_directory
+
+append config {
+<config>
+	<parent-provides>
+		<service name="CPU"/>
+		<service name="IO_PORT"/>
+		<service name="IRQ"/>
+		<service name="LOG"/>
+		<service name="PD"/>
+		<service name="RAM"/>
+		<service name="ROM"/>
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+
+	<default caps="100"/>
+
+	<start name="timer">
+		<resource name="CPU" quantum="10"/>
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="qemu">
+		<resource name="RAM" quantum="10M"/>
+		<config>
+			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/null"/>
+			<vfs>
+				<dir name="dev">
+					<log/>
+					<null/>
+					<inline name="random">01234567890123456789</inline>
+ 				</dir>
+			</vfs>
+		</config>
+	</start>
+</config>}
+
+install_config $config
+
+build_boot_image "core init timer ld.lib.so glib.lib.so libc.lib.so vfs.lib.so libiconv.lib.so libm.lib.so libpixman.lib.so zlib.lib.so libc_pipe.lib.so qemu"
+
+#append qemu_args " -nographic "
+
+run_genode_until forever

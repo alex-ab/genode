@@ -1,0 +1,34 @@
++++ src/qemu-3.1.0/vl.c
+@@ -2138,6 +2138,7 @@
+             opts = nextopt;
+         }
+     } else if (strstart(p, "vnc", &opts)) {
++#if defined(CONFIG_VNC)
+         /*
+          * vnc isn't a (local) DisplayType but a protocol for remote
+          * display access.
+@@ -2148,6 +2149,10 @@
+             error_report("VNC requires a display argument vnc=<display>");
+             exit(1);
+         }
++#else
++        error_report("VNC is disabled");
++        exit(1);
++#endif
+     } else {
+         parse_display_qapi(p);
+     }
+@@ -3684,8 +3689,13 @@
+                 }
+                 break;
+             case QEMU_OPTION_vnc:
++#ifdef CONFIG_VNC
+                 vnc_parse(optarg, &error_fatal);
+                 break;
++#else
++                error_report("VNC is disabled");
++                exit(1);
++#endif
+             case QEMU_OPTION_no_acpi:
+                 acpi_enabled = 0;
+                 break;

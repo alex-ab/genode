@@ -1,0 +1,68 @@
++++ src/qemu-3.1.0/block/file-posix.c
+@@ -77,7 +77,7 @@
+ #endif
+ #if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
+ #include <sys/disk.h>
+-#include <sys/cdio.h>
++//#include <sys/cdio.h>
+ #endif
+ 
+ #ifdef __OpenBSD__
+@@ -3384,7 +3384,8 @@
+     }
+ 
+     /* make sure the door isn't locked at this time */
+-    ioctl(s->fd, CDIOCALLOW);
++    printf("%s - CHECK ME\n", __func__);
++//    ioctl(s->fd, CDIOCALLOW);
+     return 0;
+ }
+ 
+@@ -3415,7 +3416,8 @@
+     s->fd = fd;
+ 
+     /* make sure the door isn't locked at this time */
+-    ioctl(s->fd, CDIOCALLOW);
++    printf("%s - CHECK ME\n", __func__);
++//    ioctl(s->fd, CDIOCALLOW);
+     return 0;
+ }
+ 
+@@ -3431,14 +3433,15 @@
+     if (s->fd < 0)
+         return;
+ 
+-    (void) ioctl(s->fd, CDIOCALLOW);
++    printf("%s - CHECK ME\n", __func__);
++//    (void) ioctl(s->fd, CDIOCALLOW);
+ 
+     if (eject_flag) {
+-        if (ioctl(s->fd, CDIOCEJECT) < 0)
+-            perror("CDIOCEJECT");
++//        if (ioctl(s->fd, CDIOCEJECT) < 0)
++//          perror("CDIOCEJECT");
+     } else {
+-        if (ioctl(s->fd, CDIOCCLOSE) < 0)
+-            perror("CDIOCCLOSE");
++//        if (ioctl(s->fd, CDIOCCLOSE) < 0)
++//            perror("CDIOCCLOSE");
+     }
+ 
+     cdrom_reopen(bs);
+@@ -3450,13 +3453,14 @@
+ 
+     if (s->fd < 0)
+         return;
+-    if (ioctl(s->fd, (locked ? CDIOCPREVENT : CDIOCALLOW)) < 0) {
++    printf("%s - CHECK ME\n", __func__);
++//    if (ioctl(s->fd, (locked ? CDIOCPREVENT : CDIOCALLOW)) < 0) {
+         /*
+          * Note: an error can happen if the distribution automatically
+          * mounts the CD-ROM
+          */
+         /* perror("CDROM_LOCKDOOR"); */
+-    }
++//    }
+ }
+ 
+ static BlockDriver bdrv_host_cdrom = {
