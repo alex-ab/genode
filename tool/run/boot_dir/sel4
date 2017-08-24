@@ -58,8 +58,8 @@ proc run_boot_dir {binaries} {
 		puts $fh "timeout 0"
 		puts $fh "default 0"
 		puts $fh "\ntitle Genode on seL4"
-		puts $fh " kernel /boot/bender phys_max=256M"
-		puts $fh " module /sel4 disable_iommu"
+#		puts $fh " kernel /boot/bender phys_max=256M"
+		puts $fh " kernel /sel4 disable_iommu"
 		puts $fh " module /image.elf"
 
 		close $fh
