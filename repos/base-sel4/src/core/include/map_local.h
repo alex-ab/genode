@@ -52,11 +52,9 @@ namespace Genode {
 	/**
 	 * Flush memory mappings from core-local virtual address range
 	 */
-	inline bool unmap_local(addr_t virt_addr, size_t num_pages,
-	                        Platform * platform = nullptr)
+	inline bool unmap_local(addr_t virt_addr, size_t num_pages)
 	{
-		platform = platform ? platform : platform_specific();
-		platform->core_vm_space().unmap(virt_addr, num_pages);
+		platform_specific()->core_vm_space().unmap(virt_addr, num_pages);
 		return true;
 	}
 }
