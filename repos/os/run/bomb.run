@@ -2,8 +2,8 @@ build "core init test/bomb drivers/timer"
 
 set timeout     240
 set rounds      20
-set generations 6
-set children    2
+set generations 2
+set children    1
 set sleep       1500
 set demand      [expr 1*1024*1024]
 
