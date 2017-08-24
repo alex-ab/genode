@@ -42,7 +42,8 @@ proc run_boot_dir {binaries} {
 	# Move kernel files to distinct location within the boot directory so that
 	# we can remove [run_dir]/genode after the core image has been built.
 	#
-	file copy -force [run_dir]/genode/sel4 [run_dir]/sel4
+#	file copy -force [run_dir]/genode/sel4 [run_dir]/sel4
+	exec [cross_dev_prefix]objcopy -O elf32-i386 [run_dir]/genode/sel4 [run_dir]/sel4
 	exec rm -r [run_dir]/genode
 
 	if {[have_include "image/iso"] || [have_include "image/disk"]} {
