@@ -38,7 +38,7 @@ void Ram_dataspace_factory::_revoke_ram_ds(Dataspace_component *ds)
 
 	/* in case of core local mapping in core, unmap before cap gets invalid */
 	if (ds->core_local_addr()) {
-		unmap_local(ds->core_local_addr(), page_rounded_size / get_page_size());
+//		unmap_local(ds->core_local_addr(), page_rounded_size / get_page_size());
 		ds->assign_core_local_addr(nullptr);
 	}
 

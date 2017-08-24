@@ -1,0 +1,49 @@
+KERNEL=sel4 ^Cke -C build/x86_64 run/bomb
+
+
+
+
+
+========== KERNEL EXCEPTION ==========
+Vector:  0xd
+ErrCode: 0x0
+IP:      0xffffffff808298e3
+SP:      0xffffffff80841d48
+FLAGS:   0x96
+CR0:     0x8000003b
+CR2:     0xb4240 (page-fault address)
+CR3:     0x1ffb000 (page-directory physical address)
+CR4:     0x220
+
+Stack Dump:
+*0xffffffff80841d48 == 0x1
+*0xffffffff80841d50 == 0xffffffff80841dd8
+*0xffffffff80841d58 == 0xffff6f62203e2d20
+*0xffffffff80841d60 == 0xffff6f62203e2d20
+*0xffffffff80841d68 == 0xfffe000000000000
+*0xffffffff80841d70 == 0xffffffff80829b92
+*0xffffffff80841d78 == 0x0
+*0xffffffff80841d80 == 0x0
+*0xffffffff80841d88 == 0x2700000000000273
+*0xffffffff80841d90 == 0xffffff8001db0000
+*0xffffffff80841d98 == 0xffffff801f02c4c0
+*0xffffffff80841da0 == 0xffffff8001ba0460
+*0xffffffff80841da8 == 0x0
+*0xffffffff80841db0 == 0x1
+*0xffffffff80841db8 == 0xffffffffffffffe0
+*0xffffffff80841dc0 == 0xffffffff80829c83
+*0xffffffff80841dc8 == 0x2
+*0xffffffff80841dd0 == 0x0
+*0xffffffff80841dd8 == 0xffffff800023f000
+*0xffffffff80841de0 == 0xffffffff80821b09
+
+Halting...
+halting...
+Kernel entry via Syscall, number: 1, Call
+Cap type: 10, Invocation tag: 16
+
+
+seL4 called fail at /home/alex/genode/genode.staging/contrib/sel4-3924d15bdcc26504949236abbff4b0c3f3913955/src/kernel/sel4/src/arch/x86/64/object/objecttype.c:128 in function Mode_finaliseCap, saying "Invalid arch cap type"
+halting...
+Kernel entry via Syscall, number: 1, Call
+Cap type: 10, Invocation tag: 16

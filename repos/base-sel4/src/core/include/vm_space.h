@@ -187,6 +187,8 @@ class Genode::Vm_space
 			/* remember relationship between pte_sel and the virtual address */
 			try {
 				_page_table_registry.insert_page_frame(to_virt, Cap_sel(pte_idx));
+//				if (!flush_support)
+//					Genode::log("   ", Hex(from_phys), "->", Hex(to_virt), " ", Hex(from_phys >> get_page_size_log2()), "->", Hex(_leaf_cnode_entry(pte_idx).value()), "(", pte_idx,")");
 			} catch (Page_table_registry::Mapping_cache_full) {
 				if (!flush_support) {
 					warning("mapping cache full, but can't flush");
@@ -401,6 +403,7 @@ class Genode::Vm_space
 					if (result != seL4_NoError) {
 						error("unmap ", Hex(virt + offset), " failed, idx=",
 						      idx, " result=", result);
+//						while (1) { }
 						return;
 					}
 

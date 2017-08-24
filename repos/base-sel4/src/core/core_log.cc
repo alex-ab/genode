@@ -18,4 +18,6 @@
 #include <sel4/arch/functions.h>
 #include <sel4/arch/syscalls.h>
 
-void Genode::Core_log::out(char const c) { seL4_DebugPutChar(c); }
+void Genode::Core_log::out(char const c) {
+// seL4_DebugPutChar(c);
+}
