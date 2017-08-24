@@ -10,7 +10,7 @@
 # port, if missing, is added to the missing-ports list of this stage.
 #
 LIBSEL4_DIR := $(call select_from_ports,sel4)/src/kernel/sel4/libsel4
-LIBSEL4_AUTO:= $(call select_from_ports,sel4)/src/kernel/sel4/configs/$(PLAT)$(PLAT_BOARD)
+LIBSEL4_AUTO:= $(call select_from_ports,sel4)/src/kernel/sel4/configs/$(PLAT)
 
 #
 # Execute the rules in this file only at the second build stage when we know

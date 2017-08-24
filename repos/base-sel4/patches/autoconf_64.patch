@@ -1,5 +1,5 @@
---- src/kernel/sel4/configs/pc99/x86_64/autoconf.h
-+++ src/kernel/sel4/configs/pc99/x86_64/autoconf.h
+--- src/kernel/sel4/configs/pc99/autoconf.h
++++ src/kernel/sel4/configs/pc99/autoconf.h
 @@ -25,6 +25,7 @@
  #define CONFIG_USER_COMPILER ""
  #define CONFIG_LIB_SEL4_PLAT_SUPPORT 1
