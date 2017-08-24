@@ -47,3 +47,5 @@ seL4 called fail at /home/alex/genode/genode.staging/contrib/sel4-3924d15bdcc265
 halting...
 Kernel entry via Syscall, number: 1, Call
 Cap type: 10, Invocation tag: 16
+
+qemu-system-x86_64 -no-kvm -display sdl -m 512 -kernel sel4 -initrd build/x86_64/var/run/bomb/image.elf -serial stdio
