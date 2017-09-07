@@ -926,16 +926,21 @@ Platform::Platform()
 		 */
 		Info trace_source_info() const override
 		{
+			uint64_t ec_time = 0;
 			uint64_t sc_time = 0;
 
+			uint8_t res = Nova::ec_time(ec_sc_sel, ec_time);
+			if (res != Nova::NOVA_OK)
+				warning("ec_time for", name, " thread failed res=", res);
+
 			if (name == "root") {
-				uint8_t res = Nova::sc_ctrl(ec_sc_sel + 1, sc_time);
+				res = Nova::sc_ctrl(ec_sc_sel + 1, sc_time);
 				if (res != Nova::NOVA_OK)
 					warning("sc_ctrl for ", name, " thread failed res=", res);
 			}
 
 			return { Session_label("core"), name,
-			         Trace::Execution_time(sc_time, sc_time), location };
+			         Trace::Execution_time(ec_time, sc_time), location };
 		}
 
 		Core_trace_source(Trace::Source_registry &registry,

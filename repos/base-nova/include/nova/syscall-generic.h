@@ -242,6 +242,7 @@ namespace Nova {
 		EC_DONATE_SC = 2U,
 		EC_RESCHEDULE = 3U,
 		EC_MIGRATE = 4U,
+		EC_TIME = 5U,
 	};
 
 	/**
