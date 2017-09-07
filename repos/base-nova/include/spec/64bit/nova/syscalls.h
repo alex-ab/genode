@@ -192,10 +192,32 @@ namespace Nova {
 
 
 	ALWAYS_INLINE
+	inline uint8_t util_time(Syscall const syscall, mword_t const cap,
+	                         uint8_t const op, unsigned long long &time)
+	{
+		mword_t time_h = 0, time_l = 0;
+		uint8_t res = syscall_5(syscall, op, cap, time_h, time_l);
+		time = time_h;
+		time = (time << 32ULL) | (time_l & 0xFFFFFFFFULL);
+		return res;
+	}
+
+
+	ALWAYS_INLINE
 	inline uint8_t ec_ctrl(Ec_op op, mword_t ec = ~0UL, mword_t para = ~0UL,
 	                       Crd crd = 0)
 	{
+		if (op == EC_TIME)
+			return NOVA_INV_HYPERCALL;
+
 		return syscall_2(NOVA_EC_CTRL, op, ec, para, crd.value());
+	}
+
+
+	ALWAYS_INLINE
+	inline uint8_t ec_time(mword_t const ec, unsigned long long &time)
+	{
+		return util_time(NOVA_EC_CTRL, ec, Ec_op::EC_TIME, time);
 	}
 
 
@@ -316,13 +338,9 @@ namespace Nova {
 
 
 	ALWAYS_INLINE
-	inline uint8_t sc_ctrl(mword_t sm, unsigned long long &time, uint8_t op = 0)
+	inline uint8_t sc_ctrl(mword_t const sc, unsigned long long &time, uint8_t op = 0)
 	{
-		mword_t time_h = 0, time_l = 0;
-		uint8_t res = syscall_5(NOVA_SC_CTRL, op, sm, time_h, time_l);
-		time = time_h;
-		time = (time << 32ULL) | (time_l & 0xFFFFFFFFULL);
-		return res;
+		return util_time(NOVA_SC_CTRL, sc, op, time);
 	}
 
 
