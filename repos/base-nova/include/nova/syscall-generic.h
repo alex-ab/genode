@@ -236,7 +236,8 @@ namespace Nova {
 	/**
 	 * Ec operations
 	 */
-	enum Ec_op { EC_RECALL = 0U, EC_YIELD = 1U, EC_DONATE_SC = 2U, EC_RESCHEDULE = 3U };
+	enum Ec_op { EC_RECALL = 0U, EC_YIELD = 1U, EC_DONATE_SC = 2U,
+	             EC_RESCHEDULE = 3U, EC_TIME = 4U };
 
 	/**
 	 * Pd operations
