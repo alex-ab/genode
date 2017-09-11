@@ -18,6 +18,7 @@
 /* Genode includes */
 #include <base/ram_allocator.h>
 #include <base/thread.h>
+#include <base/trace/types.h>
 
 /* base-internal includes */
 #include <base/internal/native_utcb.h>
@@ -205,7 +206,7 @@ namespace Genode {
 			/**
 			 * Return execution time consumed by the thread
 			 */
-			unsigned long long execution_time() const { return 0; }
+			Trace::Execution_time execution_time() const { return { 0, 0 }; }
 
 
 			/***************
