@@ -28,6 +28,19 @@ struct Menu_view::Label_widget : Widget
 	typedef String<200> Text;
 	Text text { };
 
+	Color text_color { 0, 0, 0 };
+
+	Color _update_color(Xml_node node)
+	{
+		try {
+			Color color;
+			node.attribute("color").value(&color);
+			return color;
+		} catch (Xml_node::Nonexistent_attribute) {
+			return text_color;
+		}
+	}
+
 	Label_widget(Widget_factory &factory, Xml_node node, Unique_id unique_id)
 	:
 		Widget(factory, node, unique_id)
@@ -37,6 +50,8 @@ struct Menu_view::Label_widget : Widget
 	{
 		font = _factory.styles.font(node);
 		text = node.attribute_value("text", Text(""));
+
+		text_color = _update_color(node);
 	}
 
 	Area min_size() const override
@@ -63,7 +78,7 @@ struct Menu_view::Label_widget : Widget
 
 		Text_painter::paint(pixel_surface,
 		                    Text_painter::Position(centered.x(), centered.y()),
-		                    *font, Color(0, 0, 0), text.string());
+		                    *font, text_color, text.string());
 
 		Text_painter::paint(alpha_surface,
 		                    Text_painter::Position(centered.x(), centered.y()),
