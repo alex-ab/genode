@@ -21,6 +21,7 @@
 #include "frame_widget.h"
 #include "depgraph_widget.h"
 #include "icon_widget.h"
+#include "bar_widget.h"
 
 /* Genode includes */
 #include <input/event.h>
@@ -389,6 +390,7 @@ Menu_view::Widget_factory::create(Xml_node node)
 	if (node.has_type("float"))    w = new (alloc) Float_widget      (*this, node, unique_id);
 	if (node.has_type("depgraph")) w = new (alloc) Depgraph_widget   (*this, node, unique_id);
 	if (node.has_type("icon"))     w = new (alloc) Icon_widget       (*this, node, unique_id);
+	if (node.has_type("bar"))      w = new (alloc) Bar_widget        (*this, node, unique_id);
 
 	if (!w) {
 		Genode::error("unknown widget type '", node.type(), "'");
