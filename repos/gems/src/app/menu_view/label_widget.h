@@ -41,6 +41,23 @@ struct Menu_view::Label_widget : Widget
 		}
 	}
 
+	enum Alignment { ALIGN_CENTER, ALIGN_LEFT, ALIGN_RIGHT, };
+
+	Alignment _update_alignment(Xml_node node)
+	{
+		try {
+			String<32> value;
+			node.attribute("align").value(&value);
+			if      (value == "left")  return ALIGN_LEFT;
+			else if (value == "right") return ALIGN_RIGHT;
+			else                       return ALIGN_CENTER;
+		} catch (Xml_node::Nonexistent_attribute) { }
+
+		return ALIGN_CENTER;
+	}
+
+	Alignment text_alignment { ALIGN_CENTER };
+
 	Label_widget(Widget_factory &factory, Xml_node node, Unique_id unique_id)
 	:
 		Widget(factory, node, unique_id)
@@ -52,6 +69,7 @@ struct Menu_view::Label_widget : Widget
 		text = node.attribute_value("text", Text(""));
 
 		text_color = _update_color(node);
+		text_alignment = _update_alignment(node);
 	}
 
 	Area min_size() const override
@@ -74,7 +92,10 @@ struct Menu_view::Label_widget : Widget
 		int const dx = (int)geometry().w() - text_size.w(),
 		          dy = (int)geometry().h() - text_size.h();
 
-		Point const centered = at + Point(dx/2, dy/2);
+		int const x = text_alignment == ALIGN_CENTER ? dx/2 :
+		              text_alignment == ALIGN_LEFT   ?    0 : dx;
+
+		Point const centered = at + Point(x, dy/2);
 
 		Text_painter::paint(pixel_surface,
 		                    Text_painter::Position(centered.x(), centered.y()),
