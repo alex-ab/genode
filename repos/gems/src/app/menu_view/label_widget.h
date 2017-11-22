@@ -41,6 +41,18 @@ struct Menu_view::Label_widget : Widget, Cursor::Glyph_position
 	List_model<Cursor>         _cursors    { };
 	List_model<Text_selection> _selections { };
 
+	enum Alignment { ALIGN_CENTER, ALIGN_LEFT, ALIGN_RIGHT, };
+
+	Alignment _update_alignment(Xml_node node)
+	{
+		String<32> value(node.attribute_value("align", String<32>("")));
+		if      (value == "left")  return ALIGN_LEFT;
+		else if (value == "right") return ALIGN_RIGHT;
+		else                       return ALIGN_CENTER;
+	}
+
+	Alignment _text_alignment { ALIGN_CENTER };
+
 	Label_widget(Widget_factory &factory, Xml_node node, Unique_id unique_id)
 	:
 		Widget(factory, node, unique_id),
@@ -80,6 +92,8 @@ struct Menu_view::Label_widget : Widget, Cursor::Glyph_position
 
 		_cursors   .update_from_xml(_cursor_update_policy,    node);
 		_selections.update_from_xml(_selection_update_policy, node);
+
+		_text_alignment = _update_alignment(node);
 	}
 
 	Area min_size() const override
@@ -102,7 +116,10 @@ struct Menu_view::Label_widget : Widget, Cursor::Glyph_position
 		int const dx = (int)geometry().w() - text_size.w(),
 		          dy = (int)geometry().h() - text_size.h();
 
-		Point const centered = at + Point(dx/2, dy/2);
+		int const x = _text_alignment == ALIGN_CENTER ? dx/2 :
+		              _text_alignment == ALIGN_LEFT   ?    0 : dx;
+
+		Point const centered = at + Point(x, dy/2);
 
 		_selections.for_each([&] (Text_selection const &selection) {
 			selection.draw(pixel_surface, alpha_surface, at, text_size.h()); });
