@@ -1,12 +1,12 @@
 /*
- * \brief  Application to show highest CPU consumer per CPU via LOG session
+ * \brief  Application to show highest CPU consumer per CPU
  * \author Norman Feske
  *         Alexander Boettcher
  * \date   2015-06-15
  */
 
 /*
- * Copyright (C) 2015-2017 Genode Labs GmbH
+ * Copyright (C) 2015-2018 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
@@ -96,6 +96,17 @@ struct Trace_subject_registry
 
 	public:
 
+		void flush(Genode::Trace::Connection &trace, Genode::Allocator &alloc)
+		{
+			_reconstruct_trace_connection = false;
+
+			while (Entry * const e = _entries.first()) {
+					trace.free(e->id);
+					_entries.remove(e);
+					Genode::destroy(alloc, e);
+			}
+		}
+
 		void update(Genode::Pd_session &pd, Genode::Trace::Connection &trace,
 		            Genode::Allocator &alloc)
 		{
@@ -129,23 +140,6 @@ struct Trace_subject_registry
 				}
 			}
 
-			if (_reconstruct_trace_connection)
-				throw Genode::Out_of_ram();
-		}
-
-		void flush(Genode::Trace::Connection &trace, Genode::Allocator &alloc)
-		{
-			_reconstruct_trace_connection = false;
-
-			while (Entry * const e = _entries.first()) {
-					trace.free(e->id);
-					_entries.remove(e);
-					Genode::destroy(alloc, e);
-			}
-		}
-
-		void top()
-		{
 			/* clear old calculations */
 			Genode::memset(total, 0, sizeof(total));
 			Genode::memset(load, 0, sizeof(load));
@@ -229,27 +223,97 @@ struct Trace_subject_registry
 				}
 			}
 
+			if (_reconstruct_trace_connection)
+				throw Genode::Out_of_ram();
+		}
+
+		Genode::String<8> string(unsigned percent, unsigned rest) {
+			return Genode::String<8> (percent < 10 ? "  " : (percent < 100 ? " " : ""),
+			                          percent, ".", rest < 10 ? "0" : "", rest, "%");
+		}
+
+		Genode::String<128> string(Entry const &e, unsigned long long const total,
+		                           bool const text = true)
+		{
+			unsigned const percent = e.recent_execution_time * 100   / total;
+			unsigned const rest    = e.recent_execution_time * 10000 / total - (percent * 100);
+
+			Genode::String<8> text_str(text ? string(percent, rest) : "");
+
+			return Genode::String<128>("cpu=", e.info.affinity().xpos(), ".",
+			            e.info.affinity().ypos(), " ", text_str, " ",
+			            "thread='", e.info.thread_name(), "' "
+			            "label='", e.info.session_label(), "'");
+		}
+
+		template <typename FN>
+		void for_each(FN const &fn) const
+		{
 			for (unsigned x = 0; x < MAX_CPUS_X; x++) {
 				for (unsigned y = 0; y < MAX_CPUS_Y; y++) {
 					for (unsigned i = 0; i < MAX_ELEMENTS_PER_CPU; i++) {
 						if (!load[x][y][i] || !total[x][y])
 							continue;
 
-						unsigned percent = load[x][y][i]->recent_execution_time * 100   / total[x][y];
-						unsigned rest    = load[x][y][i]->recent_execution_time * 10000 / total[x][y] - (percent * 100);
-
-						using Genode::log;
-						log("cpu=", load[x][y][i]->info.affinity().xpos(), ".",
-						    load[x][y][i]->info.affinity().ypos(), " ",
-						    percent < 10 ? "  " : (percent < 100 ? " " : ""),
-						    percent, ".", rest < 10 ? "0" : "", rest, "% "
-						    "thread='", load[x][y][i]->info.thread_name(), "' "
-						    "label='", load[x][y][i]->info.session_label(), "'");
+						fn(load[x][y][i], total[x][y]);
 					}
 				}
 			}
+		}
+
+		void top()
+		{
+			for_each([&] (Entry const * const e, unsigned long long const total) {
+				Genode::log(string(*e, total));
+			});
+
 			if (load[0][0][0] && load[0][0][0]->recent_execution_time)
 				Genode::log("");
+		}
+
+		void top(Genode::Reporter::Xml_generator &xml) {
+			unsigned vbox_id = 0;
+			xml.node("vbox", [&] () {
+				xml.attribute("name", vbox_id++);
+				for_each([&] (Entry const * const e, unsigned long long const total) {
+					unsigned percent = e->recent_execution_time * 100 / total;
+					unsigned rest    = e->recent_execution_time * 10000 / total - (percent * 100);
+
+					xml.node("float", [&] () {
+						xml.attribute("name", e->id.id * 10);
+						xml.attribute("west", "yes");
+						xml.node("hbox", [&] () {
+							xml.attribute("name", e->id.id * 10 + 1);
+							xml.node("float", [&] () {
+								xml.attribute("name", e->id.id * 10 + 2);
+								xml.attribute("west", "yes");
+								xml.node("bar", [&] () {
+									if (e->info.session_label() == "kernel") {
+										xml.attribute("color", "#00ff000");
+										xml.attribute("textcolor", "#f000f0");
+									} else {
+										xml.attribute("color", "#ff0000");
+										xml.attribute("textcolor", "#ffffff");
+									}
+
+									xml.attribute("percent", percent);
+									xml.attribute("width", 128);
+									xml.attribute("height", 16);
+									xml.attribute("text", string(percent, rest));
+								});
+							});
+							xml.node("float", [&] () {
+								xml.attribute("name", e->id.id * 10 + 3);
+								xml.node("label", [&] () {
+									xml.attribute("text", string(*e, total, false));
+									xml.attribute("color", "#ffffff");
+									xml.attribute("align", "left");
+								});
+							});
+						});
+					});
+				});
+			});
 		}
 };
 
@@ -277,6 +341,7 @@ struct App::Main
 	static unsigned long _default_period_ms() { return 5000; }
 
 	unsigned long _period_ms = _default_period_ms();
+	bool          _use_log   = true;
 
 	Attached_rom_dataspace _config { _env, "config" };
 
@@ -296,6 +361,9 @@ struct App::Main
 	Signal_handler<Main> _periodic_handler = {
 		_env.ep(), *this, &Main::_handle_period};
 
+	Constructible<Reporter> _reporter { };
+	unsigned _reporter_ds_size { 4096 };
+
 	Main(Env &env) : _env(env)
 	{
 		_config.sigh(_config_handler);
@@ -311,8 +379,20 @@ void App::Main::_handle_config()
 	_config.update();
 
 	_period_ms = _config.xml().attribute_value("period_ms", _default_period_ms());
+	_use_log   = _config.xml().attribute_value("log", true);
+
+	if (_config.xml().attribute_value("report", false)) {
+		if (!_reporter.constructed()) {
+			_reporter.construct(_env, "dialog", "dialog", _reporter_ds_size);
+			_reporter->enabled(true);
+		}
+	} else {
+		if (_reporter.constructed())
+			_reporter.destruct();
+	}
 
 	_timer.trigger_periodic(1000*_period_ms);
+
 }
 
 
@@ -328,7 +408,31 @@ void App::Main::_handle_period()
 	}
 
 	/* show most significant consumers */
-	_trace_subject_registry.top();
+	if (_use_log)
+		_trace_subject_registry.top();
+
+	if (_reporter.constructed()) {
+		bool retry = false;
+
+		do {
+			try {
+				Reporter::Xml_generator xml(*_reporter, [&] () {
+					_trace_subject_registry.top(xml); });
+
+				retry = false;
+			} catch (Genode::Xml_generator::Buffer_exceeded) {
+				/* give up, after one retry */
+				if (retry)
+					break;
+
+				_reporter_ds_size += 4096;
+				_reporter.destruct();
+				_reporter.construct(_env, "dialog", "dialog", _reporter_ds_size);
+				_reporter->enabled(true);
+				retry = true;
+			}
+		} while (retry);
+	}
 
 	/* by destructing the session we free up the allocated memory in core */
 	if (reconstruct) {
