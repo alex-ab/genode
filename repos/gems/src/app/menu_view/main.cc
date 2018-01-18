@@ -191,7 +191,6 @@ struct Menu_view::Main
 	}
 };
 
-
 void Menu_view::Main::_handle_dialog_update()
 {
 	try {
@@ -202,6 +201,15 @@ void Menu_view::Main::_handle_dialog_update()
 		_configured_size = Area(config.attribute_value("width",  0UL),
 		                        config.attribute_value("height", 0UL));
 	} catch (...) { }
+
+	Framebuffer::Mode const nit_mode = _nitpicker.mode();
+
+	/*
+	 * If configured xpos / ypos are negative, the effective
+	 * xpos / ypos is deduced from the screen size.
+	 */
+	if (_position.x() < 0) _position = _position + Point(nit_mode.width(),0);
+	if (_position.y() < 0) _position = _position + Point(0, nit_mode.height());
 
 	_dialog_rom.update();
 
