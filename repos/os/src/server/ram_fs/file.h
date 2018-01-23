@@ -38,8 +38,8 @@ class Ram_fs::File : public Node
 
 		typedef Chunk<4096>                     Chunk_level_3;
 		typedef Chunk_index<128, Chunk_level_3> Chunk_level_2;
-		typedef Chunk_index<64,  Chunk_level_2> Chunk_level_1;
-		typedef Chunk_index<64,  Chunk_level_1> Chunk_level_0;
+		typedef Chunk_index<sizeof(void *) * 16,  Chunk_level_2> Chunk_level_1;
+		typedef Chunk_index<sizeof(void *) * 16,  Chunk_level_1> Chunk_level_0;
 
 		Chunk_level_0 _chunk;
 

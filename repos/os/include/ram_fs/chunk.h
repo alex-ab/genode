@@ -29,7 +29,7 @@ namespace File_system {
 	class Chunk_base;
 
 	template <unsigned>           class Chunk;
-	template <unsigned, typename> class Chunk_index;
+	template <unsigned long, typename> class Chunk_index;
 }
 
 
@@ -177,7 +177,7 @@ class File_system::Chunk : public Chunk_base
 };
 
 
-template <unsigned NUM_ENTRIES, typename ENTRY_TYPE>
+template <unsigned long NUM_ENTRIES, typename ENTRY_TYPE>
 class File_system::Chunk_index : public Chunk_base
 {
 	public:
