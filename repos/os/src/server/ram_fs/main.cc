@@ -713,12 +713,20 @@ static void preload_content(Genode::Env            &env,
 
 			/* read "as" attribute, use "name" as default */
 			Attribute_string as(sub_node, "as", name);
+			/* read "compare_as" attribute, use "name" as default */
+			Attribute_string compare_as(sub_node, "compare_as", name);
 
 			/* read file content from ROM module */
 			try {
 				Attached_rom_dataspace rom(env, name);
 
-				Ram_fs::File *file = new (&alloc) Ram_fs::File(alloc, as);
+				/* solely use compare modus if compare_as is actually set */
+				const char * cmp_as = nullptr;
+				if (sub_node.has_attribute("compare_as"))
+					cmp_as = compare_as;
+
+				Ram_fs::File *file = new (&alloc) Ram_fs::File(alloc, as,
+				                                               &env, cmp_as);
 				file->write(rom.local_addr<char>(), rom.size(), 0);
 				dir.adopt_unsynchronized(file);
 			}

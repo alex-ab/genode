@@ -16,6 +16,7 @@
 
 /* Genode includes */
 #include <file_system_session/file_system_session.h>
+#include <file_system_session/connection.h>
 #include <base/allocator.h>
 
 /* local includes */
@@ -45,10 +46,82 @@ class Ram_fs::File : public Node
 
 		file_size_t _length;
 
+		Genode::Constructible<Genode::Allocator_avl>    _other_alloc { };
+		Genode::Constructible<File_system::Connection>  _other_fs { };
+		Genode::Constructible<File_system::File_handle> _other_file { };
+
 	public:
 
-		File(Allocator &alloc, char const *name)
-		: _chunk(alloc, 0), _length(0) { Node::name(name); }
+		File(Allocator &alloc, char const *name, Genode::Env *env = nullptr,
+		     char const *cmp_name = nullptr)
+		: _chunk(alloc, 0), _length(0)
+		{
+			Node::name(name);
+
+			if (env && cmp_name) {
+				_other_alloc.construct(&alloc);
+				_other_fs.construct(*env, *_other_alloc, cmp_name);
+
+				File_system::Dir_handle root_dir = _other_fs->dir("/", false);
+				_other_file.construct(_other_fs->file(root_dir, cmp_name,
+				                      File_system::READ_WRITE, true));
+			}
+		}
+
+		void _other_read(size_t len, seek_off_t seek_offset, const char *c)
+		{
+			if (!_other_file.constructed())
+				return;
+
+			::File_system::Session::Tx::Source &source = *_other_fs->tx();
+			using ::File_system::Packet_descriptor;
+
+			while (len) {
+				size_t const max_packet_size = source.bulk_buffer_size();
+				size_t const count = min(max_packet_size, len);
+
+				try {
+					Packet_descriptor packet(source.alloc_packet(count),
+					                         *_other_file,
+					                         Packet_descriptor::READ,
+					                         count,
+					                         seek_offset);
+
+					if (!source.ready_to_submit()) {
+						error("ready to submit - read");
+						Lock lock;
+						while (true) lock.lock();
+					}
+
+					source.submit_packet(packet);
+
+					/* wait for packet */
+					packet = source.get_acked_packet();
+					if (packet.operation() != Packet_descriptor::READ) {
+						error("unexpected ack packet - read");
+						Lock lock;
+						while (true) lock.lock();
+					}
+
+					char * rcv = source.packet_content(packet);
+					if (!packet.succeeded() || count != packet.length() ||
+					    memcmp(c, rcv, count))
+						error("not same content ", Hex(seek_offset), " ",
+						      packet.length(), " vs ", count, " ",
+						      !packet.succeeded() ? " failed packet" : "");
+
+					source.release_packet(packet);
+
+					len         -= count;
+					c           += count;
+					seek_offset += count;
+				} catch (::File_system::Session::Tx::Source::Packet_alloc_failed) {
+					error("Packet alloc failed - read");
+					Lock lock;
+					while (true) lock.lock();
+				}
+			}
+		}
 
 		size_t read(char *dst, size_t len, seek_off_t seek_offset) override
 		{
@@ -79,11 +152,73 @@ class Ram_fs::File : public Node
 
 			_chunk.read(dst, read_len, seek_offset);
 
+			_other_read(read_len, seek_offset, dst);
+
 			/* add zero padding if needed */
 			if (read_len < len)
 				memset(dst + read_len, 0, len - read_len);
 
 			return len;
+		}
+
+		void _other_write(Genode::size_t len, seek_off_t seek_offset,
+		                  char const * buf)
+		{
+			if (!_other_file.constructed())
+				return;
+
+			::File_system::Session::Tx::Source &source = *_other_fs->tx();
+			using ::File_system::Packet_descriptor;
+
+			while (len) {
+				Genode::size_t const max_packet_size = source.bulk_buffer_size();
+				Genode::size_t const count = min(max_packet_size, len);
+
+				if (!source.ready_to_submit()) {
+					error("ready to submit - write");
+					Lock lock;
+					while (true) lock.lock();
+				}
+
+				try {
+					Packet_descriptor packet_in(source.alloc_packet(count),
+					                            *_other_file,
+					                            Packet_descriptor::WRITE,
+					                            count,
+					                            seek_offset);
+
+					memcpy(source.packet_content(packet_in), buf, count);
+
+					/* pass packet to server side */
+					source.submit_packet(packet_in);
+
+					len -= count;
+					seek_offset += count;
+					buf += count;
+
+					/* synchronous write */
+					Packet_descriptor const packet = source.get_acked_packet();
+					if (packet.operation() != Packet_descriptor::WRITE) {
+						error("unexpected ack packet - write");
+						Lock lock;
+						while (true) lock.lock();
+					}
+					if (!packet.succeeded() || count != packet.length())
+						error("write was incomplete ", seek_offset, " ",
+						      packet.length(), " vs ", count, " ",
+						      !packet.succeeded() ? " failed packet" : "");
+
+					source.release_packet(packet);
+				} catch (::File_system::Session::Tx::Source::Packet_alloc_failed) {
+					error("Packet_alloc_failed - write");
+					Lock lock;
+					while (true) lock.lock();
+				} catch (...) {
+					error("unhandled exception - write");
+					Lock lock;
+					while (true) lock.lock();
+				}
+			}
 		}
 
 		size_t write(char const *src, size_t len, seek_off_t seek_offset) override
@@ -97,6 +232,8 @@ class Ram_fs::File : public Node
 			}
 
 			_chunk.write(src, len, (size_t)seek_offset);
+
+			_other_write(len, seek_offset, src);
 
 			/*
 			 * Keep track of file length. We cannot use 'chunk.used_size()'
