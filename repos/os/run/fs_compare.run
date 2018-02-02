@@ -1,0 +1,215 @@
+#
+# \brief  Test to compare read data from various file system servers
+# \author Alexander Boettcher
+# \date   2018-02-02
+#
+
+assert_spec x86
+
+if {[expr ![have_spec linux] && ![have_include power_on/qemu]]} {
+	puts "Test writes on the harddisk - take care when enabling it manually!"
+	exit 0
+}
+
+create_boot_directory
+
+# can be used when set for $use_vfs_rump
+set use_depot    0
+
+# to be tested filesystem server - select exactly one !
+set use_ram_fs   0
+set use_fs_rump  0
+set use_vfs_rump 1
+
+# depending on the filesystem server select block server
+set use_ahci     [expr !$use_ram_fs && ![have_spec linux]]
+set use_lx_blk   [expr !$use_ram_fs &&  [have_spec linux]]
+
+set build_components { core init server/ram_fs test/vfs_replay }
+
+if {$use_vfs_rump} {
+	if {$use_depot} {
+		import_from_depot genodelabs/src/vfs \
+		                  genodelabs/src/rump
+	} else {
+		append build_components { server/vfs lib/vfs/rump }
+	}
+}
+if {$use_fs_rump} {
+	append build_components { server/rump_fs }
+}
+
+if {$use_fs_rump || $use_vfs_rump} {
+	append build_components { drivers/timer }
+
+	append_if $use_ahci   build_components { drivers/ahci }
+	append_if $use_lx_blk build_components { server/lx_block }
+
+	source ${genode_dir}/repos/base/run/platform_drv.inc
+	append_platform_drv_build_components
+
+	if {[have_include power_on/qemu] || [have_spec linux]} {
+		set mke2fs [check_installed mke2fs]
+		set dd     [check_installed dd]
+
+		#
+		# Build EXT2-file-system image
+		#
+
+		puts "creating 3G bin/ext2.raw image"
+		catch { exec $dd if=/dev/zero of=bin/ext2.raw bs=1M count=3072 }
+		catch { exec $mke2fs -F bin/ext2.raw }
+	}
+}
+
+build $build_components
+
+set config {
+	<config verbose="yes">
+		<parent-provides>
+			<service name="PD"/>
+			<service name="ROM"/>
+			<service name="CPU"/>
+			<service name="LOG"/>
+			<service name="RM"/>
+			<service name="IO_MEM"/>
+			<service name="IO_PORT"/>
+			<service name="IRQ"/>
+		</parent-provides>
+		<default-route>
+			<any-service> <parent/> <any-child/> </any-service>
+		</default-route>
+		<default caps="100"/>}
+
+if {$use_fs_rump || $use_vfs_rump} {
+
+	append_platform_drv_config
+
+if {$use_ahci} {
+	append config {
+		<start name="ahci_drv">
+			<resource name="RAM" quantum="10M" />
+			<provides><service name="Block" /></provides>
+			<config>
+				<policy label="backup_fs -> " device="0" writeable="yes" />
+			</config>
+		</start>}
+}
+if {$use_lx_blk} {
+	append config {
+		<start name="lx_block">
+			<resource name="RAM" quantum="3088M"/>
+			<provides> <service name="Block"/> </provides>
+			<config file="ext2.raw" block_size="512" writeable="yes"/>
+		</start>}
+}
+	append config {
+		<start name="timer">
+			<resource name="RAM" quantum="1M"/>
+			<provides><service name="Timer"/></provides>
+		</start>}
+}
+
+if {$use_vfs_rump} {
+	append config {
+		<start name="backup_fs" caps="400">
+			<binary name="vfs"/>
+			<resource name="RAM" quantum="100M" />
+			<provides> <service name="File_system"/> </provides>
+			<config>
+				<vfs> <rump fs="ext2fs" writeable="yes"/> </vfs>
+				<default-policy root="/" writeable="yes"/>
+			</config>
+		</start>}
+}
+
+if {$use_fs_rump} {
+	append config {
+		<start name="backup_fs" caps="200">
+			<binary name="rump_fs"/>
+			<resource name="RAM" quantum="24M"/>
+			<provides> <service name="File_system"/> </provides>
+			<config fs="ext2fs">
+				<default-policy root="/" writeable="yes"/>
+			</config>
+		</start>}
+}
+
+if {$use_ram_fs} {
+	append config {
+		<start name="backup_fs" caps="2000">
+			<binary name="ram_fs"/>
+			<resource name="RAM" quantum="3G"/>
+			<provides> <service name="File_system"/> </provides>
+			<config>
+				<default-policy root="/" writeable="yes"/>
+			</config>
+		</start>}
+}
+
+append config {
+		<start name="fs" caps="2000">
+			<binary name="ram_fs"/>
+			<resource name="RAM" quantum="3G"/>
+			<provides> <service name="File_system"/> </provides>
+			<config>
+				<content>
+					<dir name="ram">
+						<rom name="vm.vdi" compare_as="vm.vdi"/>
+					</dir>
+				</content>
+				<default-policy root="/" writeable="yes"/>
+			</config>
+			<route>
+				<service name="File_system" label="vm.vdi"> <child name="backup_fs"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+		<start name="vfs_replay">
+			<resource name="RAM" quantum="2M"/>
+			<config>
+				<vfs>
+					<fs/>
+				</vfs>
+			</config>
+			<route>
+				<service name="File_system"> <child name="fs"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+	</config>
+}
+
+install_config $config
+
+append boot_modules { core ld.lib.so init ram_fs vm.vdi vfs_replay replay.data }
+
+if {$use_vfs_rump} {
+	if {!$use_depot} {
+		append boot_modules { vfs rump.lib.so rump_fs.lib.so vfs_rump.lib.so }
+	}
+}
+append_if $use_fs_rump boot_modules { rump_fs rump.lib.so rump_fs.lib.so }
+
+if {$use_fs_rump || $use_vfs_rump} {
+	append boot_modules { timer }
+
+	append_if $use_ahci   boot_modules { ahci_drv }
+	append_if $use_lx_blk boot_modules { lx_block ext2.raw }
+
+	append_platform_drv_boot_modules
+
+	if {[expr $use_ahci && [have_include power_on/qemu]]} {
+		append qemu_args " -drive id=disk,file=bin/ext2.raw,format=raw,if=none"
+		append qemu_args " -device ahci,id=ahci"
+		append qemu_args " -device ide-hd,drive=disk,bus=ahci.0 -boot d "
+	}
+}
+
+build_boot_image $boot_modules
+
+append qemu_args "-nographic -m 8192 "
+
+run_genode_until forever
