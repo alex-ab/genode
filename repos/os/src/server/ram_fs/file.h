@@ -105,10 +105,19 @@ class Ram_fs::File : public Node
 
 					char * rcv = source.packet_content(packet);
 					if (!packet.succeeded() || count != packet.length() ||
-					    memcmp(c, rcv, count))
+					    memcmp(c, rcv, count)) {
 						error("not same content ", Hex(seek_offset), " ",
 						      packet.length(), " vs ", count, " ",
 						      !packet.succeeded() ? " failed packet" : "");
+						for (unsigned i = 0; i < count; i++) {
+							if (rcv[i] != c[i]) {
+								if (i > 0)
+									error (" ", Hex(i-1), " exp vs read ", Hex(c[i-1]), " vs ", Hex(rcv[i-1]), " prev");
+								error (" ", Hex(i), " exp vs read ", Hex(c[i]), " vs ", Hex(rcv[i]));
+								break;
+							}
+						}
+					}
 
 					source.release_packet(packet);
 
