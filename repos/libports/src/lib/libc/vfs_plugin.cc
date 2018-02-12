@@ -381,8 +381,6 @@ ssize_t Libc::Vfs_plugin::write(Libc::File_descriptor *fd, const void *buf,
 
 	Vfs::Vfs_handle *handle = vfs_handle(fd);
 
-	log(fd, " <operation type=\"WRITE_IN\" seek_before=\"", handle->seek(), "\" write_count=\"", count, "\"/>");
-
 	Vfs::file_size out_count  = 0;
 	Result         out_result = Result::WRITE_OK;
 
@@ -431,27 +429,16 @@ ssize_t Libc::Vfs_plugin::write(Libc::File_descriptor *fd, const void *buf,
 	}
 
 	switch (out_result) {
-	case Result::WRITE_ERR_AGAIN:
-		log(fd, " <operation type=\"WRITE_OUT\" failed=\"",__LINE__,"\" />");
-       return Errno(EAGAIN);
-	case Result::WRITE_ERR_WOULD_BLOCK:
-		log(fd, " <operation type=\"WRITE_OUT\" failed=\"",__LINE__,"\" />");
-		return Errno(EWOULDBLOCK);
-	case Result::WRITE_ERR_INVALID:
-		log(fd, " <operation type=\"WRITE_OUT\" failed=\"",__LINE__,"\" />");
-     return Errno(EINVAL);
-	case Result::WRITE_ERR_IO:
-		log(fd, " <operation type=\"WRITE_OUT\" failed=\"",__LINE__,"\" />");
-          return Errno(EIO);
-	case Result::WRITE_ERR_INTERRUPT:
-		log(fd, " <operation type=\"WRITE_OUT\" failed=\"",__LINE__,"\" />");
-   return Errno(EINTR);
+	case Result::WRITE_ERR_AGAIN:       return Errno(EAGAIN);
+	case Result::WRITE_ERR_WOULD_BLOCK: return Errno(EWOULDBLOCK);
+	case Result::WRITE_ERR_INVALID:     return Errno(EINVAL);
+	case Result::WRITE_ERR_IO:          return Errno(EIO);
+	case Result::WRITE_ERR_INTERRUPT:   return Errno(EINTR);
 	case Result::WRITE_OK:              break;
 	}
 
 	handle->advance_seek(out_count);
 
-	log(fd, " <operation type=\"WRITE_OUT\" seek_before=\"", handle->seek(), "\" />");
 	return out_count;
 }
 
@@ -465,12 +452,8 @@ ssize_t Libc::Vfs_plugin::read(Libc::File_descriptor *fd, void *buf,
 
 	Vfs::Vfs_handle *handle = vfs_handle(fd);
 
-	log(fd, " <operation type=\"READ_IN\" seek_before=\"", handle->seek(), "\" read_count=\"", count, "\"/>");
-
-	if (fd->flags & O_NONBLOCK && !Libc::read_ready(fd)) {
-		log(fd, " plugin read ", count, " out ", __LINE__);
+	if (fd->flags & O_NONBLOCK && !Libc::read_ready(fd))
 		return Errno(EAGAIN);
-	}
 
 	{
 		struct Check : Libc::Suspend_functor
@@ -533,21 +516,11 @@ ssize_t Libc::Vfs_plugin::read(Libc::File_descriptor *fd, void *buf,
 	}
 
 	switch (out_result) {
-	case Result::READ_ERR_AGAIN:
-		log(fd, " <operation type=\"READ_OUT\" failed=\"",__LINE__,"\" />");
-       return Errno(EAGAIN);
-	case Result::READ_ERR_WOULD_BLOCK:
-		log(fd, " <operation type=\"READ_OUT\" failed=\"",__LINE__,"\" />");
- return Errno(EWOULDBLOCK);
-	case Result::READ_ERR_INVALID:
-		log(fd, " <operation type=\"READ_OUT\" failed=\"",__LINE__,"\" />");
-     return Errno(EINVAL);
-	case Result::READ_ERR_IO:
-		log(fd, " <operation type=\"READ_OUT\" failed=\"",__LINE__,"\" />");
-          return Errno(EIO);
-	case Result::READ_ERR_INTERRUPT:
-		log(fd, " <operation type=\"READ_OUT\" failed=\"",__LINE__,"\" />");
-   return Errno(EINTR);
+	case Result::READ_ERR_AGAIN:       return Errno(EAGAIN);
+	case Result::READ_ERR_WOULD_BLOCK: return Errno(EWOULDBLOCK);
+	case Result::READ_ERR_INVALID:     return Errno(EINVAL);
+	case Result::READ_ERR_IO:          return Errno(EIO);
+	case Result::READ_ERR_INTERRUPT:   return Errno(EINTR);
 	case Result::READ_OK:              break;
 
 	case Result::READ_QUEUED: /* handled above, so never reached */ break;
@@ -555,7 +528,6 @@ ssize_t Libc::Vfs_plugin::read(Libc::File_descriptor *fd, void *buf,
 
 	handle->advance_seek(out_count);
 
-	log(fd, " <operation type=\"READ_OUT\" seek_before=\"", handle->seek(), "\" />");
 	return out_count;
 }
 
@@ -827,8 +799,6 @@ int Libc::Vfs_plugin::ioctl(Libc::File_descriptor *fd, int request, char *argp)
 {
 	Vfs::Vfs_handle *handle = vfs_handle(fd);
 
-	::off_t const seek_before = handle->seek();
-
 	switch (whence) {
 	case SEEK_SET: handle->seek(offset); break;
 	case SEEK_CUR: handle->advance_seek(offset); break;
@@ -841,12 +811,6 @@ int Libc::Vfs_plugin::ioctl(Libc::File_descriptor *fd, int request, char *argp)
 		}
 		break;
 	}
-
-	String <16> whence_string (whence == SEEK_CUR ? "CUR" :
-	                          (whence == SEEK_SET ? "SET" :
-	                          (whence == SEEK_END ? "END" : "UNKNOWN")));
-	log(fd, " <operation type=\"LSEEK\" seek_mode=\"", whence_string,"\" seek_before=\"",
-	    seek_before, "\" seek_count=\"", offset,"\" seek_after=\"", handle->seek(),"\"/>");
 	return handle->seek();
 }
 
