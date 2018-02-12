@@ -68,7 +68,7 @@ class Ram_fs::File : public Node
 			}
 		}
 
-		void _other_read(size_t len, seek_off_t seek_offset, const char *c, bool reread = false)
+		void _other_read(size_t len, seek_off_t seek_offset, const char *c)
 		{
 			if (!_other_file.constructed())
 				return;
@@ -108,8 +108,7 @@ class Ram_fs::File : public Node
 					    memcmp(c, rcv, count)) {
 						error("not same content ", Hex(seek_offset), " ",
 						      packet.length(), " vs ", count, " ",
-						      !packet.succeeded() ? " failed packet" : "",
-						      reread ? " re-read" : "");
+						      !packet.succeeded() ? " failed packet" : "");
 						for (unsigned i = 0; i < count; i++) {
 							if (rcv[i] != c[i]) {
 								if (i > 0)
@@ -253,10 +252,6 @@ class Ram_fs::File : public Node
 			_length = max(_length, seek_offset + len);
 
 			mark_as_updated();
-
-			/* re-read to see what happended */
-			_other_read(len, seek_offset, src, true);
-
 			return len;
 		}
 
