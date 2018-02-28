@@ -225,6 +225,7 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 				Nova::reply(_stack_reply);
 			}
 
+#if 0
 			unsigned long utcb_tpr    = utcb->read_tpr();
 			bool interrupt_pending    = false;
 			uint8_t tpr               = 0;
@@ -240,6 +241,7 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 				if (_irq_win)
 					Nova::reply(_stack_reply);
 			}
+#endif
 
 			/* nothing to do at all - continue hardware accelerated */
 
@@ -372,7 +374,9 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 			bool interrupt_pending    = false;
 			uint8_t tpr               = 0;
 			uint8_t pending_interrupt = 0;
+#if 0
 			PDMApicGetTPR(pVCpu, &tpr, &interrupt_pending, &pending_interrupt);
+#endif
 
 			/* don't call function hereafter which may corrupt the utcb ! */
 			using namespace Nova;
@@ -587,7 +591,9 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 				VMCPU_FF_CLEAR(pVCpu, VMCPU_FF_INHIBIT_INTERRUPTS);
 
 			/* functions that corrupt utcb (e.g. when logging enabled) */
+#if 0
 			PDMApicSetTPR(pVCpu, tpr);
+#endif
 
 			return true;
 		}
@@ -630,7 +636,9 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 			_irq_win = false;
 
 			/* request current tpr state from guest, it may block IRQs */
+#if 0
 			PDMApicSetTPR(pVCpu, utcb->read_tpr());
+#endif
 
 			if (!TRPMHasTrap(pVCpu)) {
 
