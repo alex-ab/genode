@@ -8,16 +8,11 @@ SRC_CC += Devices/EFI/DevSmc.cpp
 SRC_CC += Devices/Input/DevPS2.cpp
 SRC_CC += Devices/Input/PS2K.cpp
 SRC_CC += Devices/Input/PS2M.cpp
-SRC_CC += Devices/PC/DevAPIC.cpp
 SRC_CC += Devices/PC/DevACPI.cpp
 SRC_CC += Devices/PC/DevFwCommon.cpp
 SRC_CC += Devices/PC/DevDMA.cpp
 SRC_CC += Devices/PC/DevHPET.cpp
-ifeq ($(filter $(VBOX_CC_OPT),-DVBOX_WITH_NEW_IOAPIC),)
-SRC_CC += Devices/PC/DevIoApic_Old.cpp
-else
 SRC_CC += Devices/PC/DevIoApic.cpp
-endif
 SRC_CC += Devices/PC/DevLPC.cpp
 SRC_CC += Devices/PC/DevPcBios.cpp
 SRC_C  += Devices/PC/DevPcArch.c
@@ -36,7 +31,16 @@ SRC_CC += Devices/Storage/DevAHCI.cpp
 SRC_CC += Devices/Storage/DevATA.cpp
 SRC_CC += Devices/Storage/Debug.cpp
 SRC_C  += Devices/Storage/DevFdc.c
+SRC_CC += Devices/Storage/DrvSCSI.cpp
 SRC_CC += Devices/Storage/IOBufMgmt.cpp
+SRC_CC += Devices/Storage/UsbMsd.cpp
+SRC_CC += Devices/Storage/VSCSI/VSCSIDevice.cpp
+SRC_CC += Devices/Storage/VSCSI/VSCSIIoReq.cpp
+SRC_CC += Devices/Storage/VSCSI/VSCSILun.cpp
+SRC_CC += Devices/Storage/VSCSI/VSCSILunMmc.cpp
+SRC_CC += Devices/Storage/VSCSI/VSCSILunSbc.cpp
+SRC_CC += Devices/Storage/VSCSI/VSCSISense.cpp
+SRC_CC += Devices/Storage/VSCSI/VSCSIVpdPagePool.cpp
 SRC_CC += Devices/Network/DevE1000.cpp
 SRC_CC += Devices/Network/DevE1000Phy.cpp
 SRC_CC += Devices/Network/DevEEPROM.cpp
@@ -48,13 +52,17 @@ SRC_CC += Devices/Serial/DevSerial.cpp
 SRC_CC += Devices/Audio/AudioMixBuffer.cpp
 SRC_CC += Devices/Audio/AudioMixer.cpp
 SRC_CC += Devices/Audio/DevHDA.cpp
+SRC_CC += Devices/Audio/DevHDACommon.cpp
 SRC_CC += Devices/Audio/DevIchAc97.cpp
 SRC_CC += Devices/Audio/DrvAudioCommon.cpp
 SRC_CC += Devices/Audio/HDACodec.cpp
+SRC_CC += Devices/Audio/HDAStream.cpp
+SRC_CC += Devices/Audio/HDAStreamChannel.cpp
+SRC_CC += Devices/Audio/HDAStreamMap.cpp
 SRC_CC += Devices/Audio/HDAStreamPeriod.cpp
+
 SRC_CC += Devices/USB/DevOHCI.cpp
 SRC_CC += Devices/USB/USBProxyDevice.cpp
-SRC_CC += Devices/USB/VUSBBufferedPipe.cpp
 SRC_CC += Devices/USB/VUSBDevice.cpp
 SRC_CC += Devices/USB/VUSBSniffer.cpp
 SRC_CC += Devices/USB/VUSBSnifferPcapNg.cpp
@@ -75,11 +83,13 @@ SRC_CC += devxhci.cc
 
 INC_DIR += $(VBOX_DIR)/Devices/build
 INC_DIR += $(VBOX_DIR)/Devices/Bus
+INC_DIR += $(VIRTUALBOX_DIR)/include/VBox/Graphics
 
 CC_WARN += -Wno-unused-but-set-variable
 
 # found in src/VBox/Devices/Makefile.kmk
 CC_OPT += -DVBOX_HGCM_HOST_CODE
+CC_OPT += -DVBOX_WITH_AUDIO_HDA_ASYNC_IO
 
 Devices/Graphics/DevVGA.o: vbetables.h
 

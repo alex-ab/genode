@@ -1,0 +1,82 @@
+avoid_yield.patch
+
+--- a/src/app/virtualbox/src/VBox/Devices/Storage/DevATA.cpp
++++ b/src/app/virtualbox/src/VBox/Devices/Storage/DevATA.cpp
+@@ -4439,6 +4439,7 @@
+             {
+ #ifdef IN_RING3
+                 cBusy = 0;
++#if 0
+                 ataR3LockLeave(pCtl);
+ 
+ #ifndef RT_OS_WINDOWS
+@@ -4470,7 +4471,7 @@
+                 RTThreadYield();
+ 
+                 ataR3LockEnter(pCtl);
+-
++#endif
+                 val = s->uATARegStatus;
+ #else /* !IN_RING3 */
+                 /* Cannot yield CPU in raw-mode and ring-0 context.  And switching
+diff --git a/src/app/virtualbox/src/VBox/VMM/VMMR3/VMM.cpp b/src/app/virtualbox/src/VBox/VMM/VMMR3/VMM.cpp
+index c0a1400..f35bc0e 100644
+--- a/src/app/virtualbox/src/VBox/VMM/VMMR3/VMM.cpp
++++ b/src/app/virtualbox/src/VBox/VMM/VMMR3/VMM.cpp
+@@ -660,11 +660,13 @@ VMMR3_INT_DECL(int) VMMR3InitCompleted(PVM pVM, VMINITCOMPLETED enmWhat)
+             /*
+              * Create the EMT yield timer.
+              */
++/*
+             rc = TMR3TimerCreateInternal(pVM, TMCLOCK_REAL, vmmR3YieldEMT, NULL, "EMT Yielder", &pVM->vmm.s.pYieldTimer);
+             AssertRCReturn(rc, rc);
+ 
+             rc = TMTimerSetMillies(pVM->vmm.s.pYieldTimer, pVM->vmm.s.cYieldEveryMillies);
+             AssertRCReturn(rc, rc);
++*/
+ 
+ #ifdef VBOX_WITH_NMI
+             /*
+@@ -1160,6 +1162,7 @@ VMMR3_INT_DECL(int) VMMR3GetImportRC(PVM pVM, const char *pszSymbol, PRTRCPTR pR
+  */
+ VMMR3_INT_DECL(void) VMMR3YieldSuspend(PVM pVM)
+ {
++/*
+     VMCPU_ASSERT_EMT(&pVM->aCpus[0]);
+     if (!pVM->vmm.s.cYieldResumeMillies)
+     {
+@@ -1172,6 +1175,7 @@ VMMR3_INT_DECL(void) VMMR3YieldSuspend(PVM pVM)
+         TMTimerStop(pVM->vmm.s.pYieldTimer);
+     }
+     pVM->vmm.s.u64LastYield = RTTimeNanoTS();
++*/
+ }
+ 
+ 
+@@ -1182,10 +1186,12 @@ VMMR3_INT_DECL(void) VMMR3YieldSuspend(PVM pVM)
+  */
+ VMMR3_INT_DECL(void) VMMR3YieldStop(PVM pVM)
+ {
++#if 0
+     if (!pVM->vmm.s.cYieldResumeMillies)
+         TMTimerStop(pVM->vmm.s.pYieldTimer);
+     pVM->vmm.s.cYieldResumeMillies = pVM->vmm.s.cYieldEveryMillies;
+     pVM->vmm.s.u64LastYield = RTTimeNanoTS();
++#endif 
+ }
+ 
+ 
+@@ -1196,11 +1202,13 @@ VMMR3_INT_DECL(void) VMMR3YieldStop(PVM pVM)
+  */
+ VMMR3_INT_DECL(void) VMMR3YieldResume(PVM pVM)
+ {
++#if 0
+     if (pVM->vmm.s.cYieldResumeMillies)
+     {
+         TMTimerSetMillies(pVM->vmm.s.pYieldTimer, pVM->vmm.s.cYieldResumeMillies);
+         pVM->vmm.s.cYieldResumeMillies = 0;
+     }
++#endif
+ }
+ 
+ 

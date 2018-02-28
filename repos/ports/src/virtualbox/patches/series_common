@@ -1,8 +1,6 @@
 acpi_drv.patch
-avoid_yield.patch
 eminternal.patch
 hostservice.patch
-iconv.patch
 mouse.patch
 network.patch
 pdm_driver.patch
@@ -12,7 +10,4 @@ serial.patch
 sharedfolder_pagelist.patch
 time-log-deadlock.patch
 tm_retries.patch
-vmdk.patch
-tm_tpr.patch
 tm_4s.patch
-rem_tss.patch

@@ -51,6 +51,7 @@ DUMMY(HMR3CheckError)
 DUMMY(HMR3DisablePatching)
 DUMMY(HMR3EnablePatching)
 DUMMY(HMR3EmulateIoBlock)
+DUMMY(HMR3InfoSvmVmcbCtrl)
 DUMMY(HMR3IsEnabled)
 DUMMY(HMR3IsNestedPagingActive)
 DUMMY(HMR3IsUXActive)
@@ -60,7 +61,6 @@ DUMMY(HMR3PatchTprInstr)
 DUMMY(MMHyperR0ToCC)
 DUMMY(MMHyperRCToCC)
 
-DUMMY(MMR3HyperRealloc)
 DUMMY(MMR3LockCall)
 DUMMY(MMR3PageDummyHCPhys)
 DUMMY(MMR3UkHeapFree)
@@ -90,6 +90,8 @@ DUMMY(PGMR3SharedModuleRegister)
 
 DUMMY(pgmR3MapInfo)
 
+DUMMY(RTFsIsoMakerCmdEx)
+
 DUMMY(RTTraceBufCarve)
 DUMMY(RTTraceBufEnumEntries)
 DUMMY(RTTraceBufGetEntryCount)
@@ -113,8 +115,6 @@ DUMMY(RTSemEventWaitEx)
 DUMMY(RTSemPing)
 DUMMY(RTSemPingWait)
 
-DUMMY(RTMemDupExTag)
-DUMMY(RTMemDupTag)
 DUMMY(RTMemExecFree)
 
 DUMMY(RTMpGetPresentCount)

@@ -28,8 +28,9 @@ extern "C" int VBoxDriversRegister(PCPDMDRVREGCB pCallbacks, uint32_t u32Version
 		&g_DrvHostInterface,
 		&g_DrvVUSBRootHub,
 		&g_DrvAUDIO,
-		&g_DrvHostOSSAudio,
+//		&g_DrvHostOSSAudio,
 		&g_DrvHostNullAudio,
+		&g_DrvSCSI,
 		0
 	};
 

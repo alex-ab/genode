@@ -68,7 +68,7 @@ class Vcpu_handler_svm : public Vcpu_handler
 
 			/* enable VM exits for CPUID */
 			next_utcb.mtd     = Nova::Mtd::CTRL;
-			next_utcb.ctrl[0] = SVM_CTRL1_INTERCEPT_CPUID;
+			next_utcb.ctrl[0] = SVM_CTRL_INTERCEPT_CPUID;
 			next_utcb.ctrl[1] = 0;
 
 			void *exit_status = _start_routine(_start_routine_arg);

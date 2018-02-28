@@ -52,3 +52,8 @@ void fireKeyboardLedsChangedEvent(IEventSource *aSource, bool fNumLock,
 #define fireVRDEServerInfoChangedEvent(a)
 
 #define fireGuestPropertyChangedEvent(a, b, c, d, e)
+
+#define fireProgressTaskCompletedEvent(a, b)
+#define fireProgressPercentageChangedEvent(a, b, c)
+
+#define fireAudioAdapterChangedEvent(a, b)

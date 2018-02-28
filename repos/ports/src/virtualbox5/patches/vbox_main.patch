@@ -197,22 +197,23 @@ diff --git a/src/app/virtualbox/src/VBox/Main/src-client/SessionImpl.cpp b/src/a
 index 6ea10d3..267be48 100644
 --- a/src/app/virtualbox/src/VBox/Main/src-client/SessionImpl.cpp
 +++ b/src/app/virtualbox/src/VBox/Main/src-client/SessionImpl.cpp
-@@ -17,11 +17,15 @@
-  * VirtualBox OSE distribution. VirtualBox OSE is distributed in the
-  * hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.
-  */
-+#include "console.h"
- 
+@@ -21,13 +21,16 @@
  #include "SessionImpl.h"
  #include "ConsoleImpl.h"
-+#include "MachineImpl.h"
  #include "Global.h"
 +#if 0
  #include "ClientTokenHolder.h"
 +#endif
  
  #include "AutoCaller.h"
- #include "Logging.h"
+ 
+ #include <VBox/err.h>
+ #include <iprt/process.h>
+ 
++#include "console.h"
+ 
+ /**
+  *  Local macro to check whether the session is open and return an error if not.
 @@ -329,7 +334,9 @@ STDMETHODIMP Session::AssignMachine(IMachine *aMachine, LockType_T aLockType,
  
      /* query IInternalMachineControl interface */
@@ -537,17 +538,20 @@ index a717aff..3d52b9f 100644
  
      { NULL, NULL, 0 }
  #undef MY_ERR
---- a/src/app/virtualbox/src/VBox/Main/include/MachineImpl.h
++++ a/src/app/virtualbox/src/VBox/Main/include/MachineImpl.h
 +++ b/src/app/virtualbox/src/VBox/Main/include/MachineImpl.h
-@@ -39,7 +39,7 @@
- #include "Performance.h"
- #include "PerformanceImpl.h"
--#include "ThreadTask.h"
- #endif /* VBOX_WITH_RESOURCE_USAGE_API */
+@@ -35,10 +35,10 @@
+ #include "USBControllerImpl.h"              // required for MachineImpl.h to compile on Windows
+ #include "BandwidthControlImpl.h"
+ #include "BandwidthGroupImpl.h"
 +#include "ThreadTask.h"
+ #ifdef VBOX_WITH_RESOURCE_USAGE_API
+ # include "Performance.h"
+ # include "PerformanceImpl.h"
+-# include "ThreadTask.h"
+ #endif
  
  // generated header
- #include "SchemaDefs.h"
 --- a/src/app/virtualbox/src/VBox/Main/src-server/MachineImpl.cpp
 +++ b/src/app/virtualbox/src/VBox/Main/src-server/MachineImpl.cpp
 @@ -1371,6 +1372,17 @@
@@ -593,7 +597,7 @@ index a717aff..3d52b9f 100644
          progress.queryInterfaceTo(aProgress.asOutParam());
 --- a/src/app/virtualbox/src/VBox/Main/src-client/ConsoleImpl.cpp
 +++ b/src/app/virtualbox/src/VBox/Main/src-client/ConsoleImpl.cpp
-@@ -75,7 +75,9 @@
+@@ -88,7 +88,9 @@
  
  #include <VBox/com/array.h>
  #include "VBox/com/ErrorInfo.h"
@@ -603,8 +607,8 @@ index a717aff..3d52b9f 100644
  
  #include <iprt/asm.h>
  #include <iprt/buildconfig.h>
-@@ -237,6 +239,8 @@
-     {}
+@@ -270,6 +272,8 @@
+     }
  };
  
 +#if 0
@@ -612,7 +616,7 @@ index a717aff..3d52b9f 100644
  // Handler for global events
  ////////////////////////////////////////////////////////////////////////////////
  inline static const char *networkAdapterTypeToName(NetworkAdapterType_T adapterType);
-@@ -346,6 +350,7 @@
+@@ -378,6 +382,7 @@
  
  VBOX_LISTENER_DECLARE(VmEventListenerImpl)
  
@@ -620,7 +624,7 @@ index a717aff..3d52b9f 100644
  
  // constructor / destructor
  /////////////////////////////////////////////////////////////////////////////
-@@ -512,6 +517,7 @@
+@@ -548,6 +553,7 @@
          rc = mDisplay->init(this);
          AssertComRCReturnRC(rc);
  
@@ -628,7 +632,7 @@ index a717aff..3d52b9f 100644
          unconst(mVRDEServerInfo).createObject();
          rc = mVRDEServerInfo->init(this);
          AssertComRCReturnRC(rc);
-@@ -520,6 +526,7 @@
+@@ -556,6 +562,7 @@
          rc = mEmulatedUSB->init(this);
          AssertComRCReturnRC(rc);
  
@@ -636,7 +640,7 @@ index a717aff..3d52b9f 100644
          /* Grab global and machine shared folder lists */
  
          rc = i_fetchSharedFolders(true /* aGlobal */);
-@@ -527,10 +534,12 @@
+@@ -563,10 +570,12 @@
          rc = i_fetchSharedFolders(false /* aGlobal */);
          AssertComRCReturnRC(rc);
  
@@ -649,7 +653,7 @@ index a717aff..3d52b9f 100644
  
          /* Figure out size of meAttachmentType vector */
          ComPtr<IVirtualBox> pVirtualBox;
-@@ -558,8 +567,10 @@
+@@ -599,8 +608,10 @@
              || enmFirmwareType == FirmwareType_EFI64
              || enmFirmwareType == FirmwareType_EFIDUAL)
          {
@@ -660,7 +664,7 @@ index a717aff..3d52b9f 100644
          }
  
  #ifdef VBOX_WITH_USB_CARDREADER
-@@ -573,6 +584,7 @@
+@@ -614,6 +625,7 @@
          unconst(m_pKeyStore) = new SecretKeyStore(true /* fKeyBufNonPageable */);
          AssertReturn(m_pKeyStore, E_FAIL);
  
@@ -668,7 +672,7 @@ index a717aff..3d52b9f 100644
          /* VirtualBox events registration. */
          {
              ComPtr<IEventSource> pES;
-@@ -590,6 +602,7 @@
+@@ -631,6 +643,7 @@
              rc = pES->RegisterListener(aVmListener, ComSafeArrayAsInParam(eventTypes), true);
              AssertComRC(rc);
          }
@@ -676,7 +680,7 @@ index a717aff..3d52b9f 100644
      }
  
      /* Confirm a successful initialization when it's the case */
-@@ -606,6 +619,7 @@
+@@ -647,6 +660,7 @@
      return S_OK;
  }
  
@@ -684,7 +688,7 @@ index a717aff..3d52b9f 100644
  /**
   * Uninitializes the Console object.
   */
-@@ -803,6 +817,8 @@
+@@ -833,6 +847,8 @@
      LogFlowThisFuncLeave();
  }
  
@@ -693,7 +697,7 @@ index a717aff..3d52b9f 100644
  #ifdef VBOX_WITH_GUEST_PROPS
  
  /**
-@@ -1943,8 +1959,11 @@
+@@ -2006,8 +2022,11 @@
  
  HRESULT Console::getEmulatedUSB(ComPtr<IEmulatedUSB> &aEmulatedUSB)
  {
@@ -705,7 +709,7 @@ index a717aff..3d52b9f 100644
  
      return S_OK;
  }
-@@ -6614,6 +6634,7 @@
+@@ -6915,6 +6934,7 @@
      fireStateChangedEvent(mEventSource, machineState);
  }
  
@@ -713,7 +717,7 @@ index a717aff..3d52b9f 100644
  void Console::i_onAdditionsStateChange()
  {
      AutoCaller autoCaller(this);
-@@ -6621,6 +6642,7 @@
+@@ -6922,6 +6942,7 @@
  
      fireAdditionsStateChangedEvent(mEventSource);
  }
@@ -721,25 +725,23 @@ index a717aff..3d52b9f 100644
  
  /**
   * @remarks This notification only is for reporting an incompatible
-@@ -6920,6 +6942,8 @@
+@@ -7222,6 +7243,7 @@
          }
      }
  
 +#if 0
-+
-     char szError[RTPATH_MAX + 128];
+     RTERRINFOSTATIC ErrInfo;
      int vrc = com::VBoxLogRelCreate("VM", logFile.c_str(),
                                      RTLOGFLAGS_PREFIX_TIME_PROG | RTLOGFLAGS_RESTRICT_GROUPS,
-@@ -6940,6 +6964,8 @@
-     if (SUCCEEDED(hrc) || cHistoryFiles)
-         RTDirFlush(logDir.c_str());
+@@ -7233,6 +7255,7 @@
+     if (RT_FAILURE(vrc))
+         hrc = setError(E_FAIL, tr("Failed to open release log (%s, %Rrc)"), ErrInfo.Core.pszMsg, vrc);
  
-+#endif /* if 0 */
-+
-     return hrc;
- }
++#endif
+     /* If we've made any directory changes, flush the directory to increase
+        the likelihood that the log file will be usable after a system panic.
  
-@@ -6951,6 +6977,8 @@
+@@ -7252,6 +7275,8 @@
   * @param   aProgress       Where to return the progress object.
   * @param   aPaused         true if PowerUpPaused called.
   */
@@ -747,8 +749,8 @@ index a717aff..3d52b9f 100644
 +
  HRESULT Console::i_powerUp(IProgress **aProgress, bool aPaused)
  {
- 
-@@ -7228,7 +7255,8 @@
+     LogFlowThisFuncEnter();
+@@ -7542,7 +7567,8 @@
                  ++cOperations;
                  ulTotalOperationsWeight += 1;
              }
@@ -758,7 +760,7 @@ index a717aff..3d52b9f 100644
                                          progressDesc.raw(),
                                          TRUE, // Cancelable
                                          cOperations,
-@@ -7240,13 +7268,15 @@
+@@ -7554,13 +7580,15 @@
          else if (    mMachineState == MachineState_Saved
              ||  (!fTeleporterEnabled && !fFaultToleranceSyncEnabled))
          {
@@ -776,7 +778,7 @@ index a717aff..3d52b9f 100644
                                          progressDesc.raw(),
                                          TRUE /* aCancelable */,
                                          3    /* cOperations */,
-@@ -7256,7 +7286,8 @@
+@@ -7570,7 +7598,8 @@
          }
          else if (fFaultToleranceSyncEnabled)
          {
@@ -786,7 +788,7 @@ index a717aff..3d52b9f 100644
                                          progressDesc.raw(),
                                          TRUE /* aCancelable */,
                                          3    /* cOperations */,
-@@ -8598,6 +8631,7 @@
+@@ -8929,6 +8958,7 @@
                        Address.c_str(), uuid.raw()));
  
      void *pvRemoteBackend = NULL;
@@ -794,7 +796,7 @@ index a717aff..3d52b9f 100644
      if (fRemote)
      {
          RemoteUSBDevice *pRemoteUSBDevice = static_cast<RemoteUSBDevice *>(aHostDevice);
-@@ -8605,7 +8639,7 @@
+@@ -8936,7 +8966,7 @@
          if (!pvRemoteBackend)
              return E_INVALIDARG; /* The clientId is invalid then. */
      }
@@ -803,7 +805,7 @@ index a717aff..3d52b9f 100644
      USHORT portVersion = 0;
      hrc = aHostDevice->COMGETTER(PortVersion)(&portVersion);
      AssertComRCReturnRC(hrc);
-@@ -8719,12 +8753,13 @@
+@@ -9051,12 +9081,13 @@
          i_setErrorStatic(hrc2, "GetRemote() failed");
  
      PCRTUUID pUuid = aHostDevice->i_id().raw();
@@ -818,7 +820,7 @@ index a717aff..3d52b9f 100644
      alock.release();
      int vrc = VMR3ReqCallWaitU(ptrVM.rawUVM(), 0 /* idDstCpu (saved state, see #6232) */,
                                 (PFNRT)i_usbDetachCallback, 5,
-@@ -8768,7 +8803,7 @@
+@@ -9100,7 +9131,7 @@
      return vrc;
  }
  #endif /* VBOX_WITH_USB */
@@ -827,7 +829,7 @@ index a717aff..3d52b9f 100644
  /* Note: FreeBSD needs this whether netflt is used or not. */
  #if ((defined(RT_OS_LINUX) && !defined(VBOX_WITH_NETFLT)) || defined(RT_OS_FREEBSD))
  /**
-@@ -9004,6 +9039,8 @@
+@@ -9336,6 +9367,8 @@
  }
  #endif /* (RT_OS_LINUX || RT_OS_FREEBSD) && !VBOX_WITH_NETFLT */
  
@@ -836,7 +838,7 @@ index a717aff..3d52b9f 100644
  /**
   * Called at power down to terminate host interface networking.
   *
-@@ -9464,6 +9501,7 @@
+@@ -9794,6 +9827,7 @@
          /* Create the VRDP server. In case of headless operation, this will
           * also create the framebuffer, required at VM creation.
           */
@@ -844,15 +846,15 @@ index a717aff..3d52b9f 100644
          ConsoleVRDPServer *server = pConsole->i_consoleVRDPServer();
          Assert(server);
  
-@@ -9510,6 +9548,7 @@
-                      vrc, errMsg.c_str()));
-             throw i_setErrorStatic(E_FAIL, errMsg.c_str());
+@@ -9811,6 +9845,7 @@
+                 && vrc != VERR_NET_ADDRESS_IN_USE) /* not fatal */
+                 throw i_setErrorStatic(E_FAIL, errMsg.c_str());
          }
 +#endif
  
          ComPtr<IMachine> pMachine = pConsole->i_machine();
          ULONG cCpus = 1;
-@@ -9534,8 +9573,10 @@
+@@ -9835,8 +9870,10 @@
  
          alock.acquire();
  
@@ -947,24 +949,6 @@ index a717aff..3d52b9f 100644
  
              InsertConfigNode(pInst,    "LUN#0", &pLunL0);
              InsertConfigString(pLunL0, "Driver",               "ACPIHost");
-@@ -3820,6 +3826,8 @@
-         ComPtr<IMedium> pMedium;
-         hrc = pMediumAtt->COMGETTER(Medium)(pMedium.asOutParam());                          H();
- 
-+#if 0
-+
-         /*
-          * 1. Only check this for hard disk images.
-          * 2. Only check during VM creation and not later, especially not during
-@@ -4004,6 +4012,8 @@
-             }
-         }
- 
-+#endif  /* if 0 */
-+
-         if (pMedium)
-         {
-             BOOL fHostDrive;
 @@ -5440,6 +5450,9 @@
 
  #undef H
@@ -1034,16 +1018,6 @@ index a717aff..3d52b9f 100644
  
      *pHdrUnconst = hdrSaved;
  }
-@@ -4031,7 +4041,9 @@
-         {
-             /* VRDP server still need this notification. */
-             LogRelFlowFunc(("Calling VRDP\n"));
-+#if 0
-             pThis->mParent->i_consoleVRDPServer()->SendResize();
-+#endif
-         }
-         return VINF_SUCCESS;
-     }
 --- a/src/app/virtualbox/src/VBox/Main/src-server/SystemPropertiesImpl.cpp
 +++ b/src/app/virtualbox/src/VBox/Main/src-server/SystemPropertiesImpl.cpp
 @@ -1191,8 +1191,8 @@

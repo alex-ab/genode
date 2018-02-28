@@ -1,0 +1,15 @@
+--- a/src/app/virtualbox/src/VBox/Runtime/r3/posix/utf8-posix.cpp
++++ b/src/app/virtualbox/src/VBox/Runtime/r3/posix/utf8-posix.cpp
+@@ -82,12 +82,7 @@
+ # define NON_CONST_ICONV_INPUT
+ #endif
+ #ifdef RT_OS_FREEBSD
+-# include <sys/param.h>
+-# if __FreeBSD_version >= 1002000 /* Changed around 10.2.2 (https://svnweb.freebsd.org/base?view=revision&revision=281550) */
+ #  define NON_CONST_ICONV_INPUT
+-# else
+-# error __FreeBSD_version__
+-# endif
+ #endif
+ 
+ 

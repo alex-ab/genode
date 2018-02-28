@@ -18,7 +18,7 @@ SRC_CC += Devices/Audio/DrvAudio.cpp
 SRC_CC += Devices/Audio/DrvHostNullAudio.cpp
 
 SRC_CC += network.cpp
-SRC_CC += audio.cc
+# SRC_CC += audio.cc
 
 INC_DIR += $(VBOX_DIR)/Devices/Audio
 

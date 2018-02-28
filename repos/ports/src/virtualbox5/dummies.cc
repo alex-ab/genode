@@ -115,6 +115,7 @@ int  FTMR3Term(PVM)                                                             
 
 int  GIMR3Init(PVM)                                                             TRACE(VINF_SUCCESS)
 int  GIMR3Term(PVM)                                                             TRACE(VINF_SUCCESS)
+void GIMR3Relocate(PVM, RTGCINTPTR)                                             TRACE()
 void GIMR3Reset(PVM)                                                            TRACE()
 bool GIMIsEnabled(PVM)                                                          TRACE(false)
 bool GIMIsParavirtTscEnabled(PVM)                                               TRACE(false)

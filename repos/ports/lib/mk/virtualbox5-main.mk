@@ -4,7 +4,7 @@ VBOX_CC_OPT += -DVBOX_WITH_GENERIC_SESSION_WATCHER
 
 #
 # Prevent inclusion of the Genode::Log definition after the vbox #define
-# of 'Log'. Otherwise, the attemt to compile base/log.h will fail.
+# of 'Log'. Otherwise, the attempt to compile base/log.h will fail.
 #
 VBOX_CC_OPT += -include base/log.h
 
@@ -92,6 +92,7 @@ INC_DIR += $(VBOX_DIR)/Main/xml
 INC_DIR += $(VBOX_DIR)/Main/include
 INC_DIR += $(REP_DIR)/src/virtualbox5/frontend
 INC_DIR += $(VIRTUALBOX_DIR)/VBoxAPIWrap
+INC_DIR += $(VIRTUALBOX_DIR)/include/VBox/Graphics
 
 # search path to 'scan_code_set_2.h'
 INC_DIR += $(call select_from_repositories,src/drivers/input/spec/ps2)

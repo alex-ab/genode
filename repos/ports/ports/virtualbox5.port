@@ -1,17 +1,17 @@
 LICENSE         := GPLv2
-VERSION         := 5.1.34
+VERSION         := 5.2.8
 DOWNLOADS       := virtualbox.archive virtualbox_sdk.archive
 
 VIRTUALBOX_TBZ2    := VirtualBox-$(VERSION).tar.bz2
-VIRTUALBOX_SDK_ZIP := VirtualBoxSDK-$(VERSION)-121010.zip
+VIRTUALBOX_SDK_ZIP := VirtualBoxSDK-$(VERSION)-121009.zip
 
 URL(virtualbox) := http://download.virtualbox.org/virtualbox/$(VERSION)/$(VIRTUALBOX_TBZ2)
 DIR(virtualbox) := src/app/virtualbox
-SHA(virtualbox) := 0b6b89cf577e2b5c8da6abab3ab8fce66d06f997
+SHA(virtualbox) := d25f64eb8d5f12072e4a57b32e08b2e512bdf517
 
 URL(virtualbox_sdk) := http://download.virtualbox.org/virtualbox/$(VERSION)/$(VIRTUALBOX_SDK_ZIP)
 DIR(virtualbox_sdk) := src/app/virtualbox_sdk
-SHA(virtualbox_sdk) := 7252da6fe6051779049661618114754c753c20cb
+SHA(virtualbox_sdk) := 4aa25c48d31ffe1a0aa068a2762155e77a2eaaa6
 
 PATCHES_DIR       := src/virtualbox5/patches
 PATCHES_DIR_VBOX4 := src/virtualbox/patches
@@ -73,7 +73,7 @@ VBOX_MAIN_INC += USBIdDatabase USBProxyService VirtualBoxImpl VRDEServerImpl Gue
 VBOX_MAIN_INC += USBDeviceImpl HostUSBDeviceImpl Matching Wrapper
 VBOX_MAIN_INC += RemoteUSBDeviceImpl RemoteUSBBackend ConsoleVRDPServer
 VBOX_MAIN_INC += MachineDebuggerImpl EmulatedUSBImpl
-VBOX_MAIN_INC += ThreadTask USBProxyBackend
+VBOX_MAIN_INC += ThreadTask USBProxyBackend LoggingNew
 
 
 VBOX_SRC_VBOX := VMM Devices Runtime GuestHost/HGSMI Storage Disassembler
@@ -91,13 +91,15 @@ VBOX_SRC_VBOX += $(addsuffix .cpp, $(addprefix Main/src-all/, $(VBOX_MAIN_ALL)))
 VBOX_SRC_VBOX += $(addsuffix .cpp, $(addprefix Main/glue/, $(VBOX_MAIN_GLUE)))
 
 VBOX_INC += types.h cdefs.h hgcmsvc.h err.h dis.h disopcode.h log.h sup.h pci.h
-VBOX_INC += param.h ostypes.h VMMDev.h VMMDev2.h vusb.h dbg.h version.h HGSMI
-VBOX_INC += VBoxVideo.h Hardware bioslogo.h scsi.h shflsvc.h VBoxGuest2.h vd.h
+VBOX_INC += param.h ostypes.h VMMDev.h vusb.h dbg.h version.h bios.h ata.h
+VBOX_INC += bioslogo.h scsi.h shflsvc.h vd.h vdmedia.h vd-common.h scsiinline.h
 VBOX_INC += vd-plugin.h vd-ifs.h vd-ifs-internal.h vd-image-backend.h
 VBOX_INC += vd-cache-backend.h vd-filter-backend.h msi.h asmdefs.mac err.mac
-VBOX_INC += VBoxVideoHost3D.h VBoxVideo3D.h settings.h VBoxAuth.h
-VBOX_INC += usb.h usbfilter.h vrdpusb.h
-VBOX_INC += RemoteDesktop ExtPack/ExtPack.h
+VBOX_INC += settings.h VBoxAuth.h VBoxGuestCoreTypes.h
+VBOX_INC += usb.h usbfilter.h vrdpusb.h vscsi.h
+VBOX_INC += RemoteDesktop ExtPack/ExtPack.h VMMDevCoreTypes.h
+VBOX_INC += Graphics/VBoxVideo.h Graphics/VBoxVideoIPRT.h Graphics/VBoxVideoVBE.h Graphics/VBoxVideoVBEPrivate.h Graphics/HGSMI.h Graphics/HGSMIDefs.h Graphics/HGSMIChannels.h
+VBOX_INC += Graphics/HGSMIChSetup.h
 
 VBOX_INC_COM := array.h assert.h AutoLock.h ErrorInfo.h EventQueue.h Guid.h
 VBOX_INC_COM += list.h MultiResult.h string.h

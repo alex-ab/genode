@@ -342,3 +342,24 @@ VMMDECL(uint32_t) MMHyperHeapPtrToOffset(PVM pVM, void *pv)
 
 	return offset;
 }
+
+VMMDECL(int) MMR3HyperRealloc(PVM pVM, void *pv, size_t cb,
+                              unsigned uAlignmentNew, MMTAG enmTag,
+                              size_t cbNew, void **ppv)
+{
+	if (!ppv)
+		return VERR_GENERAL_FAILURE;
+
+	size_t const rounded_size = round_size_by_mmtag(enmTag, cbNew);
+
+	*ppv = heap_by_mmtag(enmTag)->alloc(rounded_size, align_by_mmtag(enmTag));
+	if (!*ppv)
+		return VERR_GENERAL_FAILURE;
+
+	size_t const size = cb > cbNew ? cbNew : cb;
+	memcpy(*ppv, pv, size);
+
+	MMHyperFree(pVM, pv);
+
+	return VINF_SUCCESS;
+}
