@@ -8,7 +8,7 @@ $(SRC_DIR):
 	mkdir -p $@
 	cp -rH $(REP_DIR)/$@/* $@/
 	cp -r $(PORT_DIR_SEOUL)/$@/* $@/
-
+	cp $(PORT_DIR_SEOUL)/$@/LICENSE .
 
 MIRROR_FROM_PORT_DIR := lib/mk/seoul_libc_support.mk \
                         include/vmm
