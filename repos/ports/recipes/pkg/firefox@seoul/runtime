@@ -1,0 +1,21 @@
+<runtime ram="1380M" caps="1000" binary="init" config="init.config">
+
+	<requires>
+		<nic/>
+		<rom label="platform_info"/>
+		<gui/>
+		<rtc/>
+		<vm/>
+		<timer/>
+	</requires>
+
+	<content>
+		<rom label="init.config"/>
+		<rom label="vm_seoul.cfg"/>
+		<rom label="tc-firefox.raw"/>
+		<rom label="init"/>
+		<rom label="ram_block"/>
+		<rom label="seoul"/>
+	</content>
+
+</runtime>
