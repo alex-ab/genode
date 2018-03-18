@@ -82,6 +82,10 @@ SECTIONS
 		__l4sys_invoke_indirect = .;
 		LONG(0xeacff000);
 
+		__profile_table_start = .;
+		KEEP(*(.profile));
+		__profile_table_end = .;
+
 		*(.data .gnu.linkonce.d.*)
 
 		/* include all data subsections except those of the boot modules */

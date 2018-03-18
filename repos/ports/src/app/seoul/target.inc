@@ -31,7 +31,7 @@ CC_CXX_OPT += -mssse3
 CC_OPT_PIC :=
 
 # Enable profiling by adjusting linker script to keep .profile
-# CC_CXX_OPT += -DPROFILE
+CC_CXX_OPT += -DPROFILE
 
 vpath %.cc  $(SEOUL_CONTRIB_DIR)
 vpath %.cc  $(REP_DIR)/src/app/seoul
