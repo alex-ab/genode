@@ -105,6 +105,10 @@ void Seoul::Keyboard::handle_keycode_press(unsigned keycode)
 		CpuEvent msg(VCpu::EVENT_DEBUG);
 		for (VCpu *vcpu = _motherboard()->last_vcpu; vcpu; vcpu=vcpu->get_last())
 			vcpu->bus_event.send(msg);
+
+#ifdef PROFILE
+		_motherboard()->dump_counters();
+#endif
 	}
 
 	/* reset */

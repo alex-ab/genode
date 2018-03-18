@@ -65,8 +65,7 @@ void Logging::vprintf(const char *format, va_list &ap)
 	utcb_backup = *(Utcb_backup *)Genode::Thread::myself()->utcb();
 
 	Genode::printf("VMM: ");
-	Genode::printf(format);
-	Genode::error("Logging::vprintf not implemented");
+	Genode::vprintf(format, ap);
 
 	*(Utcb_backup *)Genode::Thread::myself()->utcb() = utcb_backup;
 }
