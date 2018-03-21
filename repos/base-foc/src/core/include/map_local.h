@@ -115,10 +115,8 @@ namespace Genode {
 				return false;
 			}
 
-			if (l4_msgtag_items(tag) < 1) {
-				error("got no mapping!");
+			if (l4_msgtag_items(tag) < 1)
 				return false;
-			}
 
 			offset += 1 << page_size_log2;
 			size   -= 1 << page_size_log2;

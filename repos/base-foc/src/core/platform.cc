@@ -327,6 +327,65 @@ void Platform::_setup_mem_alloc()
 			}
 		} while (!err);
 	}
+
+	/* test to map I/O memory ranges - remove ranges if kernel denies */
+	{
+		Phys_allocator tmp_io_alloc(nullptr);
+
+		size_t const min_log2 = get_page_size_log2();
+		size_t page_size_log2 = 22; /* start mapping size */
+		size_t map_size       = 1UL << page_size_log2;
+
+		void * core_local_ptr = nullptr;
+		region_alloc()->alloc_aligned(map_size, &core_local_ptr, page_size_log2);
+		addr_t const core_local_addr = reinterpret_cast<addr_t>(core_local_ptr);
+
+		/* start with large pages to speed up things */
+		while (page_size_log2 >= min_log2) {
+			size_t map_size = 1UL << page_size_log2;
+			void * phys_ptr = nullptr;
+
+			/* allocate I/O mem and map it */
+			while (io_mem_alloc()->alloc_aligned(map_size, &phys_ptr,
+			                                     page_size_log2).ok())
+			{
+				addr_t const phys_addr = reinterpret_cast<addr_t>(phys_ptr);
+
+				if (map_local_io(phys_addr, core_local_addr, map_size >> min_log2))
+					unmap_local(core_local_addr, map_size >> min_log2);
+				else {
+					/* if mapping fails, remember range in tmp_io allocator */
+					io_mem_alloc()->free(phys_ptr);
+					_io_mem_alloc.remove_range(phys_addr, map_size);
+
+					tmp_io_alloc.add_range(phys_addr, map_size);
+				}
+			}
+
+			/* re-add failing regions for next (decreased) map_size round */
+			while (tmp_io_alloc.alloc_aligned(map_size, &phys_ptr,
+			                                  page_size_log2).ok()) {
+				addr_t const phys_addr = reinterpret_cast<addr_t>(phys_ptr);
+
+				/* re-add to io mem allocator solely if is not the last round */
+				if (page_size_log2 > min_log2)
+					_io_mem_alloc.add_range(phys_addr, map_size);
+
+				/* free up and remove range from tmp allocator */
+				tmp_io_alloc.free(phys_ptr);
+				tmp_io_alloc.remove_range(phys_addr, map_size);
+			}
+
+			page_size_log2 -= 1;
+		}
+	}
+
+	/* free available I/O memory ranges */
+	addr_t free_io_addr = 0;
+	while (_io_mem_alloc()->any_block_addr(&free_io_addr)) {
+		void * const free_io_ptr = reinterpret_cast<void *>(free_io_addr);
+		_io_mem_alloc.free(free_io_ptr);
+	}
 }
 
 
