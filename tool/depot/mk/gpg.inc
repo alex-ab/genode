@@ -8,7 +8,7 @@ pubkey_filename = $(call archive_user,$1)/pubkey
 pubkey_path     = $(wildcard $(DEPOT_DIR)/$(call pubkey_filename,$1))
 
 # obtain key ID of 'depot/<user>/pubkey' to be used to select signing key
-pubkey_id = $(shell gpg --with-colon < $(call pubkey_path,$1) | head -1 | cut -d: -f5 )
+pubkey_id = $(shell gpg2 --with-colon < $(call pubkey_path,$1) | head -1 | cut -d: -f5 )
 
 MISSING_PUBKEY_FILES := $(sort \
                            $(foreach A,$(ARCHIVES),\
