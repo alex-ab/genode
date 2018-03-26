@@ -2,7 +2,9 @@
 # Build
 #
 
-if {[have_spec odroid_xu]} {
+if {[have_spec odroid_xu] ||
+    [have_spec wand_quad] ||
+    ([get_cmd_switch --autopilot] && [have_include "power_on/qemu"])} {
 	puts "Run script does not support this platform."
 	exit 0
 }
@@ -67,8 +69,9 @@ append_platform_drv_config
 
 append_if [have_spec framebuffer] config {
 	<start name="fb_drv" caps="130">
-		<resource name="RAM" quantum="12M"/>
+		<resource name="RAM" quantum="4M"/>
 		<provides><service name="Framebuffer"/></provides>
+		<config width="1024" height="768"/>
 	</start>}
 
 append_if [have_spec gpio] config "
@@ -197,7 +200,7 @@ append config {
 		</route>
 	</start>
 
-	<start name="nitpicker">
+	<start name="nitpicker" caps="110">
 		<resource name="RAM" quantum="1216K"/>
 		<provides><service name="Nitpicker"/></provides>
 		<configfile name="nitpicker.config"/>
@@ -213,7 +216,7 @@ append config {
 	</start>
 
 	<start name="pointer">
-		<resource name="RAM" quantum="1096k"/>
+		<resource name="RAM" quantum="1096K"/>
 		<config/>
 	</start>
 
@@ -296,7 +299,7 @@ build_boot_image $boot_modules
 if {[get_cmd_switch --autopilot]} {
 	run_genode_until {\[init -> scout\] png is.*\n} 40
 
-	grep_output {requests resources: ram_quota}
+	grep_output {(requests resources: ram_quota)|(Error)}
 	compare_output_to {}
 
 } else {
