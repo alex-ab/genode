@@ -1,6 +1,6 @@
-_/raw/vbox5-tc-firefox-nova-sculpt
-_/raw/vm-tc-firefox
-_/src/ram_blk
+alex-ab/raw/vbox5-tc-firefox-nova-sculpt/2018-05-30
+alex-ab/raw/vm-tc-firefox/18.08
+alex-ab/src/ram_blk/2018-07-12
 _/src/vbox5-nova
 _/src/base-nova
 _/src/libc
