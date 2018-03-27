@@ -141,6 +141,7 @@ proc platform_drv_config {} {
 		<resource name="RAM" quantum="3M"/>
 		<route>
 			<service name="IO_MEM"> <parent/> </service>
+			<service name="IO_PORT"> <parent/> </service>
 			<service name="LOG">    <parent/> </service>
 			<service name="PD">     <parent/> </service>
 			<service name="RM">     <parent/> </service>

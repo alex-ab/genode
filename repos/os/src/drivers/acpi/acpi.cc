@@ -20,6 +20,7 @@
 /* base includes */
 #include <base/attached_io_mem_dataspace.h>
 #include <base/attached_rom_dataspace.h>
+#include <io_port_session/connection.h>
 #include <util/misc_math.h>
 #include <util/mmio.h>
 
@@ -209,15 +210,29 @@ struct Fadt : Genode::Mmio
 	static uint64_t reset_addr;
 	static uint8_t  reset_value;
 
-	Fadt(addr_t a) : Genode::Mmio(a)
+	Fadt(addr_t a, Genode::Env &env) : Genode::Mmio(a)
 	{
+		uint32_t smi_cmd = 0;
+		uint8_t  acpi_enable = 0;
+
 		features    = read<Fadt::Feature_flags>();
 		reset_type  = read<Fadt::Reset_reg_type>();
 		reset_addr  = read<Fadt::Reset_reg_addr>();
 		reset_value = read<Fadt::Reset_value>();
+		smi_cmd     = read<Fadt::Smi_cmd>();
+		acpi_enable = read<Fadt::Acpi_enable>();
+
+		if (smi_cmd && acpi_enable) {
+			Genode::error("XXX - try to tell firmware that we are ACPI capable ");
+			Genode::Io_port_connection smi_cmd_port(env, smi_cmd, 1);
+			smi_cmd_port.outb(smi_cmd, acpi_enable);
+			Genode::error("XXX - wait until done - XXX");
+		}
 	}
 
 	struct Dsdt           : Register<0x28, 32> { };
+	struct Smi_cmd        : Register<0x30, 32> { };
+	struct Acpi_enable    : Register<0x34, 8>  { };
 	struct Feature_flags  : Register<0x70, 32> { };
 	struct Reset_reg_type : Register<0x74, 32> { };
 	struct Reset_reg_addr : Register<0x78, 64> { };
@@ -1196,7 +1211,7 @@ class Acpi_table
 					}
 
 					if (table.is_facp()) {
-						Fadt fadt(reinterpret_cast<Genode::addr_t>(table->signature));
+						Fadt fadt(reinterpret_cast<Genode::addr_t>(table->signature), _env);
 						dsdt = fadt.read<Fadt::Dsdt>();
 					}
 
