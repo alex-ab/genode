@@ -73,5 +73,6 @@ build_boot_image $boot_modules
 
 append qemu_args "-nographic "
 
+run_genode_until forever
 run_genode_until "--- Platform test finished ---.*\n" 10
 
