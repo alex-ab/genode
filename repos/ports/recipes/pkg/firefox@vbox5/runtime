@@ -1,0 +1,37 @@
+<runtime ram="2G" caps="1500" binary="init" config="init.config">
+
+	<requires>
+		<file_system label="shared"/>
+		<nitpicker/>
+		<nic/>
+		<rom label="capslock"/>
+		<rom label="platform_info"/>
+		<report label="shape"/>
+		<report label="clipboard"/>
+		<rom    label="clipboard"/>
+		<rm/>
+		<rtc/>
+		<rom label="usb_devices"/>
+		<usb/>
+	</requires>
+
+	<content>
+		<rom label="init.config"/>
+		<rom label="ld.lib.so"/>
+		<rom label="init"/>
+		<rom label="timer"/>
+		<rom label="virtualbox5-nova"/>
+		<rom label="libc.lib.so"/>
+		<rom label="libc_pipe.lib.so"/>
+		<rom label="libm.lib.so"/>
+		<rom label="libiconv.lib.so"/>
+		<rom label="qemu-usb.lib.so"/>
+		<rom label="stdcxx.lib.so"/>
+		<rom label="vfs.lib.so"/>
+		<rom label="tc-firefox.raw"/>
+		<rom label="ram_block"/>
+		<rom label="tc_firefox_raw.vmdk"/>
+		<rom label="machine.vbox"/>
+	</content>
+
+</runtime>
