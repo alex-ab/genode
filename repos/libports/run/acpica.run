@@ -21,7 +21,7 @@ set build_components {
 	test/input
 }
 
-set use_acpica_as_acpi_drv 0
+set use_acpica_as_acpi_drv 1
 
 source ${genode_dir}/repos/base/run/platform_drv.inc
 
@@ -219,4 +219,5 @@ build_boot_image $boot_modules
 
 append qemu_args "-nographic "
 
+run_genode_until forever
 run_genode_until {\[init -\> acpi.*SCI IRQ:.*\n} 30

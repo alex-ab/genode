@@ -225,7 +225,7 @@ proc platform_drv_config {} {
 			<service name="ROM" />
 			<service name="Report" />
 		</provides>
-		<config>
+		<config verbose="yes">
 			<policy label="platform_drv -> acpi" report="acpi_drv -> acpi"/>}
 
 		append_if [expr {[acpi_drv_name] eq "acpica"}] drv_config {
