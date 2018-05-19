@@ -1,0 +1,378 @@
+--- src/kernel/nova/include/refptr.hpp
++++ src/kernel/nova/include/refptr.hpp
+@@ -82,7 +82,7 @@ class Refptr
+         T * operator->() const  { return ptr; }
+ 
+         ALWAYS_INLINE
+-        inline Refptr (T *p) : ptr (p->add_ref() ? p : nullptr) {}
++        inline Refptr (T *p) : ptr (p ? (p->add_ref() ? p : nullptr) : nullptr) {}
+ 
+         ALWAYS_INLINE
+         inline ~Refptr()
+--- src/kernel/nova/include/sc.hpp
++++ src/kernel/nova/include/sc.hpp
+@@ -32,6 +32,8 @@ class Sc : public Kobject, public Refcount
+ 
+     public:
+         Refptr<Ec> const ec;
++        Sc * const group;
++        Sc * group_list { nullptr };
+         unsigned const cpu;
+         unsigned const prio;
+         uint64 const budget;
+@@ -55,16 +57,23 @@ class Sc : public Kobject, public Refcount
+ 
+         static unsigned prio_top CPULOCAL;
+ 
++        void ready_enqueue (bool);
+         void ready_enqueue (uint64, bool, bool = true);
++        void ready_enqueue_group (uint64, bool);
+ 
+-        void ready_dequeue (uint64);
++        Sc * ready_dequeue (uint64);
+ 
+         static void free (Rcu_elem * a) {
+             Sc * s = static_cast<Sc *>(a);
+-              
++
+             if (s->del_ref()) {
++                if (s->group && s->group->del_rcu())
++                    Rcu::call (s->group);
++
+                 assert(Sc::current != s);
+-                delete s;
++
++                Pd *pd = static_cast<Pd *>(static_cast<Space_obj *>(s->space));
++                destroy(s, pd->quota);
+             }
+         }
+ 
+@@ -78,7 +87,8 @@ class Sc : public Kobject, public Refcount
+ 
+             Atomic::add(cross_time[s->cpu], s->time);
+ 
+-            delete s;
++            Pd *pd = static_cast<Pd *>(static_cast<Space_obj *>(s->space));
++            destroy(s, pd->quota);
+         }
+ 
+         Sc(const Sc&);
+@@ -94,7 +104,7 @@ class Sc : public Kobject, public Refcount
+         static unsigned const default_quantum = 10000;
+ 
+         Sc (Pd *, mword, Ec *);
+-        Sc (Pd *, mword, Ec *, unsigned, unsigned, unsigned);
++        Sc (Pd *, mword, Ec *, unsigned, unsigned, unsigned, Sc * = nullptr);
+         Sc (Pd *, Ec *, unsigned, Sc *);
+ 
+         ALWAYS_INLINE
+@@ -114,5 +124,6 @@ class Sc : public Kobject, public Refcount
+         ALWAYS_INLINE
+         static inline void *operator new (size_t, Quota &quota) { return cache.alloc(quota); }
+ 
+-        static void operator delete (void *ptr);
++        ALWAYS_INLINE
++        static inline void destroy(Sc *obj, Quota &quota) { obj->~Sc(); cache.free (obj, quota); }
+ };
+--- src/kernel/nova/include/syscall.hpp
++++ src/kernel/nova/include/syscall.hpp
+@@ -93,6 +93,18 @@ class Sys_create_sc : public Sys_regs
+ 
+         ALWAYS_INLINE
+         inline Qpd qpd() const { return Qpd (ARG_4); }
++
++        ALWAYS_INLINE
++        inline bool group() const { return flags() & 0x2; }
++
++        ALWAYS_INLINE
++        inline bool create_sg() const { return flags() & 0x1; }
++
++        ALWAYS_INLINE
++        inline unsigned cpu() const { return static_cast<unsigned>(ARG_3); }
++
++        ALWAYS_INLINE
++        inline unsigned long sg() const { return ARG_5; }
+ };
+ 
+ class Sys_create_pt : public Sys_regs
+--- src/kernel/nova/src/sc.cpp
++++ src/kernel/nova/src/sc.cpp
+@@ -40,19 +40,27 @@ Sc *Sc::list[Sc::priorities];
+ 
+ unsigned Sc::prio_top;
+ 
+-Sc::Sc (Pd *own, mword sel, Ec *e) : Kobject (SC, static_cast<Space_obj *>(own), sel, 0x1, free), ec (e), cpu (static_cast<unsigned>(sel)), prio (0), budget (Lapic::freq_tsc * 1000), left (0)
++Sc::Sc (Pd *own, mword sel, Ec *e) : Kobject (SC, static_cast<Space_obj *>(own), sel, 0x1, free), ec (e), group (nullptr), cpu (static_cast<unsigned>(sel)), prio (0), budget (Lapic::freq_tsc * 1000), left (0)
+ {
+     trace (TRACE_SYSCALL, "SC:%p created (PD:%p Kernel)", this, own);
+ }
+ 
+-Sc::Sc (Pd *own, mword sel, Ec *e, unsigned c, unsigned p, unsigned q) : Kobject (SC, static_cast<Space_obj *>(own), sel, 0x1, free), ec (e), cpu (c), prio (p), budget (Lapic::freq_tsc / 1000 * q), left (0)
++Sc::Sc (Pd *own, mword sel, Ec *e, unsigned c, unsigned p, unsigned q, Sc * g) : Kobject (SC, static_cast<Space_obj *>(own), sel, 0x1, free), ec (e), group (g), cpu (c), prio (p), budget (Lapic::freq_tsc / 1000 * q), left (0)
+ {
+     trace (TRACE_SYSCALL, "SC:%p created (EC:%p CPU:%#x P:%#x Q:%#x)", this, e, c, p, q);
++
++    if (group)
++        g->add_ref();
+ }
+ 
+-Sc::Sc (Pd *own, Ec *e, unsigned c, Sc *x) : Kobject (SC, static_cast<Space_obj *>(own), 0, 0x1, free_x), ec (e), cpu (c), prio (x->prio), budget (x->budget), left (x->left)
++Sc::Sc (Pd *own, Ec *e, unsigned c, Sc *x) : Kobject (SC, static_cast<Space_obj *>(own), 0, 0x1, free_x), ec (e), group (nullptr), cpu (c), prio (x->prio), budget (x->budget), left (x->left)
+ {
+     trace (TRACE_SYSCALL, "SC:%p created (EC:%p CPU:%#x P:%#x Q:%#llx) - xCPU", this, e, c, prio, budget / (Lapic::freq_bus / 1000));
++/* XXX
++    if (x->group)
++        trace(0, "%p fixme prio diff %u %u current=%p budget=%llu vs %llu", this, x->group->prio, x->prio, current, x->group->budget, x->budget);
++   XXX
++*/
+ }
+ 
+ void Sc::ready_enqueue (uint64 t, bool inc_ref, bool use_left)
+@@ -67,6 +75,19 @@ void Sc::ready_enqueue (uint64 t, bool inc_ref, bool use_left)
+             return;
+     }
+ 
++    if (group)
++        ready_enqueue_group(t, use_left);
++    else
++        ready_enqueue(use_left);
++
++    if (!left)
++        left = budget;
++
++    tsc = t;
++}
++
++void Sc::ready_enqueue (bool use_left)
++{
+     if (prio > prio_top)
+         prio_top = prio;
+ 
+@@ -84,14 +105,52 @@ void Sc::ready_enqueue (uint64 t, bool inc_ref, bool use_left)
+ 
+     if (prio > current->prio || (this != current && prio == current->prio && (use_left && left)))
+         Cpu::hazard |= HZD_SCHED;
++}
+ 
+-    if (!left)
+-        left = budget;
++void Sc::ready_enqueue_group (uint64 t, bool use_left)
++{
++    assert (!prev);
++    assert (!next);
++    assert (group);
++    assert (!group->ec);
++
++    if (!group->add_ref())
++        return;
++
++    if (!group->group_list) {
++        group->group_list = this;
++        prev = next = this;
++        assert (!group->prev);
++        assert (!group->next);
++    } else {
++        Sc * s = group->group_list;
++        while (s->prio >= prio) {
++            if ((s->prio == prio) && (use_left && left)) {
++                if (s == group->group_list)
++                    group->group_list = this;
++
++                break;
++            }
++
++            s = s->next;
++            if (s == group->group_list)
++                break;
++        }
+ 
+-    tsc = t;
++        next = s;
++        prev = s->prev;
++        s->prev->next = this;
++        s->prev = this;
++
++        if (group->group_list->prio < prio)
++            group->group_list = this;
++    }
++
++    if (!group->prev && !group->next && ((current == this) || (current->group != group)))
++        group->ready_enqueue(t, false, use_left);
+ }
+ 
+-void Sc::ready_dequeue (uint64 t)
++Sc * Sc::ready_dequeue (uint64 t)
+ {
+     assert (prio < priorities);
+     assert (cpu == Cpu::id);
+@@ -109,9 +168,34 @@ void Sc::ready_dequeue (uint64 t)
+ 
+     trace (TRACE_SCHEDULE, "DEQ:%p (%llu) PRIO:%#x TOP:%#x", this, left, prio, prio_top);
+ 
+-    ec->add_tsc_offset (tsc - t);
+-
+     tsc = t;
++
++    if (ec) {
++        ec->add_tsc_offset (tsc - t);
++        return this;
++    }
++
++    Sc * const sc = group_list;
++
++    assert(sc);
++    assert(sc->ec);
++
++    if (sc == sc->prev)
++        group_list = nullptr;
++    else {
++        group_list = sc->next;
++        sc->prev->next = sc->next;
++        sc->next->prev = sc->prev;
++    }
++    sc->prev = sc->next = nullptr;
++
++    if (this->del_rcu()) /* XXX */ {
++        Rcu::call (this);
++    }
++
++    sc->ec->add_tsc_offset (tsc - t);
++
++    return sc;
+ }
+ 
+ void Sc::schedule (bool suspend, bool use_left)
+@@ -127,24 +211,38 @@ void Sc::schedule (bool suspend, bool use_left)
+     current->time += t - current->tsc;
+     current->left = d > t ? d - t : 0;
+ 
+-    Cpu::hazard &= ~HZD_SCHED;
++    if (current->group) {
++        current->group->time += t - current->tsc;
++        current->group->left  = d > t ? d - t : 0;
++    }
+ 
+     if (EXPECT_TRUE (!suspend))
+         current->ready_enqueue (t, false, use_left);
+-    else
++    else {
++        if (current->group && current->group->group_list) {
++            assert(!current->group->prev);
++            assert(!current->group->next);
++            current->group->ready_enqueue(t, false);
++        }
++
+         if (current->del_rcu())
+             Rcu::call (current);
++    }
++
++    /* reset bit set by ready_enqueue - we take a decision now */
++    Cpu::hazard &= ~HZD_SCHED;
+ 
+     Sc *sc = list[prio_top];
+     assert (sc);
+ 
+-    Timeout_budget::budget.enqueue (t + sc->left);
+-
+     ctr_loop = 0;
+ 
+-    current = sc;
+-    sc->ready_dequeue (t);
+-    sc->ec->activate();
++    current = sc->ready_dequeue (t);
++
++    uint64 const left = min (sc->left, current->left);
++    Timeout_budget::budget.enqueue (t + left);
++
++    current->ec->activate();
+ }
+ 
+ void Sc::remote_enqueue(bool inc_ref)
+@@ -190,6 +288,8 @@ void Sc::rrq_handler()
+ 
+         ptr = ptr->next == ptr ? nullptr : ptr->next;
+ 
++        sc->next = sc->prev = nullptr;
++
+         sc->ready_enqueue (t, false);
+     }
+ 
+@@ -201,5 +301,3 @@ void Sc::rke_handler()
+     if (Pd::current->Space_mem::htlb.chk (Cpu::id))
+         Cpu::hazard |= HZD_SCHED;
+ }
+-
+-void Sc::operator delete (void *ptr) { cache.free (ptr, static_cast<Sc *>(ptr)->ec->pd->quota); }
+--- src/kernel/nova/src/syscall.cpp
++++ src/kernel/nova/src/syscall.cpp
+@@ -408,6 +408,27 @@ void Ec::sys_create_sc()
+         sys_finish<Sys_regs::QUO_OOM>();
+     }
+ 
++    if (EXPECT_FALSE (!r->qpd().prio() || !r->qpd().quantum() | (r->qpd().prio() >= Sc::priorities))) {
++        trace (TRACE_ERROR, "%s: Invalid QPD", __func__);
++        sys_finish<Sys_regs::BAD_PAR>();
++    }
++
++    if (EXPECT_FALSE(r->create_sg())) {
++        if (EXPECT_FALSE (!Hip::cpu_online (r->cpu()))) {
++            trace (TRACE_ERROR, "%s: Invalid CPU (%#x)", __func__, r->cpu());
++            sys_finish<Sys_regs::BAD_CPU>();
++        }
++
++        Sc *sc = new (pd->quota) Sc (Pd::current, r->sel(), nullptr, r->cpu(), r->qpd().prio(), r->qpd().quantum());
++        if (!Space_obj::insert_root (pd->quota, sc)) {
++            trace (TRACE_ERROR, "%s: Non-NULL CAP (%#lx)", __func__, r->sel());
++            Sc::destroy(sc, pd->quota);
++            sys_finish<Sys_regs::BAD_CAP>();
++        }
++
++        sys_finish<Sys_regs::SUCCESS>();
++    }
++
+     Capability cap_sc = Space_obj::lookup (r->ec());
+     if (EXPECT_FALSE (cap_sc.obj()->type() != Kobject::EC) || !(cap_sc.prm() & 1UL << Kobject::SC)) {
+         trace (TRACE_ERROR, "%s: Non-EC CAP (%#lx)", __func__, r->ec());
+@@ -420,15 +441,37 @@ void Ec::sys_create_sc()
+         sys_finish<Sys_regs::BAD_CAP>();
+     }
+ 
+-    if (EXPECT_FALSE (!r->qpd().prio() || !r->qpd().quantum() | (r->qpd().prio() >= Sc::priorities))) {
+-        trace (TRACE_ERROR, "%s: Invalid QPD", __func__);
+-        sys_finish<Sys_regs::BAD_PAR>();
++    Sc *sg = nullptr;
++    if (r->group()) {
++        Capability cap_group = Space_obj::lookup (r->sg());
++        if (EXPECT_FALSE (cap_group.obj()->type() != Kobject::SC)) {
++            trace (TRACE_ERROR, "%s: Non-SC group CAP (%#lx)", __func__, r->sg());
++            sys_finish<Sys_regs::BAD_CAP>();
++        }
++
++        sg = static_cast<Sc *>(cap_group.obj());
++
++        if (EXPECT_FALSE (sg->ec)) {
++            trace (TRACE_ERROR, "%s: Non-SC group CAP (%#lx)", __func__, r->sg());
++            sys_finish<Sys_regs::BAD_CAP>();
++        }
++
++        if (EXPECT_FALSE(sg->cpu != ec->cpu)) {
++            trace (TRACE_ERROR, "%s: Bad CPU", __func__);
++            sys_finish<Sys_regs::BAD_CPU>();
++        }
++
++        if (EXPECT_FALSE (sg->prio < r->qpd().prio())) {
++            trace (TRACE_ERROR, "%s: Invalid QPD", __func__);
++            sys_finish<Sys_regs::BAD_PAR>();
++        }
++
+     }
+ 
+-    Sc *sc = new (pd->quota) Sc (Pd::current, r->sel(), ec, ec->cpu, r->qpd().prio(), r->qpd().quantum());
++    Sc *sc = new (pd->quota) Sc (Pd::current, r->sel(), ec, ec->cpu, r->qpd().prio(), r->qpd().quantum(), sg);
+     if (!Space_obj::insert_root (pd->quota, sc)) {
+         trace (TRACE_ERROR, "%s: Non-NULL CAP (%#lx)", __func__, r->sel());
+-        delete sc;
++        Sc::destroy(sc, pd->quota);
+         sys_finish<Sys_regs::BAD_CAP>();
+     }
+ 

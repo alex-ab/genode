@@ -199,9 +199,18 @@ namespace Nova {
 
 
 	ALWAYS_INLINE
-	inline uint8_t create_sc(mword_t sc, mword_t pd, mword_t ec, Qpd qpd)
+	inline uint8_t create_sc(mword_t sc, mword_t pd, mword_t ec, Qpd qpd,
+	                         mword_t group = ~0UL)
 	{
-		return syscall_3(NOVA_CREATE_SC, 0, sc, pd, ec, qpd.value());
+		return syscall_4(NOVA_CREATE_SC, (group == ~0UL) ? 0 : 2, sc, pd, ec,
+		                 qpd.value(), group);
+	}
+
+
+	ALWAYS_INLINE
+	inline uint8_t create_sg(mword_t sc, mword_t pd, mword_t cpu, Qpd qpd)
+	{
+		return syscall_3(NOVA_CREATE_SC, 1, sc, pd, cpu, qpd.value());
 	}
 
 

@@ -188,14 +188,8 @@ int Platform_thread::start(void *ip, void *sp)
 	else
 		res = map_thread_portals(*_pager, 0, utcb);
 
-	if (res == NOVA_OK) {
-		res = syscall_retry(*_pager,
-			[&]() {
-				/* let the thread run */
-				return create_sc(_sel_sc(), _pd->pd_sel(), _sel_ec(),
-				                 Qpd(Qpd::DEFAULT_QUANTUM, _priority));
-			});
-	}
+	if (res == NOVA_OK)
+		res = _create_sc_sg();
 
 	if (res != NOVA_OK) {
 		_pager->client_set_ec(Native_thread::INVALID_INDEX);
@@ -224,6 +218,39 @@ void Platform_thread::pause()
 }
 
 
+uint8_t Platform_thread::_create_sc_sg()
+{
+	using namespace Nova;
+
+	unsigned const kernel_cpu_id = platform_specific()->kernel_cpu_id(_location.xpos());
+
+	if (!_pd->sg_sel_valid(kernel_cpu_id)) {
+		uint8_t const res = syscall_retry(*_pager,
+			[&]() {
+				/* create scheduling group */
+				return create_sg(_pd->sg_sel(kernel_cpu_id), _pd->pd_sel(),
+				                 kernel_cpu_id, Qpd(Qpd::DEFAULT_QUANTUM,
+				                                    _priority));
+			});
+
+		if (res != NOVA_OK)
+			return res;
+
+		_pd->sg_sel_enabled(kernel_cpu_id);
+	}
+
+	uint8_t res = syscall_retry(*_pager,
+		[&]() {
+			/* let the thread run */
+			return create_sc(_sel_sc(), _pd->pd_sel(), _sel_ec(),
+			                 Qpd(Qpd::DEFAULT_QUANTUM, _priority),
+			                 _pd->sg_sel(kernel_cpu_id));
+		});
+
+	return res;
+}
+
+
 void Platform_thread::resume()
 {
 	using namespace Nova;
@@ -239,12 +266,7 @@ void Platform_thread::resume()
 		return;
 	}
 
-	uint8_t res = syscall_retry(*_pager,
-		[&]() {
-			return create_sc(_sel_sc(), _pd->pd_sel(), _sel_ec(),
-			                 Qpd(Qpd::DEFAULT_QUANTUM, _priority));
-		});
-
+	uint8_t const res = _create_sc_sg();
 	if (res == NOVA_OK)
 		_features |= SC_CREATED;
 	else

@@ -15,9 +15,10 @@
 #define _CORE__INCLUDE__PLATFORM_PD_H_
 
 #include <base/allocator.h>
+#include <platform.h>
 #include <platform_thread.h>
 #include <address_space.h>
-
+#include <util/bit_array.h>
 
 namespace Genode {
 
@@ -26,9 +27,13 @@ namespace Genode {
 	{
 		private:
 
+			typedef Bit_array<Platform::MAX_SUPPORTED_CPUS> Sg_in_use;
+
 			Native_capability _parent { };
 			int               _thread_cnt;
 			addr_t const      _pd_sel;
+			addr_t const      _sg_sel_base;
+			Sg_in_use         _sg_sel_used { };
 			const char *      _label;
 
 			/*
@@ -78,6 +83,15 @@ namespace Genode {
 			 * \return PD selector
 			 */
 			addr_t pd_sel() const { return _pd_sel; }
+
+			/**
+			 * Capability scheduling group selector of this task.
+			 *
+			 * \return SC selector
+			 */
+			addr_t sg_sel(unsigned cpu) const { return _sg_sel_base + cpu; }
+			bool sg_sel_valid(unsigned cpu) const { return _sg_sel_used.get(cpu, 1); }
+			void sg_sel_enabled(unsigned cpu) { _sg_sel_used.set(cpu, 1); }
 
 			/**
 			 * Label of this protection domain

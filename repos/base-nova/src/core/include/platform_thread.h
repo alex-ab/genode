@@ -52,9 +52,9 @@ namespace Genode {
 
 			Stack::Name _name;
 
-			addr_t _sel_ec()     const { return _id_base; }
-			addr_t _sel_pt_oom() const { return _id_base + 1; }
-			addr_t _sel_sc()     const { return _id_base + 2; }
+			addr_t _sel_ec()       const { return _id_base; }
+			addr_t _sel_pt_oom()   const { return _id_base + 1; }
+			addr_t _sel_sc()       const { return _id_base + 2; }
 
 			/* convenience function to access _feature variable */
 			inline bool main_thread() const { return _features & MAIN_THREAD; }
@@ -62,6 +62,8 @@ namespace Genode {
 			inline bool worker()      const { return _features & WORKER; }
 			inline bool sc_created()  const { return _features & SC_CREATED; }
 			inline bool remote_pd()   const { return _features & REMOTE_PD; }
+
+			uint8_t _create_sc_sg();
 
 			/*
 			 * Noncopyable

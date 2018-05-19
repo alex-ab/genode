@@ -48,9 +48,14 @@ void Platform_pd::assign_parent(Native_capability parent)
 
 
 Platform_pd::Platform_pd(Allocator *, char const *label, signed, bool)
-: _thread_cnt(0), _pd_sel(cap_map()->insert()), _label(label)
+:
+	_thread_cnt(0), _pd_sel(cap_map()->insert()),
+	_sg_sel_base(cap_map()->insert(6)), _label(label)
 {
-	if (_pd_sel == Native_thread::INVALID_INDEX) {
+	static_assert(Platform::MAX_SUPPORTED_CPUS == 1 << 6, "unsupported CPU count");
+
+	if (_pd_sel == Native_thread::INVALID_INDEX ||
+	    _sg_sel_base == Native_thread::INVALID_INDEX) {
 		error("platform pd creation failed ");
 		return;
 	}
@@ -69,12 +74,17 @@ Platform_pd::Platform_pd(Allocator *, char const *label, signed, bool)
 
 Platform_pd::~Platform_pd()
 {
-	if (_pd_sel == Native_thread::INVALID_INDEX)
-		return;
+	if (_pd_sel != Native_thread::INVALID_INDEX) {
+		/* Revoke and free cap, pd is gone */
+		Nova::revoke(Nova::Obj_crd(_pd_sel, 0));
+		cap_map()->remove(_pd_sel, 0, false);
+	}
 
-	/* Revoke and free cap, pd is gone */
-	Nova::revoke(Nova::Obj_crd(_pd_sel, 0));
-	cap_map()->remove(_pd_sel, 0, false);
+	if (_sg_sel_base != Native_thread::INVALID_INDEX) {
+		/* Revoke and free cap, pd is gone */
+		Nova::revoke(Nova::Obj_crd(_sg_sel_base, 6));
+		cap_map()->remove(_sg_sel_base, 6);
+	}
 }
 
 
