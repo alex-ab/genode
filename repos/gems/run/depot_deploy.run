@@ -224,7 +224,7 @@ install_config {
 
 </config>}
 
-build { app/depot_query app/depot_deploy server/static_fs_rom }
+build { app/depot_query app/depot_deploy server/static_fs_rom kernel core }
 
 file copy -force [genode_dir]/repos/gems/run/sculpt/fonts.config [run_dir]/genode/
 
@@ -235,7 +235,7 @@ set fd [open [run_dir]/genode/focus w]
 puts $fd "<focus label=\"dynamic -> wm -> wm -> \"/>"
 close $fd
 
-build_boot_image { depot_query depot_deploy static_fs_rom }
+build_boot_image { depot_query depot_deploy static_fs_rom hypervisor core }
 
 run_genode_until forever
 
