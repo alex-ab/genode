@@ -439,8 +439,6 @@ Region_map_component::attach(Dataspace_capability ds_cap, size_t size,
 		}
 		Rm_region *region = _map.metadata(attach_at);
 
-		log(this, " attach ", attach_at, " offset= ", Genode::Hex(offset),"+", Genode::Hex(size), " ", dsc, "(size=", Hex(dsc->size()),") ", dsc->managed(), " writeable=", writeable);
-
 		/* inform dataspace about attachment */
 		dsc->attached_to(region);
 
@@ -659,15 +657,11 @@ Region_map_component::Region_map_component(Rpc_entrypoint   &ep,
 
 	Capability<Region_map> cap = ep.manage(this);
 	_ds.sub_rm(cap);
-
-	error("create   ", this, " ",Hex(vm_start), "+", Hex(align_addr(vm_size, get_page_size_log2())), " _ds=", static_cast<Dataspace_component *>(&_ds));
 }
 
 
 Region_map_component::~Region_map_component()
 {
-	error("destruct ", this);
-
 	_ds_ep->dissolve(this);
 
 	lock_for_destruction();

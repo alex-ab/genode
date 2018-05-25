@@ -52,6 +52,5 @@ void Dataspace_component::detach_from_rm_sessions()
 
 Dataspace_component::~Dataspace_component()
 {
-	Genode::error("destruct ds=", this);
 	detach_from_rm_sessions();
 }

@@ -85,9 +85,7 @@ namespace Genode {
 				_phys_addr(core_local_addr), _core_local_addr(core_local_addr),
 				_size(round_page(size)), _io_mem(false),
 				_writable(writable), _cache(cache),
-				_owner(owner), _managed(false) {
-	Genode::error("construct ds=", this);
- }
+				_owner(owner), _managed(false) { }
 
 			/**
 			 * Constructor for dataspaces with different core-local and
@@ -105,9 +103,7 @@ namespace Genode {
 			:
 				_phys_addr(phys_addr), _core_local_addr(core_local_addr),
 				_size(size), _io_mem(true), _writable(writable),
-				_cache(cache), _owner(owner), _managed(false) {
-	Genode::error("construct ds=", this);
- }
+				_cache(cache), _owner(owner), _managed(false) { }
 
 			/**
 			 * Destructor
