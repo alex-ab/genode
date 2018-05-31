@@ -1,8 +1,8 @@
-_/src/init
+genodelabs/src/init/2018-05-28
 _/src/menu_view
 _/src/top
-_/src/report_rom
-_/src/libc
-_/src/vfs
-_/src/libpng
-_/src/zlib
+genodelabs/src/report_rom/2018-05-28
+genodelabs/src/libc/2018-05-28
+genodelabs/src/vfs/2018-05-28
+genodelabs/src/libpng/2018-05-28
+genodelabs/src/zlib/2018-05-28
