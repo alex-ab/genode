@@ -411,6 +411,7 @@ install_config {
 	<start name="runtime" caps="50000" priority="-3">
 		<binary name="init"/>
 		<resource name="RAM" quantum="32G"/>
+		<resource name="CPU" quantum="100"/>
 		<route>
 			<service name="ROM" label="config">
 				<child name="config_fs_rom" label="managed/runtime"/> </service>
@@ -626,6 +627,7 @@ exec sh -c "tar cf [run_dir]/genode/depot_users.tar -C [genode_dir] \
 # Create boot image
 #
 
-append boot_modules { }
+build { app/sculpt_manager }
+append boot_modules { sculpt_manager }
 
 build_boot_image $boot_modules
