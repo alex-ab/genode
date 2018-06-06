@@ -1,9 +1,11 @@
 #
 # Check platform
 #
-# HW is the only kernel that provides appliance of quota to the scheduling.
-#
-assert_spec hw
+
+if {![have_spec hw] && ![have_spec nova]} {
+	puts "Platform is unsupported."
+	exit 0
+}
 
 #
 # Build
