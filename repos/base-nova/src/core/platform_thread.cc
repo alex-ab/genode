@@ -15,6 +15,7 @@
 
 /* Genode includes */
 #include <base/log.h>
+#include <cpu_session/cpu_session.h>
 
 /* core includes */
 #include <ipc_pager.h>
@@ -225,16 +226,22 @@ uint8_t Platform_thread::_create_sc_sg()
 	unsigned const kernel_cpu_id = platform_specific()->kernel_cpu_id(_location.xpos());
 
 	if (!_pd->sg_sel_valid(kernel_cpu_id)) {
+		size_t const quantum = !_cpu_quota ? (size_t)Qpd::DEFAULT_QUANTUM
+		                                   : Cpu_session::quota_lim_downscale<__uint128_t>(_cpu_quota, max_quantum_us());
+
 		uint8_t const res = syscall_retry(*_pager,
 			[&]() {
 				/* create scheduling group */
 				return create_sg(_pd->sg_sel(kernel_cpu_id), _pd->pd_sel(),
-				                 kernel_cpu_id, Qpd(Qpd::DEFAULT_QUANTUM,
-				                                    _priority));
+				                 kernel_cpu_id, Qpd(quantum, _priority));
 			});
 
 		if (res != NOVA_OK)
 			return res;
+
+		if (_cpu_quota)
+			log("group quantum pd='", pd_name(), "' quantum=", quantum,
+			    " us, cpu=", _location.xpos());
 
 		_pd->sg_sel_enabled(kernel_cpu_id);
 	}
@@ -358,12 +365,12 @@ void Platform_thread::thread_type(Nova_native_cpu::Thread_type thread_type,
 }
 
 
-Platform_thread::Platform_thread(size_t, const char *name, unsigned prio,
+Platform_thread::Platform_thread(size_t quota, const char *name, unsigned prio,
                                  Affinity::Location affinity, int)
 :
 	_pd(0), _pager(0), _id_base(cap_map()->insert(2)),
 	_sel_exc_base(Native_thread::INVALID_INDEX), _location(affinity),
-	_features(0),
+	_cpu_quota(quota), _features(0),
 	_priority(Cpu_session::scale_priority(Nova::Qpd::DEFAULT_PRIORITY, prio)),
 	_name(name)
 {

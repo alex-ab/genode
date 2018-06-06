@@ -1,0 +1,37 @@
+/*
+ * \brief   Platform-specific parts of core's CPU-service
+ * \author  Martin Stein
+ * \date    2012-04-17
+ */
+
+/*
+ * Copyright (C) 2009-2017 Genode Labs GmbH
+ *
+ * This file is part of the Genode OS framework, which is distributed
+ * under the terms of the GNU Affero General Public License version 3.
+ */
+
+/* Genode includes */
+#include <base/log.h>
+
+/* core includes */
+#include <cpu_session_component.h>
+
+#include <nova_util.h>
+
+using namespace Genode;
+
+
+Dataspace_capability Cpu_thread_component::utcb()
+{
+	error(__PRETTY_FUNCTION__, ": not implemented");
+	return Dataspace_capability();
+}
+
+
+Cpu_session::Quota Cpu_session_component::quota()
+{
+	size_t const spu = max_quantum_us();
+	size_t const u = quota_lim_downscale<__uint128_t>(_quota, spu);
+	return { spu, u };
+}

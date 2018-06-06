@@ -26,6 +26,9 @@
 #include <echo.h>
 #include <util.h>
 
+
+Genode::size_t constexpr max_quantum_us() { return 300UL * 1000; }
+
 /**
  * Return boot CPU number. It is required if threads in core should be placed
  * on the same CPU as the main thread.

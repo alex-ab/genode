@@ -39,6 +39,8 @@ namespace Genode {
 			addr_t             _id_base;
 			addr_t             _sel_exc_base;
 			Affinity::Location _location;
+			/* XXX _cpu_quota for non-worker thread is useless, have a cpu_quota per process ... ? */
+			size_t             _cpu_quota;
 
 			enum {
 				MAIN_THREAD = 0x1U,
@@ -201,7 +203,10 @@ namespace Genode {
 			/**
 			 * Set CPU quota of the thread to 'quota'
 			 */
-			void quota(size_t const) { /* not supported*/ }
+			void quota(size_t const quota)
+			{
+				_cpu_quota = quota;
+			}
 
 			/**
 			 * Return execution time consumed by the thread
