@@ -410,6 +410,7 @@ install_config {
 	<start name="runtime" caps="50000" priority="-3">
 		<binary name="init"/>
 		<resource name="RAM" quantum="12G"/>
+		<resource name="CPU" quantum="100"/>
 		<route>
 			<service name="ROM" label="config">
 				<child name="config_rom" label="runtime/config"/> </service>

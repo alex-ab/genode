@@ -58,6 +58,7 @@ class Depot_deploy::Child : public List_model<Child>::Element
 
 		Ram_quota   _ram_quota { 0 };
 		Cap_quota   _cap_quota { 0 };
+		size_t      _cpu_quota { 0 };
 		Binary_name _binary_name { };
 		Config_name _config_name { };
 
@@ -144,6 +145,9 @@ class Depot_deploy::Child : public List_model<Child>::Element
 			Number_of_bytes const ram { runtime.attribute_value("ram", Number_of_bytes()) };
 			_ram_quota = Ram_quota { _start_xml->xml().attribute_value("ram",  ram) };
 
+			size_t const cpu = runtime.attribute_value("cpu", 0UL);
+			_cpu_quota = _start_xml->xml().attribute_value("cpu",  cpu);
+
 			unsigned long const caps = runtime.attribute_value("caps", 0UL);
 			_cap_quota = Cap_quota { _start_xml->xml().attribute_value("caps", caps) };
 
@@ -213,6 +217,10 @@ void Depot_deploy::Child::gen_start_node(Xml_generator &xml, Xml_node common) co
 		xml.node("resource", [&] () {
 			xml.attribute("name", "RAM");
 			xml.attribute("quantum", String<32>(Number_of_bytes(_ram_quota.value)));
+		});
+		xml.node("resource", [&] () {
+			xml.attribute("name", "CPU");
+			xml.attribute("quantum", _cpu_quota);
 		});
 
 		Xml_node const runtime = _pkg_xml->xml().sub_node("runtime");
