@@ -3,7 +3,8 @@ if {![have_spec x86] || [have_spec linux]} {
 	exit 0
 }
 
-proc depot_user {} { return [get_cmd_arg --depot-user genodelabs] }
+#proc depot_user {} { return [get_cmd_arg --depot-user genodelabs] }
+proc depot_user {} { return [get_cmd_arg --depot-user nfeske] }
 
 if {[have_spec nova]} {
 	proc kernel_output { } { return "novga serial logmem" }
