@@ -43,7 +43,6 @@ void Sculpt::gen_fs_start_content(Xml_generator        &xml,
 	});
 
 	xml.node("route", [&] () {
-		target.gen_block_session_route(xml);
 		gen_parent_rom_route(xml, "vfs");
 		gen_parent_rom_route(xml, "ld.lib.so");
 		gen_parent_rom_route(xml, "vfs.lib.so");
@@ -55,5 +54,7 @@ void Sculpt::gen_fs_start_content(Xml_generator        &xml,
 		gen_parent_route<Rm_session>     (xml);
 		gen_parent_route<Log_session>    (xml);
 		gen_parent_route<Timer::Session> (xml);
+
+		target.gen_block_session_route(xml);
 	});
 }

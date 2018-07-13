@@ -31,7 +31,6 @@
 #include <network.h>
 #include <storage.h>
 #include <deploy.h>
-#include <graph.h>
 
 namespace Sculpt { struct Main; }
 
@@ -186,7 +185,7 @@ struct Sculpt::Main : Input_event_handler,
 
 	Gui _gui { _env };
 
-	Expanding_reporter _menu_dialog_reporter { _env, "dialog", "menu_dialog" };
+	Expanding_reporter _dialog_reporter { _env, "dialog", "menu_dialog" };
 
 	Attached_rom_dataspace _hover_rom { _env, "menu_view_hover" };
 
@@ -211,7 +210,7 @@ struct Sculpt::Main : Input_event_handler,
 	 */
 	void generate_dialog() override
 	{
-		_menu_dialog_reporter.generate([&] (Xml_generator &xml) {
+		_dialog_reporter.generate([&] (Xml_generator &xml) {
 
 			xml.node("vbox", [&] () {
 				gen_named_node(xml, "frame", "logo", [&] () {
@@ -371,14 +370,6 @@ struct Sculpt::Main : Input_event_handler,
 
 	Expanding_reporter _window_layout { _env, "window_layout", "window_layout" };
 
-
-	/*******************
-	 ** Runtime graph **
-	 *******************/
-
-	Graph _graph { _env, _storage._sculpt_partition };
-
-
 	Main(Env &env) : _env(env)
 	{
 		_runtime_state.sigh(_runtime_state_handler);
@@ -476,7 +467,7 @@ void Sculpt::Main::_handle_window_layout()
 		             : Point(log_p2.x(), log_p1.y() - margins.bottom - margins.top - 1);
 
 	typedef String<128> Label;
-	Label const inspect_label("runtime -> leitzentrale -> inspect");
+	Label const inspect_label("runtime -> leitzentrale -> storage browser");
 
 	_window_list.update();
 	_window_layout.generate([&] (Xml_generator &xml) {

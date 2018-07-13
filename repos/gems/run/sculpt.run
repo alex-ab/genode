@@ -568,8 +568,6 @@ append manual_deploy_config {
 <!--
 	<start name="noux" pkg="} [depot_user]/pkg/[current_pkg noux-system] {">
 		<route>
-			<service name="File_system" label="target">
-				<child name="default_fs_rw"/> </service>
 			<service name="Nitpicker"> <child name="wm"/> </service>
 			<service name="File_system" label="config">
 				<parent label="config"/> </service>
@@ -577,6 +575,8 @@ append manual_deploy_config {
 				<parent label="report"/> </service>
 			<service name="File_system" label="fonts">
 				<child name="fonts_fs"/> </service>
+			<service name="File_system" label="target">
+				<child name="default_fs_rw"/> </service>
 			<service name="ROM" label_last="vimrc">
 				<parent label="config -> vimrc"/> </service>
 		</route>
@@ -613,8 +613,8 @@ append manual_deploy_config {
 <!--
 	<start name="download_debian" pkg="cnuke/pkg/download_debian/2018-06-13">
 		<route>
-			<service name="File_system" label="target"> <child name="vm_fs"/> </service>
 			<service name="File_system" label="fonts">  <child name="fonts_fs"/> </service>
+			<service name="File_system" label="target"> <child name="vm_fs"/> </service>
 			<service name="Nic">       <child name="nic_router"/> </service>
 			<service name="Nitpicker"> <child name="wm"/> </service>
 			<service name="RM">        <parent/> </service>
@@ -625,7 +625,6 @@ append manual_deploy_config {
 <!--
 	<start name="vm" ram="4300M" pkg="} [depot_user]/pkg/[current_pkg vbox5-nova-sculpt] {">
 		<route>
-			<service name="File_system" label="vm"> <child name="vm_fs"/> </service>
 			<service name="ROM"    label="capslock"> <parent label="capslock"/> </service>
 			<service name="ROM"    label="platform_info"> <parent/> </service>
 			<service name="ROM"    label="usb_devices"> <child name="usb_devices_rom"/> </service>
@@ -636,6 +635,7 @@ append manual_deploy_config {
 			<service name="RM">     <parent/> </service>
 			<service name="Rtc">    <parent/> </service>
 			<service name="Usb">    <parent/> </service>
+			<service name="File_system" label="vm">     <child name="vm_fs"/>     </service>
 			<service name="File_system" label="shared"> <child name="shared_fs"/> </service>
 		</route>
 	</start>
@@ -644,9 +644,9 @@ append manual_deploy_config {
 <!--
 	<start name="top_view" pkg="alex-ab/pkg/top_view/2018-06-27">
 		<route>
-			<service name="Nitpicker"> <child name="wm"/> </service>
 			<service name="TRACE"> <parent/> </service>
 			<service name="Timer"> <parent/> </service>
+			<service name="Nitpicker"> <child name="wm"/> </service>
 			<service name="File_system" label="fonts">
 				<child name="fonts_fs"/> </service>
 		</route>
@@ -664,13 +664,13 @@ append manual_deploy_config {
 <!--
 	<start name="vbox5-tc-browser" pkg="alex-ab/pkg/vbox5-tc-firefox-nova-sculpt/2018-06-27">
 		<route>
-			<service name="Nic"> <child name="nic_router"/> </service>
 			<service name="ROM"    label="capslock"> <parent label="capslock"/> </service>
 			<service name="ROM"    label="platform_info"> <parent/> </service>
 			<service name="Report" label="shape"> <parent label="wm -> wm -> vbox5-tc-browser -> shape"/> </service>
 			<service name="RM">        <parent/> </service>
 			<service name="Rtc">       <parent/> </service>
 			<service name="Nitpicker"> <child name="wm"/> </service>
+			<service name="Nic"> <child name="nic_router"/> </service>
 			<service name="File_system" label="shared"> <child name="shared_fs"/> </service>
 		</route>
 	</start>
@@ -679,11 +679,11 @@ append manual_deploy_config {
 <!--
 	<start name="seoul-vmm-browser" pkg="alex-ab/pkg/seoul-nova-sculpt/2018-06-27">
 		<route>
-			<service name="Nic"> <child name="nic_router"/> </service>
 			<service name="ROM" label="platform_info"> <parent/> </service>
 			<service name="RM">        <parent/> </service>
 			<service name="Rtc">       <parent/> </service>
 			<service name="Nitpicker"> <child name="wm"/> </service>
+			<service name="Nic"> <child name="nic_router"/> </service>
 		</route>
 	</start>
 	-->
