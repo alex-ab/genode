@@ -180,6 +180,24 @@ class Genode::Object_pool : Interface, Noncopyable
 				func(obj);
 			}
 		}
+
+		template <typename FUNC>
+		void apply_all(FUNC func, Entry * obj = nullptr)
+		{
+			if (!obj)
+				obj = _tree.first();
+
+			if (!obj)
+				return;
+
+			func(obj);
+
+			Entry * left  = obj->child(Genode::Avl_node_base::LEFT);
+			if (left) apply_all(func, left);
+
+			Entry * right = obj->child(Genode::Avl_node_base::RIGHT);
+			if (right) apply_all(func, right);
+		}
 };
 
 #endif /* _INCLUDE__BASE__OBJECT_POOL_H_ */

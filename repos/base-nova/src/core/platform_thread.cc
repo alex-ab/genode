@@ -73,6 +73,7 @@ void Platform_thread::affinity(Affinity::Location)
 
 Affinity::Location Platform_thread::affinity() const { return _location; }
 
+extern void dump_pd_stats();
 
 int Platform_thread::start(void *ip, void *sp)
 {
@@ -150,6 +151,9 @@ int Platform_thread::start(void *ip, void *sp)
 		error("thread already started");
 		return -5;
 	}
+
+	/* trigger to regenerate PD debug ROM */
+	dump_pd_stats();
 
 	addr_t pd_utcb = 0;
 

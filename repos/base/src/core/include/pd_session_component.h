@@ -320,6 +320,8 @@ class Genode::Pd_session_component : public Session_object<Pd_session>
 		 *******************************************/
 
 		Capability<Native_pd> native_pd() { return _native_pd.cap(); }
+
+		Platform_pd &platform_pd() { return *_pd; }
 };
 
 #endif /* _CORE__INCLUDE__PD_SESSION_COMPONENT_H_ */

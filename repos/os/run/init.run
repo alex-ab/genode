@@ -2,7 +2,7 @@
 # Build
 #
 
-set build_components { core init drivers/timer server/report_rom app/dummy test/init }
+set build_components { core init drivers/timer server/report_rom app/dummy test/init test/dump_rom }
 
 build $build_components
 
@@ -42,6 +42,11 @@ append config {
 			<policy label="init -> init.config" report="test-init -> init.config"/>
 			<policy label="test-init -> state"  report="init -> state"/>
 		</config>
+	</start>
+
+	<start name="dump_rom">
+		<resource name="RAM" quantum="1M"/>
+		<config period_ms="0"/>
 	</start>
 
 	<start name="test-init" priority="-1">
@@ -1544,7 +1549,7 @@ install_config $config
 # Boot modules
 #
 
-set boot_modules { core ld.lib.so init timer report_rom test-init dummy }
+set boot_modules { core ld.lib.so init timer report_rom test-init dummy dump_rom }
 
 build_boot_image $boot_modules
 

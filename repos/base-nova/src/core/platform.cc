@@ -66,6 +66,10 @@ Utcb *__main_thread_utcb;
  */
 extern unsigned _prog_img_beg, _prog_img_end;
 
+extern Rom_module * dump_pd_statistics;
+Rom_module * dump_pd_statistics = nullptr;
+extern Genode::addr_t dump_pd_statistics_addr;
+Genode::addr_t dump_pd_statistics_addr = 0;
 
 /**
  * Map preserved physical pages core-exclusive
@@ -337,6 +341,10 @@ Platform::Platform() :
 		error("configuration error (NUM_INITIAL_PT_RESERVED)");
 		nova_die();
 	}
+
+	addr_t limit = 0; addr_t usage = 0;
+	Nova::pd_ctrl_debug(_core_pd_sel, limit, usage);
+	Genode::log("Available kernel memory (in 4K pages) for Genode - usage/limit ", usage, "/", limit);
 
 	/* init genode cpu ids based on kernel cpu ids (used for syscalls) */
 	if (sizeof(map_cpu_ids) / sizeof(map_cpu_ids[0]) < hip->cpu_max()) {
@@ -754,6 +762,24 @@ Platform::Platform() :
 	if (hyp_log && hyp_log_size)
 		_rom_fs.insert(new (core_mem_alloc()) Rom_module(hyp_log, hyp_log_size,
 		                                                 "kernel_log"));
+
+	/* export kernel memory usage statistics of PDs */
+	{
+		void * phys_ptr = nullptr;
+		unsigned const pages  = 4;
+		size_t const log_size = pages << get_page_size_log2();
+
+		ram_alloc()->alloc_aligned(log_size, &phys_ptr, get_page_size_log2());
+		addr_t const phys_addr = reinterpret_cast<addr_t>(phys_ptr);
+
+		dump_pd_statistics_addr = _map_pages(phys_addr, pages, true);
+		memset(reinterpret_cast<void *>(dump_pd_statistics_addr), 0, log_size);
+
+		dump_pd_statistics = new (core_mem_alloc()) Rom_module(phys_addr,
+		                                                       log_size,
+		                                                       "pds_stats");
+		_rom_fs.insert(dump_pd_statistics);
+	}
 
 	/* I/O port allocator (only meaningful for x86) */
 	_io_port_alloc.add_range(0, 0x10000);

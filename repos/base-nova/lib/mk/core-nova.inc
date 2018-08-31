@@ -40,7 +40,8 @@ SRC_CC      += stack_area.cc \
                bios_data_area.cc \
                trace_session_component.cc \
                signal_transmitter_noinit.cc \
-               signal_receiver.cc
+               signal_receiver.cc \
+               debug.cc
 
 INC_DIR      = $(REP_DIR)/src/core/include \
                $(REP_DIR)/src/include \
