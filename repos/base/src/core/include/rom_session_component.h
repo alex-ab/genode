@@ -26,12 +26,12 @@ namespace Genode {
 	{
 		private:
 
-			Rom_module const        *_rom_module { nullptr };
+			Rom_module              *_rom_module { nullptr };
 			Dataspace_component      _ds         { };
 			Rpc_entrypoint          *_ds_ep      { nullptr };
 			Rom_dataspace_capability _ds_cap     { };
 
-			Rom_module const * _find_rom(Rom_fs *rom_fs, const char *args)
+			Rom_module * _find_rom(Rom_fs *rom_fs, const char *args)
 			{
 				/* extract label */
 				Session_label const label = label_from_args(args);
@@ -71,7 +71,10 @@ namespace Genode {
 			 ***************************/
 
 			Rom_dataspace_capability dataspace() { return _ds_cap; }
-			void sigh(Signal_context_capability) { }
+			void sigh(Signal_context_capability cap) {
+				if (_rom_module)
+					_rom_module->cap = cap;
+			}
 	};
 }
 

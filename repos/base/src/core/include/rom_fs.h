@@ -16,6 +16,7 @@
 #define _CORE__INCLUDE__ROM_FS_H_
 
 #include <base/output.h>
+#include <base/signal.h>
 #include <util/avl_string.h>
 
 namespace Genode {
@@ -28,6 +29,7 @@ struct Genode::Rom_module : Genode::Avl_string_base
 {
 	addr_t const addr = 0;
 	size_t const size = 0;
+	Signal_context_capability cap { };
 
 	Rom_module() : Avl_string_base(nullptr) { }
 
@@ -43,9 +45,10 @@ struct Genode::Rom_module : Genode::Avl_string_base
 
 struct Genode::Rom_fs : Genode::Avl_tree<Genode::Avl_string_base>
 {
-	Rom_module const * find(char const * const name) const
+
+	Rom_module * find(char const * const name) const
 	{
-		return first() ? (Rom_module const *)first()->find_by_name(name)
+		return first() ? (Rom_module *)first()->find_by_name(name)
 		               : nullptr;
 	}
 
