@@ -1,0 +1,6 @@
+<launcher priority="-1" pkg="alex-ab/pkg/gui_lock/21.10">
+	<config password="" transparent="no"/>
+	<route>
+		<service name="Gui"> <parent label="lock_screen"/> </service>
+	</route>
+</launcher>
