@@ -1,0 +1,12 @@
+<runtime ram="8M" caps="100" binary="nit_lock">
+
+	<requires> <nitpicker/> </requires>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="nit_lock"/>
+	</content>
+
+	<config password="" transparent="no"/>
+
+</runtime>
