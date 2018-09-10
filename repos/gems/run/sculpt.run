@@ -638,6 +638,7 @@ exec rm -r [run_dir]/genode/launcher
 # Create boot image
 #
 
-append boot_modules { }
+build { server/nitpicker }
+append boot_modules { nitpicker }
 
 build_boot_image $boot_modules
