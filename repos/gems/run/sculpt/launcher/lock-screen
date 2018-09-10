@@ -1,0 +1,6 @@
+<launcher pkg="alex-ab/pkg/nit_lock/2018-11-27">
+	<config password="" transparent="no"/>
+	<route>
+		<service name="Nitpicker"> <parent label="lock_screen"/> </service>
+	</route>
+</launcher>
