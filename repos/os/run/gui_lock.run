@@ -1,0 +1,173 @@
+set use_wm 0
+set gui_name "nitpicker"
+
+if {$use_wm} {
+	set gui_name "wm"
+}
+
+create_boot_directory
+
+import_from_depot \
+	[depot_user]/src/[base_src] \
+	[depot_user]/src/init \
+	[depot_user]/src/nitpicker \
+	[depot_user]/src/nit_focus \
+	[depot_user]/pkg/[drivers_interactive_pkg] \
+	[depot_user]/pkg/themed_wm
+
+set build_components {
+	app/gui_lock
+	app/nano3d
+}
+
+build $build_components
+
+
+#
+# Generate config
+#
+
+append config {
+<config>
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+	<default caps="100"/>
+
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="drivers" caps="1000">
+		<resource name="RAM" quantum="32M" constrain_phys="yes"/>
+		<binary name="init"/>
+		<route>
+			<service name="ROM" label="config"> <parent label="drivers.config"/> </service>
+			<service name="Timer"> <child name="timer"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+		<provides>
+			<service name="Input"/> <service name="Framebuffer"/>
+		</provides>
+	</start>
+
+	<start name="report_rom">
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Report"/> <service name="ROM"/> </provides>
+		<config verbose="yes">
+			<policy label="nit_focus -> clicked"         report="nitpicker -> clicked"/>
+			<policy label="nitpicker -> focus"           report="nit_focus -> focus"/>
+		</config>
+	</start>
+
+	<start name="nitpicker" caps="110">
+		<resource name="RAM" quantum="1216K"/>
+		<provides><service name="Nitpicker"/></provides>
+		<config focus="rom">
+			<report clicked="yes"/>
+			<domain name="pointer" layer="1" content="client" label="no" origin="pointer"/>
+			<domain name="lock"    layer="2" content="client" label="no" focus="click"/>
+			<domain name="default" layer="3" content="client" label="no" focus="click"/>
+
+			<policy label_prefix="pointer"     domain="pointer"/>
+			<policy label_prefix="gui_lock"    domain="lock"/>
+			<default-policy                    domain="default"/>
+		</config>
+		<route>
+			<service name="ROM" label="focus">
+				<child name="report_rom"/> </service>
+			<service name="Report">
+				<child name="report_rom"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="pointer">
+		<resource name="RAM" quantum="1096K"/>
+		<config/>
+		<route>
+			<service name="Nitpicker"> <child name="nitpicker"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="nit_focus">
+		<resource name="RAM" quantum="1M"/>
+		<config> <default-policy focus="yes"/> </config>
+		<route>
+			<service name="ROM" label="clicked"> <child name="report_rom"/> </service>
+			<service name="Report"> <child name="report_rom"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>}
+
+append_if [expr $use_wm] config {
+	<start name="wm" caps="1000">
+		<resource name="RAM" quantum="32M"/>
+		<binary name="init"/>
+		<provides> <service name="Nitpicker"/> <service name="Report"/> </provides>
+		<route>
+			<service name="ROM" label="config"> <parent label="wm.config"/> </service>
+			<service name="Nitpicker"> <child name="nitpicker"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<!-- use one nano3d directly with nitpicker to see that it is still alive -->
+	<start name="nano3d-nitpicker">
+		<binary name="nano3d"/>
+		<resource name="RAM" quantum="8M"/>
+		<config/>
+		<route>
+			<service name="Nitpicker"> <child name="nitpicker"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>}
+
+append config {
+	<start name="gui_lock">
+		<resource name="RAM" quantum="8M"/>
+<!--		<config password="secret" transparent="yes"/> -->
+		<route>
+			<service name="Nitpicker"> <child name="} $gui_name {"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="nano3d-wm">
+		<resource name="RAM" quantum="8M"/>
+		<binary name="nano3d"/>
+		<config/>
+		<route>
+			<service name="Nitpicker"> <child name="} $gui_name {"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+</config>}
+
+install_config $config
+
+#
+# Boot modules
+#
+
+# generic modules
+set boot_modules {
+	gui_lock
+	nano3d
+}
+
+build_boot_image $boot_modules
+
+run_genode_until forever
