@@ -49,7 +49,7 @@ install_config {
 		<binary name="report_rom"/>
 		<resource name="RAM" quantum="2M"/>
 		<provides> <service name="Report"/> <service name="ROM"/> </provides>
-		<config verbose="no">
+		<config verbose="yes">
 			<policy label="leitzentrale_config -> leitzentrale"
 			        report="global_keys_handler -> leitzentrale"/>
 			<policy label="leitzentrale -> manager -> nitpicker_hover"
@@ -455,7 +455,7 @@ install_config {
 				<child name="report_rom"/> </service>
 			<service name="Report"> <child name="fs_report"/> </service>
 			<service name="LOG" label="unlogged"> <parent/> </service>
-			<service name="LOG"> <child name="log"/> </service>
+<!--			<service name="LOG"> <child name="log"/> </service> -->
 			<service name="Rtc"> <child name="rtc_drv"/> </service>
 			<any-service> <parent/> </any-service>
 		</route>
