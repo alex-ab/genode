@@ -1,0 +1,12 @@
+<runtime ram="16M" caps="100" binary="gui_lock">
+
+	<requires> <gui/> </requires>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="gui_lock"/>
+	</content>
+
+	<config password="" transparent="no"/>
+
+</runtime>

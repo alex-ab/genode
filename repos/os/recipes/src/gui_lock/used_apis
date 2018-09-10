@@ -1,0 +1,5 @@
+base
+os
+gui_session
+framebuffer_session
+input_session
