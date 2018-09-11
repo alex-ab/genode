@@ -409,6 +409,11 @@ install_config {
 		<provides> <service name="Rtc"/> </provides>
 	</start>
 
+	<start name="dump_rom">
+		<resource name="RAM" quantum="1M"/>
+		<config period_ms="0"/>
+	</start>
+
 	<start name="runtime" caps="50000" priority="-3">
 		<binary name="init"/>
 		<resource name="RAM" quantum="32G"/>
@@ -623,6 +628,7 @@ exec rm -r [run_dir]/genode/launcher
 # Create boot image
 #
 
-append boot_modules { }
+build { test/dump_rom core }
+append boot_modules { dump_rom core }
 
 build_boot_image $boot_modules
