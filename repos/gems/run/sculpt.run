@@ -628,7 +628,7 @@ exec rm -r [run_dir]/genode/launcher
 # Create boot image
 #
 
-build { test/dump_rom core }
-append boot_modules { dump_rom core }
+build { test/dump_rom core kernel }
+append boot_modules { dump_rom core hypervisor }
 
 build_boot_image $boot_modules
