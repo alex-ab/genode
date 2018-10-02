@@ -273,7 +273,6 @@ class Acpica::Io_mem
 			try {
 				io_mem->_io_mem = new (Acpica::heap()) Genode::Io_mem_connection(Acpica::env(), phys, size);
 			} catch (...) {
-				Genode::error("nop excep");
 				return nullptr;
 			}
 
