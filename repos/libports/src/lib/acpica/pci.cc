@@ -195,7 +195,7 @@ ACPI_STATUS AcpiOsReadPciConfiguration (ACPI_PCI_ID *pcidev, UINT32 reg,
 		Acpica::platform().release_device(client.rpc_cap());
 	}
 
-	dump_error(__func__, pcidev, reg, width);
+//	dump_error(__func__, pcidev, reg, width);
 
 	return AE_ERROR;
 }
