@@ -178,6 +178,10 @@ class Genode::Utf8_ptr
 		Codepoint codepoint() const
 		{
 			uint8_t const *s = _utf8;
+
+			if (!_utf8)
+				return Codepoint { Codepoint::INVALID };
+
 			uint8_t const c1 = *s++;
 
 			if ((c1 & 0x80) == 0)    return Codepoint { c1 };
