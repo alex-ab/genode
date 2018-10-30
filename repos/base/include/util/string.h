@@ -685,6 +685,8 @@ class Genode::String
 		String(char const *cstr) : _len(min(Genode::strlen(cstr) + 1, CAPACITY))
 		{
 			Genode::strncpy(_buf, cstr, _len);
+			if (_len)
+				_buf[_len - 1] = 0;
 		}
 
 		/**
