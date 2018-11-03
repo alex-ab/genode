@@ -1,0 +1,14 @@
+<runtime ram="8M" caps="100" binary="vdi_block">
+
+	<provides> <block/> </provides>
+	<requires> <file_system writeable="yes" label="block.vdi"/> </requires>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="vdi_block"/>
+	</content>
+
+	<config file="/block.vdi" writeable="yes">
+		<vfs> <fs label="block.vdi" buffer_size="1M"/> </vfs>
+	</config>
+</runtime>
