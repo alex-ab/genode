@@ -57,6 +57,13 @@ proc generate_tftp_config { } {
 		puts $fh " root $tftp_base$tftp_offset_dir/[run_dir]"
 		puts $fh " config config-52-54-00-12-34-56"
 		close $fh
+
+		if {[file exists $tftp_base_dir/vm]} {
+			puts "hoho $tftp_base$tftp_offset_dir/[run_dir]"
+			puts "hehe [pwd]"
+			puts " cp -r [pwd]/[run_dir]/* $tftp_base_dir/vm/."
+			exec cp -r "[pwd]/[run_dir]/." "$tftp_base_dir/vm/."
+		}
 	} else {
 		puts "Warning, TFTP base directory or TFTP offset directory not set."
 	}
