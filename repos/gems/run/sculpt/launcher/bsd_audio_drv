@@ -1,0 +1,9 @@
+<launcher pkg="bsd_audio_drv">
+	<config recording="false">
+		<mixer field="outputs.master" value="128"/>
+	</config>
+	<route>
+		<service name="Platform"> <parent label="audio"/> </service>
+		<service name="RM">       <parent/> </service>
+	</route>
+</launcher>
