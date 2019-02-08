@@ -1,0 +1,22 @@
+<launcher priority="-1" pkg="audio_player">
+	<!-- playing paused stopped -->
+	<config state="paused">
+		<report progress="yes" interval="10" playlist="yes"/>
+		<libc/>
+		<vfs>
+			<fs/>
+		</vfs>
+	</config>
+	<route>
+		<service name="Audio_out">
+			<child name="mixer"/>
+		</service>
+		<service name="File_system">
+			<child name="fs_audio"/>
+		</service>
+		<service name="Report">
+			<parent/>
+		</service>
+			<service name="ROM" label="playlist"> <parent label="config -> playlist"/> </service>
+	</route>
+</launcher>
