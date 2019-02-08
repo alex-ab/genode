@@ -1,0 +1,16 @@
+<launcher pkg="cnuke/pkg/audio_player/2019-01-14">
+	<!-- paused, playing, stopped -->
+	<config state="paused">
+		<report progress="yes" interval="10" playlist="yes"/>
+		<libc/>
+		<vfs>
+			<fs/>
+		</vfs>
+	</config>
+	<route>
+		<service name="Audio_out"> <child name="mixer"/> </service>
+		<service name="File_system"> <child name="audio_fs"/> </service>
+		<service name="ROM" label="playlist"> <parent label="config -> playlist"/> </service>
+		<service name="Report"> <parent/> </service>
+	</route>
+</launcher>

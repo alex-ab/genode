@@ -1,0 +1,9 @@
+<launcher pkg="cnuke/pkg/mixer/2019-01-13">
+	<config>
+		<default out_volume="100" volume="75"/>
+	</config>
+	<route>
+		<service name="Audio_out"> <child name="audio_drv"/> </service>
+		<service name="Report"> <parent/> </service>
+	</route>
+</launcher>
