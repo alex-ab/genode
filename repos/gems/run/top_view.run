@@ -56,7 +56,7 @@ install_config {
 		<config>
 			<background color="#123456"/>
 			<domain name="pointer" layer="1" content="client" label="no" origin="pointer" />
-			<domain name="default" layer="3" content="client" label="no" hover="always" />
+			<domain name="default" layer="3" content="client" label="no" hover="always" focus="click" />
 
 			<policy label_prefix="pointer" domain="pointer"/>
 			<default-policy domain="default"/>
@@ -71,7 +71,17 @@ install_config {
 		</route>
 	</start>
 
-	<start name="report_rom">
+	<start name="report_rom_hover">
+		<binary name="report_rom"/>
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Report"/> <service name="ROM"/> </provides>
+		<config verbose="no">
+			<policy label="top -> hover" report="menu_view -> hover"/>
+		</config>
+	</start>
+
+	<start name="report_rom_dialog">
+		<binary name="report_rom"/>
 		<resource name="RAM" quantum="1M"/>
 		<provides> <service name="Report"/> <service name="ROM"/> </provides>
 		<config verbose="no">
@@ -90,7 +100,7 @@ install_config {
 	</start>
 
 	<start name="menu_view" caps="200">
-		<resource name="RAM" quantum="5M"/>
+		<resource name="RAM" quantum="8M"/>
 		<config xpos="200" ypos="100">
 			<report hover="yes"/>
 			<libc stderr="/dev/log"/>
@@ -101,8 +111,8 @@ install_config {
 			</vfs>
 		</config>
 		<route>
-			<service name="ROM" label="dialog"> <child name="report_rom" /> </service>
-			<service name="Report" label="hover"> <child name="report_rom"/> </service>
+			<service name="ROM" label="dialog"> <child name="report_rom_dialog" /> </service>
+			<service name="Report" label="hover"> <child name="report_rom_hover"/> </service>
 			<service name="File_system" label="fonts"> <child name="fonts_fs"/> </service>
 			<any-service> <parent/> <any-child/> </any-service>
 		</route>
@@ -111,6 +121,11 @@ install_config {
 	<start name="top">
 		<resource name="RAM" quantum="2M"/>
 		<config period_ms="2000" report="yes" log="no"/>
+		<route>
+			<service name="ROM" label="hover"> <child name="report_rom_hover" /> </service>
+			<service name="Report" label="dialog"> <child name="report_rom_dialog" /> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
 	</start>
 
 </config>}
@@ -119,4 +134,5 @@ build { app/menu_view app/top }
 
 build_boot_image { menu_view menu_view_styles.tar top }
 
+append qemu_args " -smp 16,cores=16"
 run_genode_until forever

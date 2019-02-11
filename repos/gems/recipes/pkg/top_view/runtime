@@ -26,12 +26,14 @@
 			<provides> <service name="Report"/> <service name="ROM"/> </provides>
 			<config verbose="no">
 				<policy label="menu_view -> dialog" report="top -> dialog"/>
+				<policy label="top -> hover" report="menu_view -> hover"/>
 			</config>
 		</start>
 
 		<start name="menu_view" caps="200">
 			<resource name="RAM" quantum="15M"/>
 			<config xpos="200" ypos="100">
+				<report hover="yes"/>
 				<libc stderr="/dev/log"/>
 				<vfs>
 					<tar name="menu_view_styles.tar" />
@@ -41,6 +43,7 @@
 			</config>
 			<route>
 				<service name="ROM" label="dialog"> <child name="report_rom" /> </service>
+				<service name="Report" label="hover"> <child name="report_rom"/> </service>
 				<service name="File_system" label="fonts"> <parent label="fonts"/> </service>
 				<any-service> <parent/> <any-child/> </any-service>
 			</route>
@@ -50,6 +53,7 @@
 			<resource name="RAM" quantum="2M"/>
 			<config period_ms="2000" report="yes" log="no"/>
 			<route>
+				<service name="ROM" label="hover"> <child name="report_rom" /> </service>
 				<service name="Report"> <child name="report_rom" /> </service>
 				<any-service> <parent/> </any-service>
 			</route>
