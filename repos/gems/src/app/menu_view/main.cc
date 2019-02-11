@@ -289,6 +289,14 @@ void Menu_view::Main::_check_hover_state(Input::Event const &ev)
 			_last_point = Point (x, y);
 		});
 
+		if (ev.key_press(Input::BTN_LEFT)) {
+			Genode::Reporter::Xml_generator xml(_hover_reporter, [&] () {
+				xml.node("button", [&] {
+					xml.attribute("left", "yes");
+				});
+			});
+		}
+
 		/*
 		 * Reset hover model when losing the focus
 		 */
