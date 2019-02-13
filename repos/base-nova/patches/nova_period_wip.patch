@@ -1,0 +1,244 @@
+--- src/kernel/nova/include/sc.hpp
++++ src/kernel/nova/include/sc.hpp
+@@ -29,6 +29,7 @@ class Ec;
+ class Sc : public Kobject, public Refcount
+ {
+     friend class Queue<Sc>;
++    friend class Timeout_period;
+ 
+     public:
+         Refptr<Ec> const ec;
+@@ -38,6 +39,8 @@ class Sc : public Kobject, public Refcount
+         uint64   const budget;
+         uint64         time    { 0 };
+         uint64         time_m  { 0 };
++        uint64 period  { 0 };
++        uint64 tsc_period { 0 };
+ 
+         static unsigned const priorities = 128;
+ 
+--- src/kernel/nova/include/syscall.hpp
++++ src/kernel/nova/include/syscall.hpp
+@@ -93,6 +93,9 @@ class Sys_create_sc : public Sys_regs
+ 
+         ALWAYS_INLINE
+         inline Qpd qpd() const { return Qpd (ARG_4); }
++
++        ALWAYS_INLINE
++        inline unsigned long period() const { return ARG_5; }
+ };
+ 
+ class Sys_create_pt : public Sys_regs
+--- /dev/null
++++ src/kernel/nova/include/timeout_period.hpp
+@@ -0,0 +1,37 @@
++/*
++ * Period Timeout
++ *
++ * Copyright (C) 2019-2020 Alexander Boettcher, Genode Labs GmbH.
++ *
++ * This file is part of the NOVA microhypervisor.
++ *
++ * NOVA is free software: you can redistribute it and/or modify it
++ * under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * NOVA is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * GNU General Public License version 2 for more details.
++ */
++
++#pragma once
++
++#include "timeout.hpp"
++#include "queue.hpp"
++
++class Sc;
++
++class Timeout_period : public Timeout
++{
++    private:
++        void trigger();
++
++        Queue<Sc> refresh { };
++
++        uint64 tsc { 0 };
++
++    public:
++
++        void enqueue(uint64, Sc*);
++};
+--- src/kernel/nova/src/sc.cpp
++++ src/kernel/nova/src/sc.cpp
+@@ -23,6 +23,7 @@
+ #include "lapic.hpp"
+ #include "stdio.hpp"
+ #include "timeout_budget.hpp"
++#include "timeout_period.hpp"
+ #include "vectors.hpp"
+ 
+ INIT_PRIORITY (PRIO_LOCAL)
+@@ -35,6 +36,9 @@ uint64      Sc::cross_time[NUM_CPU];
+ 
+ Sc *Sc::list[Sc::priorities];
+ 
++INIT_PRIORITY (PRIO_LOCAL)
++static Timeout_period sc_period CPULOCAL;
++
+ unsigned Sc::prio_top;
+ 
+ Sc::Sc (Pd *own, mword sel, Ec *e) : Kobject (SC, static_cast<Space_obj *>(own), sel, 0x1, free), ec (e), cpu (static_cast<unsigned>(sel)), prio (0), budget (Lapic::freq_tsc * 1000), left (0)
+@@ -57,6 +61,8 @@ void Sc::ready_enqueue (uint64 t, bool inc_ref, bool use_left)
+     assert (prio < priorities);
+     assert (cpu == Cpu::id);
+ 
++    tsc = t;
++
+     if (inc_ref) {
+         bool ok = add_ref();
+         assert (ok);
+@@ -64,6 +70,33 @@ void Sc::ready_enqueue (uint64 t, bool inc_ref, bool use_left)
+             return;
+     }
+ 
++    if (period) {
++        /* unlikely case, but just be robust */
++        if (t < tsc_period)
++            tsc_period = 0;
++
++        /* handle period overrun */
++        if ((t - tsc_period) > period) {
++            tsc_period = (t / period) * period;
++            if (current == this && (budget > (t - tsc_period)))
++                /* overrun but still some budget left */
++                left = budget - (t - tsc_period);
++        }
++
++        if (!left) {
++            tsc_period = ((t / period) + 1) * period;
++            left = budget;
++
++            sc_period.enqueue(t, this);
++
++            if (current == this) {
++                while (!list[prio_top] && prio_top)
++                    prio_top--;
++            }
++            return;
++        }
++    }
++
+     if (prio > prio_top)
+         prio_top = prio;
+ 
+@@ -84,8 +117,6 @@ void Sc::ready_enqueue (uint64 t, bool inc_ref, bool use_left)
+ 
+     if (!left)
+         left = budget;
+-
+-    tsc = t;
+ }
+ 
+ void Sc::ready_dequeue (uint64 t)
+@@ -141,6 +172,12 @@ void Sc::schedule (bool suspend, bool use_left)
+         Sc *sc = list[prio_top];
+         assert (sc);
+ 
++        /* adjust period SCs which where inactive for several periods */
++        if (sc->period && (t >= sc->tsc_period + sc->period)) {
++            sc->tsc_period = (t / sc->period) * sc->period;
++            sc->left = sc->budget;
++        }
++
+         Timeout_budget::budget.enqueue (t + sc->left);
+ 
+         ctr_loop = 0;
+--- src/kernel/nova/src/syscall.cpp
++++ src/kernel/nova/src/syscall.cpp
+@@ -395,7 +395,7 @@ void Ec::sys_create_sc()
+ 
+     Sys_create_sc *r = static_cast<Sys_create_sc *>(current->sys_regs());
+ 
+-    trace (TRACE_SYSCALL, "EC:%p SYS_CREATE SC:%#lx EC:%#lx P:%#x Q:%#x", current, r->sel(), r->ec(), r->qpd().prio(), r->qpd().quantum());
++    trace (TRACE_SYSCALL, "EC:%p SYS_CREATE SC:%#lx EC:%#lx P:%#x Q:%#x P=%lu", current, r->sel(), r->ec(), r->qpd().prio(), r->qpd().quantum(), r->period());
+ 
+     Capability cap = Space_obj::lookup (r->pd());
+     if (EXPECT_FALSE (cap.obj()->type() != Kobject::PD) || !(cap.prm() & 1UL << Kobject::SC)) {
+@@ -426,6 +426,9 @@ void Ec::sys_create_sc()
+         sys_finish<Sys_regs::BAD_PAR>();
+     }
+ 
++    if (r->period() && r->period() < r->qpd().quantum())
++        sys_finish<Sys_regs::BAD_PAR>();
++
+     Sc *sc = new (*ec->pd) Sc (Pd::current, r->sel(), ec, ec->cpu, r->qpd().prio(), r->qpd().quantum());
+     if (!Space_obj::insert_root (pd->quota, sc)) {
+         trace (TRACE_ERROR, "%s: Non-NULL CAP (%#lx)", __func__, r->sel());
+@@ -433,6 +436,9 @@ void Ec::sys_create_sc()
+         sys_finish<Sys_regs::BAD_CAP>();
+     }
+ 
++    /* XXX - move it to constructor */
++    sc->period = (Lapic::freq_tsc / 1000) * r->period();
++
+     sc->remote_enqueue();
+ 
+     sys_finish<Sys_regs::SUCCESS>();
+--- /dev/null
++++ src/kernel/nova/src/timeout_period.cpp
+@@ -0,0 +1,54 @@
++/*
++ * Period Timeout
++ *
++ * Copyright (C) 2019-2020 Alexander Boettcher, Genode Labs GmbH.
++ *
++ * This file is part of the NOVA microhypervisor.
++ *
++ * NOVA is free software: you can redistribute it and/or modify it
++ * under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * NOVA is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * GNU General Public License version 2 for more details.
++ */
++
++#include "timeout_period.hpp"
++#include "stdio.hpp"
++#include "pd.hpp"
++#include "sc.hpp"
++#include "ec.hpp"
++
++void Timeout_period::trigger()
++{
++    uint64 const t = rdtsc();
++
++    while (Sc * s = refresh.head())
++    {
++       bool ok = refresh.dequeue(s);
++       assert (ok);
++
++       s->tsc_period = (t / s->period) * s->period;
++
++       if (s->disable) {
++           if (s->del_rcu())
++               Rcu::call (s);
++           continue;
++       }
++
++       s->ready_enqueue (t, false);
++    }
++}
++
++void Timeout_period::enqueue(uint64, Sc *s)
++{
++    bool set_timeout = !refresh.head();
++
++    refresh.enqueue(s);
++
++    if (set_timeout) { /* XXX fix it */
++        Timeout::enqueue (s->tsc_period);
++    }
++}

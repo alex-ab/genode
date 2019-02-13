@@ -200,9 +200,9 @@ namespace Nova {
 
 
 	ALWAYS_INLINE
-	inline uint8_t create_sc(mword_t sc, mword_t pd, mword_t ec, Qpd qpd)
+	inline uint8_t create_sc(mword_t sc, mword_t pd, mword_t ec, Qpd qpd, unsigned long period = 0)
 	{
-		return syscall_3(NOVA_CREATE_SC, 0, sc, pd, ec, qpd.value());
+		return syscall_4(NOVA_CREATE_SC, 0, sc, pd, ec, qpd.value(), period);
 	}
 
 
