@@ -37,6 +37,9 @@ namespace Genode {
 			Platform_pd(Platform_pd const &);
 			Platform_pd &operator = (Platform_pd const &);
 
+			size_t _cpu_quota_unassigned { 0 };
+			size_t _cpu_quota_users { 0 };
+
 		public:
 
 			/**
@@ -91,6 +94,22 @@ namespace Genode {
 			 *****************************/
 
 			void flush(addr_t, size_t, Core_local_addr) override;
+
+			/*****************************
+			 ** NOVA specific interface **
+			 *****************************/
+
+			size_t cpu_quota_unassigned(size_t const value)
+			{
+				_cpu_quota_unassigned += value;
+				return _cpu_quota_unassigned;
+			}
+
+			size_t cpu_quota_users(size_t const value)
+			{
+				_cpu_quota_users += value;
+				return _cpu_quota_users;
+			}
 	};
 }
 
