@@ -48,14 +48,16 @@ namespace Genode {
 				SC_CREATED  = 0x8U,
 				REMOTE_PD   = 0x10U,
 			};
+			uint32_t _cpu_quota;
 			uint8_t _features;
 			uint8_t _priority;
 
 			Stack::Name _name;
 
-			addr_t _sel_ec()     const { return _id_base; }
-			addr_t _sel_pt_oom() const { return _id_base + 1; }
-			addr_t _sel_sc()     const { return _id_base + 2; }
+			addr_t _sel_ec()        const { return _id_base; }
+			addr_t _sel_pt_oom()    const { return _id_base + 1; }
+			addr_t _sel_sc()        const { return _id_base + 2; }
+			addr_t _sel_sc_period() const { return _id_base + 3; }
 
 			/* convenience function to access _feature variable */
 			inline bool main_thread() const { return _features & MAIN_THREAD; }
@@ -71,9 +73,11 @@ namespace Genode {
 			Platform_thread &operator = (Platform_thread const &);
 
 			/**
-			 * Create OOM portal and delegate it
-			 */
+			* Create OOM portal and delegate it
+			*/
 			bool _create_and_map_oom_portal(Nova::Utcb &);
+
+			uint8_t _create_periodic_sc();
 
 		public:
 
@@ -213,7 +217,7 @@ namespace Genode {
 			/**
 			 * Set CPU quota of the thread to 'quota'
 			 */
-			void quota(size_t const) { /* not supported*/ }
+			void quota(size_t const);
 
 			/**
 			 * Return execution time consumed by the thread
