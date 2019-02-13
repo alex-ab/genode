@@ -32,6 +32,7 @@ namespace Core {
 
 	class Platform_pd;
 	class Platform_thread;
+
 }
 
 
@@ -44,6 +45,7 @@ class Core::Platform_thread
 		addr_t             _id_base;
 		addr_t             _sel_exc_base;
 		Affinity::Location _location;
+		size_t             _cpu_quota;
 
 		enum {
 			MAIN_THREAD = 0x1U,
@@ -60,6 +62,7 @@ class Core::Platform_thread
 		addr_t _sel_ec()     const { return _id_base; }
 		addr_t _sel_pt_oom() const { return _id_base + 1; }
 		addr_t _sel_sc()     const { return _id_base + 2; }
+		addr_t _sel_sc_period() const { return _id_base + 3; }
 
 		/* convenience function to access _feature variable */
 		inline bool main_thread() const { return _features & MAIN_THREAD; }
@@ -78,6 +81,8 @@ class Core::Platform_thread
 		 * Create OOM portal and delegate it
 		 */
 		bool _create_and_map_oom_portal(Nova::Utcb &);
+
+		uint8_t _create_periodic_sc();
 
 	public:
 
@@ -217,7 +222,7 @@ class Core::Platform_thread
 		/**
 		 * Set CPU quota of the thread to 'quota'
 		 */
-		void quota(size_t const) { /* not supported*/ }
+		void quota(size_t const);
 
 		/**
 		 * Return execution time consumed by the thread
