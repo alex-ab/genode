@@ -33,7 +33,10 @@
 
 using namespace Genode;
 
-
+enum {
+	PERIOD_PRIORITY = Nova::Qpd::DEFAULT_PRIORITY + 1,
+	PERIOD_QUANTUM  = Nova::Qpd::DEFAULT_QUANTUM
+};
 
 static uint8_t map_thread_portals(Pager_object &pager,
                                   addr_t const target_exc_base,
@@ -137,6 +140,9 @@ int Platform_thread::start(void *ip, void *sp)
 		if (worker()) {
 			/* local/worker threads do not require a startup portal */
 			revoke(Obj_crd(_pager->exc_pt_sel_client() + PT_SEL_STARTUP, 0));
+
+			/* worker thread can't have a SC, so the cpu quota is unassigned */
+			_pd->cpu_quota_unassigned(_cpu_quota);
 		}
 
 		_pager->initial_eip((addr_t)ip);
@@ -198,6 +204,11 @@ int Platform_thread::start(void *ip, void *sp)
 			});
 	}
 
+	/* create periodic SC */
+	if (res == NOVA_OK && _cpu_quota) {
+		res = _create_periodic_sc();
+	}
+
 	if (res != NOVA_OK) {
 		_pager->client_set_ec(Native_thread::INVALID_INDEX);
 		_pager->initial_eip(0);
@@ -212,6 +223,15 @@ int Platform_thread::start(void *ip, void *sp)
 
 	_features |= SC_CREATED;
 
+	if (_cpu_quota) {
+		_pd->cpu_quota_users(1);
+	} else {
+		_pd->cpu_quota_unassigned(_cpu_quota);
+	}
+
+	if (_cpu_quota)
+		Genode::log("core: ", pd_name(), " -> ", _name, " - cpu_quota=",  _cpu_quota, " unassigned=", _pd->cpu_quota_unassigned(0), " users=", _pd->cpu_quota_users(0), " -- ", __func__);
+
 	return 0;
 }
 
@@ -222,6 +242,55 @@ void Platform_thread::pause()
 		return;
 
 	_pager->client_recall(true);
+}
+
+
+void Platform_thread::quota(size_t const quota)
+{
+	if (worker()) {
+		_pd->cpu_quota_unassigned(-_cpu_quota);
+		_cpu_quota = quota;
+		_pd->cpu_quota_unassigned(_cpu_quota);
+		return;
+	}
+
+	if (_cpu_quota)
+		Genode::log("core: ", pd_name(), " -> ", _name, " - cpu_quota=",  _cpu_quota, " -- destroy");
+
+	_cpu_quota = quota;
+
+	if (!_cpu_quota)
+		return;
+
+	/* destroy and re-create SC */
+	using namespace Nova;
+
+	revoke(Obj_crd(_sel_sc_period(), 0));
+
+	_create_periodic_sc();
+}
+
+
+uint8_t Platform_thread::_create_periodic_sc()
+{
+	using namespace Nova;
+
+	size_t nova_quantum_us = Cpu_session::quota_lim_downscale<__uint128_t>(_cpu_quota, PERIOD_QUANTUM);
+
+	Genode::log("core: ", pd_name(), " -> ", _name, " - cpu_quota=",  _cpu_quota, " nova_us=", nova_quantum_us, " -- ", __func__);
+
+	Qpd qpd(nova_quantum_us, PERIOD_PRIORITY);
+
+	uint8_t res = syscall_retry(*_pager,
+		[&]() {
+			return create_sc(_sel_sc_period(), _pd->pd_sel(), _sel_ec(), qpd,
+			                 PERIOD_QUANTUM);
+		});
+
+	if (res != NOVA_OK)
+		error("sc period creation failed");
+
+	return res;
 }
 
 
@@ -250,6 +319,14 @@ void Platform_thread::resume()
 		_features |= SC_CREATED;
 	else
 		error("create_sc failed ", res);
+
+	if (_cpu_quota) {
+		res = _create_periodic_sc();
+		if (res == NOVA_OK)
+			_pd->cpu_quota_users(1);
+
+		Genode::log("core: ", pd_name(), " -> ", _name, " - cpu_quota=",  _cpu_quota, " unassigned=", _pd->cpu_quota_unassigned(0), " users=", _pd->cpu_quota_users(0), " -- ", __func__);
+	}
 }
 
 
@@ -309,6 +386,15 @@ unsigned long long Platform_thread::execution_time() const
 	if (res != Nova::NOVA_OK)
 		warning("sc_ctrl failed res=", res);
 
+	if (!worker() && _cpu_quota) {
+		unsigned long long time_periodic = 0;
+		res = Nova::sc_ctrl(_sel_sc_period(), time_periodic);
+		if (res != Nova::NOVA_OK)
+			warning("sc_ctrl periodic failed res=", res);
+
+		time += time_periodic;
+	}
+
 	return time;
 }
 
@@ -337,12 +423,12 @@ void Platform_thread::thread_type(Nova_native_cpu::Thread_type thread_type,
 }
 
 
-Platform_thread::Platform_thread(size_t, const char *name, unsigned prio,
+Platform_thread::Platform_thread(size_t quota, const char *name, unsigned prio,
                                  Affinity::Location affinity, int)
 :
 	_pd(0), _pager(0), _id_base(cap_map()->insert(2)),
 	_sel_exc_base(Native_thread::INVALID_INDEX), _location(affinity),
-	_features(0),
+	_cpu_quota(quota), _features(0),
 	_priority(Cpu_session::scale_priority(Nova::Qpd::DEFAULT_PRIORITY, prio)),
 	_name(name)
 {
