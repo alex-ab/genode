@@ -22,6 +22,7 @@ namespace Core {
 
 	class Platform_thread;
 	class Platform_pd;
+
 }
 
 
@@ -39,6 +40,9 @@ class Core::Platform_pd : public Address_space
 		 */
 		Platform_pd(Platform_pd const &);
 		Platform_pd &operator = (Platform_pd const &);
+
+		size_t _cpu_quota_unassigned { 0 };
+		size_t _cpu_quota_users      { 0 };
 
 	public:
 
@@ -94,6 +98,22 @@ class Core::Platform_pd : public Address_space
 		 *****************************/
 
 		void flush(addr_t, size_t, Core_local_addr) override;
+
+		/*****************************
+		 ** NOVA specific interface **
+		 *****************************/
+
+		size_t cpu_quota_unassigned(size_t const value)
+		{
+			_cpu_quota_unassigned += value;
+			return _cpu_quota_unassigned;
+		}
+
+		size_t cpu_quota_users(size_t const value)
+		{
+			_cpu_quota_users += value;
+			return _cpu_quota_users;
+		}
 };
 
 #endif /* _CORE__INCLUDE__PLATFORM_PD_H_ */
