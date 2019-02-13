@@ -1,4 +1,4 @@
-<launcher pkg="cnuke/pkg/mixer/2019-01-13">
+<launcher cpu="10" pkg="cnuke/pkg/mixer/2019-01-13">
 	<config>
 		<default out_volume="100" volume="75"/>
 	</config>

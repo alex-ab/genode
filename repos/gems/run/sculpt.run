@@ -605,7 +605,7 @@ exec rm -r [run_dir]/genode/launcher
 # Create boot image
 #
 
-build { app/sculpt_manager }
-append boot_modules { sculpt_manager }
+build { app/sculpt_manager core kernel }
+append boot_modules { sculpt_manager core hypervisor }
 
 build_boot_image $boot_modules
