@@ -39,7 +39,7 @@ Trace::Execution_time Platform_thread::execution_time() const
 {
 	Fiasco::l4_kernel_clock_t us = 0;
 	l4_thread_stats_time(_thread.local.data()->kcap(), &us);
-	return { us, 0 };
+	return { us, 0, 10000 /* quantum readable ?*/, _prio };
 }
 
 

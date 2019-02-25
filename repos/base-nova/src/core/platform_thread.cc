@@ -303,13 +303,13 @@ Trace::Execution_time Platform_thread::execution_time() const
 
 	/* for ECs without a SC we simply return 0 */
 	if (!sc_created())
-		return { time, time };
+		return { time, time, Nova::Qpd::DEFAULT_QUANTUM, _priority };
 
 	uint8_t res = Nova::sc_ctrl(_sel_sc(), time);
 	if (res != Nova::NOVA_OK)
 		warning("sc_ctrl failed res=", res);
 
-	return { time, time };
+	return { time, time, Nova::Qpd::DEFAULT_QUANTUM, _priority };
 }
 
 

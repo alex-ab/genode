@@ -81,10 +81,17 @@ struct Genode::Trace::Execution_time
 {
 	uint64_t thread_context;
 	uint64_t scheduling_context;
+	unsigned quantum { 0 };
+	unsigned priority { 0 };
 
 	Execution_time() : thread_context(0), scheduling_context(0) { }
 	Execution_time(uint64_t thread_context, uint64_t scheduling_context)
 	: thread_context(thread_context), scheduling_context(scheduling_context) { }
+
+	Execution_time(uint64_t thread_context, uint64_t scheduling_context,
+	               unsigned quantum, unsigned priority)
+	: thread_context(thread_context), scheduling_context(scheduling_context),
+	  quantum(quantum), priority(priority) { }
 };
 
 
