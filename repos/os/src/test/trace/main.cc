@@ -274,7 +274,9 @@ struct Test_tracing
 			    "state:",   state_name(info.state()), " "
 			    "policy:",  info.policy_id().id,      " "
 			    "thread context time:", info.execution_time().thread_context, " "
-			    "scheduling context time:", info.execution_time().scheduling_context);
+			    "scheduling context time:", info.execution_time().scheduling_context, " ",
+			    "priority:", info.execution_time().priority, " ",
+			    "quantum:", info.execution_time().quantum);
 		};
 
 		for_each_subject(subjects, num_subjects, print_info);

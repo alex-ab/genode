@@ -262,7 +262,7 @@ Trace::Execution_time Platform_thread::execution_time() const
 {
 	if (!Thread::myself() || !Thread::myself()->utcb()) {
 		error("don't know myself");
-		return { 0, 0 };
+		return { 0, 0, 10000, _priority };
 	}
 	Thread &myself = *Thread::myself();
 
@@ -274,5 +274,5 @@ Trace::Execution_time Platform_thread::execution_time() const
 
 	uint64_t const ec_time = values[BENCHMARK_TCB_UTILISATION];
 	uint64_t const sc_time = 0; /* not supported */
-	return { ec_time, sc_time };
+	return { ec_time, sc_time, 10000, _priority};
 }
