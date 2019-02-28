@@ -46,6 +46,7 @@ struct Menu_view::Main
 	Nitpicker::Session::View_handle _view_handle = _nitpicker.create_view();
 
 	Point _position { };
+	Point _last_point { };
 
 	Area _configured_size { };
 	Area _visible_size { };
@@ -130,6 +131,7 @@ struct Menu_view::Main
 		_env.ep(), *this, &Main::_handle_config};
 
 	void _handle_input();
+	void _check_hover_state(Input::Event const &);
 
 	Signal_handler<Main> _input_handler = {
 		_env.ep(), *this, &Main::_handle_input};
@@ -222,6 +224,9 @@ void Menu_view::Main::_handle_dialog_update()
 
 	_schedule_redraw = true;
 
+	_check_hover_state(Input::Event(Input::Absolute_motion{_last_point.x(),
+	                                                       _last_point.y()}));
+
 	/*
 	 * If we have not processed a period for at least one frame, perform the
 	 * processing immediately. This way, we avoid latencies when the dialog
@@ -258,6 +263,13 @@ void Menu_view::Main::_handle_config()
 void Menu_view::Main::_handle_input()
 {
 	_nitpicker.input()->for_each_event([&] (Input::Event const &ev) {
+		_check_hover_state(ev);
+	});
+}
+
+
+void Menu_view::Main::_check_hover_state(Input::Event const &ev)
+{
 		ev.handle_absolute_motion([&] (int x, int y) {
 
 			Point const at = Point(x, y) - _position;
@@ -273,6 +285,8 @@ void Menu_view::Main::_handle_input()
 
 				_hovered = new_hovered;
 			}
+
+			_last_point = Point (x, y);
 		});
 
 		/*
@@ -285,7 +299,6 @@ void Menu_view::Main::_handle_input()
 				Genode::Reporter::Xml_generator xml(_hover_reporter, [&] () { });
 			}
 		}
-	});
 }
 
 
