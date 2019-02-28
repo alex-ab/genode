@@ -308,14 +308,26 @@ Trace::Execution_time Platform_thread::execution_time() const
 		warning("ec_time failed res=", res);
 
 	if (!sc_created())
-		return { ec_time, sc_time, Nova::Qpd::DEFAULT_QUANTUM, _priority };
+		return { ec_time, sc_time, Nova::Qpd::DEFAULT_QUANTUM, _priority, 0, 0 };
 
 	/* for EC with SC we provide the time caused by the SC in the system */
 	res = Nova::sc_ctrl(_sel_sc(), sc_time);
 	if (res != Nova::NOVA_OK)
 		warning("sc_ctrl failed res=", res);
 
-	return { ec_time, sc_time, Nova::Qpd::DEFAULT_QUANTUM, _priority };
+	addr_t limit_kernel = 0;
+	addr_t usage_kernel = 0;
+
+	if (main_thread()) {
+		res = Nova::pd_ctrl_debug(_pd->pd_sel(), limit_kernel, usage_kernel);
+		if (res != Nova::NOVA_OK)
+			warning("pd_ctrl_debug failed res=", res);
+	}
+
+	unsigned usage = usage_kernel;
+	unsigned limit = limit_kernel;
+
+	return { ec_time, sc_time, Nova::Qpd::DEFAULT_QUANTUM, _priority, usage, limit };
 }
 
 

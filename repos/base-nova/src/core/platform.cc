@@ -856,8 +856,19 @@ Platform::Platform()
 					warning("sc_ctrl on idle SC cap, op=", syscall_op,
 				            ", res=", res);
 
+				addr_t limit_kernel = 0;
+				addr_t usage_kernel = 0;
+				if (syscall_op == IDLE_SC && affinity.xpos() == 0) {
+					Hip const &hip = *(Hip *)__initial_sp;
+					res = Nova::pd_ctrl_debug(hip.sel_exc, limit_kernel, usage_kernel);
+					if (res != Nova::NOVA_OK)
+						warning("pd_ctrl_debug failed res=", res);
+				}
+
 				return { Session_label("kernel"), Trace::Thread_name(name),
-				         Trace::Execution_time(sc_time, sc_time), affinity };
+				         Trace::Execution_time(sc_time, sc_time, 10000, 0,
+				                               usage_kernel, limit_kernel),
+				         affinity };
 			}
 
 			Trace_source(Trace::Source_registry &registry,
