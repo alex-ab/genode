@@ -177,9 +177,9 @@ append config {
 
 install_config $config
 
-build { app/menu_view app/top_view app/graph core }
+build { app/menu_view app/top_view app/graph core lib/ld kernel}
 
-build_boot_image { menu_view menu_view_styles.tar top_view graph core }
+build_boot_image { menu_view menu_view_styles.tar top_view graph core ld.lib.so hypervisor }
 
 append qemu_args " -smp 12,cores=12"
 run_genode_until forever
