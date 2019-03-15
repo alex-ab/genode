@@ -191,9 +191,11 @@ struct Acpica::Main
 					unchanged_state_count ++;
 
 				if (unchanged_state_count >= unchanged_state_max) {
+/*
 					Genode::log("generate report because of ",
 					            unchanged_state_count, " irqs without state "
 					            "changes");
+*/
 					report->generate_report(true);
 					unchanged_state_count = 0;
 				}
