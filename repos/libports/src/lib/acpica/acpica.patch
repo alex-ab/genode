@@ -1,8 +1,23 @@
-diff --git src/lib/acpica/source/components/events/evevent.c src/lib/acpica/source/components/events/evevent.c
-index cec39cb..2a8e3a6 100644
---- src/lib/acpica/source/components/events/evevent.c
++++ src/lib/acpica/source/include/platform/acenv.h
+@@ -222,7 +222,15 @@
+ 
+ /* Unknown environment */
+ 
+-#error Unknown target environment
++#ifdef __x86_64__
++#define ACPI_MACHINE_WIDTH 64
++#else
++#define ACPI_MACHINE_WIDTH 32
++#define ACPI_USE_NATIVE_DIVIDE
++#endif
++
++/* required for va_arg - otherwise below some alternative is defined */
++#include <stdarg.h>
+ #endif
+ 
+ /*! [End] no source code translation !*/
 +++ src/lib/acpica/source/components/events/evevent.c
-@@ -188,6 +188,9 @@ AcpiEvFixedEventInitialize (
+@@ -188,6 +188,9 @@
      UINT32                  i;
      ACPI_STATUS             Status;
  
@@ -12,7 +27,7 @@ index cec39cb..2a8e3a6 100644
  
      /*
       * Initialize the structure that keeps track of fixed event handlers and
-@@ -198,6 +201,12 @@ AcpiEvFixedEventInitialize (
+@@ -198,6 +201,12 @@
          AcpiGbl_FixedEventHandlers[i].Handler = NULL;
          AcpiGbl_FixedEventHandlers[i].Context = NULL;
  
@@ -20,12 +35,12 @@ index cec39cb..2a8e3a6 100644
 +        {
 +            AcpiOsPrintf ("	Genode: SKIP disabling event '%u'(%x) - enabled by kernel!\n", i, AcpiGbl_FixedEventInfo[i].EnableBitMask);
 +            continue;
-+        }
++         }
 +
          /* Disable the fixed event */
  
          if (AcpiGbl_FixedEventInfo[i].EnableRegisterId != 0xFF)
-@@ -262,10 +271,13 @@ AcpiEvFixedEventDetect (
+@@ -257,10 +266,13 @@
       */
      for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++)
      {
@@ -43,10 +58,11 @@ index cec39cb..2a8e3a6 100644
          {
              /*
               * Found an active (signalled) event. Invoke global event
-@@ -309,11 +321,10 @@ AcpiEvFixedEventDispatch (
+@@ -303,12 +315,10 @@
+ 
      ACPI_FUNCTION_ENTRY ();
  
- 
+-
 -    /* Clear the status bit */
 -
 +    /* Re-enable event - kernel disabled it */
@@ -58,34 +74,10 @@ index cec39cb..2a8e3a6 100644
  
      /*
       * Make sure that a handler exists. If not, report an error
-diff --git src/lib/acpica/source/include/platform/acenv.h src/lib/acpica/source/include/platform/acenv.h
-index 1ab311d..514b144 100644
---- src/lib/acpica/source/include/platform/acenv.h
-+++ src/lib/acpica/source/include/platform/acenv.h
-@@ -239,7 +239,15 @@
- 
- /* Unknown environment */
- 
--#error Unknown target environment
-+#ifdef __x86_64__
-+#define ACPI_MACHINE_WIDTH 64
-+#else
-+#define ACPI_MACHINE_WIDTH 32
-+#define ACPI_USE_NATIVE_DIVIDE
-+#endif
-+
-+/* required for va_arg - otherwise below some alternative is defined */
-+#include <stdarg.h>
- #endif
- 
- /*! [End] no source code translation !*/
-diff --git src/lib/acpica/source/include/platform/acgcc.h src/lib/acpica/source/include/platform/acgcc.h
-index 584d50f..c1224fb 100644
---- src/lib/acpica/source/include/platform/acgcc.h
 +++ src/lib/acpica/source/include/platform/acgcc.h
-@@ -60,7 +60,9 @@ typedef __builtin_va_list       va_list;
- #endif
- #endif
+@@ -44,7 +44,9 @@
+ #ifndef __ACGCC_H__
+ #define __ACGCC_H__
  
 +#ifndef ACPI_INLINE
  #define ACPI_INLINE             __inline__
