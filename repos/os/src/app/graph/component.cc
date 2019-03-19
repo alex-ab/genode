@@ -630,8 +630,17 @@ void Graph::_handle_input()
 		                                  _line_half * 2 + 1, _height);
 
 		/* hiding a view would be nice - destroy and re-create */
-		_nitpicker.destroy_view(_view_text);
-		_view_text = Nitpicker::Session::View_handle(_nitpicker.create_view(_view));
+		using namespace Nitpicker;
+		typedef Session::View_handle View_handle;
+
+		/* HACK - wm does not work properly for destroy_view ... nor to_back XXX */
+		Point point(0, _height);
+		Rect geometry_text(point, Area { 1, 1 });
+		_nitpicker.enqueue<Session::Command::Geometry>(_view_text, geometry_text);
+
+		_nitpicker.enqueue<Session::Command::To_front>(_view, View_handle());
+
+		_nitpicker.execute();
 	}
 
 	if (hovered && _hovered_vline != hovered_old) {
@@ -697,10 +706,9 @@ void Graph::_handle_input()
 		Point point(xpos, ypos);
 		Rect geometry_text(point, area_text);
 
-		typedef Session::View_handle View_handle;
 		_nitpicker.enqueue<Session::Command::Offset>(_view_text, Point(0, -_height));
 		_nitpicker.enqueue<Session::Command::Geometry>(_view_text, geometry_text);
-		_nitpicker.enqueue<Session::Command::To_front>(_view_text, View_handle());
+		_nitpicker.enqueue<Session::Command::To_front>(_view_text, _view);
 		_nitpicker.execute();
 	}
 }
