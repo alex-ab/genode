@@ -1,0 +1,38 @@
+<runtime ram="128M" caps="1000" binary="init" config="user_shell.config">
+
+	<requires>
+		<gui/>
+		<timer/>
+		<rtc/>
+		<file_system label="mnt1" writeable="yes"/>
+		<file_system label="mnt2" writeable="yes"/>
+		<file_system label="fonts" writeable="no"/>
+		<rom         label="vimrc"/>
+		<rom         label="clipboard"/>
+		<report      label="clipboard"/>
+		<rm/>
+	</requires>
+
+	<content>
+		<rom label="bash-minimal.tar"/>
+		<rom label="cached_fs_rom"/>
+		<rom label="coreutils.tar"/>
+		<rom label="findutils.tar"/>
+		<rom label="grep.tar"/>
+		<rom label="init"/>
+		<rom label="ld.lib.so"/>
+		<rom label="libc.lib.so"/>
+		<rom label="libm.lib.so"/>
+		<rom label="ncurses.lib.so"/>
+		<rom label="pcre.lib.so"/>
+		<rom label="posix.lib.so"/>
+		<rom label="sed.tar"/>
+		<rom label="terminal"/>
+		<rom label="user_shell.config"/>
+		<rom label="vfs"/>
+		<rom label="vfs.lib.so"/>
+		<rom label="vfs_pipe.lib.so"/>
+		<rom label="vim-minimal.tar"/>
+	</content>
+
+</runtime>

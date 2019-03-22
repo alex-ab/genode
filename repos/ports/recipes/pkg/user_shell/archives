@@ -1,0 +1,16 @@
+_/raw/user_shell
+_/src/bash-minimal
+_/src/cached_fs_rom
+_/src/coreutils
+_/src/findutils
+_/src/grep
+_/src/init
+_/src/libc
+_/src/ncurses
+_/src/pcre
+_/src/posix
+_/src/sed
+_/src/terminal
+_/src/vfs
+_/src/vfs_pipe
+_/src/vim-minimal
