@@ -296,6 +296,28 @@ void Menu_view::Main::_handle_input()
 			_hovered_position = Point(x, y) - _position;
 		});
 
+		if (ev.key_press(Input::BTN_LEFT)) {
+			Genode::Reporter::Xml_generator xml(_hover_reporter, [&] () {
+				xml.node("button", [&] {
+					xml.attribute("left", "yes");
+				});
+			});
+		}
+		if (ev.key_press(Input::BTN_RIGHT)) {
+			Genode::Reporter::Xml_generator xml(_hover_reporter, [&] () {
+				xml.node("button", [&] {
+					xml.attribute("right", "yes");
+				});
+			});
+		}
+		ev.handle_wheel([&](int, int y) {
+			Genode::Reporter::Xml_generator xml(_hover_reporter, [&] () {
+				xml.node("button", [&] {
+					xml.attribute("wheel", y);
+				});
+			});
+		});
+
 		/*
 		 * Reset hover model when losing the focus
 		 */
