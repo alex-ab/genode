@@ -90,19 +90,22 @@ void Battery::_battery_update()
 
 	_battery.xml().for_each_sub_node("sb", [&](Genode::Xml_node &nodex) {
 		typedef unsigned long Value;
-		Value d = query_attribute<Value>(nodex, "last_full_capacity", "value");
+		Value d = query_attribute<Value>(nodex, "design_capacity", "value");
+		Value l = query_attribute<Value>(nodex, "last_full_capacity", "value");
 		Value r = query_attribute<Value>(nodex, "remaining_capacity", "value");
 		Value w = query_attribute<Value>(nodex, "warning_capacity", "value");
 
-		if (d == 0)
-			d = 100;
-		if (r == 0 || r >= d)
-			r = 1;
-		if (w == 0 || w >= d)
-			w = d / 10;
+		/* take care of missing values, e.g. broken battery information */
+		if (d == 0) d = 100;
+		if (l == 0) l = d;
+		if (r == 0) r = 1;
+		if (w == 0 || w >= l) w = l / 10;
 
-		unsigned percent = r * 100 / d;
-		unsigned rest = r * 10000 / d - (percent * 100);
+		/* if battery recovers, the remaining capacity seems to exceed last full capacity */
+		if (r > l) l = r;
+
+		unsigned percent = r * 100 / l;
+		unsigned rest = r * 10000 / l - (percent * 100);
 
 		Reporter::Xml_generator xml(_dialog, [&] () {
 			xml.node("frame", [&] {
@@ -116,7 +119,7 @@ void Battery::_battery_update()
 
 								xml.attribute("text", Genode::String<32>(text, " "));
 							});
-						} catch (...) { /* mising name ... */ }
+						} catch (...) { /* missing name ... */ }
 
 						xml.node("float", [&] () {
 							xml.node("bar", [&] () {
