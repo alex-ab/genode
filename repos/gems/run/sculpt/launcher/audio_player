@@ -1,4 +1,4 @@
-<launcher name="audio_player" pkg="cnuke/pkg/audio_player/2019-02-28">
+<launcher cpu="10" name="audio_player" pkg="cnuke/pkg/audio_player/2019-02-28">
 		<config state="paused">
 			<report progress="yes" interval="10" playlist="yes"/>
 			<libc/>

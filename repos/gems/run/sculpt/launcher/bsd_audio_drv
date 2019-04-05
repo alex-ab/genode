@@ -1,4 +1,4 @@
-<launcher pkg="cnuke/pkg/bsd_audio_drv/2019-02-28-b">
+<launcher cpu="10" pkg="cnuke/pkg/bsd_audio_drv/2019-02-28-b">
 	<config recording="false">
 		<mixer field="outputs.master" value="128"/>
 	</config>
