@@ -206,6 +206,12 @@ struct Driver_manager::Ahci_driver : Device_driver
 			_gen_common_start_node_content(xml, "ahci_drv", "ahci_drv",
 			                               Ram_quota{10*1024*1024}, Cap_quota{100},
 			                               Priority{-1});
+
+			xml.node("resource", [&] () {
+				xml.attribute("name", "CPU");
+				xml.attribute("quantum", "30");
+			});
+
 			_gen_provides_node<Block::Session>(xml);
 			xml.node("config", [&] () {
 				xml.node("report", [&] () { xml.attribute("ports", "yes"); });

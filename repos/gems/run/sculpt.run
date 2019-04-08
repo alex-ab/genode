@@ -233,6 +233,7 @@ install_config {
 
 	<start name="drivers" caps="3100" priority="-1" managing_system="yes">
 		<resource name="RAM" quantum="96M"/>
+		<resource name="CPU" quantum="20"/>
 		<binary name="init"/>
 		<route>
 			<service name="LOG"> <child name="log"/> </service>
@@ -437,7 +438,7 @@ install_config {
 	<start name="runtime" caps="50000" priority="-3">
 		<binary name="init"/>
 		<resource name="RAM" quantum="32G"/>
-		<resource name="CPU" quantum="100"/>
+		<resource name="CPU" quantum="70"/>
 		<route>
 			<service name="ROM" label="config">
 				<child name="config_fs_rom" label="managed/runtime"/> </service>

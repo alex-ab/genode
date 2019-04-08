@@ -20,6 +20,9 @@ void Sculpt::gen_fs_start_content(Xml_generator        &xml,
 	gen_common_start_content(xml, target.fs(),
 	                         Cap_quota{400}, Ram_quota{64*1024*1024});
 
+	gen_named_node(xml, "resource", "CPU", [&] () {
+		xml.attribute("quantum", "10"); });
+
 	gen_named_node(xml, "binary", "vfs");
 
 	gen_provides<::File_system::Session>(xml);
