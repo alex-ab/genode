@@ -7,9 +7,8 @@
 
 create_boot_directory
 
-import_from_depot [depot_user]/src/[base_src] \
-                  [depot_user]/src/init \
-                  [depot_user]/src/nitpicker
+import_from_depot [depot_user]/src/nitpicker
+
 #
 # Build
 #
@@ -50,6 +49,9 @@ set build_components {
 	drivers/rtc
 	drivers/input
 	app/seoul
+	core timer
+	lib/ld
+	init
 }
 
 if {$use_fancy_stuff} { set use_framebuffer 1 }
@@ -435,6 +437,9 @@ set boot_modules {
 	rtc_drv
 	seoul
 	vm_seoul.cfg
+	core
+	ld.lib.so
+	init timer
 }
 
 lappend_if [expr !$use_usb]   boot_modules ps2_drv
