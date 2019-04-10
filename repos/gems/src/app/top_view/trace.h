@@ -17,6 +17,16 @@ namespace Top {
 	using Genode::Affinity;
 }
 
+struct Old_type
+{
+	Genode::Session_label              _session_label  { };
+	Genode::Trace::Thread_name         _thread_name    { };
+	Genode::Trace::Subject_info::State _state          { Genode::Trace::Subject_info::INVALID };
+	Genode::Trace::Policy_id           _policy_id      { 0 };
+	unsigned long long                 _value          { 0 };
+	Genode::Affinity::Location         _affinity       { };
+};
+
 struct Top::Component : Genode::Avl_string<Genode::Session_label::size()>
 {
 	Genode::List<Top::Thread> _threads { };
@@ -91,8 +101,27 @@ struct Top::Thread
 		Genode::uint64_t recent_time(bool const ec_time) const {
 			return ec_time ? _recent_ec_time : _recent_sc_time; }
 
-		void update(Genode::Trace::Subject_info const &info)
+		void update(Genode::Trace::Subject_info const &info, bool old)
 		{
+			if (old)
+			{
+				Old_type const *old = (Old_type const *)&info;
+
+				if (old->_value < _execution_time.thread_context)
+					_recent_ec_time = 0;
+				else
+					_recent_ec_time = old->_value - _execution_time.thread_context;
+
+				_recent_sc_time = 0;
+
+				Genode::memset(&_execution_time, 0, sizeof(_execution_time));
+				_execution_time.thread_context = old->_value;
+				_state          = old->_state;
+				_policy_id      = old->_policy_id;
+				_affinity       = old->_affinity;
+				return;
+			}
+
 			if (info.execution_time().thread_context < _execution_time.thread_context)
 				_recent_ec_time = 0;
 			else

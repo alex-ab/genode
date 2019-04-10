@@ -210,6 +210,9 @@ struct Subjects
 				              "calculated utilization is not sane nor "
 				              "complete !", _num_subjects);
 
+			static bool old = false;
+			static bool check = true;
+
 			/* add and update existing entries */
 			for (unsigned i = 0; i < _num_subjects; i++) {
 
@@ -218,6 +221,18 @@ struct Subjects
 				Top::Thread * thread = _lookup_thread(id);
 				if (!thread) {
 					Genode::Trace::Subject_info info = trace.subject_info(id);
+
+					if (check) {
+						if ((info.execution_time().thread_context != info.execution_time().scheduling_context) &&
+						    (info.session_label() == "kernel" && info.thread_name() == "idle"))
+						{
+							Genode::warning("old tracing format detected");
+							check = false;
+							old   = true;
+							i     = -1;
+							continue;
+						}
+					}
 
 					Top::Component * component = _lookup_pd(info.session_label().string());
 					if (!component) {
@@ -230,7 +245,7 @@ struct Subjects
 					_threads.insert(thread);
 				}
 
-				thread->update(trace.subject_info(id));
+				thread->update(trace.subject_info(id), old);
 
 				/* remove dead threads which did not run in the last period */
 				if (thread->state() == Genode::Trace::Subject_info::DEAD &&
@@ -239,6 +254,8 @@ struct Subjects
 					_destroy_thread_object(thread, trace, alloc);
 				}
 			}
+
+			check = false;
 
 			/* clear old calculations */
 			Genode::memset(total_first,  0, sizeof(total_first));
