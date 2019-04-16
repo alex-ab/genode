@@ -989,10 +989,17 @@ struct Subjects
 					});
 				});
 
+				Genode::addr_t memory_used  = 0;
+				Genode::addr_t memory_limit = 0;
+				thread.for_each_thread_of_pd([&] (Top::Thread &t_pd) {
+					memory_used  += t_pd.execution_time().memory_used;
+					memory_limit += t_pd.execution_time().memory_limit;
+				});
+
 				xml.node("hbox", [&] () {
 					xml.attribute("name", thread.id().id * DIV + 1);
 					xml.node("label", [&] () {
-						xml.attribute("text", Genode::String<64>("kernel memory: X/Y 4k pages"));
+						xml.attribute("text", Genode::String<64>("kernel memory: ", memory_used, "/", memory_limit, " 4k pages"));
 						xml.attribute("color", "#ffffff");
 						xml.attribute("align", "left");
 					});
