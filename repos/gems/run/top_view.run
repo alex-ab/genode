@@ -129,6 +129,14 @@ append config {
 		<provides> <service name="File_system"/> </provides>
 	</start>
 
+	<start name="ram_fs">
+		<resource name="RAM" quantum="32M"/>
+		<provides> <service name="File_system"/> </provides>
+		<config>
+			<policy label="top_view -> store" root="/" writeable="yes" />
+		</config>
+	</start>
+
 	<start name="menu_view" caps="200">
 		<resource name="RAM" quantum="8M"/>
 		<config xpos="200" ypos="100">
@@ -156,6 +164,7 @@ append config {
 			<service name="ROM" label="hover"> <child name="report_rom_hover" /> </service>
 			<service name="Report" label="dialog"> <child name="report_rom_dialog" /> </service>
 			<service name="Report" label="graph"> <child name="report_rom_graph" /> </service>
+			<service name="File_system" label="store"> <child name="ram_fs"/> </service>
 			<any-service> <parent/> <any-child/> </any-service>
 		</route>
 	</start>
@@ -177,9 +186,9 @@ append config {
 
 install_config $config
 
-build { app/menu_view app/top_view app/graph core lib/ld kernel}
+build { app/menu_view app/top_view app/graph core lib/ld kernel server/ram_fs}
 
-build_boot_image { menu_view menu_view_styles.tar top_view graph core ld.lib.so hypervisor }
+build_boot_image { menu_view menu_view_styles.tar top_view graph core ld.lib.so hypervisor ram_fs }
 
 append qemu_args " -smp 12,cores=12"
 run_genode_until forever

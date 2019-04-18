@@ -22,6 +22,7 @@
 
 #include "button.h"
 #include "trace.h"
+#include "storage.h"
 
 static constexpr unsigned DIV = 10;
 enum SORT_TIME { EC_TIME = 0, SC_TIME = 1};
@@ -1377,9 +1378,12 @@ struct App::Main
 	Timer::Connection      _timer       { _env };
 	Heap                   _heap        { _env.ram(), _env.rm() };
 	Subjects               _subjects    { };
+	unsigned               _report_size { 4096 };
+
 
 	void _handle_config();
 	void _handle_period();
+	void _handle_hover();
 	void _generate_report();
 
 	Signal_handler<Main> _config_handler = {
@@ -1388,16 +1392,13 @@ struct App::Main
 	Signal_handler<Main> _periodic_handler = {
 		_env.ep(), *this, &Main::_handle_period};
 
-	Constructible<Reporter> _reporter { };
-	Constructible<Reporter> _reporter_graph { };
-	Constructible<Attached_rom_dataspace> _hover { };
-
-	void _handle_hover();
-
 	Signal_handler<Main> _hover_handler = {
 		_env.ep(), *this, &Main::_handle_hover};
 
-	unsigned _reporter_ds_size { 4096 };
+	Constructible<Reporter>               _reporter { };
+	Constructible<Reporter>               _reporter_graph { };
+	Constructible<Attached_rom_dataspace> _hover { };
+	Constructible<Top::Storage>           _storage { };
 
 	Main(Env &env) : _env(env)
 	{
@@ -1405,6 +1406,9 @@ struct App::Main
 		_handle_config();
 
 		_timer.sigh(_periodic_handler);
+
+		/* XXX - make depend on config */
+		_storage.construct(env);
 	}
 };
 
@@ -1519,7 +1523,7 @@ void App::Main::_handle_config()
 
 	if (_config.xml().attribute_value("report", false)) {
 		if (!_reporter.constructed()) {
-			_reporter.construct(_env, "dialog", "dialog", _reporter_ds_size);
+			_reporter.construct(_env, "dialog", "dialog", _report_size);
 			_reporter->enabled(true);
 		}
 		if (!_hover.constructed()) {
@@ -1527,7 +1531,7 @@ void App::Main::_handle_config()
 			_hover->sigh(_hover_handler);
 		}
 		if (!_reporter_graph.constructed()) {
-			_reporter_graph.construct(_env, "graph", "graph", _reporter_ds_size);
+			_reporter_graph.construct(_env, "graph", "graph", _report_size);
 			_reporter_graph->enabled(true);
 		}
 	} else {
@@ -1584,9 +1588,9 @@ void App::Main::_generate_report()
 				if (retry)
 					break;
 
-				_reporter_ds_size += 4096;
+				_report_size += 4096;
 				_reporter.destruct();
-				_reporter.construct(_env, "dialog", "dialog", _reporter_ds_size);
+				_reporter.construct(_env, "dialog", "dialog", _report_size);
 				_reporter->enabled(true);
 				retry = true;
 			}
@@ -1608,9 +1612,9 @@ void App::Main::_generate_report()
 				if (retry)
 					break;
 
-				_reporter_ds_size += 4096;
+				_report_size += 4096;
 				_reporter_graph.destruct();
-				_reporter_graph.construct(_env, "dialog", "dialog", _reporter_ds_size);
+				_reporter_graph.construct(_env, "dialog", "dialog", _report_size);
 				_reporter_graph->enabled(true);
 				retry = true;
 			}
