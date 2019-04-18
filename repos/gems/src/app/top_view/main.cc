@@ -200,7 +200,8 @@ struct Subjects
 		}
 
 		void update(Genode::Pd_session &pd, Genode::Trace::Connection &trace,
-		            Genode::Allocator &alloc, SORT_TIME const sort)
+		            Genode::Allocator &alloc, SORT_TIME const sort,
+		            Genode::Constructible<Top::Storage> &storage)
 		{
 			bool const first_update = !_threads.first();
 
@@ -247,6 +248,10 @@ struct Subjects
 				}
 
 				thread->update(trace.subject_info(id), old);
+
+				/* XXX - right place ?! */
+				if (storage.constructed())
+					storage->write({thread->id(), thread->execution_time()});
 
 				/* remove dead threads which did not run in the last period */
 				if (thread->state() == Genode::Trace::Subject_info::DEAD &&
@@ -1550,7 +1555,7 @@ void App::Main::_handle_period()
 
 	/* update subject information */
 	try {
-		_subjects.update(_env.pd(), *_trace, _heap, _sort);
+		_subjects.update(_env.pd(), *_trace, _heap, _sort, _storage);
 	} catch (Genode::Out_of_ram) {
 		reconstruct = true;
 	}
