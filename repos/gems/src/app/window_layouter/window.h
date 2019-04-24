@@ -392,6 +392,8 @@ class Window_layouter::Window : public List_model<Window>::Element
 				                ? _decorator_margins.inner_geometry(_target_geometry)
 				                : effective_inner_geometry();
 
+				Genode::error(" ", rect.x1(), " ", rect.y1(), " ", _use_target_area());
+
 				xml.attribute("xpos", rect.x1());
 				xml.attribute("ypos", rect.y1());
 
