@@ -99,7 +99,7 @@ class Window_layouter::User_state
 			return relevant;
 		}
 
-		inline void _handle_event(Input::Event const &, Xml_node);
+		inline void _handle_event(Input::Event const &, Xml_node, bool);
 
 		void _initiate_drag(Window_id       hovered_window_id,
 		                    Window::Element hovered_element)
@@ -161,8 +161,12 @@ class Window_layouter::User_state
 		{
 			Point const pointer_last = _pointer_curr;
 
-			for (size_t i = 0; i < num_events; i++)
-				_handle_event(events[i], config);
+			bool motion_event = false;
+			for (size_t i = 0; i < num_events; i++) {
+				if (events[i].absolute_motion() || events[i].relative_motion())
+					motion_event = true;
+				_handle_event(events[i], config, motion_event);
+			}
 
 			/*
 			 * Issue drag operation when in dragged state
@@ -230,7 +234,8 @@ class Window_layouter::User_state
 
 
 void Window_layouter::User_state::_handle_event(Input::Event const &e,
-                                                Xml_node config)
+                                                Xml_node config,
+                                                bool motion_events_before)
 {
 	e.handle_absolute_motion([&] (int x, int y) {
 		_pointer_curr = Point(x, y); });
@@ -248,6 +253,16 @@ void Window_layouter::User_state::_handle_event(Input::Event const &e,
 
 	/* handle pointer click */
 	if (e.key_press(Input::BTN_LEFT) && _key_cnt == 1) {
+
+		/*
+		 * In case we got motion events beforehand and now a click, the
+		 * _hovered_element state may be outdated if the hover report from
+		 * the decorator is late. To avoid accidentally starting dragging
+		 * we have to reset the potential outdated state. Without the reset the
+		 * window may 'jump' on a button click which is unexpected by users.
+		 */
+		if (motion_events_before)
+			_hovered_element = Window::Element::UNDEFINED;
 
 		/*
 		 * Initiate drag operation if possible
