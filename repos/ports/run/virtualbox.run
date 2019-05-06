@@ -26,9 +26,10 @@ if {$use_vbox5_nova} {
 
 create_boot_directory
 
-import_from_depot [depot_user]/src/[base_src] \
-                  [depot_user]/src/init \
-                  [depot_user]/src/nitpicker
+append build_components { core init server/nitpicker app/pointer timer }
+#import_from_depot [depot_user]/src/[base_src] \
+#                  [depot_user]/src/init \
+#                  [depot_user]/src/nitpicker
 
 source ${genode_dir}/repos/base/run/platform_drv.inc
 # override defaults of platform_drv.inc
@@ -282,6 +283,7 @@ append boot_modules {
 	libiconv.lib.so stdcxx.lib.so
 	qemu-usb.lib.so
 }
+append boot_modules { core init nitpicker timer pointer }
 
 append_if [expr $use_net]          boot_modules { ipxe_nic_drv }
 append_if [expr $use_bridge]       boot_modules { nic_bridge }
