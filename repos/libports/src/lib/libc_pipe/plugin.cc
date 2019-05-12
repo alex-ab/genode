@@ -242,11 +242,17 @@ namespace Libc_pipe {
 
 	int Plugin::fcntl(Libc::File_descriptor *pipefdo, int cmd, long arg)
 	{
+		const long supported_flags = FD_CLOEXEC;
+
 		switch (cmd) {
+
+			case F_GETFD:
+				{
+					return supported_flags;
+				}
 
 			case F_SETFD:
 				{
-					const long supported_flags = FD_CLOEXEC;
 					/* if unsupported flags are used, fall through with error */
 					if (!(arg & ~supported_flags)) {
 						/* close fd if exec is called - no exec support -> ignore */
