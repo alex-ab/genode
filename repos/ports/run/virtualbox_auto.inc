@@ -21,9 +21,9 @@ if {[have_spec nova]} {
 
 create_boot_directory
 
-import_from_depot [depot_user]/src/[base_src] \
-                  [depot_user]/src/init \
-                  [depot_user]/src/nitpicker
+#import_from_depot [depot_user]/src/[base_src] \
+#                  [depot_user]/src/init \
+#                  [depot_user]/src/nitpicker
 
 if {$use_vms > 1} {
 	import_from_depot [depot_user]/pkg/themed_wm
@@ -34,6 +34,12 @@ append build_components {
 	server/fs_rom
 	drivers/ahci
 	drivers/framebuffer
+	init
+	core kernel
+	server/nitpicker
+	app/pointer
+	lib/ld
+	timer
 }
 
 lappend_if [expr $use_rumpfs] build_components server/rump_fs
@@ -359,6 +365,7 @@ append boot_modules {
 	libc_pipe.lib.so
 	libiconv.lib.so stdcxx.lib.so
 	qemu-usb.lib.so
+	timer hypervisor core init nitpicker pointer ld.lib.so
 }
 
 lappend_if [expr $use_rumpfs] boot_modules rump.lib.so
