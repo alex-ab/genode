@@ -157,6 +157,7 @@ class Vcpu_handler_vmx : public Vcpu_handler
 			case VMX_EXIT_WBINVD:  _vmx_default(); break;
 			case VMX_EXIT_MOV_CRX: _vmx_mov_crx(); break;
 			case VMX_EXIT_MOV_DRX: _vmx_default(); break;
+			case VMX_EXIT_XSETBV: _vmx_default(); break;
 			case VMX_EXIT_TPR_BELOW_THRESHOLD: _vmx_default(); break;
 			case VMX_EXIT_EPT_VIOLATION: _vmx_ept<VMX_EXIT_EPT_VIOLATION>(); break;
 			case RECALL: _vmx_recall(); break;
@@ -204,6 +205,7 @@ class Vcpu_handler_vmx : public Vcpu_handler
 			case VMX_EXIT_MOV_DRX:
 			case VMX_EXIT_TPR_BELOW_THRESHOLD:
 			case VMX_EXIT_EPT_VIOLATION:
+			case VMX_EXIT_XSETBV:
 			case VCPU_STARTUP:
 			case RECALL:
 				/* todo - touch all members */
