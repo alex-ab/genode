@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<VirtualBox xmlns="http://www.innotek.de/VirtualBox-settings" version="1.14-linux">
+  <Machine uuid="{410f6221-6237-4833-b02c-a54000b7b190}" name="Tinycore" OSType="Linux26" snapshotFolder="Snapshots" lastStateChange="2014-10-30T13:26:17Z">
+    <MediaRegistry>
+      <HardDisks>
+        <HardDisk uuid="{78a3a6a1-ade6-41bf-8b29-ec7cf16de4bb}" location="/ram/overlay_qubes.vdi" format="VDI" autoReset="true"/>
+      </HardDisks>
+      <DVDImages>
+        <Image uuid="{81763434-9a51-49e8-9444-528a5a28c4bc}" location="/Qubes-R4.0.1-x86_64.iso"/>
+      </DVDImages>
+    </MediaRegistry>
+    <Hardware>
+      <CPU count="2">
+        <PAE enabled="true"/>
+        <LongMode enabled="true"/>
+        <HardwareVirtExLargePages enabled="false"/>
+      </CPU>
+      <Memory RAMSize="2048"/>
+      <HID Pointing="USBTablet"/>
+      <Display VRAMSize="20"/>
+      <RemoteDisplay enabled="false"/>
+<!--
+      <Boot>
+        <Order position="1" device="Floppy"/>
+        <Order position="2" device="DVD"/>
+        <Order position="3" device="HardDisk"/>
+        <Order position="4" device="None"/>
+      </Boot>
+      <HPET enabled="true"/>
+      <Chipset type="PIIX3"/>
+-->
+      <BIOS>
+<!--        <ACPI enabled="true"/> -->
+        <IOAPIC enabled="true"/>
+      </BIOS>
+      <USB>
+        <Controllers>
+          <Controller name="OHCI" type="OHCI"/>
+        </Controllers>
+      </USB>
+      <Network>
+        <Adapter slot="0" enabled="true" MACAddress="0800271D7901" cable="true" type="82540EM">
+          <BridgedInterface/>
+        </Adapter>
+      </Network>
+      <UART>
+        <Port slot="0" enabled="false" IOBase="0x3f8" IRQ="4" hostMode="Disconnected"/>
+        <Port slot="1" enabled="false" IOBase="0x2f8" IRQ="3" hostMode="Disconnected"/>
+      </UART>
+      <LPT>
+        <Port slot="0" enabled="false" IOBase="0x378" IRQ="7"/>
+        <Port slot="1" enabled="false" IOBase="0x378" IRQ="7"/>
+      </LPT>
+      <AudioAdapter controller="HDA" driver="OSS" enabled="false"/>
+      <RTC localOrUTC="UTC"/>
+      <SharedFolders/>
+    </Hardware>
+    <StorageControllers>
+      <StorageController name="IDE" type="PIIX4" PortCount="2" useHostIOCache="true" Bootable="true">
+        <AttachedDevice type="HardDisk" port="0" device="0">
+          <Image uuid="{78a3a6a1-ade6-41bf-8b29-ec7cf16de4bb}"/>
+        </AttachedDevice>
+        <AttachedDevice passthrough="false" type="DVD" port="1" device="0">
+          <Image uuid="{81763434-9a51-49e8-9444-528a5a28c4bc}"/>
+        </AttachedDevice>
+      </StorageController>
+<!--
+      <StorageController name="SATA" type="AHCI" PortCount="4" useHostIOCache="true" Bootable="true">
+        <AttachedDevice type="HardDisk" port="0" device="0">
+          <Image uuid="{78a3a6a1-ade6-41bf-8b29-ec7cf16de4bb}"/>
+        </AttachedDevice>
+        <AttachedDevice passthrough="false" type="DVD" port="3" device="0">
+          <Image uuid="{81763434-9a51-49e8-9444-528a5a28c4bc}"/>
+        </AttachedDevice>
+      </StorageController>
+-->
+    </StorageControllers>
+  </Machine>
+</VirtualBox>
