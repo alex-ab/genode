@@ -290,9 +290,9 @@ build_boot_image $boot_modules
 set wait_timeout 70
 if {[have_spec foc]} { set wait_timeout 120 }
 
-run_genode_until {\[init -\> vbox.*].*Guest Additions capability report:.*seamless: no, hostWindowMapping: no, graphics: no} $wait_timeout
+# run_genode_until {\[init -\> vbox.*].*Guest Additions capability report:.*seamless: no, hostWindowMapping: no, graphics: no} $wait_timeout
 
-# run_genode_until forever 0 [output_spawn_id]
+run_genode_until forever
 
 if {$use_rumpfs} {
 	set wait_timeout 170
