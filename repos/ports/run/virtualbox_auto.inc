@@ -143,7 +143,7 @@ append_if [expr $use_rumpfs] config {
 append_if [expr $use_rumpfs && $use_ram_fs && $use_overlay_from_disk] config {
 			<policy label_prefix="overlay_from_disk" root="/ram" writeable="no"/>}
 append_if [expr $use_rumpfs] config {
-			<default-policy root="/" writeable="no"/>
+			<default-policy root="/" writeable="yes"/>
 		</config>
 		<route>
 			<any-service><child name="part_block"/> <parent/><any-child/></any-service>
