@@ -219,18 +219,6 @@ append_if [expr $use_cpu_load] config {
 		</route>
 	</start>
 
-	<start name="cpu_load_display" priority="-1">
-		<resource name="RAM" quantum="6M"/>
-		<config/>
-		<route>
-			<service name="LOG"><parent/></service>
-			<service name="Timer"><child name="timer"/></service>
-			<service name="ROM" label="trace_subjects"><child name="report_rom"/></service>
-			<service name="Nitpicker"><child name="nitpicker"/></service>
-			<any-service><parent/></any-service>
-		</route>
-	</start>
-
 	<start name="top" priority="-1">
 		<resource name="RAM" quantum="2M"/>
 		<config period_ms="10000"/>
