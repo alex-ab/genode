@@ -54,7 +54,7 @@ $(KERNEL_BUILD_DIR)/x86-kernel: $(KERNEL_BUILD_DIR)/config/.config
 	$(VERBOSE_MK)CCFLAGS="$(KERNEL_CCFLAGS)" LDFLAGS="$(LD_MARCH)" \
 	             ASMFLAGS="$(CC_MARCH)" MAKEFLAGS= \
 	             $(MAKE) -s $(VERBOSE_DIR) -C $(KERNEL_BUILD_DIR) \
-	                     TOOLPREFIX=$(CROSS_DEV_PREFIX) \
+	                     TOOLPREFIX=/usr/local/genode-gcc/bin/genode-x86- \
 	                     GCCINSTALLDIR=$(LIBGCC_DIR) \
 	                     LIBGCCINC=$(GCCINC_DIR)
 
