@@ -1,0 +1,62 @@
+#
+# \brief  rudimentary aarch64 virtual-machine monitor interface test
+# \author Alexander Boettcher
+# \date   2019-06-17
+#
+
+assert_spec arm_64
+
+if { [get_cmd_switch --autopilot] } {
+	if {[have_spec hw]} {
+	} else {
+		puts "\n Run script is not supported on this platform. \n";
+		exit 0
+	}
+}
+
+set build_components {
+	core init
+	timer
+	test/vmm_aarch64
+}
+build $build_components
+create_boot_directory
+
+install_config {
+<config verbose="yes" prio_levels="2">
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+		<service name="VM"/>
+	</parent-provides>
+	<default-route>
+		<any-service><parent/><any-child/></any-service>
+	</default-route>
+	<default caps="100"/>
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>
+	<start name="vmm" caps="200" priority="-1">
+		<binary name="test-vmm_aarch64"/>
+		<resource name="RAM" quantum="256M"/>
+	</start>
+</config>
+}
+
+set boot_modules {
+	core ld.lib.so init
+	timer
+	test-vmm_aarch64
+}
+build_boot_image $boot_modules
+
+append qemu_args " -nographic "
+
+run_genode_until forever
