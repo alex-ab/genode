@@ -28,7 +28,11 @@ void Kernel::Thread::_call_new_vm()
 }
 
 
-void Kernel::Thread::_call_delete_vm() { _call_delete<Vm>(); }
+void Kernel::Thread::_call_delete_vm() {
+	Genode::raw("delete vm ?");
+	user_arg_0(-1);
+	return;
+ _call_delete<Vm>(); }
 
 
 void Kernel::Thread::_call_run_vm()
