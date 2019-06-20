@@ -24,8 +24,12 @@ static constexpr addr_t USER_START = Genode::user_utcb_main_thread()
                                      + sizeof(Native_utcb);
 static constexpr addr_t KERNEL_START = 0xffffffc000000000UL;
 
+/* ARMv8: 64 - 25 == 39 -> address range from 0 - (1 << 39) only in EL2 - XXX */
+static constexpr addr_t KERNEL_END = (1ULL << (39));
+static constexpr addr_t USER_END   = (1ULL << (39 - 1));
+
 Memory_region const Hw::Mm::user() {
-	return Memory_region(USER_START, 0x800000000000 - USER_START); }
+	return Memory_region(USER_START, USER_END - USER_START); }
 
 Memory_region const Hw::Mm::core_heap() {
 	return Memory_region(0xffffffd000000000UL, 0x1000000000UL); }
@@ -44,6 +48,18 @@ Memory_region const Hw::Mm::core_mmio() {
 
 Memory_region const Hw::Mm::boot_info() {
 	return Memory_region(0xffffffe040000000UL, 0x1000UL); }
+
+Memory_region const Hw::Mm::hypervisor_exception_vector() {
+	return Memory_region(KERNEL_END - 0x10000, 0x2000UL); }
+
+Memory_region const Hw::Mm::hypervisor_host_context() {
+	return Memory_region(KERNEL_END - 0x10000 + 0x4000, 0x1000UL); }
+
+Memory_region const Hw::Mm::hypervisor_vm_state() {
+	return Memory_region(KERNEL_END - 0x10000 + 0x6000, 0x1000UL); }
+
+Memory_region const Hw::Mm::hypervisor_stack() {
+	return Memory_region(KERNEL_END - 0x1000, 0x1000UL); }
 
 Memory_region const Hw::Mm::supervisor_exception_vector() {
 	return Memory_region(KERNEL_START, 0x1000UL); }

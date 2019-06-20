@@ -56,11 +56,54 @@ static inline void prepare_non_secure_world()
 }
 
 
-static inline void prepare_hypervisor()
+static inline void prepare_hypervisor(Cpu::Ttbr::access_t const ttbr)
 {
-	Cpu::Hcr::access_t scr = Cpu::Hcr::read();
-	Cpu::Hcr::Rw::set(scr,  1); /* exec in aarch64 */
-	Cpu::Hcr::write(scr);
+	Cpu::Hcr_el2::access_t hcr = Cpu::Hcr_el2::read();
+
+#if 0
+	Cpu::Hcr_el2::Imo::set(hcr, 1);
+	Cpu::Hcr_el2::Fmo::set(hcr, 1);
+	Cpu::Hcr_el2::Amo::set(hcr, 1);
+#endif
+
+	Cpu::Hcr_el2::Tid0::set(hcr, 1);
+	Cpu::Hcr_el2::Tid1::set(hcr, 1);
+	Cpu::Hcr_el2::Tid2::set(hcr, 1);
+	Cpu::Hcr_el2::Tid3::set(hcr, 1);
+	Cpu::Hcr_el2::Tidcp::set(hcr, 1);
+	Cpu::Hcr_el2::Rw::set(hcr, 1); /* exec in aarch64 */
+	Cpu::Hcr_el2::Tlor::set(hcr, 1); /* trap lorc_el1 and co - not saved/restored on VM switch */
+	Cpu::Hcr_el2::write(hcr);
+
+	/* set hypervisor exception vector */
+	Cpu::Vbar_el2::write(Hw::Mm::hypervisor_exception_vector().base);
+	Genode::addr_t const stack_el2 = Hw::Mm::hypervisor_stack().base +
+	                                 Hw::Mm::hypervisor_stack().size - 0x10; /* XXX */
+
+	/* set hypervisor's translation table */
+	Cpu::Ttbr0_el2::write(ttbr);
+
+	Cpu::Tcr_el2::access_t tcr_el2 = 0;
+	Cpu::Tcr_el2::T0sz::set(tcr_el2, 25);
+	Cpu::Tcr_el2::Irgn0::set(tcr_el2, 1);
+	Cpu::Tcr_el2::Orgn0::set(tcr_el2, 1);
+	Cpu::Tcr_el2::Sh0::set(tcr_el2, 0b10);
+
+	/* prepare MMU usage by hypervisor code */
+	Cpu::Tcr_el2::write(tcr_el2);
+
+	/* set memory attributes in indirection register */
+	Cpu::Mair_el2::access_t mair = 0;
+	Cpu::Mair_el2::Attr0::set(mair, Cpu::Mair_el2::NORMAL_MEMORY_UNCACHED);
+	Cpu::Mair_el2::Attr1::set(mair, Cpu::Mair_el2::DEVICE_MEMORY);
+	Cpu::Mair_el2::Attr2::set(mair, Cpu::Mair_el2::NORMAL_MEMORY_CACHED);
+	Cpu::Mair_el2::Attr3::set(mair, Cpu::Mair_el2::DEVICE_MEMORY);
+	Cpu::Mair_el2::write(mair);
+
+	Cpu::Vtcr_el2::access_t vtcr = 0;
+	Cpu::Vtcr_el2::T0sz::set(vtcr, 25);
+	Cpu::Vtcr_el2::Sl0::set(vtcr, 1); /* set to starting level 1 */
+	Cpu::Vtcr_el2::write(vtcr);
 
 	Cpu::Spsr::access_t pstate = 0;
 	Cpu::Spsr::Sp::set(pstate, 1); /* select non-el0 stack pointer */
@@ -71,22 +114,43 @@ static inline void prepare_hypervisor()
 	Cpu::Spsr::D::set(pstate, 1);
 	Cpu::Spsr_el2::write(pstate);
 
+	Cpu::Sctlr_el2::access_t sctlr = Cpu::Sctlr_el2::read();
+	Cpu::Sctlr_el2::M::set(sctlr, 1);
+	Cpu::Sctlr_el2::A::set(sctlr, 0);
+	Cpu::Sctlr_el2::C::set(sctlr, 1);
+	Cpu::Sctlr_el2::Sa::set(sctlr, 0);
+	Cpu::Sctlr_el2::I::set(sctlr, 1);
+	Cpu::Sctlr_el2::Wxn::set(sctlr, 0);
+	Cpu::Sctlr_el2::write(sctlr);
+
+	Cpu::Mdcr_el2::access_t mdcr = Cpu::Mdcr_el2::read();
+	/* disable debug registers - registers not saved/restored in EL2 */
+	Cpu::Mdcr_el2::Tda::set(mdcr, 1);
+	Cpu::Mdcr_el2::Tdosa::set(mdcr, 1);
+	/* disable performance counter registers - not saved/restored by EL2 */
+	Cpu::Mdcr_el2::Tpm::set(mdcr, 1);
+	Cpu::Mdcr_el2::Tpmcr::set(mdcr, 1);
+	Cpu::Mdcr_el2::write(mdcr);
+
 	asm volatile("mov x0, sp      \n"
 	             "msr sp_el1, x0  \n"
 	             "adr x0, 1f      \n"
 	             "msr elr_el2, x0 \n"
+	             "mov sp, %0      \n"
 	             "eret            \n"
-	             "1:");
+	             "1:": : "r"(stack_el2): "x0");
 }
 
 
 unsigned Bootstrap::Platform::enable_mmu()
 {
+	Cpu::Ttbr::access_t ttbr = Cpu::Ttbr::Baddr::masked((Genode::addr_t)core_pd->table_base);
+
 	while (Cpu::current_privilege_level() > Cpu::Current_el::EL1) {
 		if (Cpu::current_privilege_level() == Cpu::Current_el::EL3)
 			prepare_non_secure_world();
 		else
-			prepare_hypervisor();
+			prepare_hypervisor(ttbr);
 	}
 
 	/* enable performance counter for user-land */
@@ -102,7 +166,6 @@ unsigned Bootstrap::Platform::enable_mmu()
 	Cpu::Mair::Attr3::set(mair, Cpu::Mair::DEVICE_MEMORY);
 	Cpu::Mair::write(mair);
 
-	Cpu::Ttbr::access_t ttbr = Cpu::Ttbr::Baddr::masked((Genode::addr_t)core_pd->table_base);
 	Cpu::Ttbr0_el1::write(ttbr);
 	Cpu::Ttbr1_el1::write(ttbr);
 

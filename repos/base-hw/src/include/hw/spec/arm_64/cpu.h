@@ -81,8 +81,19 @@ struct Hw::Arm_64_cpu
 	SYSTEM_REGISTER(64, Esr_el1, esr_el1);
 	SYSTEM_REGISTER(64, Far_el1, far_el1);
 
-	SYSTEM_REGISTER(64, Hcr, hcr_el2,
-		struct Rw : Bitfield<31, 1> {};
+	SYSTEM_REGISTER(64, Hcr_el2, hcr_el2,
+		struct Fmo  : Bitfield< 3, 1> {};
+		struct Imo  : Bitfield< 4, 1> {};
+		struct Amo  : Bitfield< 5, 1> {};
+
+		struct Tid0  : Bitfield<15, 1> {};
+		struct Tid1  : Bitfield<16, 1> {};
+		struct Tid2  : Bitfield<17, 1> {};
+		struct Tid3  : Bitfield<18, 1> {};
+		struct Tidcp : Bitfield<20, 1> {};
+
+		struct Rw   : Bitfield<31, 1> {};
+		struct Tlor : Bitfield<35, 1> {};
 	);
 
 	SYSTEM_REGISTER(64, Mair, mair_el1,
@@ -127,6 +138,12 @@ struct Hw::Arm_64_cpu
 	SYSTEM_REGISTER(64, Spsr_el2, spsr_el2);
 	SYSTEM_REGISTER(64, Spsr_el3, spsr_el3);
 
+	/* Virtualization Translation Control Register */
+	SYSTEM_REGISTER(32, Vtcr_el2, vtcr_el2,
+		struct T0sz : Bitfield<0, 6> {};
+		struct Sl0  : Bitfield<6, 2> {}; /* starting level for table walks */
+	);
+
 	SYSTEM_REGISTER(64, Tcr_el1, tcr_el1,
 		struct T0sz  : Bitfield<0,  6> { };
 		struct Epd0  : Bitfield<7,  1> { };
@@ -155,6 +172,72 @@ struct Hw::Arm_64_cpu
 	SYSTEM_REGISTER(64, Ttbr1_el1, ttbr1_el1);
 
 	SYSTEM_REGISTER(64, Vbar_el1, vbar_el1);
+
+	SYSTEM_REGISTER(64, Elr_el1, elr_el1);
+	SYSTEM_REGISTER(64, Sp_el0, sp_el0);
+	SYSTEM_REGISTER(32, Spsel, spsel);
+	SYSTEM_REGISTER(32, Spsr_el1, spsr_el1);
+	SYSTEM_REGISTER(32, Daif, daif);
+	SYSTEM_REGISTER(32, Nzcv, nzcv);
+	SYSTEM_REGISTER(32, Fpcr, fpcr);
+	SYSTEM_REGISTER(32, Fpsr, fpsr);
+
+	SYSTEM_REGISTER(64, Vbar_el2, vbar_el2);
+	SYSTEM_REGISTER(64, Ttbr0_el2, ttbr0_el2);
+
+	SYSTEM_REGISTER(64, Tcr_el2, tcr_el2,
+		struct T0sz  : Bitfield<0,  6> { };
+		struct Irgn0 : Bitfield<8,  2> { };
+		struct Orgn0 : Bitfield<10, 2> { };
+		struct Sh0   : Bitfield<12, 2> { };
+	);
+
+	SYSTEM_REGISTER(64, Sctlr_el2, sctlr_el2,
+		struct M   : Bitfield< 0, 1> { };
+		struct A   : Bitfield< 1, 1> { };
+		struct C   : Bitfield< 2, 1> { };
+		struct Sa  : Bitfield< 3, 1> { };
+		struct I   : Bitfield<12, 1> { };
+		struct Wxn : Bitfield<19, 1> { };
+	);
+
+	SYSTEM_REGISTER(64, Vttbr_el2, vttbr_el2,
+		struct CnP  : Bitfield<0,  1>  { };
+		struct Ba   : Bitfield<1, 47>  { }; /* translation table base */
+		struct Asid : Bitfield<48, 8>  { }; /* XXX implementation defined whether 8 or 16 bit in use ... */
+	);
+
+	SYSTEM_REGISTER(64, Mair_el2, mair_el2,
+		enum Attributes {
+			DEVICE_MEMORY          = 0x04,
+			NORMAL_MEMORY_UNCACHED = 0x44,
+			NORMAL_MEMORY_CACHED   = 0xff,
+		};
+		struct Attr0 : Bitfield<0,  8> {};
+		struct Attr1 : Bitfield<8,  8> {};
+		struct Attr2 : Bitfield<16, 8> {};
+		struct Attr3 : Bitfield<24, 8> {};
+	);
+
+	SYSTEM_REGISTER(32, Cpacr_el1, cpacr_el1);
+	SYSTEM_REGISTER(32, Afsr0_el1, afsr0_el1);
+	SYSTEM_REGISTER(32, Afsr1_el1, afsr1_el1);
+	SYSTEM_REGISTER(64, Actlr_el1, actlr_el1);
+	SYSTEM_REGISTER(64, Amair_el1, amair_el1);
+	SYSTEM_REGISTER(32, Contextidr_el1, contextidr_el1);
+	SYSTEM_REGISTER(32, Csselr_el1, csselr_el1);
+
+	SYSTEM_REGISTER(64, Par_el1, par_el1);
+	SYSTEM_REGISTER(64, Tpidrro_el0, tpidrro_el0);
+	SYSTEM_REGISTER(64, Tpidr_el0, tpidr_el0);
+	SYSTEM_REGISTER(64, Tpidr_el1, tpidr_el1);
+
+	SYSTEM_REGISTER(32, Mdcr_el2, mdcr_el2,
+		struct Tpm   : Bitfield< 5, 1> {};
+		struct Tpmcr : Bitfield< 6, 1> {};
+		struct Tda   : Bitfield< 9, 1> {};
+		struct Tdosa : Bitfield<10, 1> {};
+	);
 
 	static inline unsigned current_privilege_level() {
 		return Current_el::El::get(Current_el::read()); }
