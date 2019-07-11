@@ -128,8 +128,8 @@ static inline void prepare_hypervisor(Cpu::Ttbr::access_t const ttbr)
 	Cpu::Mdcr_el2::Tda::set(mdcr, 1);
 	Cpu::Mdcr_el2::Tdosa::set(mdcr, 1);
 	/* disable performance counter registers - not saved/restored by EL2 */
-	Cpu::Mdcr_el2::Tpm::set(mdcr, 1);
-	Cpu::Mdcr_el2::Tpmcr::set(mdcr, 1);
+//	Cpu::Mdcr_el2::Tpm::set(mdcr, 1);
+//	Cpu::Mdcr_el2::Tpmcr::set(mdcr, 1);
 	Cpu::Mdcr_el2::write(mdcr);
 
 	asm volatile("mov x0, sp      \n"
