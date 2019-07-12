@@ -81,6 +81,16 @@ struct Hw::Arm_64_cpu
 	SYSTEM_REGISTER(64, Esr_el1, esr_el1);
 	SYSTEM_REGISTER(64, Far_el1, far_el1);
 
+	SYSTEM_REGISTER(32, Icc_sre_el2, S3_4_C12_C9_5,
+		struct Sre : Bitfield<0, 1> { };
+		struct Dfb : Bitfield<1, 1> { };
+		struct Dib : Bitfield<2, 1> { };
+		struct Enable : Bitfield<3, 1> { };
+	);
+	SYSTEM_REGISTER(32, Ich_hcr_el2, S3_4_C12_C11_0,
+		struct Enable : Bitfield<0, 1> { };
+	);
+
 	SYSTEM_REGISTER(64, Hcr_el2, hcr_el2,
 		struct Fmo  : Bitfield< 3, 1> {};
 		struct Imo  : Bitfield< 4, 1> {};

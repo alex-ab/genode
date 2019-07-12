@@ -60,7 +60,20 @@ static inline void prepare_hypervisor(Cpu::Ttbr::access_t const ttbr)
 {
 	Cpu::Hcr_el2::access_t hcr = Cpu::Hcr_el2::read();
 
-#if 0
+	Cpu::Icc_sre_el2::access_t sre_el2 = Cpu::Icc_sre_el2::read();
+	Genode::log("sre_el2 a ", Genode::Hex(sre_el2));
+	Cpu::Icc_sre_el2::Dfb::set(sre_el2, 0);
+	Cpu::Icc_sre_el2::Dib::set(sre_el2, 0);
+	Cpu::Icc_sre_el2::write(sre_el2);
+	Genode::log("sre_el2 b ", Genode::Hex(sre_el2));
+
+	Cpu::Ich_hcr_el2::access_t ich_hcr = Cpu::Ich_hcr_el2::read();
+	Genode::log("ich_hcr_el2 a ", Genode::Hex(ich_hcr));
+	Cpu::Ich_hcr_el2::Enable::set(ich_hcr, 1);
+	Cpu::Ich_hcr_el2::write(ich_hcr);
+	Genode::log("ich_hcr_el2 b ", Genode::Hex(ich_hcr));
+
+#if 1
 	Cpu::Hcr_el2::Imo::set(hcr, 1);
 	Cpu::Hcr_el2::Fmo::set(hcr, 1);
 	Cpu::Hcr_el2::Amo::set(hcr, 1);
