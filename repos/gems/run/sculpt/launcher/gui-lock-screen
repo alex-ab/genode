@@ -1,0 +1,6 @@
+<launcher pkg="alex-ab/pkg/gui_lock/2020-02-25">
+	<config password="" transparent="no"/>
+	<route>
+		<service name="Nitpicker"> <parent label="lock_screen"/> </service>
+	</route>
+</launcher>
