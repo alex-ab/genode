@@ -654,6 +654,7 @@ exec sh -c "tar cf [run_dir]/genode/depot_users.tar -C [genode_dir] \
 # Create boot image
 #
 
-append boot_modules { }
+append boot_modules { sculpt_manager }
 
+build { app/sculpt_manager }
 build_boot_image $boot_modules
