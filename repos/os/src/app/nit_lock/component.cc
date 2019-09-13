@@ -21,35 +21,34 @@ struct Main
 	typedef Nitpicker::Session::Command     Command;
 
 	typedef Genode::Signal_handler<Main>    Signal_handler;
-	typedef Genode::Constructible<Nitpicker::Connection> Nitpicker_connection;
-	typedef Genode::Attached_rom_dataspace  Attached_rom_dataspace;
+	typedef Genode::Constructible<Nitpicker::Connection> Gui;
+	typedef Genode::Constructible<Genode::Attached_dataspace> Fb;
+	typedef Genode::Attached_rom_dataspace  Rom;
 
-	Genode::Env           &_env;
-	View_handle            _handle           { };
-	Nitpicker_connection   _nitpicker        { };
-	Signal_handler         _input_handler  = { _env.ep(), *this,
-	                                          &Main::_handle_input };
-	Signal_handler         _mode_handler   = { _env.ep(), *this,
-	                                           &Main::_handle_mode };
-	Attached_rom_dataspace _config_rom     = { _env, "config" };
-	Signal_handler         _config_handler = { _env.ep(), *this,
-	                                           &Main::_update_config };
+	Genode::Env    &_env;
+	View_handle     _handle         { };
+	Gui             _nitpicker      { };
+	Fb              _framebuffer    { };
+	Signal_handler  _input_handler  { _env.ep(), *this, &Main::_handle_input };
+	Signal_handler  _mode_handler   { _env.ep(), *this, &Main::_handle_mode };
+	Rom             _config_rom     { _env, "config" };
+	Signal_handler  _config_handler { _env.ep(), *this, &Main::_update_config };
 
-	bool                   _transparent    = { false };
+	bool            _transparent    { false };
 
 	/* pwd state */
-	Genode::uint32_t pwd[128];
-	Genode::uint32_t pwd_i    { 0 };
-	Genode::uint32_t pwd_max  { 0 };
 	enum { WAIT_CLICK, RECORD_PWD, COMPARE_PWD } state { WAIT_CLICK };
+	struct {
+		Genode::uint32_t chars [128];
+		Genode::uint32_t i;
+		Genode::uint32_t max;
+	}    _pwd { };
+	bool _cmp_valid { false };
 
 	void _update_view(Genode::uint8_t const color)
 	{
-		Genode::Attached_dataspace fb_ds(_env.rm(),
-		                                 _nitpicker->framebuffer()->dataspace());
-
-		short *pixels = fb_ds.local_addr<short>();
-		Genode::memset(pixels, color, fb_ds.size());
+		short *pixels = _framebuffer->local_addr<short>();
+		Genode::memset(pixels, color, _framebuffer->size());
 
 		using namespace Nitpicker;
 
@@ -64,25 +63,64 @@ struct Main
 	{
 		_update_view(~0);
 		state = RECORD_PWD;
+		_cmp_valid = false;
+	}
+
+	void _show_box(unsigned const chars, short const cc, short const sc)
+	{
+		if (!chars) return;
+
+		short *pixels = _framebuffer->local_addr<short>();
+
+		Framebuffer::Mode mode = _nitpicker->mode();
+
+		int const hs = 10;
+		int const hsa = hs + 2;
+
+		int const offset = (chars - 1) * hsa;
+		if (offset + hsa*2 >= mode.width() / 2)
+			return;
+
+		unsigned const xpos = mode.width() / 2 - offset;
+		unsigned const ypos = mode.height() / 2;
+
+		for (int y=-hs; y < hs; y++)
+			Genode::memset(pixels + mode.width() * (ypos + y) + xpos - hs,
+			               cc, (chars * hsa * 2 + hs) * 2);
+
+		for (int y=-hs; y < hs; y++) {
+			for (unsigned c = 0; c < chars; c++) {
+				unsigned x = xpos + c * hsa * 2;
+				for (int i=-hs; i < hs; i++) {
+					pixels[mode.width() * (ypos + y) + x + i ] = sc;
+				}
+			}
+		}
+
+		_nitpicker->framebuffer()->refresh(xpos - hs, ypos - hs,
+		                                   chars * hsa * 2 + hs * 2, hs * 2);
 	}
 
 	void _switch_view_compare_pwd()
 	{
 		_update_view(_transparent ? 0x10 : 0);
 		state = COMPARE_PWD;
+		_cmp_valid = true;
+		_pwd.i = 0;
 	}
 
 	void _switch_view_initial()
 	{
 		_update_view(0x80);
 		state = WAIT_CLICK;
+		_cmp_valid = false;
 	}
 
 	void _inc_pwd_i()
 	{
-		pwd_i ++;
-		if (pwd_i >= sizeof(pwd) / sizeof(pwd[0]))
-			pwd_i = 0;
+		_pwd.i ++;
+		if (_pwd.i >= sizeof(_pwd.chars) / sizeof(_pwd.chars[0]))
+			_pwd.i = 0;
 	}
 
 	void _handle_input()
@@ -108,30 +146,42 @@ struct Main
 				if (state == WAIT_CLICK)
 					return;
 
+				bool reset = false;
+
 				if (key == Input::Keycode::KEY_ESC) {
-					pwd_i = 0;
+					reset = _pwd.i > 0;
+					_pwd.i = 0;
 				} else
 				if (key == Input::Keycode::KEY_ENTER) {
-					if (pwd_i > 0 && state == RECORD_PWD) {
-						pwd_max  = pwd_i;
+					if (state == COMPARE_PWD) {
+						unlock = _cmp_valid && (_pwd.i == _pwd.max);
+						reset = true;
+					}
+					if (_pwd.i > 0 && state == RECORD_PWD) {
+						_pwd.max = _pwd.i;
 						_switch_view_compare_pwd();
 					}
-					pwd_i = 0;
+
+					_pwd.i = 0;
 				} else {
 					if (state == RECORD_PWD) {
-						pwd[pwd_i] = cp.value;
+						_pwd.chars[_pwd.i] = cp.value;
 						_inc_pwd_i();
+						_show_box(_pwd.i, ~0, 0);
 					}
 					if (state == COMPARE_PWD) {
-						if (pwd[pwd_i] != cp.value) {
-							pwd_i = 0;
-						} else {
-							_inc_pwd_i();
+						if (_cmp_valid)
+							_cmp_valid = (_pwd.chars[_pwd.i] == cp.value);
 
-							if (pwd_i == pwd_max)
-								unlock = true;
-						}
+						_inc_pwd_i();
+						_show_box(_pwd.i, 0, ~0);
 					}
+				}
+				if (reset) {
+					if (state == RECORD_PWD)
+						_switch_view_record_pwd();
+					if (state == COMPARE_PWD)
+						_switch_view_compare_pwd();
 				}
 			});
 		});
@@ -145,15 +195,25 @@ struct Main
 		_nitpicker->mode_sigh(Genode::Signal_context_capability());
 		_nitpicker->input()->sigh(Genode::Signal_context_capability());
 
+		_framebuffer.destruct();
 		_nitpicker.destruct();
+
+		Genode::memset(&_pwd, 0, sizeof(_pwd));
 
 		_env.parent().exit(0);
 	}
 
 	void _handle_mode()
 	{
+		if (!_nitpicker.constructed())
+			return;
+
 		Framebuffer::Mode mode = _nitpicker->mode();
 		_nitpicker->buffer(mode, _transparent);
+
+		if (!_framebuffer.constructed())
+			_framebuffer.construct(_env.rm(),
+			                       _nitpicker->framebuffer()->dataspace());
 
 		switch (state) {
 		case COMPARE_PWD :
@@ -170,12 +230,15 @@ struct Main
 
 	void _update_config()
 	{
+		if (!_nitpicker.constructed())
+			return;
+
 		_config_rom.update();
 
 		if (!_config_rom.valid())
 			return;
 
-		Genode::String<sizeof(pwd)/sizeof(pwd[0])> passwd;
+		Genode::String<sizeof(_pwd.chars)/sizeof(_pwd.chars[0])> passwd;
 
 		Genode::Xml_node node = _config_rom.xml();
 		passwd = node.attribute_value("password", passwd);
@@ -187,10 +250,10 @@ struct Main
 
 		if (passwd.length() > 1) {
 			for (unsigned i = 0; i < passwd.length(); i++)
-				pwd[i] = passwd.string()[i];
+				_pwd.chars[i] = passwd.string()[i];
 
-			pwd_max = passwd.length() - 1;
-			pwd_i   = 0;
+			_pwd.max = passwd.length() - 1;
+			_pwd.i   = 0;
 
 			if (!switch_view)
 				switch_view = state != COMPARE_PWD;
@@ -204,6 +267,8 @@ struct Main
 
 	Main(Genode::Env &env) : _env(env)
 	{
+		Genode::memset(&_pwd, 0, sizeof(_pwd));
+
 		_nitpicker.construct(_env, "screen");
 
 		View_handle parent_handle;
