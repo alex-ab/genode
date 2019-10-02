@@ -405,14 +405,14 @@ class Vmm::Gic : public Vmm::Mmio_device
 		struct Dummy {
 			Mmio_register regs[8];
 		} _reg_container { .regs = {
-			{ "GICD_PIDR4",    Mmio_register::RO, 0xffd0, 4, 0x0                 },
+			{ "GICD_PIDR4",    Mmio_register::RO, 0xffd0, 4, 0x44                },
 			{ "GICD_PIDR5",    Mmio_register::RO, 0xffd4, 4, 0x0                 },
 			{ "GICD_PIDR6",    Mmio_register::RO, 0xffd8, 4, 0x0                 },
 			{ "GICD_PIDR7",    Mmio_register::RO, 0xffdc, 4, 0x0                 },
-			{ "GICD_PIDR0",    Mmio_register::RO, 0xffe0, 4, 0x492               },
-			{ "GICD_PIDR1",    Mmio_register::RO, 0xffe4, 4, 0xb0                },
+			{ "GICD_PIDR0",    Mmio_register::RO, 0xffe0, 4, 0x92                },
+			{ "GICD_PIDR1",    Mmio_register::RO, 0xffe4, 4, 0xb4                },
 			{ "GICD_PIDR2",    Mmio_register::RO, 0xffe8, 4, (_version<<4) | 0xb },
-			{ "GICD_PIDR3",    Mmio_register::RO, 0xffec, 4, 0x44                }
+			{ "GICD_PIDR3",    Mmio_register::RO, 0xffec, 4, 0x0                 }
 		}};
 };
 
