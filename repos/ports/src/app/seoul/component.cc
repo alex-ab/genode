@@ -1335,7 +1335,7 @@ void Component::construct(Genode::Env &env)
 	static Genode::Vm_connection vm_con(env, "Seoul vCPUs",
 	                                    Genode::Cpu_session::PRIORITY_LIMIT / 16);
 
-	Attached_rom_dataspace config(env, "config");
+	static Attached_rom_dataspace config(env, "config");
 
 	Genode::log("--- Seoul VMM starting ---");
 
