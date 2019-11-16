@@ -53,12 +53,15 @@ class Graph
 	private:
 
 		Genode::Env                     &_env;
-		Genode::Heap                     _heap      { _env.ram(), _env.rm() };
-		Genode::Attached_rom_dataspace   _config    { _env, "config" };
-		Nitpicker::Connection            _gui       { _env };
-		Input::Session_client           &_input     { *_gui.input() };
-		Nitpicker::Session::View_handle  _view      { _gui.create_view() };
-		Nitpicker::Session::View_handle  _view_text { _gui.create_view(_view) };
+		Genode::Heap                     _heap       { _env.ram(), _env.rm() };
+		Genode::Attached_rom_dataspace   _config     { _env, "config" };
+		Nitpicker::Connection            _gui        { _env };
+		Input::Session_client           &_input      { *_gui.input() };
+		Nitpicker::Session::View_handle  _view_all   { _gui.create_view() };
+		Nitpicker::Session::View_handle  _view       { _gui.create_view(_view_all) };
+		Nitpicker::Session::View_handle  _view_2     { _gui.create_view(_view_all) };
+		Nitpicker::Session::View_handle  _view_text  { _gui.create_view(_view_all) };
+		Nitpicker::Session::View_handle  _view_scale { _gui.create_view(_view_all) };
 
 		Genode::Avl_tree<Entry>    _entries   { };
 		Entry const                _entry_unknown { 0, "unknown", "", "" };
@@ -73,6 +76,10 @@ class Graph
 		int      const _line_half    { 5 };
 		int      const _invisible    { 200 };
 		unsigned       _scale_e      { 2 };
+		unsigned const _x_scale      { _x_root + _scale_10_len + 1};
+		unsigned const _step_width   { 20 };
+		unsigned const _step_dot     { 10 };
+
 
 		int           _max_width     { _width };
 		int           _max_height    { _height };
@@ -97,8 +104,12 @@ class Graph
 		Genode::Color const           _black     {   0,   0,   0 };
 
 		Checkpoint                    _column[256];
-		Genode::uint16_t              _column_cur { 0 }; /* number of columns */
+		static unsigned constexpr     _column_max { sizeof(_column) / sizeof(_column[0]) };
+		Genode::uint16_t              _column_cur { 0 };
 		Genode::uint16_t              _column_last { 0 };
+		Genode::uint16_t              _sliding_offset { 0 };
+		Genode::uint16_t              _sliding_size   { 0 };
+		bool                          _sliding { false };
 		unsigned                      _hovered_vline { ~0U };
 		Genode::uint64_t              _time_storage_wait_for { 0 };
 
@@ -108,27 +119,29 @@ class Graph
 		Genode::Constructible<Top::Storage<Graph>> _storage { };
 
 		/**
-		 * nitpicker interface bring up
+		 * GUI data initialisation
 		 */
 		Genode::Dataspace_capability _setup(int width, int height)
 		{
-			unsigned const xpos   = 0; //10;
-			unsigned const ypos   = 0; // 325;
-
 			using namespace Nitpicker;
 
-			Area   area { 0U + width, 0U + height };
 			Framebuffer::Mode mode { width, height_mode(),
 			                         Framebuffer::Mode::RGB565 };
 
 			_gui.buffer(mode, false /* no alpha */);
 
-			Rect geometry(Point(xpos, ypos), area);
-			_gui.enqueue<Session::Command::Geometry>(_view, geometry);
-			_gui.execute();
+			Rect const r_all(Point(0, 0), Area(width, height));
+			_gui.enqueue<Session::Command::Geometry>(_view_all, r_all);
 
-			typedef Session::View_handle View_handle;
-			_gui.enqueue<Session::Command::To_front>(_view, View_handle());
+			Rect const r_view(Point(_x_root + 1, 0), Area(width - _x_root - 1, height));
+			_gui.enqueue<Session::Command::Geometry>(_view, r_view);
+			Rect const r_view2(Point(_x_root + _step_width + 1, 0), Area(width - _step_width - _x_root - 1, height));
+			_gui.enqueue<Session::Command::Geometry>(_view_2, r_view2);
+
+			Rect const r_scale(Point(0, 0), Area(_x_scale, height));
+			_gui.enqueue<Session::Command::Geometry>(_view_scale, r_scale);
+
+			_gui.enqueue<Session::Command::To_front>(_view_scale, _view);
 			_gui.execute();
 
 			return _gui.framebuffer()->dataspace();
@@ -162,12 +175,13 @@ class Graph
 		void _init_screen(bool reset_points = true)
 		{
 			/* vertical line and scale */
-			vline(_x_root , _white);
+			vline(_x_root, _white);
+
 			for (unsigned i = y_root() - scale_10() * scale_e(); i < y_root(); i += scale_10()) {
 
 				Nitpicker::Point point(_x_root, i);
 				hline(point, _scale_10_len, _white);
-				hline_dotted(point, _width - _x_root, _white, 8);
+				hline_dotted(point, _width - _x_root, _white, _step_dot);
 
 				Genode::String<4> text(((y_root() - i) / scale_10()) * 10);
 
@@ -182,14 +196,21 @@ class Graph
 
 				Nitpicker::Point point_5(_x_root, i + scale_10() - scale_5());
 				hline(point_5, _scale_5_len, _white);
-				hline_dotted(point_5, _width - _x_root, _white, 8);
+				hline_dotted(point_5, _width - _x_root, _white, _step_dot);
 			}
 
 			/* horizontal line */
 			hline(y_root() , _white);
 
-			if (reset_points)
+			if (reset_points) {
 				Genode::memset(_column, 0, sizeof(_column));
+				_column_cur  = 0;
+				_column_last = _column_cur;
+			}
+
+			_sliding_offset = 0;
+			_sliding_size = 0;
+			_sliding = false;
 		}
 
 		Genode::String<8> _percent(unsigned percent, unsigned rest) {
@@ -218,28 +239,35 @@ class Graph
 			_handle_config();
 		}
 
+	private:
+
+		Pixel_rgb565 * _pixel(Nitpicker::Point const &p) {
+			return _ds->local_addr<Pixel_rgb565>() + p.y() * _width + p.x(); }
+
+		Pixel_rgb565 * _pixel(int x, int y) {
+			return _ds->local_addr<Pixel_rgb565>() + y * _width + x; }
+
 		void hline(unsigned const y, Genode::Color const &color)
 		{
-			Pixel_rgb565 * pixel = _ds->local_addr<Pixel_rgb565>() + y * _width;
+			Pixel_rgb565 * pixel = _pixel(0, y);
+
 			for (int i = 0; i < _width; i++)
 				*(pixel + i) = Pixel_rgb565(color.r, color.g, color.b, color.a);
 		}
 
-		void hline(Nitpicker::Point const point, int len,
+		void hline(Nitpicker::Point const &point, int len,
 		           Genode::Color const &color)
 		{
-			Pixel_rgb565 * pixel = _ds->local_addr<Pixel_rgb565>()
-			                       + point.y() * _width + point.x();
+			Pixel_rgb565 * pixel = _pixel(point);
 
 			for (int i = -len; i <= len; i++)
 				*(pixel + i) = Pixel_rgb565(color.r, color.g, color.b, color.a);
 		}
 
-		void hline_dotted(Nitpicker::Point const point, unsigned len,
-		                  Genode::Color const &color, unsigned step)
+		void hline_dotted(Nitpicker::Point const point, unsigned const len,
+		                  Genode::Color const &color, unsigned const step)
 		{
-			Pixel_rgb565 * pixel = _ds->local_addr<Pixel_rgb565>()
-			                       + point.y() * _width + point.x();
+			Pixel_rgb565 * pixel = _pixel(point);
 
 			for (unsigned i = 0; i < len; i += step)
 				*(pixel + i) = Pixel_rgb565(color.r, color.g, color.b, color.a);
@@ -247,10 +275,44 @@ class Graph
 
 		void vline(unsigned const x, Genode::Color const &color)
 		{
-			Pixel_rgb565 * pixel = _ds->local_addr<Pixel_rgb565>() + x;
+			Pixel_rgb565 * pixel = _pixel(x, 0);
 			for (int i = 0; i < _height; i ++)
 				*(pixel + i * _width) = Pixel_rgb565(color.r, color.g,
 				                                     color.b, color.a);
+		}
+
+		void _reset_column(unsigned const x1, unsigned const x2,
+		                   Genode::Color const &color)
+		{
+			using Nitpicker::Point;
+
+			Pixel_rgb565 * pixel = _pixel(0, 0);
+			unsigned y_dot10 = y_root() - scale_10() * scale_e();
+
+			for (unsigned y = 0; y < unsigned(_height); y ++) {
+				for (unsigned x = x1; x <= x2; x ++) {
+					*(pixel + x + y * _width) = Pixel_rgb565(color.r, color.g,
+					                                         color.b, color.a);
+				}
+
+				unsigned x = _x_root + ((x1 - _x_root) / _step_dot) * _step_dot;
+				if (x < x1) x += _step_dot;
+
+				if (y == y_dot10 - scale_5()) {
+					Point point_5(x, y);
+					hline_dotted(point_5, x2 - x + 1, _white, _step_dot);
+				}
+
+				if (y == y_dot10) {
+					Point point(x, y_dot10);
+					hline_dotted(point, x2 - x + 1, _white, _step_dot);
+
+					if (y_dot10 < y_root()) y_dot10 += scale_10();
+				}
+
+				if (y == y_root())
+					hline(Point(x1, y), x2 - x1 + 1, _white);
+			}
 		}
 
 		void _text(char const * const text, Text_painter::Position const pos,
@@ -259,6 +321,20 @@ class Graph
 			Genode::Surface_base::Area const size { 0U + _width, 0U + height_mode() };
 			Genode::Surface<Pixel_rgb565> surface { _ds->local_addr<Pixel_rgb565>(), size };
 			Text_painter::paint(surface, pos, _font, color, text);
+		}
+
+		void _hover_entry(unsigned const hover_line, Genode::Color const &color)
+		{
+			bool const split_hover = _sliding_size && (hover_line == _sliding_size);
+			unsigned const x = _x_root + (1 + hover_line) * _step_width;
+			unsigned const x1 = x - _line_half;
+			unsigned const x2 = split_hover ? _x_root + _line_half : x + _line_half;
+
+			vline(x1, color);
+			vline(x2, color);
+
+			_gui.framebuffer()->refresh(x1, 0, 1, _height);
+			_gui.framebuffer()->refresh(x2, 0, 1, _height);
 		}
 
 		void marker(Nitpicker::Point const point, int len,
@@ -282,13 +358,15 @@ class Graph
 		void marker(Nitpicker::Point const fr, Nitpicker::Point const to,
 		            Genode::Color const &color)
 		{
-			Pixel_rgb565 *p_f = _ds->local_addr<Pixel_rgb565>()
-			                    + fr.y() * _width + fr.x();
+			Pixel_rgb565 *p_f = _pixel(fr);
 
 			Pixel_rgb565 const dot(color.r, color.g, color.b, color.a);
 
-			int const w = to.x() - fr.x() + 1;
-			if (w <= 0) return;
+			int w = to.x() - fr.x() + 1;
+			if (w <= 0) {
+				w = to.x() - _x_root;
+				p_f = _pixel(_x_root + 1, fr.y());
+			}
 
 			int const height = to.y() - fr.y();
 			int const h = (height < 0) ? height - 1 : height + 1;
@@ -341,7 +419,7 @@ class Graph
 		unsigned _value(unsigned const time, unsigned const graph) const {
 			return _column[time]._values[graph]; }
 
-		Subject_id _id(unsigned const time, unsigned const graph) const {
+		Subject_id _subject_id(unsigned const time, unsigned const graph) const {
 			return _column[time]._id[graph]; }
 
 		void _replay_data();
@@ -349,7 +427,9 @@ class Graph
 
 		Nitpicker::Point _apply_data_point(unsigned const value, unsigned element);
 
-private:
+		unsigned _graph_pos(unsigned element);
+
+		void _slide();
 
 		Checkpoint &prev_entry()
 		{
@@ -386,10 +466,25 @@ private:
 					}
 				}
 
+				unsigned const graph_pos_before = _graph_pos(_column_cur);
+
 				/* next column */
 				_column_cur = (_column_cur + 1) % (sizeof(_column) / sizeof(_column[0]));
+				Genode::memset(&_column[_column_cur], 0, sizeof(_column[0])); /* XXX better use constructor ? */
+
+				unsigned const graph_pos_after = _graph_pos(_column_cur);
+
+				if (graph_pos_after < graph_pos_before) {
+//					Genode::error("wrap detected ", graph_pos_before);
+					_sliding = true;
+					_sliding_offset = 0;
+					_sliding_size = graph_pos_before;
+				}
+
+				if (_sliding) _slide();
 
 				/* reset screen check - XXX scrolling would be nice */
+#if 0
 				Nitpicker::Point point = _apply_data_point(0, _column_cur);
 				if (!point.x() && !point.y()) {
 					/* wrap to next column */
@@ -405,6 +500,7 @@ private:
 					_init_screen();
 					_gui.framebuffer()->refresh(0, 0, _width, _height);
 				}
+#endif
 			}
 
 			_column[_column_cur]._time = time;
@@ -493,15 +589,60 @@ void Graph::_handle_mode()
 	_ds.construct(_env.rm(), _setup(_width, _height));
 
 	Genode::memset(_ds->local_addr<void>(), 0, _width * _height * sizeof(Pixel_rgb565));
-	_init_screen(false);
+	_init_screen(_sliding); /* XXX - no reset on sliding leads to artifacts */
 	_replay_data();
 	_gui.framebuffer()->refresh(0, 0, _width, _height);
 }
 
+void Graph::_slide()
+{
+	if (!_sliding) return;
+
+//	if (_sliding_offset > 1) return;
+
+	/* clear old graphic content */
+	unsigned const x = _apply_data_point(10 /* does not matter value */, _graph_pos(_column_cur)).x();
+	if (x < _step_width)
+		Genode::error("x < _step_width ", x);
+	else {
+//		Genode::log("reset ", x - _step_width + 1, "->", Genode::min(x + _step_width - _line_half - 1, unsigned(_width - 1)));
+		_reset_column(x - _step_width + 1,
+		              Genode::min(x + _step_width - _line_half - 1, unsigned(_width - 1)),
+		              _black);
+	}
+
+	using Nitpicker::Rect;
+	using Nitpicker::Area;
+	using Nitpicker::Point;
+
+	Point const p_view2(-_x_root - 1 + (_sliding_size - _sliding_offset - 1) * _step_width, 0);
+	_gui.enqueue<Nitpicker::Session::Command::Offset>(_view_2, p_view2);
+	_gui.enqueue<Nitpicker::Session::Command::To_front>(_view_2, _view_all);
+
+	Rect const r_view(Point(_x_root + 1, 0), Area((_sliding_size - _sliding_offset) * _step_width, _height));
+	_gui.enqueue<Nitpicker::Session::Command::Geometry>(_view, r_view);
+
+	_sliding_offset ++;
+
+	_gui.enqueue<Nitpicker::Session::Command::Offset>(_view, Point(-_x_root - 1 - _sliding_offset * _step_width, 0));
+	_gui.enqueue<Nitpicker::Session::Command::To_front>(_view, _view_all);
+	_gui.enqueue<Nitpicker::Session::Command::To_front>(_view, _view_2);
+	_gui.enqueue<Nitpicker::Session::Command::To_front>(_view_scale, _view_2);
+
+	_gui.execute();
+
+	/* refresh will be triggered by handle_data */
+}
+
+unsigned Graph::_graph_pos(unsigned const element)
+{
+	//unsigned const count = (_width - _x_root - _step_width - _line_half) / _step_width;
+	unsigned const count = (_width - _x_root - _line_half) / _step_width;
+	return element % count;
+}
+
 Nitpicker::Point Graph::_apply_data_point(unsigned const value, unsigned element)
 {
-	unsigned const step = 20;
-
 	/* use all possible pixels by applying adaptive factor */
 	unsigned factor = 1;
 	if ((scale_5() / 5) > 1)
@@ -521,34 +662,46 @@ Nitpicker::Point Graph::_apply_data_point(unsigned const value, unsigned element
 	/* rest */
 	y += (scale_5() / f5) * (percent % f5);
 
-	unsigned x1 = _x_root + (((element + 1)*step) % (_width - _x_root));
-	unsigned x2 = _x_root + (((element + 0)*step) % (_width - _x_root));
-	if (x2 > x1)
+	unsigned x1 = _x_root + (((element + 1)*_step_width) % (_width - _x_root));
+	unsigned x2 = _x_root + (((element + 0)*_step_width) % (_width - _x_root));
+	if (x2 > x1) {
+		Genode::warning("zero point ... ?! XXX");
 		return Nitpicker::Point(0, 0);
+	}
 	return Nitpicker::Point(x1, y_root() - y);
 }
 
 void Graph::_replay_data()
 {
-	for (unsigned i = 0; i < _column_cur; i++)
+	for (unsigned i = 0; i < (_sliding_size ? _sliding_size : _column_cur); i++)
 	{
+		unsigned pos = i;
+		if (_sliding_size) {
+			if (_column_cur > _sliding_size)
+				pos = _column_cur - _sliding_size + i;
+			else
+				pos = (_column_max - _sliding_size + _column_cur + i) % _column_max;
+		}
+
 		for (unsigned graph = 0; graph < MAX_GRAPHS; graph++)
 		{
-			if (_column[i].unused(graph)) continue;
+			if (_column[pos].unused(graph)) continue;
 
 			Genode::Color color = _color(graph);
-			Nitpicker::Point point = _apply_data_point(_value(i, graph), i);
+			unsigned const element = _graph_pos(pos);
+			Nitpicker::Point point = _apply_data_point(_value(pos, graph), element);
 
 			marker(point, _marker_half, color);
 
-			_column[i]._points[graph] = point;
+			_column[pos]._points[graph] = point;
 		}
 	}
 }
 
 bool Graph::_apply_data(Subject_id const id, unsigned const value)
 {
-	Nitpicker::Point const point = _apply_data_point(value, _column_cur);
+	unsigned const element = _graph_pos(_column_cur);
+	Nitpicker::Point const point = _apply_data_point(value, element);
 	Checkpoint &data = _column[_column_cur];
 
 	unsigned entry = MAX_GRAPHS;
@@ -577,7 +730,7 @@ bool Graph::_apply_data(Subject_id const id, unsigned const value)
 		if ((entry < MAX_GRAPHS) && (same < MAX_GRAPHS) && (entry != same)) {
 			/* try to get same position, if enough free entries */
 			if (free > 1 && !fix) {
-				Genode::warning("check check move ", free, " same=", same, " entry=", entry);
+//				Genode::warning("check check move ", free, " same=", same, " entry=", entry);
 				for (unsigned i = 0; i < MAX_GRAPHS; i++) {
 					if (!data.unused(i)) continue;
 					if (i == entry) continue;
@@ -615,6 +768,7 @@ bool Graph::_apply_data(Subject_id const id, unsigned const value)
 bool Graph::advance_column_by_storage(Genode::uint64_t const time)
 {
 	if (time > this->time()) {
+//		if (_sliding_offset >= 2) return true;
 		_advance_element_column(time);
 	}
 
@@ -682,12 +836,13 @@ void Graph::_handle_graph()
 
 void Graph::_handle_data()
 {
+//	if (_sliding_offset >= 2) return;
+
 //	Genode::warning("_handle_data ", _column_last, "->", _column_cur);
 
 	bool scale_update = false;
 
 	unsigned refresh = 0;
-	unsigned too_many = 0;
 
 	do {
 		if (scale_update) {
@@ -699,11 +854,9 @@ void Graph::_handle_data()
 
 		scale_update = false;
 		refresh = 0;
-		too_many = 0;
 		unsigned scale_above = 0;
 
 		_graph.xml().for_each_sub_node("entry", [&](Genode::Xml_node &node){
-			too_many ++;
 			if (refresh >= MAX_GRAPHS)
 				return;
 
@@ -734,7 +887,6 @@ void Graph::_handle_data()
 
 			if (new_data(value, id, tsc)) {
 				refresh ++;
-				too_many --;
 			}
 
 			/* XXX heuristic when do re-create scale */
@@ -756,31 +908,36 @@ void Graph::_handle_data()
 	/* better a function call XXX */
 	_column[_column_cur]._done = true;
 
-	if (!refresh)
-		return;
+	unsigned const graph_last = _graph_pos(_column_last);
+	unsigned const graph_cur  = _graph_pos(_column_cur);
 
-	if (_column_last > _column_cur) {
+	_column_last = _column_cur;
+
+	if (_sliding) {
 		_gui.framebuffer()->refresh(0, 0, _width, _height);
 		return;
 	}
 
-	unsigned xpos_s = _apply_data_point(10 /* does not matter value */, _column_last).x();
-	unsigned xpos_e = _apply_data_point(10 /* does not matter value */, _column_cur).x();
+	if (!refresh)
+		return;
+
+	if (graph_last > graph_cur) {
+		_gui.framebuffer()->refresh(0, 0, _width, _height);
+		return;
+	}
+
+	unsigned xpos_s = _apply_data_point(10 /* does not matter value */, graph_last).x();
+	unsigned xpos_e = _apply_data_point(10 /* does not matter value */, graph_cur).x();
 	_gui.framebuffer()->refresh(xpos_s - _marker_half, 0,
 	                            xpos_e - xpos_s + 2 * _marker_half + 1, _height);
-
-	_column_last = _column_cur;
 }
 
 void Graph::_handle_input()
 {
-	bool absevent = false;
-	bool hovered  = false;
-	unsigned hovered_old = _hovered_vline;
-	unsigned last_y      = 0;
-
-	unsigned hovered_old_entry = ~0U;
-	unsigned hovered_entry     = ~0U;
+	bool     hovered       = false;
+	unsigned hovered_vline = ~0U;
+	unsigned hovered_old   = _hovered_vline;
+	unsigned last_y        = 0;
 
 	_input.for_each_event([&] (Input::Event const &ev) {
 		ev.handle_absolute_motion([&] (int x, int y) {
@@ -789,150 +946,167 @@ void Graph::_handle_input()
 			if (!_ds.constructed())
 				return;
 
-			absevent = true;
+			last_y = y;
 
-			for (unsigned i = 0; i <= _column_cur; i++) {
-				for (unsigned j = 0; j < MAX_GRAPHS; j++) {
-					if (_column[i].unused(j)) continue;
-
-					Nitpicker::Point p = _data(i, j);
-
-					if (i == hovered_old && hovered_old_entry >= MAX_GRAPHS)
-						hovered_old_entry = j;
-
-					if ((p.x() - _line_half <= x) && (p.x() + _line_half >= x))
-					{
-						hovered_entry  = j;
-						hovered        = true;
-						_hovered_vline = i;
-						last_y         = y;
-					}
-
-					if (hovered && hovered_old_entry < MAX_GRAPHS) {
-						i = _column_cur;
-						break;
-					}
-				}
+			/* skip */
+			if (x < int(_x_root + _step_width - _line_half)) {
+				hovered = false;
+				return;
 			}
+
+			x -= _x_root + _step_width - _line_half;
+
+			int vline = x / _step_width;
+			if (x > vline * int(_step_width) + 2*_line_half) {
+				hovered = false;
+				return;
+			}
+
+			hovered_vline = vline;
+			hovered = false;
+
+			Checkpoint const &data = _column[(vline + _sliding_offset) % _column_max];
+			for (unsigned i = 0; i < MAX_GRAPHS; i++) {
+				if (data.unused(i)) continue;
+
+				hovered = true;
+				break;
+			}
+
 		});
 	});
 
-	if (!absevent || (hovered && hovered_entry >= MAX_GRAPHS) ||
-	    (hovered_old < _column_cur && hovered_old_entry >= MAX_GRAPHS))
-		return;
+	if (hovered) {
+		if (_sliding_size && (hovered_vline + _sliding_offset > _sliding_size))
+			_hovered_vline = hovered_vline + _sliding_offset - _sliding_size - 1;
+		else
+			_hovered_vline = hovered_vline + _sliding_offset;
+	} else
+		_hovered_vline = ~0U;
 
-	if (!hovered && (hovered_old <= _column_cur)) {
-		unsigned const x = _data(hovered_old, hovered_old_entry).x();
-		vline(x - _line_half, _black);
-		vline(x + _line_half, _black);
+	if (!hovered && hovered_old == ~0U) return;
 
-		_hovered_vline = ~0U; /* invalid */
+	unsigned const column = (hovered_vline + _sliding_offset) % _column_max;
 
-		_gui.framebuffer()->refresh(x - _line_half, 0,
-		                                  _line_half * 2 + 1, _height);
+#if 0
+	if (hovered_vline != ~0U && _sliding_offset)
+		Genode::error("column=", column, " hovered=", hovered,
+		              " sliding_offset=", _sliding_offset,
+		              " _hovered_vline=", _hovered_vline,
+		              " sliding_size=", _sliding_size);
+#endif
+
+	if (!hovered) {
+		_hover_entry(hovered_old, _black);
 
 		/* hiding a view would be nice - destroy and re-create */
 		using namespace Nitpicker;
-		typedef Session::View_handle View_handle;
 
 		/* HACK - wm does not work properly for destroy_view ... nor to_back XXX */
 		Point point(0, _height);
 		Rect geometry_text(point, Area { 1, 1 });
 		_gui.enqueue<Session::Command::Geometry>(_view_text, geometry_text);
-
-		_gui.enqueue<Session::Command::To_front>(_view, View_handle());
-
 		_gui.execute();
 	}
 
-	if (hovered && _hovered_vline != hovered_old) {
-		if (hovered_old <= _column_cur) {
-			unsigned const x = _data(hovered_old, hovered_old_entry).x();
-			vline(x - _line_half, _black);
-			vline(x + _line_half, _black);
-			_gui.framebuffer()->refresh(x - _line_half, 0,
-			                                  _line_half * 2 + 1, _height);
-		}
-		unsigned const x = _data(_hovered_vline, hovered_entry).x();
-		vline(x - _line_half, _white);
-		vline(x + _line_half, _white);
+	if (!hovered) return;
+	if (_hovered_vline == hovered_old) return;
 
-		_gui.framebuffer()->refresh(x - _line_half, 0,
-		                                  _line_half * 2 + 1, _height);
-
-		memset(_ds->local_addr<Pixel_rgb565>() + _height * _width, 0,
-		       (height_mode() - _height) * _width * sizeof(Pixel_rgb565));
-
-		unsigned text_count = 0;
-		unsigned max_len    = 0;
-		unsigned skipped    = 0;
-
-		/* show info about timestamp */
-		{
-			unsigned long long const freq_khz = 2000000;
-			Genode::String<32> string(time(_hovered_vline) / freq_khz, " ms",
-			                          " (", Genode::Hex(time(_hovered_vline)), ")");
-			max_len = Genode::max(string.length(), max_len);
-
-			int const ypos = _height + 5;
-			if (ypos + (_font.height() + 5) < 0U + height_mode())
-				_text(string.string(), Text_painter::Position(0, ypos), _white);
-
-			text_count ++;
-		}
-
-		/* show infos about threads */
-		for (unsigned i = 0; i < MAX_GRAPHS; i++) {
-			if (_column[_hovered_vline].unused(i)) {
-				skipped ++;
-				continue;
-			}
-
-			Entry const * entry = find_by_id(_id(_hovered_vline, i));
-			if (!entry) {
-				entry = &_entry_unknown;
-				Genode::log("unknown id ", _id(_hovered_vline, i).id);
-			}
-
-			unsigned const cmp = entry->cpu().length() > 6 ? 8 : 5;
-			Genode::String<128> string(_percent(_value(_hovered_vline, i) / 100,
-			                                    _value(_hovered_vline, i) % 100), " ",
-			                           entry->cpu().length() < cmp ? " " : "",
-			                           entry->cpu(), " ",
-			                           entry->thread_name(), ", ",
-			                           entry->session_label());
-
-			max_len = Genode::max(string.length(), max_len);
-
-			int const ypos = _height + 5 + (i + 1 - skipped) * (_font.height() + 5);
-			if (ypos + (_font.height() + 5) < 0U + height_mode())
-				_text(string.string(), Text_painter::Position(0, ypos), _color(i));
-
-			text_count ++;
-		}
-
-		unsigned const width = Genode::min(0U + _width, (_font.bounding_box().w() - 1) * max_len);
-		unsigned const height = Genode::min(0U + height_mode() - _height, (_font.height() + 5) * text_count);
-
-		using namespace Nitpicker;
-
-		Area area_text { width, height };
-
-		int xpos = _data(_hovered_vline, hovered_entry).x() + 20;
-		if (xpos + (int)area_text.w() > _width)
-			xpos = xpos - 20 - area_text.w();
-		int ypos = last_y;
-		if (last_y + area_text.h() > 0U + _height)
-			ypos = _height - area_text.h();
-
-		Point point(xpos, ypos);
-		Rect geometry_text(point, area_text);
-
-		_gui.enqueue<Session::Command::Offset>(_view_text, Point(0, -_height));
-		_gui.enqueue<Session::Command::Geometry>(_view_text, geometry_text);
-		_gui.enqueue<Session::Command::To_front>(_view_text, _view);
-		_gui.execute();
+	if (hovered_old != ~0U) {
+		_hover_entry(hovered_old, _black);
 	}
+
+	unsigned const x = _x_root + (1 + _hovered_vline) * _step_width;
+
+//	Genode::warning("paint new ", x, " ", _line_half, " column=", column, " ", _hovered_vline);
+
+	_hover_entry(_hovered_vline, _white);
+
+	/*
+	 * Show details of column, threads etc.
+	 */
+
+	/* reset old content */
+	memset(_pixel(0,0) + _height * _width, 0,
+	       (height_mode() - _height) * _width * sizeof(Pixel_rgb565));
+
+	unsigned text_count = 0;
+	unsigned max_len    = 0;
+	unsigned skipped    = 0;
+
+	unsigned drop = 0;
+
+	/* show info about timestamp */
+	{
+		unsigned long long const freq_khz = 2000000;
+		Genode::String<32> string(time(column) / freq_khz, " ms (",
+		                          Genode::Hex(time(column)), ")");
+		max_len = Genode::max(string.length(), max_len);
+
+		int const ypos = _height + 5;
+		if (ypos + (_font.height() + 5) < 0U + height_mode())
+			_text(string.string(), Text_painter::Position(0, ypos), _white);
+		else
+			drop++;
+
+		text_count ++;
+	}
+
+	/* show infos about threads */
+	for (unsigned i = 0; i < MAX_GRAPHS; i++) {
+		if (_column[column].unused(i)) {
+			skipped ++;
+			continue;
+		}
+
+		Entry const * entry = find_by_id(_subject_id(column, i));
+		if (!entry) {
+			entry = &_entry_unknown;
+			Genode::log("unknown id ", _subject_id(column, i).id);
+		}
+
+		unsigned const cmp = entry->cpu().length() > 6 ? 8 : 5;
+		Genode::String<128> string(_percent(_value(column, i) / 100,
+		                                    _value(column, i) % 100), " ",
+		                           entry->cpu().length() < cmp ? " " : "",
+		                           entry->cpu(), " ",
+		                           entry->thread_name(), ", ",
+		                           entry->session_label());
+
+		max_len = Genode::max(string.length(), max_len);
+
+		int const ypos = _height + 5 + (i + 1 - skipped) * (_font.height() + 5);
+		if (ypos + (_font.height() + 5) < 0U + height_mode())
+			_text(string.string(), Text_painter::Position(0, ypos), _color(i));
+		else
+			drop++;
+
+		text_count ++;
+	}
+
+	unsigned const width = Genode::min(unsigned(_width), (_font.bounding_box().w() - 1) * max_len);
+	unsigned const height = Genode::min(unsigned(height_mode()) - _height, (_font.height() + 5) * text_count);
+
+	using namespace Nitpicker;
+
+	Area area_text { width, height };
+
+	int xpos = x + _step_width;
+	if ((xpos + int(width) >= _width) && (int(xpos - _step_width) > (_width - xpos)))
+		xpos = xpos - _step_width - width - 1;
+	int ypos = last_y;
+	if (last_y + area_text.h() >= unsigned(_height))
+		ypos = _height - area_text.h();
+
+//	Genode::error(xpos, "x", ypos, " ", width, "x", height, " ", drop);
+
+	Point point(xpos, ypos);
+	Rect geometry_text(point, area_text);
+
+	_gui.enqueue<Session::Command::Offset>(_view_text, Point(0, -_height));
+	_gui.enqueue<Session::Command::Geometry>(_view_text, geometry_text);
+	_gui.enqueue<Session::Command::To_front>(_view_text, Nitpicker::Session::View_handle());
+	_gui.execute();
 }
 
 void Component::construct(Genode::Env &env) { static Graph component(env); }
