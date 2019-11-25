@@ -1,0 +1,103 @@
+<runtime ram="2G" caps="2200" binary="init">
+
+	<requires>
+		<file_system label="shared"/>
+		<vm/>
+		<timer/>
+		<gui/>
+		<nic/>
+		<rom label="capslock"/>
+		<rom label="platform_info"/>
+		<report label="shape"/>
+		<report label="clipboard"/>
+		<rom    label="clipboard"/>
+		<rm/>
+		<rtc/>
+		<rom label="usb_devices"/>
+		<usb/>
+	</requires>
+
+	<config verbose="yes">
+
+		<parent-provides>
+			<service name="ROM"/>
+			<service name="PD"/>
+			<service name="RM"/>
+			<service name="CPU"/>
+			<service name="LOG"/>
+			<service name="VM"/>
+			<service name="Gui"/>
+			<service name="Timer"/>
+			<service name="Rtc"/>
+			<service name="Report"/>
+			<service name="File_system"/>
+			<service name="Usb"/>
+			<service name="Nic"/>
+		</parent-provides>
+
+		<default-route> <any-service> <parent/> <any-child/> </any-service> </default-route>
+
+		<default caps="100"/>
+
+		<start name="ram_block">
+			<resource name="RAM" quantum="270M" />
+			<provides><service name="Block"/></provides>
+			<config file="tc-firefox.raw" block_size="512"/>
+			<route>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+		<start name="vbox" caps="1700">
+			<binary name="virtualbox5" />
+			<resource name="RAM" quantum="1608M"/>
+			<exit propagate="yes"/>
+			<config vbox_file="machine.vbox" xhci="yes" vm_name="linux" capslock="ROM">
+				<vfs>
+					<dir name="dev">
+						<log/>
+						<rtc/>
+						<block name="sda" label="raw" block_buffer_count="128" />
+					</dir>
+					<dir name="shared"> <fs label="shared" writeable="yes"/> </dir>
+					<rom name="tc_firefox_raw.vmdk"/>
+					<rom name="machine.vbox"/>
+				</vfs>
+				<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc"/>
+			</config>
+			<route>
+				<service name="Audio_out"> <parent/> </service>
+				<service name="File_system" label="shared"> <parent label="shared"/> </service>
+				<service name="ROM" label="usb_devices"> <parent label="usb_devices"/> </service>
+				<service name="ROM" label="capslock"> <parent label="capslock"/> </service>
+				<service name="ROM" label="platform_info">
+					<parent label="platform_info"/> </service>
+				<service name="Nic"> <parent/> </service>
+				<service name="Report" label="shape"> <parent label="shape"/> </service>
+				<service name="ROM"    label="clipboard"> <parent label="clipboard"/> </service>
+				<service name="Report" label="clipboard"> <parent label="clipboard"/> </service>
+				<service name="Gui"> <parent label=""/> </service>
+				<service name="Block"  label="raw"> <child name="ram_block"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+	</config>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="init"/>
+		<rom label="virtualbox5"/>
+		<rom label="libc.lib.so"/>
+		<rom label="libm.lib.so"/>
+		<rom label="libiconv.lib.so"/>
+		<rom label="qemu-usb.lib.so"/>
+		<rom label="stdcxx.lib.so"/>
+		<rom label="vfs.lib.so"/>
+		<rom label="tc-firefox.raw"/>
+		<rom label="ram_block"/>
+		<rom label="tc_firefox_raw.vmdk"/>
+		<rom label="machine.vbox"/>
+	</content>
+
+</runtime>
