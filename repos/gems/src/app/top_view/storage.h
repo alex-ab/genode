@@ -55,6 +55,13 @@ class Top::File
 		uint64_t                 _fs_offset { 0 };
 		size_t                   _pos       { 0 };
 
+		uint16_t                 _cnt_flush_pending { 0 };
+		uint16_t                 _cnt_flush_last { 0 };
+		uint16_t                 _cnt_packet_err { 0 };
+		uint64_t                 _cnt_data_lost { 0 };
+		uint64_t                 _cnt_data_last { 0 };
+
+		bool                     _flush_pending { false };
 		size_t const             _max;
 		char                     _buffer [8192];
 
@@ -70,8 +77,15 @@ class Top::File
 
 		bool write(void *data, size_t const size)
 		{
-			if (!size || size > _max || _pos + size >= _max)
+			if (!size || size > _max || _pos + size >= _max) {
+				_cnt_data_lost += size;
+
+				if (!_cnt_data_last || (_cnt_data_last + 10000 < _cnt_data_lost)) {
+					_cnt_data_last = _cnt_data_lost;
+					Genode::warning("file ", _file_handle, " - lost=", _cnt_data_lost);
+				}
 				return false;
+			}
 
 			memcpy(_buffer + _pos, data, size);
 
@@ -100,11 +114,27 @@ class Top::File
 
 				tx.submit_packet(packet);
 			} catch (Session::Tx::Source::Packet_alloc_failed) {
-				error("packet lost"); }
+				_cnt_packet_err ++;
+				if (_cnt_packet_err % 10 == 1)
+					error("file ", _file_handle, " - ", _cnt_packet_err, ". packet error, lost=", _cnt_data_lost, " pending flush=", pending());
+			}
 		}
 
 		bool flush(size_t const space) const { return _pos + space >= _max; }
 		bool empty() const { return _pos == 0; }
+
+		bool pending() const { return _flush_pending; }
+		void flush_pending() { _cnt_flush_pending ++; _flush_pending = true; }
+		void reset_pending() { _flush_pending = false; }
+
+		void stat_pending_cnt()
+		{
+			if (_cnt_flush_last + 10 > _cnt_flush_pending) return;
+
+			_cnt_flush_last = _cnt_flush_pending;
+
+			Genode::log("file ", _file_handle, " - ", _cnt_flush_pending, " lost=", _cnt_data_lost);
+		}
 };
 
 class Top::Storage
@@ -123,9 +153,10 @@ class Top::Storage
 		Top::File    _subject    { fs, "subject.top_view", _packet_max };
 		Top::File    _select     { fs, "select.top_view", _packet_max };
 
-		Signal_handler<Storage> _handler { env.ep(), *this, &Storage::handle_fs };
+		Signal_handler<Storage> _handler_a { env.ep(), *this, &Storage::_handle_ack };
+		Signal_handler<Storage> _handler_s { env.ep(), *this, &Storage::_handle_submit };
 
-		void handle_fs()
+		void _handle_ack()
 		{
 			while (tx.ack_avail()) {
 				auto packet = tx.get_acked_packet();
@@ -133,11 +164,45 @@ class Top::Storage
 			}
 		}
 
+		void _handle_submit()
+		{
+			_handle_ack();
+
+			if (_data.pending()) {
+				if (!tx.ready_to_submit()) {
+					Genode::error("no space for submitting new data ?");
+					return;
+				}
+				_data.stat_pending_cnt();
+				_data.flush_data(tx);
+				_data.reset_pending();
+			}
+
+			if (_subject.pending()) {
+				if (!tx.ready_to_submit()) {
+					Genode::error("no space for submitting new subject ?");
+					return;
+				}
+				_subject.stat_pending_cnt();
+				_subject.flush_data(tx);
+				_subject.reset_pending();
+			}
+
+			if (_select.pending()) {
+				if (!tx.ready_to_submit()) {
+					Genode::error("no space for submitting new select ?");
+					return;
+				}
+				_select.stat_pending_cnt();
+				_select.flush_data(tx);
+				_select.reset_pending();
+			}
+		}
+
 		template <typename T>
 		void _write(T value, Top::File &file)
 		{
-			if (!file.write(&value, sizeof(value)))
-				error("data lost - buffer full");
+			file.write(&value, sizeof(value));
 
 			/* ask for whether flushing is appropriate */
 			if (!file.flush(sizeof(value) * 2)) return;
@@ -145,9 +210,16 @@ class Top::Storage
 			if (!tx.ready_to_submit())
 			{
 				/* check for available acks */
-				handle_fs();
-				if (!tx.ready_to_submit())
-					warning("not ready for submitting - blocking ahead");
+				_handle_ack();
+				if (!tx.ready_to_submit()) {
+					/* remember that we could not send data */
+					file.flush_pending();
+					return;
+				}
+			}
+			if (file.pending()) {
+				Genode::warning("pending but got not processed before next write ... ");
+				file.reset_pending();
 			}
 
 			file.flush_data(tx);
@@ -157,8 +229,8 @@ class Top::Storage
 
 		Storage(Env &env) : env(env)
 		{
-			fs.sigh_ready_to_submit(_handler);
-			fs.sigh_ack_avail(_handler);
+			fs.sigh_ready_to_submit(_handler_s);
+			fs.sigh_ack_avail(_handler_a);
 		}
 
 		void write(Type_a value) { _write(value, _data); }
