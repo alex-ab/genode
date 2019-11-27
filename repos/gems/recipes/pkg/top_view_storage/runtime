@@ -7,7 +7,7 @@
 		<file_system label="storage" writeable="yes"/>
 	</requires>
 
-	<config>
+	<config prio_levels="2">
 
 		<default-route> <any-service> <parent/> </any-service> </default-route>
 
@@ -32,7 +32,7 @@
 			</config>
 		</start>
 
-		<start name="menu_view" caps="200">
+		<start name="menu_view" caps="200" priority="-1">
 			<resource name="RAM" quantum="16M"/>
 			<config xpos="200" ypos="100">
 				<report hover="yes"/>
@@ -51,7 +51,7 @@
 			</route>
 		</start>
 
-		<start name="graph" caps="100">
+		<start name="graph" caps="100" priority="-1">
 			<resource name="RAM" quantum="8M"/>
 			<config store="yes">
 				<vfs> <dir name="fonts"> <fs label="fonts"/> </dir> </vfs>
@@ -64,7 +64,7 @@
 			</route>
 		</start>
 
-		<start name="top_view" caps="100">
+		<start name="top_view" caps="100" priority="-1">
 			<resource name="RAM" quantum="3000K"/>
 			<config view_ms="4000" trace_ms="1000" report="yes" log="no" store="yes"/>
 			<route>
