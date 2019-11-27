@@ -1637,8 +1637,13 @@ void App::Main::_handle_hover()
 			period_trace = 1;
 		if (period_view < 100)
 			period_view = 100;
-		if (period_trace >= period_view)
-			period_view = period_trace;
+
+		if (period_trace >= period_view) {
+			if (period_view != _period_view)
+				period_trace = period_view;
+			else
+				period_view = period_trace;
+		}
 
 		if (_period_trace != period_trace) {
 			_period_trace = period_trace;
