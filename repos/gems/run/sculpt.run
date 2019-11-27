@@ -668,8 +668,8 @@ exec sh -c "tar cf [run_dir]/genode/depot_users.tar -C [genode_dir] \
 # Create boot image
 #
 
-build { server/ram_fs }
+build { server/ram_fs init }
 
-append boot_modules { ram_fs }
+append boot_modules { ram_fs init }
 
 build_boot_image $boot_modules
