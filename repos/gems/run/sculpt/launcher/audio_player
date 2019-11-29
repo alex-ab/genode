@@ -1,4 +1,4 @@
-<launcher name="audio_player" pkg="audio_player">
+<launcher cpu="10" name="audio_player" pkg="audio_player">
 	<!-- playing paused stopped -->
 	<config state="paused">
 		<report progress="yes" interval="10" playlist="yes"/>

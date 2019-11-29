@@ -1,4 +1,4 @@
-<launcher pkg="mixer">
+<launcher cpu="10" pkg="mixer">
 	<config>
 		<default out_volume="100" volume="75"/>
 	</config>
