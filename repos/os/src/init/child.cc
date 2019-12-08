@@ -224,7 +224,6 @@ void Init::Child::_apply_resource_upgrade(QUOTA &assigned, QUOTA const configure
 		/* wake up child that blocks on a resource request */
 		if (_requested_resources.constructed()) {
 			_child.notify_resource_avail();
-			log("child \"", name(), "\" received resources.");
 			_requested_resources.destruct();
 		}
 	}
