@@ -29,6 +29,7 @@ enum SORT_TIME { EC_TIME = 0, SC_TIME = 1};
 enum { CHECKBOX_ID_FIRST = 7, CHECKBOX_ID_SECOND = 9 };
 
 using Genode::uint64_t;
+typedef Genode::Affinity::Location Location;
 
 struct Subjects
 {
@@ -86,11 +87,12 @@ struct Subjects
 		/* accumulated execution time on all CPUs */
 		Genode::uint64_t total_first  [MAX_CPUS_X][MAX_CPUS_Y];
 		Genode::uint64_t total_second [MAX_CPUS_X][MAX_CPUS_Y];
+		Genode::uint64_t total_idle   [MAX_CPUS_X][MAX_CPUS_Y];
 
-		Genode::uint64_t total_cpu_first(Genode::Affinity::Location const &aff) const {
+		Genode::uint64_t total_cpu_first(Location const &aff) const {
 			return total_first[aff.xpos()][aff.ypos()]; }
 
-		Genode::uint64_t total_cpu_second(Genode::Affinity::Location const &aff) const {
+		Genode::uint64_t total_cpu_second(Location const &aff) const {
 			return total_second[aff.xpos()][aff.ypos()]; }
 
 		/* most significant consumer per CPU */
@@ -100,36 +102,56 @@ struct Subjects
 		bool _cpu_show [MAX_CPUS_X][MAX_CPUS_Y];
 		/* state whether cpu is supposed to be available */
 		bool _cpu_online [MAX_CPUS_X][MAX_CPUS_Y];
+		/* state whether topmost threads should be reported to graph */
+		bool _cpu_graph_top [MAX_CPUS_X][MAX_CPUS_Y];
+		/* state whether topmost threads w/o idle should be reported to graph */
+		bool _cpu_graph_top_no_idle [MAX_CPUS_X][MAX_CPUS_Y];
 
-		bool & cpu_show(Genode::Affinity::Location const &loc) {
+		Button_hub<1, 1, 20, 2> _cpu_num [MAX_CPUS_X][MAX_CPUS_Y];
+
+		bool & cpu_show(Location const &loc) {
 			return _cpu_show[loc.xpos()][loc.ypos()]; }
 
-		bool & cpu_online(Genode::Affinity::Location const &loc) {
+		bool & cpu_online(Location const &loc) {
 			return _cpu_online[loc.xpos()][loc.ypos()]; }
+
+		Button_hub<1, 1, 20, 2> & _cpu_number(Location const &loc) {
+			return _cpu_num[loc.xpos()][loc.ypos()]; }
+
+		Button_hub<1, 1, 20, 2> const & _cpu_number(Location const &loc) const {
+			return _cpu_num[loc.xpos()][loc.ypos()]; }
+
+		bool & _graph_top_most(Location const &loc) {
+			return _cpu_graph_top[loc.xpos()][loc.ypos()]; }
+
+		bool & _graph_top_most_no_idle(Location const &loc) {
+			return _cpu_graph_top_no_idle[loc.xpos()][loc.ypos()]; }
 
 		unsigned _num_subjects                { 0 };
 		unsigned _num_pds                     { 0 };
-		unsigned _config_max_elements_per_cpu { 4 };
-		unsigned _config_max_pds_per_cpu      { 10 };
+		unsigned _config_pds_per_cpu      { 20 };
 
 		Genode::Trace::Subject_id _hovered_subject { };
 		unsigned                  _hovered_sub_id  { 0 };
 		Genode::Trace::Subject_id _detailed_view   { };
 
 		Button_state  _button_cpus    { 0, MAX_CPUS_X * MAX_CPUS_Y };
-		Button_state  _button_numbers { 2, MAX_ELEMENTS_PER_CPU };
+		Button_state  _button_numbers { 2, 100, _config_pds_per_cpu };
 		Button_state  _pd_scroll      { 0, ~0U };
-		Button_hub    _button_trace_period { };
-		Button_hub    _button_view_period  { };
+		Button_hub<5, 0, 9, 0> _button_trace_period { };
+		Button_hub<5, 0, 9, 0> _button_view_period  { };
 
-		Genode::Affinity::Location _button_cpu { };
-		Genode::Affinity::Location _last_cpu   { };
+		Location _button_cpu   { };
+		Location _last_cpu     { };
+		Location _button_top_most { };
+		Location _button_top_most_no_idle { };
+		Location _button_cpu_num  { };
 
 		unsigned      _button_number  { 2 };
 
 		unsigned _tracked_threads     { 0 };
 
-		bool _enable_view                { true };
+		bool _enable_view                { false };
 
 		bool _button_enable_view_hovered { false };
 		bool _button_setting             { false };
@@ -143,9 +165,7 @@ struct Subjects
 		bool _button_sc_hovered          { false };
 
 		bool _trace_top_most             { false };
-		bool _trace_top_idle             { false };
-		Genode::Affinity::Location _trace_cpu {0,0}; /* XXX */
-
+		bool _trace_top_no_idle          { false };
 
 		bool _reconstruct_trace_connection { false };
 		bool _show_second_time             { false };
@@ -156,7 +176,7 @@ struct Subjects
 		static constexpr unsigned PD_SCROLL_UP   = (~0U - DIV) / DIV;
 		static constexpr unsigned MAX_SUBJECT_ID =  PD_SCROLL_UP;
 
-		bool _same(Genode::Affinity::Location a, Genode::Affinity::Location b) {
+		bool _same(Location a, Location b) {
 			return a.xpos() == b.xpos() && a.ypos() == b.ypos(); }
 
 		unsigned update_subjects(Genode::Pd_session &pd,
@@ -181,7 +201,7 @@ struct Subjects
 
 	public:
 
-		bool trace_top_most() const { return _trace_top_most || _trace_top_idle; }
+		bool trace_top_most() const { return _trace_top_most || _trace_top_no_idle; }
 		bool tracked_threads() const { return _tracked_threads; }
 
 		void period(unsigned long period_trace, unsigned long period_view)
@@ -221,6 +241,7 @@ struct Subjects
 			/* clear old calculations */
 			Genode::memset(total_first , 0, sizeof(total_first));
 			Genode::memset(total_second, 0, sizeof(total_second));
+			Genode::memset(total_idle , 0, sizeof(total_idle));
 			Genode::memset(load, 0, sizeof(load));
 		}
 
@@ -287,6 +308,7 @@ struct Subjects
 			/* clear old calculations */
 			Genode::memset(total_first,  0, sizeof(total_first));
 			Genode::memset(total_second, 0, sizeof(total_second));
+			Genode::memset(total_idle,  0, sizeof(total_idle));
 			Genode::memset(load, 0, sizeof(load));
 
 			for_each_thread([&] (Top::Thread &thread) {
@@ -304,10 +326,14 @@ struct Subjects
 				total_first [x][y] += thread.recent_time(sort == EC_TIME);
 				total_second[x][y] += thread.recent_time(sort == SC_TIME);
 
+				if (thread.thread_name() == "idle")
+					total_idle[x][y] = thread.recent_time(sort == EC_TIME);
+
 				enum { NONE = ~0U };
 				unsigned replace = NONE;
 
-				for (unsigned i = 0; i < _config_max_elements_per_cpu; i++) {
+				unsigned const max = _cpu_number(thread.affinity()).value();
+				for (unsigned i = 0; i < max; i++) {
 					if (load[x][y][i])
 						continue;
 
@@ -320,7 +346,7 @@ struct Subjects
 					return;
 				}
 
-				for (unsigned i = 0; i < _config_max_elements_per_cpu; i++) {
+				for (unsigned i = 0; i < max; i++) {
 					if (thread.recent_time(sort == EC_TIME)
 					    <= load[x][y][i]->recent_time(sort == EC_TIME))
 						continue;
@@ -339,14 +365,17 @@ struct Subjects
 			});
 
 			/* sort */
-			for (unsigned x = 0; x < MAX_CPUS_X; x++) {
+			for (int x = 0; x < MAX_CPUS_X; x++) {
 				for (unsigned y = 0; y < MAX_CPUS_Y; y++) {
-					for (unsigned k = 0; k < _config_max_elements_per_cpu;) {
+					Location const loc {x, y};
+					unsigned const max = _cpu_number(loc).value();
+
+					for (unsigned k = 0; k < max;) {
 						if (!load[x][y][k])
 							break;
 
 						unsigned i = k;
-						for (unsigned j = i; j < _config_max_elements_per_cpu; j++) {
+						for (unsigned j = i; j < max; j++) {
 							if (!load[x][y][j])
 								break;
 
@@ -358,7 +387,7 @@ struct Subjects
 								load[x][y][i] = tmp;
 
 								i++;
-								if (i >= _config_max_elements_per_cpu || !load[x][y][i])
+								if (i >= max || !load[x][y][i])
 									break;
 							}
 						}
@@ -401,15 +430,13 @@ struct Subjects
 				storage->write(Type_c{_timestamp >> 32});
 //				Genode::log("---- ", Genode::Hex(_timestamp));
 
-				if (_trace_top_most || _trace_top_idle) {
+				if (_trace_top_most || _trace_top_no_idle) {
 					for_each([&] (Top::Thread const &thread, uint64_t const) {
-						int const xpos = thread.affinity().xpos();
-						int const ypos = thread.affinity().ypos();
-						if (xpos != _trace_cpu.xpos() || ypos != _trace_cpu.ypos()) return;
+						if (!_graph_top_most(thread.affinity())) return;
 
-						if (!_trace_top_idle || !(thread.thread_name() == "idle")) {
+						if (!_graph_top_most_no_idle(thread.affinity()) ||
+							!(thread.thread_name() == "idle"))
 							storage->write(Type_c{thread.id()});
-						}
 					});
 				} else {
 					for_each_thread([&] (Top::Thread &thread) {
@@ -428,7 +455,7 @@ struct Subjects
 					for (unsigned y = 0; y < MAX_CPUS_Y; y++) {
 						if (!total_first[x][y]) continue;
 
-						Genode::Affinity::Location const location(x, y);
+						Location const location(x, y);
 						cpu_show(location) = true;
 						cpu_online(location) = true;
 					}
@@ -451,11 +478,14 @@ struct Subjects
 		template <typename FN>
 		void for_each(FN const &fn) const
 		{
-			for (unsigned x = 0; x < MAX_CPUS_X; x++) {
+			for (int x = 0; x < MAX_CPUS_X; x++) {
 				for (unsigned y = 0; y < MAX_CPUS_Y; y++) {
 					if (!_cpu_online[x][y]) continue;
 
-					for (unsigned i = 0; i < _config_max_elements_per_cpu; i++) {
+					Location const loc {x, y};
+					unsigned const max = _cpu_number(loc).value();
+
+					for (unsigned i = 0; i < max; i++) {
 						if (!load[x][y][i]) continue;
 
 						/*
@@ -475,7 +505,7 @@ struct Subjects
 			for (unsigned x = 0; x < MAX_CPUS_X; x++) {
 				for (unsigned y = 0; y < MAX_CPUS_Y; y++) {
 					if (_cpu_online[x][y])
-						fn(Genode::Affinity::Location(x, y));
+						fn(Location(x, y));
 				}
 			}
 		}
@@ -515,27 +545,59 @@ struct Subjects
 
 			unsigned i = 0;
 
-			for_each_online_cpu([&] (Genode::Affinity::Location const &loc) {
+			for_each_online_cpu([&] (Location const &loc) {
 				i++;
 				if (i <= state.current) return;
 				if (i > state.current + state.max) return;
 
 				Genode::String<12> cpu_name("cpu", loc.xpos(), ".", loc.ypos());
 
-				xml.node("button", [&] () {
-					xml.attribute("name", cpu_name);
+				xml.node("hbox", [&] () {
+					xml.attribute("name", Genode::String<14>("cc-", cpu_name));
 
-					if (_sort == THREAD && cpu_show(loc))
-						xml.attribute("selected","yes");
-					if (_sort == COMPONENT && _same(_last_cpu, loc))
-						xml.attribute("selected","yes");
+					xml.node("button", [&] () {
+						xml.attribute("name", cpu_name);
 
-					if (state.hovered && _same(_button_cpu, loc))
-						xml.attribute("hovered","yes");
+						if (_sort == THREAD && cpu_show(loc))
+							xml.attribute("selected","yes");
+						if (_sort == COMPONENT && _same(_last_cpu, loc))
+							xml.attribute("selected","yes");
 
-					xml.node("label", [&] () {
-						xml.attribute("text", cpu_name);
+						if (state.hovered && _same(_button_cpu, loc))
+							xml.attribute("hovered","yes");
+
+						xml.node("label", [&] () {
+							xml.attribute("text", cpu_name);
+						});
 					});
+
+					if (_sort == THREAD) {
+						xml.node("button", [&] () {
+							xml.attribute("name", Genode::String<18>("most", cpu_name));
+							xml.node("label", [&] () {
+								xml.attribute("text", "topmost");
+							});
+							if (_graph_top_most(loc))
+								xml.attribute("selected","yes");
+							if (_button_g_top_all_hovered && _same(_button_top_most, loc))
+								xml.attribute("hovered","yes");
+						});
+						xml.node("button", [&] () {
+							xml.attribute("name", Genode::String<18>("idle", cpu_name));
+							xml.node("label", [&] () {
+								xml.attribute("text", "w/o idle");
+							});
+							if (_graph_top_most_no_idle(loc))
+								xml.attribute("selected","yes");
+							if (_button_g_top_idle_hovered && _same(_button_top_most_no_idle, loc))
+								xml.attribute("hovered","yes");
+						});
+
+
+						/* XXX cpu_name too long with hub- stuff */
+						Genode::String<12> const cpu(loc.xpos(), ".", loc.ypos());
+						hub(xml, _cpu_number(loc), cpu.string());
+					}
 				});
 			});
 
@@ -554,7 +616,8 @@ struct Subjects
 			}
 		}
 
-		void hub(Genode::Xml_generator &xml, Button_hub &hub, char const *name)
+		template <typename T>
+		void hub(Genode::Xml_generator &xml, T &hub, char const *name)
 		{
 			hub.for_each([&](Button_state &state, unsigned pos) {
 				xml.attribute("name", Genode::String<20>("hub-", name, "-", pos));
@@ -572,6 +635,8 @@ struct Subjects
 
 		void numbers(Genode::Xml_generator &xml, Button_state &state)
 		{
+			if (_sort != COMPONENT) return;
+
 			xml.attribute("name", Genode::String<12>("numbersbox", state.current));
 
 			if (state.current > state.first) {
@@ -592,9 +657,8 @@ struct Subjects
 				Genode::String<12> number(i);
 
 				xml.node("button", [&] () {
-					if (_sort == THREAD && _config_max_elements_per_cpu == i)
-						xml.attribute("selected","yes");
-					if (_sort == COMPONENT && _config_max_pds_per_cpu == i)
+
+					if (_config_pds_per_cpu == i)
 						xml.attribute("selected","yes");
 
 					xml.attribute("name", Genode::String<18>("number", number));
@@ -646,7 +710,7 @@ struct Subjects
 
 					if (_sort == COMPONENT && _hovered_subject.id) {
 						_pd_scroll.prev = (click == "wheel_up");
-						_pd_scroll.next = (click == "wheel_down") && (_pd_scroll.current + _config_max_pds_per_cpu <= _pd_scroll.last);
+						_pd_scroll.next = (click == "wheel_down") && (_pd_scroll.current + _config_pds_per_cpu <= _pd_scroll.last);
 						return _pd_scroll.advance();
 					}
 
@@ -698,10 +762,8 @@ struct Subjects
 					update = true;
 				}
 				if (_button_numbers.hovered) {
-					if (_sort == THREAD && _button_number <= MAX_ELEMENTS_PER_CPU)
-						_config_max_elements_per_cpu = _button_number;
-					if (_sort == COMPONENT && _button_number <= MAX_ELEMENTS_PER_CPU)
-						_config_max_pds_per_cpu = _button_number;
+					if (_sort == COMPONENT)
+						_config_pds_per_cpu = _button_number;
 					update = true;
 				}
 				if (_button_reset_graph_hovered) {
@@ -709,19 +771,61 @@ struct Subjects
 						if (thread.track_ec()) thread.track_ec(false);
 						if (thread.track_sc()) thread.track_sc(false);
 					});
+					for (unsigned x = 0; x < MAX_CPUS_X; x++) {
+						for (unsigned y = 0; y < MAX_CPUS_Y; y++) {
+							_cpu_graph_top[x][y] = false;
+							_cpu_graph_top_no_idle[x][y] = false;
+						}
+					}
 					_tracked_threads = 0;
 					_trace_top_most = false;
-					_trace_top_idle = false;
+					_trace_top_no_idle = false;
 					update = true;
 				}
 				if (_button_g_top_all_hovered) {
-					_trace_top_most = !_trace_top_most;
-					if (!_trace_top_most) _trace_top_idle = false;
+					_graph_top_most(_button_top_most) = !_graph_top_most(_button_top_most);
+					_trace_top_most = _graph_top_most(_button_top_most);
+
+					if (!_trace_top_most) {
+						_graph_top_most_no_idle(_button_top_most) = false;
+						_trace_top_no_idle = false;
+
+						for (unsigned x = 0; x < MAX_CPUS_X; x++) {
+							for (unsigned y = 0; y < MAX_CPUS_Y; y++) {
+								if (_cpu_graph_top[x][y]) {
+									_trace_top_most = true;
+								}
+								if (_cpu_graph_top_no_idle[x][y]) {
+									_trace_top_no_idle = true;
+								}
+								if (_trace_top_most && _trace_top_no_idle) {
+									x = MAX_CPUS_X;
+									y = MAX_CPUS_Y;
+								}
+							}
+						}
+					}
+
 					update = true;
 				}
 				if (_button_g_top_idle_hovered) {
-					_trace_top_idle = !_trace_top_idle;
-					if (_trace_top_idle) _trace_top_most = true;
+					_graph_top_most_no_idle(_button_top_most_no_idle) = !_graph_top_most_no_idle(_button_top_most_no_idle);
+					_trace_top_no_idle = _graph_top_most_no_idle(_button_top_most_no_idle);
+					if (_trace_top_no_idle) {
+						_graph_top_most(_button_top_most_no_idle) = true;
+						_trace_top_most = true;
+					} else {
+						for (unsigned x = 0; x < MAX_CPUS_X; x++) {
+							for (unsigned y = 0; y < MAX_CPUS_Y; y++) {
+								if (_cpu_graph_top_no_idle[x][y]) {
+									_trace_top_no_idle = true;
+									x = MAX_CPUS_X;
+									y = MAX_CPUS_Y;
+								}
+							}
+						}
+					}
+
 					update = true;
 				}
 				if (_button_setting_hovered) {
@@ -756,6 +860,10 @@ struct Subjects
 					update = true;
 				if (click == "right" && _button_view_period.update_dec())
 					update = true;
+				if (click == "left" && _cpu_number(_button_cpu_num).update_inc())
+					update = true;
+				if (click == "right" && _cpu_number(_button_cpu_num).update_dec())
+					update = true;
 
 				update = update || _button_cpus.advance();
 				update = update || _button_numbers.advance();
@@ -780,6 +888,7 @@ struct Subjects
 			_button_numbers.reset();
 			_button_trace_period.reset();
 			_button_view_period.reset();
+			_cpu_number(_button_cpu_num).reset();
 			_button_setting_hovered = false;
 			_button_reset_graph_hovered = false;
 			_button_g_top_all_hovered = false;
@@ -799,10 +908,6 @@ struct Subjects
 			}
 			if (button == "graph_reset") {
 				_button_reset_graph_hovered = true;
-				return true;
-			}
-			if (button == "topmost") {
-				_button_g_top_all_hovered = true;
 				return true;
 			}
 			if (button == "top_idle") {
@@ -839,15 +944,26 @@ struct Subjects
 							state.hovered = true;
 						}
 					});
-				}
-				Genode::String<10> hub_trace("hub-trace");
-				if (Genode::String<10>(button) == hub_trace) {
-					_button_trace_period.for_each([&](Button_state &state, unsigned pos) {
-						Genode::String<12> pos_name { hub_trace, "-", pos };
-						if (Genode::String<12>(button) == pos_name) {
-							state.hovered = true;
-						}
-					});
+				} else {
+					Genode::String<10> hub_trace("hub-trace");
+					if (Genode::String<10>(button) == hub_trace) {
+						_button_trace_period.for_each([&](Button_state &state, unsigned pos) {
+							Genode::String<12> pos_name { hub_trace, "-", pos };
+							if (Genode::String<12>(button) == pos_name) {
+								state.hovered = true;
+							}
+						});
+					} else {
+						for_each_online_cpu([&] (Location const &loc) {
+							_cpu_number(loc).for_each([&](Button_state &state, unsigned pos) {
+								Genode::String<18> cpu("hub-", loc.xpos(), ".", loc.ypos(), "-", pos);
+								if (button == cpu) {
+									state.hovered = true;
+									_button_cpu_num = loc;
+								}
+							});
+						});
+					}
 				}
 			}
 
@@ -868,14 +984,33 @@ struct Subjects
 					}
 				}
 				return _button_numbers.active();
+			} else
+			if (Genode::String<5>(button) == "most") {
+				for_each_online_cpu([&] (Location const &loc) {
+					Genode::String<18> cpu_name("mostcpu", loc.xpos(), ".", loc.ypos());
+					if (button == cpu_name) {
+						_button_g_top_all_hovered = true;
+						_button_top_most = loc;
+					}
+				});
+			} else
+			if (Genode::String<5>(button) == "idle") {
+				for_each_online_cpu([&] (Location const &loc) {
+					Genode::String<18> cpu_name("idlecpu", loc.xpos(), ".", loc.ypos());
+					if (button == cpu_name) {
+						_button_g_top_idle_hovered = true;
+						_button_top_most_no_idle = loc;
+					}
+				});
 			}
+
 
 			if (button == "<") {
 				_button_cpus.prev    = true;
 			} else if (button == ">") {
 				_button_cpus.next    = true;
 			} else {
-				for_each_online_cpu([&] (Genode::Affinity::Location const &loc) {
+				for_each_online_cpu([&] (Location const &loc) {
 					Genode::String<12> cpu_name("cpu", loc.xpos(), ".", loc.ypos());
 					if (button == cpu_name) {
 						_button_cpus.hovered = true;
@@ -886,189 +1021,15 @@ struct Subjects
 			return _button_cpus.active() || _button_numbers.active();
 		}
 
-		void top(Genode::Reporter::Xml_generator &xml, SORT_TIME const sort, bool const trace_ms)
-		{
-			if (_detailed_view.id) {
-				Top::Thread const * thread = _lookup_thread(_detailed_view);
-				if (thread) {
-					xml.node("frame", [&] () {
-						detail_view(xml, *thread, sort);
-					});
-					return;
-				}
-				_detailed_view.id = 0;
-			}
-
-			xml.node("frame", [&] () {
-				xml.node("hbox", [&] () {
-					xml.node("button", [&] () {
-						xml.attribute("name", "|||");
-						if (_button_setting_hovered) {
-							xml.attribute("hovered","yes");
-						}
-						xml.node("label", [&] () {
-							xml.attribute("text", "|||");
-						});
-					});
-
-					xml.node("vbox", [&] () {
-						if (_button_setting) {
-							xml.node("hbox", [&] () {
-								xml.attribute("name", "aa");
-
-								xml.node("label", [&] () {
-									xml.attribute("name", "label2");
-									xml.attribute("text", "view:");
-								});
-								xml.node("button", [&] () {
-									xml.attribute("name", "enable_view");
-									xml.attribute("style", "checkbox");
-									if (_button_enable_view_hovered)
-										xml.attribute("hovered","yes");
-									if (_enable_view)
-										xml.attribute("selected","yes");
-									xml.node("label", [&] () {
-										xml.attribute("text", "enable");
-									});
-								});
-								xml.node("button", [&] () {
-									xml.attribute("name", "threads");
-									if (_sort == THREAD)
-										xml.attribute("selected","yes");
-									if (_button_thread_hovered)
-										xml.attribute("hovered","yes");
-									xml.node("label", [&] () {
-										xml.attribute("text", Genode::String<16>("threads (", _num_subjects,")"));
-									});
-								});
-								xml.node("button", [&] () {
-									xml.attribute("name", "components");
-									if (_sort == COMPONENT)
-										xml.attribute("selected","yes");
-									if (_button_component_hovered)
-										xml.attribute("hovered","yes");
-									xml.node("label", [&] () {
-										xml.attribute("text", Genode::String<20>("components (", _num_pds,")"));
-									});
-								});
-
-								if (_show_second_time) {
-									xml.node("label", [&] () {
-										xml.attribute("name", "sort");
-										xml.attribute("text", "sort:");
-									});
-									xml.node("button", [&] () {
-										xml.attribute("name", "ec");
-										if (sort == EC_TIME)
-											xml.attribute("selected","yes");
-										xml.node("label", [&] () {
-											xml.attribute("text", "EC");
-										});
-									});
-									xml.node("button", [&] () {
-										xml.attribute("name", "sc");
-										if (sort == SC_TIME)
-											xml.attribute("selected","yes");
-										xml.node("label", [&] () {
-											xml.attribute("text", "SC");
-										});
-									});
-								}
-#if 0
-								xml.node("button", [&] () {
-									xml.attribute("name", "prio");
-									xml.node("label", [&] () {
-										xml.attribute("text", "priority");
-									});
-								});
-#endif
-								xml.node("label", [&] () {
-									xml.attribute("name", "label_view");
-									xml.attribute("text", "view period ms:");
-								});
-								hub(xml, _button_view_period, "view");
-							});
-
-							xml.node("hbox", [&] () {
-								xml.attribute("name", "bb");
-
-								xml.node("label", [&] () {
-									xml.attribute("name", "label_g");
-									xml.attribute("text", "graph:");
-								});
-
-								xml.node("button", [&] () {
-									xml.attribute("name", "graph_reset");
-									xml.attribute("style", "checkbox");
-									if (_button_reset_graph_hovered)
-										xml.attribute("hovered","yes");
-									xml.node("label", [&] () {
-										xml.attribute("text", "reset");
-									});
-								});
-
-								xml.node("button", [&] () {
-									xml.attribute("name", "topmost");
-									if (_button_g_top_all_hovered)
-										xml.attribute("hovered","yes");
-									if (_trace_top_most)
-										xml.attribute("selected","yes");
-									xml.node("label", [&] () {
-										xml.attribute("text", "topmost");
-									});
-								});
-
-								xml.node("button", [&] () {
-									xml.attribute("name", "top_idle");
-									if (_button_g_top_idle_hovered)
-										xml.attribute("hovered","yes");
-									if (_trace_top_idle)
-										xml.attribute("selected","yes");
-									xml.node("label", [&] () {
-										xml.attribute("text", "w/o idle");
-									});
-								});
-
-								if (trace_ms) {
-									xml.node("label", [&] () {
-										xml.attribute("name", "label_trace");
-										xml.attribute("text", "trace period ms:");
-									});
-									hub(xml, _button_trace_period, "trace");
-								}
-							});
-						}
-
-						if (_enable_view) {
-							xml.node("hbox", [&] () {
-								xml.attribute("name", "cc");
-								if (_button_setting) {
-									xml.node("vbox", [&] () {
-										buttons(xml, _button_cpus);
-									});
-									xml.node("vbox", [&] () {
-										numbers(xml, _button_numbers);
-									});
-								}
-
-								if (_sort == THREAD) list_view(xml, sort);
-								if (_sort == COMPONENT) list_view_pd(xml, sort);
-							});
-						}
-					});
-				});
-			});
-		}
+		void top(Genode::Reporter::Xml_generator &, SORT_TIME const, bool const);
 
 		void graph(Genode::Reporter::Xml_generator &xml, SORT_TIME const sort)
 		{
-			if (_trace_top_most || _trace_top_idle) {
+			if (_trace_top_most || _trace_top_no_idle) {
 				for_each([&] (Top::Thread const &thread, uint64_t t) {
-					int const xpos = thread.affinity().xpos();
-					int const ypos = thread.affinity().ypos();
-					if (xpos != _trace_cpu.xpos() || ypos != _trace_cpu.ypos()) return;
-
-					if (_trace_top_idle && (thread.thread_name() == "idle")) return;
+					if (!_graph_top_most(thread.affinity())) return;
+					if (_graph_top_most_no_idle(thread.affinity()) &&
+					    (thread.thread_name() == "idle")) return;
 
 					xml.node("entry", [&]{
 						int const xpos = thread.affinity().xpos();
@@ -1356,6 +1317,8 @@ struct Subjects
 			});
 		}
 
+		void short_view(Genode::Xml_generator &, SORT_TIME const);
+
 		void list_view(Genode::Xml_generator &xml, SORT_TIME const sort)
 		{
 			xml.node("vbox", [&] () {
@@ -1481,7 +1444,7 @@ struct Subjects
 		                       char const * const attribute_label,
 		                       FN const &fn)
 		{
-			unsigned max_pds = _config_max_pds_per_cpu;
+			unsigned const max_pds = _config_pds_per_cpu;
 
 			xml.node("vbox", [&] () {
 				xml.attribute("name", name);
@@ -1535,6 +1498,228 @@ struct Subjects
 		}
 };
 
+void Subjects::top(Genode::Reporter::Xml_generator &xml, SORT_TIME const sort,
+                   bool const trace_ms)
+{
+	if (_detailed_view.id) {
+		Top::Thread const * thread = _lookup_thread(_detailed_view);
+		if (thread) {
+			xml.node("frame", [&] () {
+				detail_view(xml, *thread, sort);
+			});
+			return;
+		}
+		_detailed_view.id = 0;
+	}
+
+	xml.node("frame", [&] () {
+		xml.node("hbox", [&] () {
+			xml.node("button", [&] () {
+				xml.attribute("name", "|||");
+				if (_button_setting_hovered) {
+					xml.attribute("hovered","yes");
+				}
+				xml.node("label", [&] () {
+					xml.attribute("text", "|||");
+				});
+			});
+
+			xml.node("vbox", [&] () {
+				if (_button_setting) {
+					xml.node("hbox", [&] () {
+						xml.attribute("name", "aa");
+
+						xml.node("label", [&] () {
+							xml.attribute("name", "label_view");
+							xml.attribute("text", "view period ms:");
+						});
+						hub(xml, _button_view_period, "view");
+
+					});
+
+					xml.node("hbox", [&] () {
+						xml.attribute("name", "bb");
+
+						if (trace_ms) {
+							xml.node("label", [&] () {
+								xml.attribute("name", "label_trace");
+								xml.attribute("text", "trace period ms:");
+							});
+							hub(xml, _button_trace_period, "trace");
+						}
+					});
+
+					xml.node("hbox", [&] () {
+						xml.attribute("name", "cc");
+
+						xml.node("label", [&] () {
+							xml.attribute("name", "label2");
+							xml.attribute("text", "list:");
+						});
+						xml.node("button", [&] () {
+							xml.attribute("name", "enable_view");
+							xml.attribute("style", "checkbox");
+							if (_button_enable_view_hovered)
+								xml.attribute("hovered","yes");
+							if (_enable_view)
+								xml.attribute("selected","yes");
+							xml.node("label", [&] () {
+								xml.attribute("text", "enable");
+							});
+						});
+
+						xml.node("label", [&] () {
+							xml.attribute("name", "label_g");
+							xml.attribute("text", "graph:");
+						});
+
+						xml.node("button", [&] () {
+							xml.attribute("name", "graph_reset");
+							xml.attribute("style", "checkbox");
+							if (_button_reset_graph_hovered)
+								xml.attribute("hovered","yes");
+							xml.node("label", [&] () {
+								xml.attribute("text", "reset");
+							});
+						});
+					});
+				}
+
+				if (_enable_view) {
+					xml.node("hbox", [&] () {
+						xml.attribute("name", "dd");
+						xml.node("button", [&] () {
+							xml.attribute("name", "threads");
+							if (_sort == THREAD)
+								xml.attribute("selected","yes");
+							if (_button_thread_hovered)
+								xml.attribute("hovered","yes");
+							xml.node("label", [&] () {
+								xml.attribute("text", Genode::String<16>("threads (", _num_subjects,")"));
+							});
+						});
+						xml.node("button", [&] () {
+							xml.attribute("name", "components");
+							if (_sort == COMPONENT)
+								xml.attribute("selected","yes");
+							if (_button_component_hovered)
+								xml.attribute("hovered","yes");
+							xml.node("label", [&] () {
+								xml.attribute("text", Genode::String<20>("components (", _num_pds,")"));
+							});
+						});
+
+						if (_show_second_time) {
+							xml.node("label", [&] () {
+								xml.attribute("name", "sort");
+								xml.attribute("text", "sort:");
+							});
+							xml.node("button", [&] () {
+								xml.attribute("name", "ec");
+								if (sort == EC_TIME)
+									xml.attribute("selected","yes");
+								xml.node("label", [&] () {
+									xml.attribute("text", "EC");
+								});
+							});
+							xml.node("button", [&] () {
+								xml.attribute("name", "sc");
+								if (sort == SC_TIME)
+									xml.attribute("selected","yes");
+								xml.node("label", [&] () {
+									xml.attribute("text", "SC");
+								});
+							});
+						}
+					});
+
+					xml.node("hbox", [&] () {
+						xml.attribute("name", "ee");
+						if (_button_setting) {
+							xml.node("vbox", [&] () {
+								buttons(xml, _button_cpus);
+							});
+							xml.node("vbox", [&] () {
+								numbers(xml, _button_numbers);
+							});
+						}
+
+						if (_sort == THREAD) list_view(xml, sort);
+						if (_sort == COMPONENT) list_view_pd(xml, sort);
+					});
+				} else {
+					short_view(xml, sort);
+				}
+			});
+		});
+	});
+}
+
+void Subjects::short_view(Genode::Xml_generator &xml, SORT_TIME const)
+{
+	unsigned cpus_online = 0;
+	for_each_online_cpu([&] (Location const &) {
+		cpus_online ++;
+	});
+
+	unsigned start = 0;
+	unsigned step  = cpus_online / 2;
+	if (cpus_online < 3) step = cpus_online;
+	if (cpus_online > 6) step = 4;
+
+	unsigned next  = step;
+	unsigned i = 0;
+
+	while (i != cpus_online) {
+
+		xml.node("hbox", [&] () {
+			xml.attribute("name", Genode::String<8>("ff", i));
+
+			unsigned r = 0;
+
+			for_each_online_cpu([&] (Location const &loc) {
+
+//				Genode::log(start, "<", r, ">=", next);
+				if (r < start || r >= next) {
+					r ++;
+					return;
+				}
+
+				r ++;
+				i ++;
+
+				Genode::String <16> name(loc.xpos(), ".", loc.ypos());
+
+				xml.node("vbox", [&] () {
+					xml.attribute("name", Genode::String<16>("v", name));
+
+					Genode::uint64_t total = total_first[loc.xpos()][loc.ypos()];
+					Genode::uint64_t time  = total_idle[loc.xpos()][loc.ypos()];
+
+					unsigned percent = total ? time * 100 / total : 0;
+					unsigned rest    = total ? time * 10000 / total - (percent * 100) : 0;
+
+					percent = 100 - percent;
+					if (rest) {
+						percent -= 1;
+						rest = 100 - rest;
+					}
+
+					xml.node("bar", [&] () {
+						xml.attribute("color", "#ff0000");
+						xml.attribute("textcolor", "#ffffff");
+
+						xml.attribute("percent", percent);
+						xml.attribute("width", 128);
+						xml.attribute("text", Genode::String<24>("CPU ", name, " -", string(percent, rest)));
+					});
+				});
+			});
+		});
+		start += step;
+		next += step;
+	}
+}
 
 namespace App {
 
@@ -1677,6 +1862,10 @@ void App::Main::_handle_hover()
 	if (button == "") {
 		button = query_attribute<Button>(hover, "dialog", "frame", "hbox",
 		                                 "vbox", "hbox", "button", "name");
+	}
+	if (button == "") {
+		button = query_attribute<Button>(hover, "dialog", "frame", "hbox",
+		                                 "vbox", "hbox", "vbox", "hbox", "button", "name");
 	}
 	if (button == "") {
 		button = query_attribute<Button>(hover, "dialog", "frame", "hbox",

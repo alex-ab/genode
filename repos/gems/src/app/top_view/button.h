@@ -13,7 +13,7 @@
 
 struct Button_state
 {
-	unsigned  const first;
+	unsigned  first;
 	unsigned  last;
 	unsigned  current;
 	unsigned  max     { 4 };
@@ -21,8 +21,12 @@ struct Button_state
 	bool      prev    { false };
 	bool      next    { false };
 
-	Button_state(unsigned first, unsigned last)
-	: first(first), last(last), current(first)
+	Button_state()
+	: first(0), last(9), current(first)
+	{ }
+
+	Button_state(unsigned const f, unsigned const l, unsigned c = ~0U)
+	: first(f), last(l), current((c == ~0U) ? f : c)
 	{ }
 
 	bool active() { return hovered || prev || next; }
@@ -44,16 +48,22 @@ struct Button_state
 		return update;
 	}
 
-	void inc() { current = (current >= last) ? 0 : (current + 1); }
-	void dec() { current = !current ? last : (current - 1); }
+	void inc() { current = (current >= last) ? first : (current + 1); }
+	void dec() { current = (current == first) ? last : (current - 1); }
 };
 
+template <unsigned DIGITS, unsigned START, unsigned END, unsigned INITIAL>
 struct Button_hub
 {
-	enum { DIGITS = 5 };
+	Button_state _button[DIGITS];
 
-	Button_state _button[DIGITS] { {0, 9}, {0, 9}, {0, 9}, {0, 9}, {0, 9} };
-
+	Button_hub()
+	{
+		for (unsigned i = 0; i < DIGITS; i++) {
+			_button[i] = Button_state(START, END);
+			_button[i].current = INITIAL;
+		}
+	}
 	bool update_inc()
 	{
 		bool update = false;
