@@ -884,12 +884,19 @@ struct Subjects
 				_hovered_sub_id  = sub_id;
 			}
 
+			/* XXX more to avoid redraws when with mouse over it and not to miss some redraws on leaving */
+			bool button_hovered_before = false;
+
 			_button_cpus.reset();
 			_button_numbers.reset();
 			_button_trace_period.reset();
 			_button_view_period.reset();
 			_cpu_number(_button_cpu_num).reset();
+
+			button_hovered_before |= _button_setting_hovered;
+			bool button_setting_hovered_before = _button_setting_hovered;
 			_button_setting_hovered = false;
+
 			_button_reset_graph_hovered = false;
 			_button_g_top_all_hovered = false;
 			_button_g_top_idle_hovered = false;
@@ -900,11 +907,11 @@ struct Subjects
 			_button_sc_hovered = false;
 
 			if (button == "")
-				return false;
+				return button_hovered_before;
 
 			if (button == "|||") {
 				_button_setting_hovered = true;
-				return true;
+				return !button_setting_hovered_before;
 			}
 			if (button == "graph_reset") {
 				_button_reset_graph_hovered = true;
@@ -1018,7 +1025,7 @@ struct Subjects
 					}
 				});
 			}
-			return _button_cpus.active() || _button_numbers.active();
+			return button_hovered_before || _button_cpus.active() || _button_numbers.active();
 		}
 
 		void top(Genode::Reporter::Xml_generator &, SORT_TIME const, bool const);
@@ -1705,13 +1712,14 @@ void Subjects::short_view(Genode::Xml_generator &xml, SORT_TIME const)
 						rest = 100 - rest;
 					}
 
-					xml.node("bar", [&] () {
+					xml.node("graph", [&] () {
 						xml.attribute("color", "#ff0000");
 						xml.attribute("textcolor", "#ffffff");
-
 						xml.attribute("percent", percent);
-						xml.attribute("width", 128);
-						xml.attribute("text", Genode::String<24>("CPU ", name, " -", string(percent, rest)));
+						xml.attribute("width", 100);
+						xml.attribute("height", 100);
+						xml.attribute("text", name);
+						xml.attribute("id", _timestamp);
 					});
 				});
 			});
