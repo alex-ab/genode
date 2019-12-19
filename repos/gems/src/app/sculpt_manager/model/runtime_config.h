@@ -71,6 +71,7 @@ class Sculpt::Runtime_config
 
 				bool const hardware = (service == "Block")
 				                   || (service == "USB")
+				                   || (service == "Framebuffer")
 				                   || (service == "Platform")
 				                   || (service == "IO_PORT")
 				                   || (service == "IO_MEM")
@@ -340,7 +341,8 @@ class Sculpt::Runtime_config
 				_pci_audio { _r, Type::PLATFORM,    "audio hardware",   "audio" },
 				_pci_acpi  { _r, Type::PLATFORM,    "ACPI",             "acpica" },
 				_trace     { _r, Type::TRACE,       "system-global tracing" },
-				_vm        { _r, Type::VM,          "virtualization hardware" };
+				_vm        { _r, Type::VM,          "virtualization hardware" },
+				_fb        { _r, Type::FRAMEBUFFER, "raw framebuffer access" };
 
 			template <typename FN>
 			void for_each(FN const &fn) const { _r.for_each(fn); }
