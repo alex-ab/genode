@@ -496,6 +496,7 @@ install_config {
 			<service name="LOG" label="unlogged"> <parent/> </service>
 			<service name="LOG"> <child name="log"/> </service>
 			<service name="Rtc"> <child name="rtc_drv"/> </service>
+			<service name="Framebuffer"> <child name="fb_splitter"/> </service>
 			<any-service> <parent/> </any-service>
 		</route>
 	</start>
@@ -680,8 +681,8 @@ exec sh -c "tar cf [run_dir]/genode/depot_users.tar -C [genode_dir] \
 # Create boot image
 #
 
-build { server/fb_splitter }
+build { server/fb_splitter app/sculpt_manager}
 
-append boot_modules { fb_splitter }
+append boot_modules { fb_splitter sculpt_manager }
 
 build_boot_image $boot_modules

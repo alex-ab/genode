@@ -20,6 +20,7 @@
 #include <nitpicker_session/connection.h>
 #include <vm_session/vm_session.h>
 #include <timer_session/connection.h>
+#include <framebuffer_session/connection.h>
 
 /* included from depot_deploy tool */
 #include <children.h>
@@ -1684,6 +1685,7 @@ void Sculpt::Main::_generate_runtime_config(Xml_generator &xml) const
 		gen_parent_service<Io_mem_session>(xml);
 		gen_parent_service<Io_port_session>(xml);
 		gen_parent_service<Irq_session>(xml);
+		gen_parent_service<Framebuffer::Session>(xml);
 	});
 
 	_platform.xml().with_sub_node("affinity-space", [&] (Xml_node const &node) {
