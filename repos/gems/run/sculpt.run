@@ -279,10 +279,19 @@ install_config {
 			<service name="Report" label="keystate">
 				<child name="report_logger"/> </service>
 			<service name="Report">      <child name="report_rom"/> </service>
-			<service name="Framebuffer"> <child name="drivers"/>    </service>
+			<service name="Framebuffer"> <child name="fb_splitter"/>    </service>
 			<service name="Input">       <child name="drivers"/>    </service>
 			<service name="Timer">       <child name="timer"/>      </service>
 			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+	<start name="fb_splitter" priority="-1">
+		<resource name="RAM" quantum="4M"/>
+		<provides><service name="Framebuffer"/></provides>
+		<route>
+			<service name="Framebuffer"><child name="drivers"/></service>
+			<any-service><parent/><any-child/></any-service>
 		</route>
 	</start>
 
@@ -668,6 +677,8 @@ exec sh -c "tar cf [run_dir]/genode/depot_users.tar -C [genode_dir] \
 # Create boot image
 #
 
-append boot_modules { }
+build { server/fb_splitter }
+
+append boot_modules { fb_splitter }
 
 build_boot_image $boot_modules
