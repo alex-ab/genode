@@ -16,6 +16,7 @@
 #include <base/component.h>
 #include <base/heap.h>
 #include <util/reconstructible.h>
+#include <util/list.h>
 #include <root/component.h>
 
 using namespace Genode;
@@ -29,6 +30,7 @@ namespace Framebuffer
 	enum { MAX_LABEL_LEN = 128 };
 	typedef String<MAX_LABEL_LEN> Label;
 	typedef Root_component<Session_component, Multiple_clients> Root_component;
+	typedef List_element<Session_component> Session_list;
 }
 
 class Framebuffer::Session_component
@@ -37,38 +39,59 @@ class Framebuffer::Session_component
 {
 	private:
 
-		Framebuffer::Connection & _fb_con;
-		Signal_context_capability _mode_sigh { };
-		Signal_context_capability _sync_sigh { };
+		Root                      &_root;
+		Framebuffer::Connection   &_fb_con;
+		List<Session_list>        &_sessions;
+		Signal_context_capability  _mode_sigh { };
+		Signal_context_capability  _sync_sigh { };
+		Session_list               _session_element { this };
+		Label const                _label;
+		bool const                 _master;
 
 	public:
 
-		Label label;
+		Session_component(char const * label, Framebuffer::Connection &fb_con,
+		                  List<Session_list> &sessions, bool const master,
+		                  Root &root)
+		:
+			_root(root),
+			_fb_con(fb_con),
+			_sessions(sessions),
+			_label(label),
+			_master(master)
+		{
+			_sessions.insert(&_session_element);
+		}
 
-		Session_component(char const * label, Framebuffer::Connection & fb_con)
-		: _fb_con(fb_con), label(label) { }
+		~Session_component()
+		{
+			_sessions.remove(&_session_element);
+		}
+
+		void mode_changed()
+		{
+			if (_mode_sigh.valid())
+				Signal_transmitter(_mode_sigh).submit();
+		}
+
+		bool master() const { return _master; }
 
 		/************************************
 		 ** Framebuffer::Session interface **
 		 ************************************/
 
-		Dataspace_capability dataspace() override {
-			return _fb_con.dataspace(); }
-
+		Dataspace_capability dataspace() override;
 		Mode mode() const override { return _fb_con.mode(); }
 
-		void mode_sigh(Signal_context_capability sigh) override
-		{
-			/* FIXME: done merely for NOVA and SEL4 */
-			_mode_sigh = sigh;
-			_fb_con.mode_sigh(sigh);
-		}
+		void mode_sigh(Signal_context_capability sigh) override {
+			_mode_sigh = sigh; }
 
 		void sync_sigh(Signal_context_capability sigh) override
 		{
 			/* FIXME: done merely for NOVA and SEL4 */
 			_sync_sigh = sigh;
-			_fb_con.sync_sigh(sigh);
+			if (_master)
+				_fb_con.sync_sigh(sigh);
 		}
 
 		void refresh(int a, int b, int c, int d) override {
@@ -81,6 +104,33 @@ class Framebuffer::Root : public Framebuffer::Root_component
 
 		Env                                    &_env;
 		Constructible<Framebuffer::Connection>  _fb_con { };
+		Dataspace_capability                    _dataspace { };
+
+		Signal_handler<Root> _mode_handler { _env.ep(), *this,
+		                                     &Root::_mode_sigh };
+
+		List<Session_list> _sessions { };
+
+		void _mode_changed(bool only_master)
+		{
+			for (Session_list * element = _sessions.first(); element;
+			     element = element->next())
+			{
+				Session_component * obj = element->object();
+
+				if (!obj) continue;
+
+				if (only_master && obj->master()) {
+					obj->mode_changed();
+					return;
+				} else {
+					if (!obj->master())
+						obj->mode_changed();
+				}
+			}
+		}
+
+		void _mode_sigh() { _mode_changed(true); }
 
 		Session_component *_create_session(const char *args) override
 		{
@@ -101,12 +151,15 @@ class Framebuffer::Root : public Framebuffer::Root_component
 				throw Service_denied();
 			}
 
-			if (!_fb_con.constructed()) {
+			bool const first = !_fb_con.constructed();
+
+			if (first) {
 				_fb_con.construct(_env, Mode());
+				_fb_con->mode_sigh(_mode_handler);
 			}
 
 			Session_component *session = new (md_alloc())
-				Session_component(label, *_fb_con);
+				Session_component(label, *_fb_con, _sessions, first, *this);
 
 			return session;
 
@@ -120,8 +173,22 @@ class Framebuffer::Root : public Framebuffer::Root_component
 			Root_component { &env.ep().rpc_ep(), &md_alloc },
 			_env           { env }
 		{ }
+
+		void request_ds() {
+			_dataspace = _fb_con->dataspace();
+			_mode_changed(false);
+		}
+
+		Dataspace_capability dataspace() const { return _dataspace; }
 };
 
+Dataspace_capability Framebuffer::Session_component::dataspace()
+{
+	if (_master)
+		_root.request_ds();
+
+	return _root.dataspace();
+}
 
 class Main
 {
