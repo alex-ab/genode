@@ -368,6 +368,31 @@ void Depot_deploy::Child::gen_start_node(Xml_generator &xml, Xml_node common,
 			xml.attribute("quantum", cpu_quota);
 		});
 
+		/* location handling */
+		long loc_xpos = 0, loc_ypos = 0;
+		unsigned loc_width = 1, loc_height = 1;
+
+		if (_defined_by_launcher())
+			loc_xpos = _launcher_xml->xml().attribute_value("xpos", loc_xpos);
+		loc_xpos = _start_xml->xml().attribute_value("xpos", loc_xpos);
+		if (_defined_by_launcher())
+			loc_ypos = _launcher_xml->xml().attribute_value("ypos", loc_ypos);
+		loc_ypos = _start_xml->xml().attribute_value("ypos", loc_ypos);
+		if (_defined_by_launcher())
+			loc_width = _launcher_xml->xml().attribute_value("width", loc_width);
+		loc_width = _start_xml->xml().attribute_value("width", loc_width);
+		if (_defined_by_launcher())
+			loc_height = _launcher_xml->xml().attribute_value("height", loc_height);
+		loc_height = _start_xml->xml().attribute_value("height", loc_height);
+
+		xml.node("affinity", [&] () {
+			xml.attribute("xpos", loc_xpos);
+			xml.attribute("ypos", loc_ypos);
+			xml.attribute("width", loc_width);
+			xml.attribute("height", loc_height);
+		});
+
+		/* runtime handling */
 		Xml_node const runtime = _pkg_xml->xml().sub_node("runtime");
 
 		/*
