@@ -10,8 +10,11 @@ CC_DEF += -DHAVE_CONFIG_H
 
 SRC_C = png.c pngset.c pngget.c pngrutil.c pngtrans.c pngwutil.c \
         pngread.c pngrio.c pngwio.c pngwrite.c pngrtran.c pngwtran.c \
-        pngmem.c pngerror.c pngpread.c 
+        pngmem.c pngerror.c pngpread.c arm/arm_init.c arm/filter_neon_intrinsics.c \
+        arm/palette_neon_intrinsics.c
 
-vpath %.c $(LIBPNG_DIR)
+SRC_S = arm/filter_neon.S
+
+vpath % $(LIBPNG_DIR)
 
 SHARED_LIB = yes
