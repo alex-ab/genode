@@ -14,6 +14,7 @@
 /* Genode includes */
 #include <base/cancelable_lock.h>
 #include <cpu/memory_barrier.h>
+#include <os/backtrace.h>
 
 /* base-internal includes */
 #include <base/internal/spin_lock.h>
@@ -80,6 +81,9 @@ void Cancelable_lock::lock()
 	 * list of applicants and block for the current lock holder.
 	 */
 
+Applicant b = _owner;
+asm volatile ("":::"memory");
+
 	/* reset ownership if one thread 'lock' twice */
 	if (_owner == myself) {
 		/* remember applicants already in list */
@@ -97,6 +101,11 @@ void Cancelable_lock::lock()
 		/* if we had applicants, _last_applicant already points to the last */
 		if (!applicants)
 			_last_applicant = &myself;
+
+		if (myself.thread_base() && myself.thread_base()->name() == "helper") {
+			Genode::error("xxxxxxx ", this);
+			Genode::backtrace();
+		}
 	} else {
 		if (_last_applicant)
 			_last_applicant->applicant_to_wake_up(&myself);
@@ -121,7 +130,7 @@ void Cancelable_lock::lock()
 	 * ! for (int i = 0; i < 10; i++)
 	 * !   thread_yield();
 	 */
-	thread_stop_myself();
+	thread_stop_myself(b.thread_base());
 
 	/*
 	 * We expect to be the lock owner when woken up. If this is not

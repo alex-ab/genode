@@ -240,6 +240,7 @@ void Thread::_call_resume_thread()
 void Thread::_call_stop_thread()
 {
 	assert(_state == ACTIVE);
+Genode::raw("restart await ", *this);
 	_become_inactive(AWAITS_RESTART);
 }
 
@@ -710,6 +711,7 @@ void Thread::_call()
 
 void Thread::_mmu_exception()
 {
+//Genode::raw("restart await ", *this, " ", __func__);
 	_become_inactive(AWAITS_RESTART);
 	Cpu::mmu_fault(*regs, _fault);
 	_fault.ip = regs->ip;

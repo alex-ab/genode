@@ -77,10 +77,15 @@ extern "C" void *malloc(size_t size)
 	 */
 	unsigned long real_size = size + sizeof(Block_header);
 	void *addr = 0;
-	if (!cxx_heap().alloc(real_size, &addr))
+Genode::raw(Genode::Thread::myself(), " malloc ", size, " ", real_size, " [", &cxx_heap(), "-", Genode::Hex(reinterpret_cast<unsigned long>(&cxx_heap()) + sizeof(cxx_heap())), ")");
+	if (!cxx_heap().alloc(real_size, &addr)) {
+		Genode::raw(Genode::Thread::myself(), " malloc ", size, " failed");
 		return 0;
-
+	}
 	*(Block_header *)addr = real_size;
+
+Genode::raw(Genode::Thread::myself(), " malloc done ", size, " ", (Block_header *)addr + 1);
+
 	return (Block_header *)addr + 1;
 }
 
@@ -100,6 +105,8 @@ extern "C" void *calloc(size_t nmemb, size_t size)
 extern "C" void free(void *ptr)
 {
 	if (!ptr) return;
+
+Genode::raw(Genode::Thread::myself(), " malloc free ", ptr);
 
 	unsigned long *addr = ((unsigned long *)ptr) - 1;
 	cxx_heap().free(addr, *addr);

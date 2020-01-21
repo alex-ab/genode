@@ -35,7 +35,7 @@ enum { STACK_SIZE = 0x3000 };
  *********************************/
 
 template <int CHILDREN>
-class Helper : Thread
+class Helper : public Thread
 {
 	private:
 
@@ -83,7 +83,10 @@ static void test_stack_alloc(Env &env)
 
 	Constructible<Helper<CHILDREN> > helper[HELPER];
 
-	for (unsigned i = 0; i < HELPER; ++i) helper[i].construct(env);
+	for (unsigned i = 0; i < HELPER; ++i) { helper[i].construct(env);
+			Genode::log(" ", i, " ", static_cast<Genode::Thread *>(&*helper[i]));
+	}
+
 	for (unsigned i = 0; i < HELPER; ++i) helper[i]->start();
 	for (unsigned i = 0; i < HELPER; ++i) helper[i]->join();
 

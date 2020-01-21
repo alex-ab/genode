@@ -62,7 +62,16 @@ thread_check_stopped_and_restart(Genode::Thread * const t)
 /**
  * Pause execution of current thread
  */
-static inline void thread_stop_myself() { Kernel::stop_thread(); }
+static inline void thread_stop_myself(Genode::Thread * t)
+{
+	Genode::Thread * thread = Genode::Thread::myself();
+	if (thread && thread->name() == "helper") {
+		Genode::raw("stop me ", thread->name(), "(", thread,") owner=", t);
+		if (t && t != (Genode::Thread*)~0UL)
+			Genode::raw(" -> ", t->name());
+	}
+	Kernel::stop_thread();
+}
 
 
 #endif /* _INCLUDE__BASE__INTERNAL__LOCK_HELPER_H_ */
