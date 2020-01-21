@@ -25,7 +25,7 @@
 /* base-internal includes */
 #include <base/internal/unmanaged_singleton.h>
 
-#define DEBUG 0
+#define DEBUG 1
 
 using namespace Kernel;
 
