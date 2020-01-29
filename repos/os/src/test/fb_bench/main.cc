@@ -128,12 +128,34 @@ struct Unaligned_blit_test : Test
 	}
 };
 
+struct Refresh_rate_test : Test
+{
+	static constexpr char const *brief = "throughput of gui.refresh(max)";
+
+	Refresh_rate_test(Env &env, int id) : Test(env, id, brief)
+	{
+		unsigned       kib      = 0;
+		unsigned const w        = fb_mode.width() * fb_mode.bytes_per_pixel();
+		unsigned const h        = fb_mode.height();
+		uint64_t const start_ms = timer.elapsed_ms();
+		unsigned const rounds   = 100;
+
+		for (unsigned i = 0; i < rounds; i++) {
+			fb.refresh(0, 0, fb_mode.width(), fb_mode.height());
+			kib += (w * h) / 1024;
+		}
+
+		conclusion(kib / rounds, start_ms, timer.elapsed_ms());
+	}
+};
+
 struct Main
 {
 	Constructible<Bytewise_ram_test>   test_1 { };
 	Constructible<Bytewise_fb_test>    test_2 { };
 	Constructible<Blit_test>           test_3 { };
 	Constructible<Unaligned_blit_test> test_4 { };
+	Constructible<Refresh_rate_test>   test_5 { };
 
 	Main(Env &env)
 	{
@@ -142,6 +164,8 @@ struct Main
 		test_2.construct(env, 2); test_2.destruct();
 		test_3.construct(env, 3); test_3.destruct();
 		test_4.construct(env, 4); test_4.destruct();
+		test_5.construct(env, 5); test_5.destruct();
+
 		log("--- Framebuffer benchmark finished ---");
 	}
 };
