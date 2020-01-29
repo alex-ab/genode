@@ -6,7 +6,7 @@ import_from_depot [depot_user]/src/[base_src] \
 build { test/framebuffer }
 
 install_config {
-<config>
+<config prio_levels="2">
 	<parent-provides>
 		<service name="ROM"/>
 		<service name="IRQ"/>
@@ -24,11 +24,13 @@ install_config {
 
 	<start name="timer">
 		<resource name="RAM" quantum="1M"/>
+		<resource name="CPU" quantum="10"/>
 		<provides><service name="Timer"/></provides>
 	</start>
 
 	<start name="drivers" caps="1000">
 		<resource name="RAM" quantum="32M" constrain_phys="yes"/>
+		<resource name="CPU" quantum="50"/>
 		<binary name="init"/>
 		<route>
 			<service name="ROM" label="config"> <parent label="drivers.config"/> </service>
@@ -40,8 +42,9 @@ install_config {
 		</provides>
 	</start>
 
-	<start name="test-framebuffer">
+	<start name="test-framebuffer" priority="-1">
 		<resource name="RAM" quantum="10M"/>
+		<resource name="CPU" quantum="30"/>
 	</start>
 </config>}
 
