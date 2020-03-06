@@ -15,14 +15,15 @@ set small_test 1
 #
 # Check used commands
 #
-set vbox_manage [installed_command VBoxManage]
+if {![file exists bin/block.vdi]} {
+	set vbox_manage [installed_command VBoxManage]
+}
 
 #
 # Build
 #
 set build_components {
-	core init
-	drivers/timer
+	core init timer
 	server/vdi_block
 	server/lx_fs
 	app/block_tester
@@ -78,8 +79,8 @@ append config {
 	<start name="vdi_block">
 		<resource name="RAM" quantum="8M"/>
 		<provides> <service name="Block"/> </provides>
-		<config file="/block.vdi">
-			<vfs> <fs/> </vfs>
+		<config file="/block.vdi" writeable="yes">
+			<vfs> <fs buffer_size="1M"/> </vfs>
 			<policy label_prefix="block_tester" writeable="yes"/>
 		</config>
 		<route>
