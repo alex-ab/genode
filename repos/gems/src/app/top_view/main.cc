@@ -254,12 +254,19 @@ struct Subjects
 			bool const first_update = !_threads.first();
 
 			_num_subjects = update_subjects(pd, trace);
-			_timestamp = Genode::Trace::timestamp();
 
 			if (_num_subjects == MAX_SUBJECTS)
 				Genode::error("Not enough memory for all threads - "
 				              "calculated utilization is not sane nor "
 				              "complete !", _num_subjects);
+
+			/* quirk for platforms where timestamp() don't work */
+			Genode::Trace::Timestamp timestamp = Genode::Trace::timestamp();
+			if (timestamp == _timestamp)
+				_timestamp += 1;
+			else
+				_timestamp = timestamp;
+
 
 			/* XXX - right place ?! */
 			if (storage.constructed())
