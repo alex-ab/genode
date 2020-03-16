@@ -322,7 +322,6 @@ unsigned Seoul::Console::_handle_fb()
 		fb_state.unchanged = 0;
 
 		_framebuffer.refresh(0, 0, _fb_mode.area.w(), _fb_mode.area.h());
-		//Logging::printf("Deactivated text buffer loop.\n");
 
 		return 0;
 	}
