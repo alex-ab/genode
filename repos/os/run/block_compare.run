@@ -1,0 +1,133 @@
+set dd [installed_command dd]
+
+catch { exec $dd if=/dev/urandom of=bin/block_a.raw bs=1M count=32 }
+catch { exec cp bin/block_a.raw bin/block_b.raw }
+
+#
+# Build
+#
+set build_components {
+	core init timer
+	server/ram_block
+	server/block_compare
+	app/block_tester
+}
+
+source ${genode_dir}/repos/base/run/platform_drv.inc
+append_platform_drv_build_components
+
+build $build_components
+
+create_boot_directory
+
+#
+# Generate config
+#
+append config {
+<config>
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="RAM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="CAP"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+		<service name="SIGNAL" />
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+
+	<default caps="100"/>
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>}
+
+append_platform_drv_config
+
+append config {
+	<start name="ram_block_a">
+		<binary name="ram_block"/>
+		<resource name="RAM" quantum="64M" />
+		<provides><service name="Block" /></provides>
+		<config file="block_a.raw" block_size="512">
+		</config>
+	</start>
+
+	<start name="ram_block_b">
+		<binary name="ram_block"/>
+		<resource name="RAM" quantum="64M" />
+		<provides><service name="Block" /></provides>
+		<config file="block_b.raw" block_size="512">
+		</config>
+	</start>
+
+
+	<start name="block_compare">
+		<resource name="RAM" quantum="10M" />
+		<provides><service name="Block" /></provides>
+		<config buffer_size="1M">
+			<policy label="block_tester -> " writeable="yes"/>
+		</config>
+		<route>
+			<service name="Block" label="a"><child name="ram_block_a"/></service>
+			<service name="Block" label="b"><child name="ram_block_b"/></service>
+			<any-service> <parent/> <any-child /> </any-service>
+		</route>
+	</start>}
+
+
+append config {
+	<start name="block_tester">
+		<resource name="RAM" quantum="32M"/>
+		<config verbose="yes" report="no" log="yes" stop_on_error="no">
+			<tests>
+				<sequential copy="no" length="32M" size="4K"/>
+				<sequential copy="no" length="4M" size="4K"   batch="8"/>
+
+				<sequential copy="no" length="32M" size="8K"/>
+				<sequential copy="no" length="4M" size="8K"   batch="8"/>
+
+				<sequential copy="no" length="4M" size="16K"   batch="8"/>
+				<sequential copy="no" length="4M" size="64K"  batch="8"/>
+				<sequential copy="no" length="4M" size="128K" batch="8"/>
+
+				<sequential copy="no" length="32M" size="4K"  write="yes"/>
+
+				<sequential copy="no" length="32M" size="64K" write="yes"/>
+
+				<random length="16M" size="16K" seed="0xdeadbeef" batch="2"/>
+				<random length="32M" size="512K" seed="0xc0ffee" />
+
+			</tests>
+		</config>
+		<route>
+			<service name="Block"><child name="block_compare"/></service>
+			<any-service> <parent/> <any-child /> </any-service>
+		</route>
+	</start>
+</config>}
+
+install_config $config
+
+#
+# Boot modules
+#
+set boot_modules {
+	core init timer ram_block block_compare block_tester
+	ld.lib.so
+	block_a.raw block_b.raw
+}
+
+append_platform_drv_boot_modules
+
+build_boot_image $boot_modules
+
+append qemu_args " -nographic -m 2048 "
+
+run_genode_until forever
