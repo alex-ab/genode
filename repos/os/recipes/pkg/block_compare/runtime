@@ -1,0 +1,20 @@
+<runtime ram="12M" caps="200" binary="block_compare">
+
+	<provides>
+		<block/>
+	</provides>
+
+	<requires>
+		<block label="block0"/>
+		<block label="block1"/>
+		<timer/>
+	</requires>
+
+	<content>
+		<rom label="block_compare"/>
+	</content>
+
+	<config buffer_size="1M" writeable="yes">
+	</config>
+
+</runtime>

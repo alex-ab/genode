@@ -1,0 +1,5 @@
+
+    Block server opening up 2 block connections, writing and reading both.
+    On read it compares the content and shows mismatches.
+    Additionally, it may reread a block and compare the content on every
+    write block request. (support_reread)
