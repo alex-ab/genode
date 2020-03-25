@@ -1,0 +1,167 @@
+set dd [installed_command dd]
+
+catch { exec $dd conv=sparse if=/dev/zero of=bin/block_a.raw bs=100M count=50 }
+
+if {![file exists bin/block.vdi]} {
+	catch { exec $vbox_manage createmedium disk --filename bin/block.vdi --size 2048 --format VDI --variant Standard }
+}
+
+#
+# Build
+#
+set build_components {
+	core init timer
+	server/block_compare
+	server/vdi_block
+	server/vfs lib/vfs/import
+	drivers/ahci
+	app/block_tester
+}
+
+source ${genode_dir}/repos/base/run/platform_drv.inc
+append_platform_drv_build_components
+
+build $build_components
+
+create_boot_directory
+
+#
+# Generate config
+#
+append config {
+<config>
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="RAM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="CAP"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+		<service name="SIGNAL" />
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+
+	<default caps="100"/>
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>}
+
+append_platform_drv_config
+
+append config {
+	<start name="ahci_drv">
+		<resource name="RAM" quantum="1M" />
+		<provides><service name="Block"/></provides>
+		<config>
+			<policy label="block_compare -> block1" device="1" writeable="yes"/>
+		</config>
+	</start>
+
+	<start name="ram_fs" caps="2000">
+		<resource name="RAM" quantum="512M"/>
+		<binary name="vfs"/>
+		<provides><service name="File_system"/></provides>
+		<config>
+			<vfs>
+				<ram/>
+				<import> <rom name="block.vdi"/> </import>
+			</vfs>
+			<default-policy root="/" writeable="yes"/>
+		</config>
+	</start>
+
+	<start name="vdi_block">
+		<resource name="RAM" quantum="8M"/>
+		<provides> <service name="Block"/> </provides>
+		<config file="/block.vdi" writeable="yes">
+			<vfs> <fs buffer_size="1M"/> </vfs>
+		</config>
+		<route>
+			<service name="File_system"><child name="ram_fs"/></service>
+			<any-service> <parent/> <any-child /> </any-service>
+		</route>
+	</start>
+
+
+	<start name="block_compare">
+		<resource name="RAM" quantum="10M" />
+		<provides><service name="Block" /></provides>
+		<config buffer_size="1M" writeable="yes">
+		</config>
+		<route>
+			<service name="Block" label="block0"><child name="vdi_block"/></service>
+			<service name="Block" label="block1"><child name="ahci_drv"/></service>
+			<any-service> <parent/> <any-child /> </any-service>
+		</route>
+	</start>}
+
+
+append config {
+	<start name="block_tester">
+		<resource name="RAM" quantum="32M"/>
+		<config verbose="yes" report="no" log="yes" stop_on_error="yes">
+			<tests>
+<!--
+				<sequential copy="no" length="32M" size="4K"/>
+				<sequential copy="no" length="4M" size="4K"   batch="8"/>
+
+				<sequential copy="no" length="32M" size="8K"/>
+				<sequential copy="no" length="4M" size="8K"   batch="8"/>
+
+				<sequential copy="no" length="4M" size="16K"   batch="8"/>
+				<sequential copy="no" length="4M" size="64K"  batch="8"/>
+				<sequential copy="no" length="4M" size="128K" batch="8"/>
+
+				<sequential copy="no" length="32M" size="4K"  write="yes"/>
+
+				<sequential copy="no" length="32M" size="64K" write="yes"/>
+-->
+				<random length="16M" size="16K" seed="0xdeadbeef" batch="2"/>
+				<random length="32M" size="512K" seed="0xc0ffee" />
+				<replay bulk="yes">
+					<request type="write" lba="131071" count="1"/>
+					<request type="read" lba="131071" count="1"/>
+					<request type="write" lba="131071" count="1"/>
+					<request type="write" lba="8388608" count="10"/>
+					<request type="read" lba="8388608" count="240"/>
+				</replay>
+
+			</tests>
+		</config>
+		<route>
+			<service name="Block"><child name="block_compare"/></service>
+			<any-service> <parent/> <any-child /> </any-service>
+		</route>
+	</start>
+</config>}
+
+install_config $config
+
+#
+# Boot modules
+#
+set boot_modules {
+	core init timer block_compare block_tester
+	ld.lib.so
+	vfs vfs.lib.so vfs_import.lib.so
+	ahci_drv
+	vdi_block
+	block.vdi
+}
+
+append_platform_drv_boot_modules
+
+build_boot_image $boot_modules
+
+append qemu_args " -nographic -m 2048 "
+append qemu_args " -device ahci,id=ahci "
+append qemu_args " -drive id=hdd,file=bin/block_a.raw,format=raw,if=none -device ide-hd,drive=hdd,bus=ahci.1 "
+
+run_genode_until forever
