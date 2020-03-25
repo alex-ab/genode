@@ -5,6 +5,7 @@
 # \author Alexander Boettcher
 # \date   2011-11-21
 
+set use_block_compare [expr $use_block_sata && $use_block_vdi]
 set use_fs_rump $use_block_vdi
 set use_drv_ahci [expr $use_block_vdi || $use_block_sata]
 
@@ -67,6 +68,7 @@ set build_components {
 
 if {$use_fancy_stuff} { set use_framebuffer 1 }
 
+lappend_if $use_block_compare   build_components server/block_compare
 lappend_if $use_block_vdi       build_components server/vdi_block
 lappend_if $use_usb             build_components drivers/usb
 lappend_if $use_block_ram       build_components server/ram_block
@@ -228,7 +230,7 @@ append_if [expr $use_block_sata && !$use_part_block] config {
 append_if [expr $use_block_vdi && !$use_part_block] config {
 			<policy label="rump_fs -> " device="0" writeable="yes"/>}
 
-append_if [expr $use_block_vdi && $use_part_block] config {
+append_if [expr $use_block_vdi && $use_part_block && !$use_block_compare] config {
 			<policy label="part_block -> " device="0" writeable="yes"/>}
 
 append_if [expr $use_block_sata && $use_part_block] config {
@@ -248,6 +250,7 @@ append_if $use_part_block config {
 		<config>
 			<policy label="seoul -> VirtualDisk 0" partition="5" writeable="yes"/>
 			<policy label="rump_fs -> " partition="4" writeable="yes"/>
+			<policy label="block_compare -> a" partition="5" writeable="yes"/>
 		</config>
 	</start>}
 
@@ -289,9 +292,24 @@ append_if $use_block_vdi config {
 		<config file="/seoul_stress32.vdi" writeable="yes">
 			<vfs> <fs buffer_size="1M"/> </vfs>
 			<policy label="seoul -> VirtualDisk 0" writeable="yes"/>
+			<policy label="block_compare -> b" writeable="yes"/>
 		</config>
 		<route>
 			<service name="File_system"><child name="rump_fs"/></service>
+			<any-service> <parent/> <any-child /> </any-service>
+		</route>
+	</start>}
+
+append_if $use_block_compare config {
+	<start name="block_compare">
+		<resource name="RAM" quantum="10M" />
+		<provides><service name="Block" /></provides>
+		<config buffer_size="1M">
+			<policy label="seoul -> VirtualDisk 0" writeable="yes"/>
+		</config>
+		<route>
+			<service name="Block" label="a"><child name="part_block"/></service>
+			<service name="Block" label="b"><child name="vdi_block"/></service>
 			<any-service> <parent/> <any-child /> </any-service>
 		</route>
 	</start>}
@@ -370,10 +388,12 @@ append_if $use_genode_iso config {
 			<service name="ROM" label="vm_seoul.cfg"> <parent/> </service>
 			<service name="ROM" label="platform_info"> <parent/> </service>
 			<service name="ROM"><child name="iso9660"/></service>}
-append_if $use_block_vdi config {
+append_if [expr $use_block_vdi && !$use_block_compare] config {
 			<service name="Block"><child name="vdi_block"/></service>}
-append_if [expr $use_block_sata && $use_part_block] config {
+append_if [expr $use_block_sata && $use_part_block && !$use_block_compare] config {
 			<service name="Block"><child name="part_block"/></service>}
+append_if $use_block_compare config {
+			<service name="Block"><child name="block_compare"/></service>}
 append config {
 			<service name="Rtc"><child name="rtc_drv"/></service>
 			<any-service><parent/><any-child/></any-service>
@@ -519,6 +539,7 @@ set boot_modules {
 	vm_seoul.cfg
 }
 
+lappend_if $use_block_compare boot_modules block_compare
 lappend_if $use_block_vdi     boot_modules vdi_block
 lappend_if [expr !$use_usb]   boot_modules ps2_drv
 lappend_if $use_usb           boot_modules usb_drv
