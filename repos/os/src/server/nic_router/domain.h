@@ -127,6 +127,7 @@ class Net::Domain : public Domain_base,
 		Domain_object_stats                   _arp_stats            { };
 		Domain_object_stats                   _dhcp_stats           { };
 		unsigned long                         _dropped_fragm_ipv4   { 0 };
+		Ipv4_address                          _accept_dhcp_from     { };
 
 		void _read_forward_rules(Genode::Cstring  const &protocol,
 		                         Domain_tree            &domains,
@@ -239,6 +240,7 @@ class Net::Domain : public Domain_base,
 		Domain_object_stats         &arp_stats()                 { return _arp_stats; }
 		Domain_object_stats         &dhcp_stats()                { return _dhcp_stats; }
 		bool                         ip_config_dynamic() const   { return _ip_config_dynamic; };
+		Ipv4_address                 config_dhcp_from()  const   { return _accept_dhcp_from; }
 };
 
 #endif /* _DOMAIN_H_ */
