@@ -379,6 +379,10 @@ bool Domain::init(Domain_dict &domains)
 			[&] (Domain &domain) { _ip_rules.insert(*new (_alloc) Ip_rule(dst, domain)); },
 			[&] { result = _invalid("invalid IP rule"); });
 	});
+
+	/* read whether offers from specific dhcp server solely is wanted */
+	_accept_dhcp_from = _node.attribute_value("dhcp_server", Ipv4_address());
+
 	return result;
 }
 
