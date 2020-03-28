@@ -175,6 +175,7 @@
 						<xs:attribute name="label"               type="Session_label" />
 						<xs:attribute name="icmp_echo_server"    type="Boolean" />
 						<xs:attribute name="use_arp"             type="Boolean" />
+						<xs:attribute name="dhcp_server"         type="Ipv4_address" />
 					</xs:complexType>
 				</xs:element><!-- domain -->
 
