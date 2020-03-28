@@ -144,6 +144,14 @@ Packet_result Dhcp_client::handle_dhcp_reply(Dhcp_packet &dhcp, Domain &domain)
 				result = packet_drop("DHCP client expects an offer");
 				break;
 			}
+
+			if (domain.config_dhcp_from().valid()) {
+				if (!(domain.config_dhcp_from() == dhcp.siaddr())) {
+					result = packet_drop("DHCP client expects offer from specific dhcp server");
+					break;
+				}
+			}
+
 			enum { REQUEST_PKT_SIZE = 321 };
 			_set_state(State::REQUEST, _interface.config().dhcp_request_timeout());
 			_send(Message_type::REQUEST, Ipv4_address(),
