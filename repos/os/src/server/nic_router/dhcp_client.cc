@@ -152,6 +152,12 @@ void Dhcp_client::handle_dhcp_reply(Dhcp_packet &dhcp)
 			if (msg_type != Message_type::OFFER) {
 				throw Drop_packet("DHCP client expects an offer");
 			}
+
+			if (_interface.domain().config_dhcp_from().valid()) {
+				if (!(_interface.domain().config_dhcp_from() == dhcp.siaddr()))
+					throw Drop_packet("DHCP client expects offer from specific dhcp server");
+			}
+
 			enum { REQUEST_PKT_SIZE = 321 };
 			_set_state(State::REQUEST, _config().dhcp_request_timeout());
 			_send(Message_type::REQUEST, Ipv4_address(),
