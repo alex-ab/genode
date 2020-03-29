@@ -1,5 +1,6 @@
 set use_wm 1
 set gui_name "nitpicker"
+set report_config "yes"
 
 if {$use_wm} {
 	set gui_name "wm"
@@ -91,6 +92,15 @@ append_if [expr $use_wm] config {
 		</route>
 	</start>}
 
+append_if [expr $report_config eq "yes"] config {
+	<start name="report_rom_config">
+		<binary name="report_rom"/>
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Report"/> <service name="ROM"/> </provides>
+		<config verbose="yes">
+		</config>
+	</start>}
+
 append config {
 	<start name="report_rom_hover">
 		<binary name="report_rom"/>
@@ -160,11 +170,21 @@ append config {
 
 	<start name="top_view" priority="-1">
 		<resource name="RAM" quantum="2M"/>
-		<config view_ms="9000" trace_ms="3000" report="yes" log="no" store="yes"/>
+		<config view_ms="9000" trace_ms="3000" report="yes" log="no"
+		        store="yes" report_config="} $report_config {"
+		        view="list" list="components">
+
+			<cpu xpos="0" ypos="0" show="true" threads="3"/>
+			<cpu xpos="1" ypos="0" show="true" threads="4"/>
+			<cpu xpos="2" ypos="0" show="false" threads="5"/>
+			<cpu xpos="3" ypos="0" show="true" threads="6"/>
+		</config>
+
 		<route>
 			<service name="ROM" label="hover"> <child name="report_rom_hover" /> </service>
 			<service name="Report" label="dialog"> <child name="report_rom_dialog" /> </service>
 			<service name="Report" label="graph"> <child name="report_rom_graph" /> </service>
+			<service name="Report" label="config"> <child name="report_rom_config" /> </service>
 			<service name="File_system" label="store"> <child name="ram_fs"/> </service>
 			<any-service> <parent/> <any-child/> </any-service>
 		</route>

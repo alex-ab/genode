@@ -112,6 +112,9 @@ struct Subjects
 		bool & cpu_show(Location const &loc) {
 			return _cpu_show[loc.xpos()][loc.ypos()]; }
 
+		bool cpu_show(Location const &loc) const {
+			return _cpu_show[loc.xpos()][loc.ypos()]; }
+
 		bool & cpu_online(Location const &loc) {
 			return _cpu_online[loc.xpos()][loc.ypos()]; }
 
@@ -200,6 +203,9 @@ struct Subjects
 		}
 
 	public:
+
+		void read_config(Genode::Xml_node &);
+		void write_config(Genode::Xml_generator &) const;
 
 		bool trace_top_most() const { return _trace_top_most || _trace_top_no_idle; }
 		bool tracked_threads() const { return _tracked_threads; }
@@ -460,11 +466,18 @@ struct Subjects
 			if (first_update) {
 				for (unsigned x = 0; x < MAX_CPUS_X; x++) {
 					for (unsigned y = 0; y < MAX_CPUS_Y; y++) {
-						if (!total_first[x][y]) continue;
-
 						Location const location(x, y);
-						cpu_show(location) = true;
-						cpu_online(location) = true;
+
+						if (!total_first[x][y]) {
+							cpu_online(location) = false;
+							continue;
+						}
+
+						/* set default values solely if no config was read in */
+						if (!cpu_online(location)) {
+							cpu_show(location) = true;
+							cpu_online(location) = true;
+						}
 					}
 				}
 			}
@@ -1736,6 +1749,61 @@ void Subjects::short_view(Genode::Xml_generator &xml, SORT_TIME const)
 	}
 }
 
+void Subjects::read_config(Genode::Xml_node &node)
+{
+	{
+		Genode::String<8> view(node.attribute_value("view", Genode::String<8>("diagram")));
+		if (view == "diagram")
+			_enable_view = false;
+		else
+			_enable_view = true;
+	}
+
+	{
+		Genode::String<12> view(node.attribute_value("list", Genode::String<12>("threads")));
+		if (view == "components")
+			_sort = COMPONENT;
+		else
+			_sort = THREAD;
+	}
+
+	node.for_each_sub_node("cpu", [&](Genode::Xml_node &cpu){
+		unsigned xpos = cpu.attribute_value("xpos", unsigned(MAX_CPUS_X));
+		unsigned ypos = cpu.attribute_value("ypos", unsigned(MAX_CPUS_Y));
+		if (xpos >= MAX_CPUS_X || ypos >= MAX_CPUS_Y) return;
+
+		Location const loc(xpos, ypos);
+		cpu_show(loc) = cpu.attribute_value("show", true);
+		_cpu_number(loc).set(cpu.attribute_value("threads", 2U));
+		cpu_online(loc) = true;
+	});
+}
+
+void Subjects::write_config(Genode::Xml_generator &xml) const
+{
+	xml.attribute("period_ms", _button_view_period.value());
+	xml.attribute("trace_ms", _button_trace_period.value());
+
+	if (!_enable_view)
+		xml.attribute("view", "diagram");
+	else
+		xml.attribute("view", "list");
+
+	if (_sort == THREAD)
+		xml.attribute("list", "threads");
+	if (_sort == COMPONENT)
+		xml.attribute("list", "components");
+
+	for_each_online_cpu([&] (Location const &loc) {
+		xml.node("cpu", [&] () {
+			xml.attribute("xpos", loc.xpos());
+			xml.attribute("ypos", loc.ypos());
+			xml.attribute("show", cpu_show(loc));
+			xml.attribute("threads", _cpu_number(loc).value());
+		});
+	});
+}
+
 namespace App {
 
 	struct Main;
@@ -1778,6 +1846,9 @@ struct App::Main
 	void _handle_hover();
 	void _generate_report();
 
+	void _read_config();
+	void _write_config();
+
 	Signal_handler<Main> _config_handler = {
 		_env.ep(), *this, &Main::_handle_config};
 
@@ -1789,6 +1860,7 @@ struct App::Main
 
 	Constructible<Reporter>               _reporter { };
 	Constructible<Reporter>               _reporter_graph { };
+	Constructible<Reporter>               _reporter_config { };
 	Constructible<Attached_rom_dataspace> _hover { };
 	Constructible<Top::Storage>           _storage { };
 
@@ -1971,14 +2043,54 @@ void App::Main::_handle_config()
 		if (_reporter.constructed())
 			_reporter.destruct();
 	}
+
+	if (_config.xml().attribute_value("report_config", false)) {
+		if (!_reporter_config.constructed()) {
+			_reporter_config.construct(_env, "config", "config", 4096);
+			_reporter_config->enabled(true);
+		}
+	}
+
+	_read_config();
 }
 
+void App::Main::_read_config()
+{
+	try {
+		Xml_node node = _config.xml();
+		_subjects.read_config(node);
+	} catch (...) {
+		error("view config invalid - ignored");
+	}
+}
+
+void App::Main::_write_config()
+{
+	if (!_reporter_config.constructed())
+		return;
+
+	Reporter::Xml_generator xml(*_reporter_config, [&] () {
+		if (_reporter.constructed())
+			xml.attribute("report", _reporter.constructed());
+		if (_storage.constructed())
+			xml.attribute("store" , _storage.constructed());
+
+		xml.attribute("log", _use_log);
+
+		if (_sort == SC_TIME)
+			xml.attribute("sort_time", "sc");
+
+		_subjects.write_config(xml);
+	});
+}
 
 void App::Main::_handle_view(Duration)
 {
 	if (!_updated_trace) return;
 
 	_updated_trace = false;
+
+	_write_config();
 
 	/* show most significant consumers */
 	if (_use_log)
