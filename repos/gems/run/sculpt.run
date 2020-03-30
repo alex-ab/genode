@@ -695,8 +695,8 @@ exec sh -c "tar cf [run_dir]/genode/depot_users.tar -C [genode_dir] \
 # Create boot image
 #
 
-build { core lib/ld kernel}
+build { core lib/ld kernel server/nic_router }
 
-append boot_modules { core ld.lib.so hypervisor }
+append boot_modules { core ld.lib.so hypervisor nic_router }
 
 build_boot_image $boot_modules
