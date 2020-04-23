@@ -1,0 +1,243 @@
+set use_lxip 0
+set use_nic_router 1
+set ld_nic "yes"
+if {[have_spec linux]} { set ld_nic "no" }
+
+set use_ping 0
+set use_top  1
+
+set lx_ip_addr "10.0.2.55"
+set lx_gw_addr "10.0.2.1"
+
+set dst_ip "10.0.2.1"
+set dst_port "5901"
+
+proc socket_fs_plugin {} {
+	global use_lxip
+	if { $use_lxip } { return lxip }
+	return lwip
+}
+
+proc binary_nic_drv { } {
+	if {[have_spec linux]} { return "linux_nic_drv" }
+	if {[have_spec x86]} { return "ipxe_nic_drv" }
+	return "unknown_nic_drv"
+}
+
+create_boot_directory
+
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/pkg/[drivers_interactive_pkg] \
+                  [depot_user]/src/init \
+                  [depot_user]/src/nitpicker \
+                  [depot_user]/src/nit_focus \
+                  [depot_user]/src/vfs \
+                  [depot_user]/src/vfs_[socket_fs_plugin] \
+                  [depot_user]/src/libc \
+                  [depot_user]/src/report_rom \
+                  [depot_user]/src/jpeg \
+                  [depot_user]/src/sdl \
+                  [depot_user]/src/zlib \
+                  [depot_user]/src/nic_router
+
+set build_components {
+	app/sdl_vnc drivers/nic
+}
+
+lappend_if $use_ping build_components app/ping
+lappend_if $use_top  build_components app/top
+
+build $build_components
+
+set config {
+<config verbose="no" prio_levels="2">
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="RAM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="CAP"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+		<service name="SIGNAL"/>}
+
+append_if $use_top config {
+		<service name="TRACE"/>}
+
+append config {
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+
+	<default caps="100"/>
+
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides>
+			<service name="Timer"/>
+		</provides>
+	</start>
+
+	<start name="drivers" caps="1500">
+		<resource name="RAM" quantum="32M" constrain_phys="yes"/>
+		<binary name="init"/>
+		<route>
+			<service name="ROM" label="config"> <parent label="drivers.config"/> </service>
+			<service name="Timer"> <child name="timer"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+		<provides>
+			<service name="Input"/> <service name="Framebuffer"/>
+			<service name="Platform"/>
+		</provides>
+	</start>}
+
+append config {
+	<start name="nic_drv" ld="} $ld_nic {">
+		<binary name="} [binary_nic_drv] {"/>
+		<resource name="RAM" quantum="4M"/>
+		<provides> <service name="Nic"/> </provides>
+		<config/>
+	</start>}
+
+append_if $use_nic_router config {
+	<start name="nic_router">
+		<resource name="RAM" quantum="5M"/>
+		<provides><service name="Nic"/></provides>
+
+		<config verbose_domain_state="yes" verbose="no">
+<!--
+			<report bytes="yes" stats="yes" quota="yes" config="yes"
+				    config_triggers="no" interval_sec="20"/>
+-->
+
+			<policy label_prefix="sdl_vnc -> " domain="client"/>
+			<policy label="ping -> "           domain="client"/>
+			<uplink                            domain="uplink"/>
+
+			<domain name="uplink"}
+append_if [expr $use_nic_router && [have_spec linux]] config {
+				interface="} $lx_ip_addr {/24" gateway="} $lx_gw_addr {"}
+
+append_if $use_nic_router config {>
+				<nat domain="client" tcp-ports="1000" udp-ports="1000" icmp-ids="1000"/>
+			</domain>
+
+			<domain name="client" interface="10.0.3.1/24" gateway="10.0.3.1">
+				<dhcp-server ip_first="10.0.3.2"
+				             ip_last="10.0.3.2"
+				             ip_lease_time_sec="600"/>
+				<tcp dst="0.0.0.0/0">
+					<permit-any domain="uplink"/>
+				</tcp>
+				<udp dst="0.0.0.0/0">
+					<permit-any domain="uplink"/>
+				</udp>
+				<icmp dst="0.0.0.0/0" domain="uplink"/>
+			</domain>
+
+		</config>
+
+		<route>
+			<service name="Nic"> <child name="nic_drv"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>}
+
+append config {
+	<start name="report_rom">
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Report"/> <service name="ROM"/> </provides>
+		<config verbose="no">
+		</config>
+	</start>
+
+	<start name="nitpicker" caps="110">
+		<resource name="RAM" quantum="1216K"/>
+		<provides><service name="Nitpicker"/></provides>
+		<config>
+			<report focus="yes" />
+			<domain name="pointer" layer="1" content="client" label="no" origin="pointer" />
+			<domain name="panel"   layer="2" content="client" label="no" focus="none" />
+			<domain name="client"  layer="3" content="client" label="no" focus="click"/>
+			<policy label_prefix="pointer"    domain="pointer"/>
+			<default-policy domain="client"/>
+		</config>
+		<route>
+			<service name="ROM" label="focus"> <child name="report_rom"/> </service>
+			<service name="Report"> <child name="report_rom"/> </service>
+			<service name="Framebuffer"> <child name="drivers"/> </service>
+			<service name="Input"> <child name="drivers"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="pointer">
+		<resource name="RAM" quantum="1M"/>
+	</start>}
+
+append_if $use_ping config {
+	<start name="ping">
+		<binary name="ping"/>
+		<resource name="RAM" quantum="8M"/>
+		<config dst_ip="} $dst_ip {"
+		        period_sec="3"
+		        verbose="no"
+		        count="10"/>
+		<route>
+			<service name="Nic"> <child name="nic_router"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>}
+
+append_if $use_top config {
+	<start name="top">
+		<resource name="RAM" quantum="8M"/>
+		<config period_ms="10000"/>
+	</start>}
+
+append config {
+	<start name="sdl_vnc" caps="120" priority="-1">
+		<resource name="RAM" quantum="32M"/>
+		<config>
+			<arg value="sdlvncviewer"/>
+			<arg value="} $dst_ip {:} $dst_port {"/>
+<!--
+			<arg value="-password"/>
+			<arg value="test"/>
+-->
+			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc" socket="/socket"/>
+			<vfs>
+				<dir name="dev">
+					<log/> <null/>
+					<inline name="rtc">2020-03-31 10:13</inline>
+					<inline name="random">01234567890123456789</inline>
+				</dir>
+				<dir name="socket"> <} [socket_fs_plugin] { dhcp="yes"/> </dir>
+			</vfs>
+		</config>
+		<route>
+			<service name="Nic"> <child name="nic_router"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+</config>}
+
+install_config $config
+
+set boot_modules {
+	sdl_vnc vncclient.lib.so
+}
+lappend              boot_modules [binary_nic_drv]
+lappend_if $use_ping boot_modules ping
+lappend_if $use_top  boot_modules top
+
+build_boot_image $boot_modules
+
+append qemu_args " -net nic,model=e1000 -net user "
+
+run_genode_until forever
