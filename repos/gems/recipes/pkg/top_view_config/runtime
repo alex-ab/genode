@@ -1,10 +1,10 @@
-<runtime ram="29M" caps="600" binary="init">
+<runtime ram="31M" caps="800" binary="init">
 
 	<requires>
 		<nitpicker/>
 		<trace/>
-		<report/>
 		<file_system label="fonts" writeable="no"/>
+		<file_system label="recall" writeable="yes"/>
 	</requires>
 
 	<config>
@@ -20,7 +20,6 @@
 			<service name="File_system"/>
 			<service name="Nitpicker"/>
 			<service name="Timer"/>
-			<service name="Report"/>
 		</parent-provides>
 
 		<start name="report_rom" caps="100">
@@ -31,6 +30,26 @@
 				<policy label="top_view -> hover" report="menu_view -> hover"/>
 				<policy label="graph -> graph" report="top_view -> graph"/>
 			</config>
+		</start>
+
+		<start name="fs_report" caps="100">
+			<resource name="RAM" quantum="1M"/>
+			<provides> <service name="Report"/> </provides>
+			<config> <vfs> <fs/> </vfs> </config>
+			<route>
+				<service name="File_system"> <parent label="recall"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+		<start name="fs_rom" caps="100">
+			<resource name="RAM" quantum="1M"/>
+			<provides> <service name="ROM"/> </provides>
+			<config/>
+			<route>
+				<service name="File_system"> <parent label="recall"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
 		</start>
 
 		<start name="menu_view" caps="200">
@@ -66,10 +85,14 @@
 
 		<start name="top_view" caps="100">
 			<resource name="RAM" quantum="3000K"/>
+			<configfile name="top_view.config"/>
+<!--
 			<config view_ms="2000" report="yes" log="no" report_config="yes"/>
+-->
 			<route>
 				<service name="ROM" label="hover"> <child name="report_rom" /> </service>
-				<service name="Report" label="config"> <parent/> </service>
+				<service name="ROM" label="top_view.config"> <child name="fs_rom" label="config"/> </service>
+				<service name="Report" label="config"> <child name="fs_report" label="config"/> </service>
 				<service name="Report"> <child name="report_rom" /> </service>
 				<any-service> <parent/> </any-service>
 			</route>
@@ -89,6 +112,8 @@
 		<rom label="top_view"/>
 		<rom label="report_rom"/>
 		<rom label="graph"/>
+		<rom label="fs_report"/>
+		<rom label="fs_rom"/>
 	</content>
 
 </runtime>
