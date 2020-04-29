@@ -49,10 +49,10 @@ namespace Util {
 		 * Iterate over all slots until FUNC returns true
 		 */
 		template <typename FUNC>
-		bool for_each(FUNC const &func, bool ignore = true)
+		bool for_each(FUNC const &func)
 		{
 			for (size_t i = 0; i < _limit; i++) {
-				if (ignore && !_entries[i].valid()) { continue; }
+				if (!_entries[i].valid()) { continue; }
 				if ( func(_entries[i])) { return true; }
 			}
 			return false;

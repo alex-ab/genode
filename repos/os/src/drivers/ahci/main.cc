@@ -70,23 +70,6 @@ class Ahci::Driver : Noncopyable
 		Signal_handler<Driver> _irq { _env.ep(), *this, &Driver::handle_irq };
 		bool                   _enable_atapi;
 
-		Timer::Connection      _timer_conn { _env };
-		Signal_handler<Driver> _timer { _env.ep(), *this, &Driver::handle_timer };
-
-		void handle_timer()
-		{
-			static unsigned long cnt = 0;
-
-			log("ping ", cnt++);
-
-			for (unsigned i=0; i < MAX_PORTS; i++) {
-				if (_ata[i].constructed())
-					_ata[i]->debug();
-				if (_ports[i].constructed())
-					_ports[i]->debug();
-			}
-		}
-
 		void _info()
 		{
 			log("version: "
@@ -148,9 +131,6 @@ class Ahci::Driver : Noncopyable
 
 			/* search for devices */
 			_scan_ports(env.rm());
-
-			_timer_conn.sigh(_timer);
-			_timer_conn.trigger_periodic(3000000);
 		}
 
 		/**

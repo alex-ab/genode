@@ -210,17 +210,6 @@ class Ata::Protocol : public Ahci::Protocol, Noncopyable
 
 	public:
 
-		void debug()
-		 {
-			unsigned i = 0;
-			_slots.for_each([&](Request &request)
-			{
-				log(i, " ", request.valid(), " ", request.operation);
-				i++;
-				return false;
-			}, true);
-		}
-
 		/******************************
 		 ** Ahci::Protocol interface **
 		 ******************************/

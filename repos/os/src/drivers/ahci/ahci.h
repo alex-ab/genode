@@ -606,26 +606,6 @@ struct Ahci::Port : private Port_base
 		struct Dma_ext_irq : Bitfield<0, 3> { };
 	};
 
-	void debug()
-	{
-		Is::access_t status_is = read <Is>();
-		Ie::access_t status_ie = read <Ie>();
-		Serr::access_t status_serr =  read<Serr>();
-		Serr::Diag::access_t status_diag = read<Serr::Diag>();
-
-//		if (Is::Infs::get(status) || 
-//		    Is::Ifs::get(status)) {
-
-			Genode::warning("is=", Hex(status_is), " infs=",
-			                Is::Infs::get(status_is), " ifs=", 
-			                Is::Ifs::get(status_is),
-			                ", ie=", Hex(status_ie),
-			                ", serr=", Hex(status_serr),
-			                ", sdia=", Hex(status_diag)
-			);
-//		}
-	}
-
 	void ack_irq()
 	{
 		Is::access_t status = read <Is>();
