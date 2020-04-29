@@ -306,6 +306,7 @@ struct Ahci::Block_session_component : Rpc_object<Block::Session>,
 
 				/* ignored operations */
 				if (request.operation.type == Block::Operation::Type::TRIM ||
+				    request.operation.type == Block::Operation::Type::SYNC ||
 				    request.operation.type == Block::Operation::Type::INVALID) {
 					request.success = true;
 					progress = true;
