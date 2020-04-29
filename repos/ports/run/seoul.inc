@@ -290,7 +290,7 @@ append_if $use_block_vdi config {
 		<resource name="RAM" quantum="8M"/>
 		<provides> <service name="Block"/> </provides>
 		<config file="/seoul_stress32.vdi" writeable="yes">
-			<vfs> <fs buffer_size="256K"/> </vfs>
+			<vfs> <fs buffer_size="1M"/> </vfs>
 			<policy label="seoul -> VirtualDisk 0" writeable="yes"/>
 			<policy label="block_compare -> b" writeable="yes"/>
 		</config>
@@ -304,7 +304,7 @@ append_if $use_block_compare config {
 	<start name="block_compare">
 		<resource name="RAM" quantum="10M" />
 		<provides><service name="Block" /></provides>
-		<config buffer_size="256K">
+		<config buffer_size="1M">
 			<policy label="seoul -> VirtualDisk 0" writeable="yes"/>
 		</config>
 		<route>
@@ -459,7 +459,7 @@ append config {
 append_if $use_top config {
 	<start name="top">
 		<resource name="RAM" quantum="2M"/>
-		<config period_ms="40000"/>
+		<config period_ms="10000"/>
 	</start>}
 
 append_if $use_fancy_stuff config {
