@@ -37,11 +37,11 @@ set use_part_block    [expr ![have_include power_on/qemu]]
 set use_nic_session   1
 set use_nic_bridge    0
 
-set use_usb           1
+set use_usb           0
 
 set use_framebuffer   1
 set use_fancy_stuff   0
-set use_top           1
+set use_top           0
 
 set memory_vmm_vm     "512M"
 
