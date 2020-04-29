@@ -1997,9 +1997,16 @@ void App::Main::_handle_config()
 {
 	_config.update();
 
+	if (!_config.valid()) return;
+
+	unsigned long const period_view = _period_view;
 	_period_view = _config.xml().attribute_value("view_ms", _default_period_ms());
+
+	unsigned long const period_trace = _period_trace;
 	_period_trace = _config.xml().attribute_value("trace_ms", _period_view);
+
 	_use_log = _config.xml().attribute_value("log", true);
+
 	bool const store = _config.xml().attribute_value("store", false);
 
 	String<8> ec_sc(_config.xml().attribute_value("sort_time", String<8>("ec")));
@@ -2013,12 +2020,17 @@ void App::Main::_handle_config()
 	if (!store && _storage.constructed())
 		_storage.destruct();
 
-	if (_timeout_trace.constructed())
-		_timeout_trace.destruct();
-	if (_timeout_view.constructed())
-		_timeout_view.destruct();
+	if (period_trace != _period_trace)
+		if (_timeout_trace.constructed())
+			_timeout_trace.destruct();
 
-	_timeout_trace.construct(_timer, *this, &Main::_handle_trace, Microseconds(_period_trace * 1000));
+	if (period_view != _period_view)
+		if (_timeout_view.constructed())
+			_timeout_view.destruct();
+
+	if (!_timeout_trace.constructed())
+		_timeout_trace.construct(_timer, *this, &Main::_handle_trace, Microseconds(_period_trace * 1000));
+
 	if (_storage.constructed())
 		_timeout_view.construct(_timer, *this, &Main::_handle_view, Microseconds(_period_view * 1000));
 	else
@@ -2049,6 +2061,9 @@ void App::Main::_handle_config()
 			_reporter_config.construct(_env, "config", "config", 4096);
 			_reporter_config->enabled(true);
 		}
+	} else {
+		if (_reporter_config.constructed())
+			_reporter_config.destruct();
 	}
 
 	_read_config();
@@ -2070,13 +2085,17 @@ void App::Main::_write_config()
 		return;
 
 	Reporter::Xml_generator xml(*_reporter_config, [&] () {
-		if (_reporter.constructed())
-			xml.attribute("report", _reporter.constructed());
+		xml.attribute("report", _reporter.constructed());
+		xml.attribute("report_config" , _reporter_config.constructed());
+
 		if (_storage.constructed())
 			xml.attribute("store" , _storage.constructed());
 
 		xml.attribute("log", _use_log);
 
+		if (_sort == EC_TIME)
+			xml.attribute("sort_time", "ec");
+		else
 		if (_sort == SC_TIME)
 			xml.attribute("sort_time", "sc");
 
