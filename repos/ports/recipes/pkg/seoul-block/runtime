@@ -1,0 +1,46 @@
+<runtime ram="1380M" caps="2200" binary="init">
+
+	<requires>
+		<nic/>
+		<block/>
+		<rom label="platform_info"/>
+		<gui/>
+		<rtc/>
+		<vm/>
+		<timer/>
+	</requires>
+
+	<content>
+		<rom label="vm_seoul.cfg"/>
+		<rom label="init"/>
+		<rom label="seoul"/>
+	</content>
+
+	<config verbose="yes">
+		<parent-provides>
+			<service name="ROM"/>
+			<service name="PD"/>
+			<service name="CPU"/>
+			<service name="LOG"/>
+			<service name="VM"/>
+			<service name="Gui"/>
+			<service name="Rtc"/>
+			<service name="Nic"/>
+			<service name="Timer"/>
+			<service name="Block"/>
+		</parent-provides>
+
+		<start name="seoul" priority="-1" caps="200">
+			<binary name="seoul"/>
+			<resource name="RAM" quantum="1024M"/>
+			<route>
+				<service name="ROM" label="platform_info">
+					<parent label="platform_info"/> </service>
+				<service name="ROM" label="config">
+					<parent label="vm_seoul.cfg"/> </service>
+				<any-service><parent/></any-service>
+			</route>
+		</start>
+	</config>
+
+</runtime>
