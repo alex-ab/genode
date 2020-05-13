@@ -93,7 +93,7 @@ puts $vm_cfg_fd {	 <machine verbose="no">
 
 if {!$use_multiboot} {
 	puts $vm_cfg_fd {
-		<vbios_disk/>
+		<vbios_disk boot_disknr="0"/>
 	}
 }
 
@@ -207,7 +207,7 @@ append_if $use_block_sata config {
 		<resource name="RAM" quantum="1M" />
 		<provides><service name="Block"/></provides>
 		<config>
-			<policy label="seoul -> VirtualDisk 0" device="0" writeable="yes"/>
+			<policy label="seoul -> disk0" device="0" writeable="yes"/>
 		</config>
 	</start>}
 
