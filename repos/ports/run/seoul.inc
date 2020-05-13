@@ -93,7 +93,7 @@ puts $vm_cfg_fd {	 <machine verbose="no">
 
 if {!$use_multiboot} {
 	puts $vm_cfg_fd {
-		<vbios_disk boot_disknr="0"/>
+		<vbios_disk boot_disknr="1"/>
 	}
 }
 
@@ -212,10 +212,18 @@ append_if $use_block_sata config {
 	</start>}
 
 append_if $use_block_ram config {
-	<start name="ram_block" priority="-1">
+	<start name="ram_block1" priority="-1">
+		<binary name="ram_block"/>
 		<resource name="RAM" quantum="262M" />
 		<provides><service name="Block"/></provides>
-		<config file="seoul-disc.raw" block_size="512"/>
+		<config file="seoul-disc1.raw" block_size="512"/>
+	</start>
+
+	<start name="ram_block2" priority="-1">
+		<binary name="ram_block"/>
+		<resource name="RAM" quantum="862M" />
+		<provides><service name="Block"/></provides>
+		<config file="seoul-disc2.raw" block_size="512"/>
 	</start>}
 
 append_if $use_genode_iso config {
@@ -292,6 +300,9 @@ append_if $use_genode_iso config {
 			<service name="ROM" label="vm_seoul.cfg"> <parent/> </service>
 			<service name="ROM" label="platform_info"> <parent/> </service>
 			<service name="ROM"><child name="iso9660"/></service>}
+append_if $use_block_ram config {
+			<service name="Block" label="disk0"> <child name="ram_block1"/> </service>
+			<service name="Block" label="disk1"> <child name="ram_block2"/> </service>}
 append config {
 			<service name="Rtc"><child name="rtc_drv"/></service>
 			<any-service><parent/><any-child/></any-service>
@@ -454,7 +465,8 @@ lappend_if $use_genode_iso    boot_modules rom_block
 lappend_if $use_genode_iso    boot_modules iso9660
 lappend_if $use_genode_iso    boot_modules genode.iso
 
-lappend_if $use_block_ram     boot_modules seoul-disc.raw
+lappend_if $use_block_ram     boot_modules seoul-disc1.raw
+lappend_if $use_block_ram     boot_modules seoul-disc2.raw
 
 lappend_if $use_top           boot_modules top
 
