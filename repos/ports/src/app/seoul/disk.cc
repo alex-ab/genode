@@ -159,7 +159,7 @@ bool Seoul::Disk::receive(MessageDisk &msg)
 	struct disk_session &disk = _diskcon[msg.disknr];
 
 	if (!disk.info.block_size) {
-		Genode::String<16> label("VirtualDisk ", msg.disknr);
+		Genode::String<16> label("disk", msg.disknr);
 		/*
 		 * If we receive a message for this disk the first time, create the
 		 * structure for it.
@@ -188,7 +188,7 @@ bool Seoul::Disk::receive(MessageDisk &msg)
 	switch (msg.type) {
 	case MessageDisk::DISK_GET_PARAMS:
 	{
-		Genode::String<16> label("VirtualDisk ", msg.disknr);
+		Genode::String<16> label("disk", msg.disknr);
 
 		msg.params->flags           = DiskParameter::FLAG_HARDDISK;
 		msg.params->sectors         = disk.info.block_count;

@@ -70,7 +70,7 @@ if {$use_fancy_stuff} { set use_framebuffer 1 }
 
 lappend_if $use_block_vdi       build_components server/vdi_block
 lappend_if $use_usb             build_components drivers/usb
-lappend_if $use_vfs_block       build_components server/vfs_block
+ append_if $use_vfs_block       build_components { server/vfs_block lib/vfs/import }
 lappend_if $use_drv_ahci        build_components drivers/ahci
 lappend_if $use_nic_session     build_components drivers/nic
 lappend_if $use_nic_session     build_components server/nic_router
@@ -107,7 +107,7 @@ puts $vm_cfg_fd {	 <machine verbose="no">
 
 if {!$use_multiboot} {
 	puts $vm_cfg_fd {
-		<vbios_disk/>
+		<vbios_disk boot_disknr="0"/>
 	}
 }
 
@@ -223,7 +223,7 @@ append_if $use_drv_ahci config {
 		<config>}
 
 append_if [expr $use_block_sata && !$use_part_block] config {
-			<policy label="seoul -> VirtualDisk 0" device="0" writeable="yes"/>}
+			<policy label="seoul -> disk0" device="0" writeable="yes"/>}
 
 append_if [expr $use_block_vdi && !$use_part_block] config {
 			<policy label="rump_fs -> " device="0" writeable="yes"/>}
@@ -246,13 +246,13 @@ append_if $use_part_block config {
 			<any-service><child name="ahci_drv"/> <parent/></any-service>
 		</route>
 		<config>
-			<policy label="seoul -> VirtualDisk 0" partition="5" writeable="yes"/>
+			<policy label="seoul -> disk0" partition="5" writeable="yes"/>
 			<policy label="rump_fs -> " partition="4" writeable="yes"/>
 		</config>
 	</start>}
 
 append_if $use_block_ram config {
-	<start name="vfs_block" priority="-1">
+	<start name="vfs_block" priority="-1" caps="200">
 		<resource name="RAM" quantum="266M" />
 		<provides><service name="Block"/></provides>
 		<config>
@@ -297,7 +297,7 @@ append_if $use_block_vdi config {
 		<provides> <service name="Block"/> </provides>
 		<config file="/seoul_stress32.vdi" writeable="yes">
 			<vfs> <fs buffer_size="1M"/> </vfs>
-			<policy label="seoul -> VirtualDisk 0" writeable="yes"/>
+			<policy label="seoul -> disk0" device="0" writeable="yes"/>
 		</config>
 		<route>
 			<service name="File_system"><child name="rump_fs"/></service>
@@ -566,7 +566,7 @@ lappend_if $use_block_vdi     boot_modules vdi_block
 lappend_if [expr !$use_usb]   boot_modules ps2_drv
 lappend_if $use_usb           boot_modules usb_drv
 lappend_if $use_vfs_block     boot_modules vfs_block
-lappend_if $use_vfs_block     boot_modules vfs.lib.so
+ append_if $use_vfs_block     boot_modules { vfs.lib.so vfs_import.lib.so }
 lappend_if $use_drv_ahci      boot_modules ahci_drv
 lappend_if $use_nic_session   boot_modules ipxe_nic_drv
 lappend_if $use_nic_session   boot_modules nic_router
