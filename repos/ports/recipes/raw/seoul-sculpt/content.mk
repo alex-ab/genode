@@ -1,4 +1,4 @@
-CONFIG_FILES = init.config vm_seoul.cfg
+CONFIG_FILES = init.config vm_seoul.cfg vm_seoul_boot_1.cfg
 
 content: $(CONFIG_FILES)
 
