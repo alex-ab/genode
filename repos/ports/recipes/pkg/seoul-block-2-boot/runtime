@@ -1,0 +1,51 @@
+<runtime ram="1380M" caps="2200" binary="init">
+
+	<requires>
+		<nic/>
+		<block label="disk0"/>
+		<block label="disk1"/>
+		<rom label="platform_info"/>
+		<nitpicker/>
+		<rtc/>
+		<vm/>
+		<timer/>
+	</requires>
+
+	<content>
+		<rom label="vm_seoul_boot_1.cfg"/>
+		<rom label="init"/>
+		<rom label="seoul"/>
+	</content>
+
+	<config verbose="yes">
+		<parent-provides>
+			<service name="ROM"/>
+			<service name="PD"/>
+			<service name="CPU"/>
+			<service name="LOG"/>
+			<service name="VM"/>
+			<service name="Nitpicker"/>
+			<service name="Rtc"/>
+			<service name="Nic"/>
+			<service name="Timer"/>
+			<service name="Block"/>
+		</parent-provides>
+
+		<start name="seoul" priority="-1" caps="200">
+			<binary name="seoul"/>
+			<resource name="RAM" quantum="1024M"/>
+			<route>
+				<service name="ROM" label="platform_info">
+					<parent label="platform_info"/> </service>
+				<service name="ROM" label="config">
+					<parent label="vm_seoul_boot_1.cfg"/> </service>
+				<service name="Block" label="disk0">
+					<parent label="disk0"/> </service>
+				<service name="Block" label="disk1">
+					<parent label="disk1"/> </service>
+				<any-service><parent/></any-service>
+			</route>
+		</start>
+	</config>
+
+</runtime>
