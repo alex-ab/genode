@@ -1,4 +1,4 @@
-<runtime ram="1380M" caps="2200" binary="init">
+<runtime ram="1050M" caps="2200" binary="init">
 
 	<requires>
 		<nic/>
@@ -32,7 +32,7 @@
 
 		<start name="seoul" priority="-1" caps="200">
 			<binary name="seoul"/>
-			<resource name="RAM" quantum="1024M"/>
+			<resource name="RAM" quantum="1040M"/>
 			<route>
 				<service name="ROM" label="platform_info">
 					<parent label="platform_info"/> </service>
