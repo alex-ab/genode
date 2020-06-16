@@ -68,6 +68,8 @@ void Cancelable_lock::lock()
 
 void Cancelable_lock::lock(Applicant &myself)
 {
+	bool failure = false;
+
 	spinlock_lock(&_spinlock_state);
 
 	if (cmpxchg(&_state, UNLOCKED, LOCKED)) {
@@ -105,9 +107,24 @@ void Cancelable_lock::lock(Applicant &myself)
 		if (_last_applicant)
 			_last_applicant->applicant_to_wake_up(&myself);
 		_last_applicant = &myself;
+
+		if (_owner.thread_base() && thread_base_valid(_owner.thread_base())) {
+			Cancelable_lock * const blocked_on = _owner.thread_base()->blocked_on;
+			if (blocked_on) {
+				failure = blocked_on->lock_owner(myself);
+			}
+		}
 	}
 
+	if (myself.thread_base() && thread_base_valid(myself.thread_base()))
+		myself.thread_base()->blocked_on = this;
+
 	spinlock_unlock(&_spinlock_state);
+
+	if (failure) {
+//		Genode::log("x failure");
+		*(unsigned long *)(0x0UL) = 0; // - (unsigned long)__builtin_return_address(0)) = 0;
+	}
 
 	/*
 	 * At this point, a race can happen. We have added ourself to the wait
@@ -134,6 +151,10 @@ void Cancelable_lock::lock(Applicant &myself)
 	 * and reflect this condition as a C++ exception.
 	 */
 	spinlock_lock(&_spinlock_state);
+
+	if (myself.thread_base() && thread_base_valid(myself.thread_base()))
+		myself.thread_base()->blocked_on = nullptr;
+
 	if (_owner != myself) {
 		/*
 		 * Check if we are the applicant to be waken up next,
