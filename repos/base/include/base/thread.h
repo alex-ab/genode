@@ -175,6 +175,8 @@ class Genode::Thread
 
 	public:
 
+		Cancelable_lock *blocked_on { nullptr };
+
 		/**
 		 * Constructor
 		 *
