@@ -153,6 +153,11 @@ namespace Genode {
 			size_t max_caps() const override { return 10000; }
 
 			void wait_for_exit() override;
+
+			virtual Affinity::Space affinity_space() const override
+			{
+				return Affinity::Space(2);
+			}
 	};
 }
 
