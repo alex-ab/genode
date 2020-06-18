@@ -508,6 +508,9 @@ Buffer *Session_component::realloc_buffer(Framebuffer::Mode mode, bool use_alpha
 	/* copy old buffer content into new buffer and release old buffer */
 	if (src_texture) {
 
+		if (!texture)
+			Genode::error(" ? ", texture);
+
 		Surface<PT> surface(texture->pixel(),
 		                    texture->Texture_base::size());
 
