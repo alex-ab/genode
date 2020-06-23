@@ -1207,9 +1207,60 @@ struct device *get_device(struct device *dev)
 	return dev;
 }
 
-struct netdev_queue *netdev_get_tx_queue(const struct net_device *dev, unsigned int index)
+struct netdev_queue *netdev_get_tx_queue(struct net_device *dev, unsigned int index)
 {
 	TRACE;
+
+#if 0
+	if (dev && dev->ethtool_ops) {
+		lx_printf("%s %p\n", __func__, dev->ethtool_ops->get_ethtool_stats);
+//	dev->ethtool_ops = &fec_enet_ethtool_ops;
+//	get_ethtool_stats
+		lx_printf("%s %p\n", __func__, dev->ethtool_ops->get_ethtool_stats);
+		if (dev->ethtool_ops->get_ethtool_stats) {
+
+			struct ethtool_stats *stats = 0;
+			u64 data[512];
+
+			data[511] = 0xaffeaffeaffeaffeULL;
+
+			dev->ethtool_ops->get_ethtool_stats(dev, stats, data);
+			if (data[511] != 0xaffeaffeaffeaffeULL) {
+				lx_printf("corrupted stack ahead\n");
+				while (true) { }
+			}
+
+			lx_printf("drop tx/rx packets=%llx/%llx "
+			          " crc_error=%llx/%llx\n",
+			          data[1], data[30],
+			          data[0], data[33]);
+		}
+	}
+#endif
+
+	static unsigned long jiffies_next = 0;
+
+	if (dev && jiffies_next < jiffies) {
+		printk("jiffies %lu,"
+		       " stats tx/rx packages %lu/%lu"
+		       " bytes=%lu/%lu"
+		       " errors=%lu/%lu"
+		       " drop=%lu/%lu"
+		       "\n",
+		       jiffies,
+		       dev->stats.tx_packets, dev->stats.rx_packets,
+		       dev->stats.tx_bytes, dev->stats.rx_bytes,
+		       dev->stats.tx_errors, dev->stats.rx_errors,
+		       dev->stats.tx_dropped, dev->stats.rx_dropped);
+/*
+		       dev->stats.tx_fifo_errors, dev->stats.rx_fifo_errors,
+		       dev->stats.tx_length_errors, dev->stats.rx_length_errors,
+		       dev->stats.tx_crc_errors, dev->stats.rx_crc_errors,
+		       dev->stats.tx_frame_errors, dev->stats.rx_frame_errors);
+*/
+		jiffies_next = jiffies + 200;
+	}
+
 	return nullptr;
 }
 
@@ -1384,9 +1435,14 @@ void trace_kfree_skb(struct sk_buff * sb, void * p)
 	TRACE;
 }
 
-void trace_mdio_access(void *dummy, ...)
+void trace_mdio_access(struct mii_bus *bus, int direction, int addr, u32 regnum,
+                       u16 val, int err)
 {
-	TRACE;
+	if (direction == 0 /* write */ && err) {
+		lx_printf("bus %p direction %d addr=%x regnum=%x - error %d\n",
+		          bus, direction, addr, regnum, err);
+		TRACE;
+	}
 }
 
 int try_module_get(struct module *mod)
