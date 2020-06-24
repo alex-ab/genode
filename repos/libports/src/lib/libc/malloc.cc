@@ -82,7 +82,7 @@ class Libc::Malloc
 
 		enum {
 			SLAB_START = 5,  /* 32 bytes (log2) */
-			SLAB_STOP  = 11, /* 2048 bytes (log2) */
+			SLAB_STOP  = 20, /* 2048 bytes (log2) */
 			NUM_SLABS  = (SLAB_STOP - SLAB_START) + 1
 		};
 
