@@ -58,7 +58,7 @@ static inline void __read_once_size(const volatile void *p, void *res, int size)
 
 void lx_backtrace(void);
 
-#define DEBUG_LINUX_PRINTK 1
+#define DEBUG_LINUX_PRINTK 0
 
 #define DEBUG 0
 #if DEBUG
@@ -633,7 +633,7 @@ int net_ratelimit(void);
 
 unsigned int tcp_hdrlen(const struct sk_buff *skb);
 
-struct netdev_queue *netdev_get_tx_queue(struct net_device *dev, unsigned int index);
+struct netdev_queue *netdev_get_tx_queue(const struct net_device *dev, unsigned int index);
 void netif_tx_stop_queue(struct netdev_queue *dev_queue);
 void netif_tx_wake_queue(struct netdev_queue *dev_queue);
 bool netif_queue_stopped(const struct net_device *dev);
@@ -1153,8 +1153,7 @@ static inline void imx6q_cpuidle_fec_irqs_unused(void) { }
  ** trace/events/mdio.h **
  *************************/
 
-void trace_mdio_access(struct mii_bus *bus, int, int addr, u32 regnum, u16 val, int err);
-
+void trace_mdio_access(void *dummy, ...);
 
 /*********************************
  ** uapi/asm-generic/resource.h **
