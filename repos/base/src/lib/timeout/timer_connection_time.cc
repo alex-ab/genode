@@ -16,7 +16,6 @@
 #include <base/internal/globals.h>
 
 using namespace Genode;
-using namespace Genode::Trace;
 
 
 void Timer::Connection::_update_real_time()

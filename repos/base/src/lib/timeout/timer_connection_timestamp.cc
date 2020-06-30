@@ -18,7 +18,7 @@
 using namespace Genode;
 
 
-Trace::Timestamp Timer::Connection::_timestamp()
+Timer::Connection::Timestamp Timer::Connection::_timestamp()
 {
 	return Trace::timestamp();
 }

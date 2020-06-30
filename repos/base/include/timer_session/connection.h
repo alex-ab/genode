@@ -20,7 +20,6 @@
 #include <util/reconstructible.h>
 #include <base/entrypoint.h>
 #include <timer/timeout.h>
-#include <trace/timestamp.h>
 
 namespace Timer
 {
@@ -144,7 +143,7 @@ class Timer::Connection : public  Genode::Connection<Session>,
 
 		using Timeout         = Genode::Timeout;
 		using Timeout_handler = Genode::Time_source::Timeout_handler;
-		using Timestamp       = Genode::Trace::Timestamp;
+		using Timestamp       = Genode::uint64_t;
 		using Duration        = Genode::Duration;
 		using Mutex           = Genode::Mutex;
 		using Microseconds    = Genode::Microseconds;

@@ -20,9 +20,8 @@
 #include <base/internal/globals.h>
 
 using namespace Genode;
-using namespace Genode::Trace;
 
-Timestamp Timer::Connection::_timestamp() { return 0ULL; }
+Timer::Connection::Timestamp Timer::Connection::_timestamp() { return 0ULL; }
 
 void Timer::Connection::_update_real_time() { }
 
