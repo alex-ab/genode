@@ -35,9 +35,9 @@ void Timer::Connection::_update_interpolation_quality(uint64_t min_factor,
 }
 
 
-uint64_t Timer::Connection::_ts_to_us_ratio(Timestamp ts,
-                                            uint64_t  us,
-                                            unsigned  shift)
+uint64_t Timer::Connection::_ts_to_us_ratio(uint64_t ts,
+                                            uint64_t us,
+                                            unsigned shift)
 {
 	/*
 	 * If the timestamp difference is to big to do the following
@@ -45,8 +45,8 @@ uint64_t Timer::Connection::_ts_to_us_ratio(Timestamp ts,
 	 * and time difference down equally. This should neither happen
 	 * often nor have much effect on the resulting factor.
 	 */
-	Timestamp const max_ts = ~(Timestamp)0ULL >> shift;
-	while (ts > max_ts) {
+	uint64_t const max_value = ~0ULL >> shift;
+	while (ts > max_value) {
 		warning("timestamp value too big");
 		ts >>= 1;
 		us >>= 1;
@@ -54,18 +54,7 @@ uint64_t Timer::Connection::_ts_to_us_ratio(Timestamp ts,
 	if (!us) { us = 1; }
 	if (!ts) { ts = 1; }
 
-	/*
-	 * To make the result more precise, we scale up the numerator of
-	 * the calculation. This upscaling must be considered when using
-	 * the result.
-	 */
-	Timestamp const result    = (ts << shift) / us;
-	uint64_t  const result_ul = (uint64_t)result;
-	if (result != result_ul) {
-		warning("Timestamp-to-time ratio too big");
-		return ~0UL;
-	}
-	return result_ul;
+	return (ts << shift) / us;
 }
 
 

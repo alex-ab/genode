@@ -218,9 +218,9 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		void _update_interpolation_quality(uint64_t min_factor,
 		                                   uint64_t max_factor);
 
-		uint64_t _ts_to_us_ratio(Timestamp ts,
-		                         uint64_t  us,
-		                         unsigned  shift);
+		uint64_t _ts_to_us_ratio(uint64_t ts,
+		                         uint64_t us,
+		                         unsigned shift);
 
 		void _update_real_time();
 
