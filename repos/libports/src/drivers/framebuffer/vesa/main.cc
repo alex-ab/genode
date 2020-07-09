@@ -48,7 +48,7 @@ struct Vesa_driver::Main
 
 	Attached_rom_dataspace _config { _env, "config" };
 
-	Area _size { };
+	Area _size { 1, 1 };
 
 	void _handle_config();
 
