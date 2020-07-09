@@ -77,8 +77,6 @@ struct Trace_subject_registry
 		/* most significant consumer per CPU */
 		Entry const * load[MAX_CPUS_X][MAX_CPUS_Y][MAX_ELEMENTS_PER_CPU];
 
-		bool _reconstruct_trace_connection = false;
-
 	public:
 
 		bool update(Genode::Trace::Connection &trace,
@@ -110,8 +108,6 @@ struct Trace_subject_registry
 
 		void flush(Genode::Trace::Connection &trace, Genode::Allocator &alloc)
 		{
-			_reconstruct_trace_connection = false;
-
 			while (Entry * const e = _entries.first()) {
 					trace.free(e->id);
 					_entries.remove(e);
