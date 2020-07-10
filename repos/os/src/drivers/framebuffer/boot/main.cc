@@ -36,11 +36,11 @@ struct Framebuffer::Main
 
 	struct Info
 	{
-		uint64_t addr;
+		addr_t   addr;
 		Area     size;
-		uint32_t bpp;
-		uint32_t pitch;
-		uint32_t type;
+		unsigned bpp;
+		unsigned pitch;
+		unsigned type;
 
 		static Info from_platform_info(Xml_node const &node)
 		{
