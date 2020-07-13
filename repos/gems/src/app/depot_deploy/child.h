@@ -374,6 +374,9 @@ void Depot_deploy::Child::gen_start_node(Xml_generator &xml, Xml_node common,
 		                                     _launcher_xml->xml().has_attribute("ypos"));
 		bool const affinity_from_start = _start_xml->xml().has_attribute("xpos")
                                               || _start_xml->xml().has_attribute("ypos");
+
+		Genode::warning("affinity ", _binary_name, " ", affinity_from_launcher, " ", affinity_from_start);
+
 		if (affinity_from_start || affinity_from_launcher) {
 			long xpos = 0, ypos = 0;
 			unsigned width = 1, height = 1;
@@ -388,6 +391,8 @@ void Depot_deploy::Child::gen_start_node(Xml_generator &xml, Xml_node common,
 			ypos   = _start_xml->xml().attribute_value("ypos",   ypos);
 			width  = _start_xml->xml().attribute_value("width",  width);
 			height = _start_xml->xml().attribute_value("height", height);
+
+		Genode::warning("affinity ", _binary_name, " --> ", xpos, "x", ypos, " ", width, "x", height);
 
 			xml.node("affinity", [&] () {
 				xml.attribute("xpos",   xpos);
