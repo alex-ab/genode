@@ -38,7 +38,7 @@ class Genode::Native_cpu_component : public Rpc_object<Cpu_session::Native_cpu,
 		Native_cpu_component(Cpu_session_component &, char const *);
 		~Native_cpu_component();
 
-		void thread_type(Thread_capability, Thread_type, Exception_base) override;
+		Native_capability thread_type(Thread_capability, Thread_type, Exception_base) override;
 };
 
 #endif /* _CORE__INCLUDE__NATIVE_CPU_COMPONENT_H_ */

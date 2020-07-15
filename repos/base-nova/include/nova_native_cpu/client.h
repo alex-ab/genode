@@ -25,9 +25,9 @@ struct Genode::Nova_native_cpu_client : Rpc_client<Cpu_session::Native_cpu>
 	explicit Nova_native_cpu_client(Capability<Cpu_session::Native_cpu> cap)
 	: Rpc_client<Cpu_session::Native_cpu>(cap) { }
 
-	void thread_type(Thread_capability thread_cap, Thread_type thread_type,
+	Native_capability thread_type(Thread_capability thread_cap, Thread_type thread_type,
 	                 Exception_base exception_base) override {
-		call<Rpc_thread_type>(thread_cap, thread_type, exception_base); }
+		return call<Rpc_thread_type>(thread_cap, thread_type, exception_base); }
 };
 
 #endif /* _INCLUDE__NOVA_NATIVE_CPU__CLIENT_H_ */

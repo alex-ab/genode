@@ -23,6 +23,7 @@
 #include <nova/native_thread.h>
 #include <nova/syscalls.h>
 #include <nova_native_pd/client.h>
+#include <nova_native_cpu/client.h>
 
 using namespace Genode;
 
@@ -719,8 +720,23 @@ Vm_session_client::create_vcpu(Allocator &alloc, Env &env,
 {
 	Thread * ep = reinterpret_cast<Thread *>(&handler._rpc_ep);
 
+	Thread_capability ep_cap = ep->cap();
+
+	{
+		/* quirk to request cap of core and not the on of cpu_sampler XXX */
+		Nova_native_cpu_client nova_native_cpu (env.cpu().native_cpu());
+		Cpu_session::Native_cpu::Exception_base exception_base { ~0UL };
+		Native_capability quirk = nova_native_cpu.thread_type(ep_cap,
+		                                                      Cpu_session::Native_cpu::Thread_type::VCPU,
+		                                                      exception_base);
+		if (quirk.valid()) {
+			ep_cap = reinterpret_cap_cast<Cpu_thread>(quirk);
+			Genode::warning("XXX - apply native cap quirk");
+		}
+	}
+
 	Vcpu * vcpu = new (alloc) Registered<Vcpu> (vcpus, handler,
-	                                            call<Rpc_create_vcpu>(ep->cap()),
+	                                            call<Rpc_create_vcpu>(ep_cap),
 	                                            alloc);
 	vcpu->assign_ds_state(env.rm(), call<Rpc_cpu_state>(vcpu->id()));
 

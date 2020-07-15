@@ -88,7 +88,12 @@ class Vmm::Vcpu_other_pd : public Vmm::Vcpu_thread
 			Cpu_session::Native_cpu::Thread_type thread_type { Cpu_session::Native_cpu::Thread_type::VCPU };
 			Cpu_session::Native_cpu::Exception_base exception_base { _exc_pt_sel };
 			Nova_native_cpu_client native_cpu(_cpu_connection->native_cpu());
-			native_cpu.thread_type(vcpu_vm, thread_type, exception_base);
+			Native_capability quirk = native_cpu.thread_type(vcpu_vm, thread_type, exception_base);
+
+			if (quirk.valid()) {
+				Genode::warning("XXX - use original vCPU cap for mapping portals");
+			} else
+				quirk = vcpu_vm;
 
 			Cpu_thread_client cpu_thread(vcpu_vm);
 
@@ -98,7 +103,7 @@ class Vmm::Vcpu_other_pd : public Vmm::Vcpu_thread
 			 */
 			addr_t const current = Thread::myself()->native_thread().exc_pt_sel
 			                       + Nova::PT_SEL_PAGE_FAULT;
-			translate_remote_pager(current, vcpu_vm.local_name());
+			translate_remote_pager(current, quirk.local_name());
 
 			/* start vCPU in separate PD */
 			cpu_thread.start(0, 0);

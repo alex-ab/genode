@@ -50,16 +50,25 @@ class Cpu_sampler::Native_cpu_component : public Rpc_object<Cpu_session::Native_
 			_cpu_session_component.thread_ep().dissolve(this);
 		}
 
-		void thread_type(Thread_capability thread_cap,
+		Native_capability thread_type(Thread_capability thread_cap,
 		                 Cpu_session::Native_cpu::Thread_type thread_type,
 		                 Cpu_session::Native_cpu::Exception_base exception_base) override
 		{
+			Native_capability ret;
+
 			auto lambda = [&] (Cpu_sampler::Cpu_thread_component *cpu_thread) {
 				_nova_native_cpu.thread_type(cpu_thread->parent_thread(),
 				                             thread_type, exception_base);
+
+				if (thread_type == Cpu_session::Native_cpu::Thread_type::VCPU) {
+					Genode::warning("XXX apply hack for vCPU ... return cap");
+					ret = cpu_thread->parent_thread();
+				}
 			};
 
 			_cpu_session_component.thread_ep().apply(thread_cap, lambda);
+
+			return ret;
 		}
 };
 

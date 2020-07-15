@@ -21,7 +21,7 @@
 using namespace Genode;
 
 
-void Native_cpu_component::thread_type(Thread_capability thread_cap,
+Native_capability Native_cpu_component::thread_type(Thread_capability thread_cap,
                                        Thread_type thread_type,
                                        Exception_base exception_base)
 {
@@ -33,6 +33,8 @@ void Native_cpu_component::thread_type(Thread_capability thread_cap,
 	};
 
 	_thread_ep.apply(thread_cap, lambda);
+
+	return Native_capability();
 }
 
 Native_cpu_component::Native_cpu_component(Cpu_session_component &cpu_session, char const *)
