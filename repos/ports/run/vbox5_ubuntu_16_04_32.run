@@ -28,4 +28,6 @@ set use_cpu_load 1
 # use non-generic vbox5 VMM version
 set use_vbox5_nova 1
 
+set use_cpu_sampler 1
+
 source ${genode_dir}/repos/ports/run/vbox_win.inc

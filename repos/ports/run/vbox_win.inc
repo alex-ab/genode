@@ -24,6 +24,10 @@ if {[info exists flavor_extension]} {
 	set vbox_file "vm_${flavor}${flavor_extension}.vbox"
 }
 
+if {![info exists use_cpu_sampler]} {
+	set use_cpu_sampler 0
+}
+
 set build_components {
 	server/event_filter
 	drivers/nic
@@ -270,6 +274,8 @@ for { set i 1} { $i <= $use_vms } { incr i} {
 				<service name="File_system"> <child name="rump_fs"/> </service>}
 	append_if [expr !$use_rumpfs] config_of_app {
 				<service name="Block"> <child name="part_block"/> </service>}
+	append_if [expr $use_cpu_sampler] config_of_app {
+			<service name="CPU"> <child name="cpu_sampler"/> </service>}
 	append config_of_app {
 			<service name="Report" label="shape"> <child name="pointer"/></service>
 			<service name="Report"><child name="report_rom" /></service>

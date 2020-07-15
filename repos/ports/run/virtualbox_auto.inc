@@ -51,6 +51,16 @@ lappend_if [expr $use_cpu_load] build_components app/cpu_load_display
 lappend_if [expr $use_cpu_load] build_components app/top
 lappend_if [have_spec nova] build_components app/log_core
 
+if {[expr $use_cpu_sampler]} {
+	lappend build_components server/cpu_sampler
+
+	if {[have_spec foc] || [have_spec nova]} {
+		lappend build_components lib/cpu_sampler_platform-$::env(KERNEL)
+	} else {
+		lappend build_components lib/cpu_sampler_platform-generic
+	}
+}
+
 source ${genode_dir}/repos/base/run/platform_drv.inc
 # override defaults of platform_drv.inc
 proc platform_drv_priority {} { return { priority="-1"} }
@@ -93,8 +103,29 @@ append config {
 	<default-route>
 		<any-service> <parent/> <any-child/> </any-service>
 	</default-route>
-	<default caps="100"/>
+	<default caps="100"/>}
 
+append_if [expr $use_cpu_sampler] config {
+		<!-- must be some priority as client, otherwise priority boost XXX -->
+		<start name="cpu_sampler" priority="-2" caps="300">
+			<resource name="RAM" quantum="4M"/>
+			<provides>
+				<service name="CPU"/>
+			</provides>
+			<config sample_interval_ms="1000" sample_duration_s="120">
+				<policy label="vbox1 -> ep" />
+				<policy label="vbox1 -> vbox 3 -> vCPU"/>
+				<policy label="vbox1 -> EMT-0"/>
+				<policy label="vbox1 -> EMT-1"/>
+				<!-- vbox5 generic thread names -->
+				<policy label="vbox1 -> EP-EMT-0"/>
+				<policy label="vbox1 -> EP-EMT-1"/>
+				<policy label="vbox1 -> vbox 3 -> EMT-0"/>
+				<policy label="vbox1 -> vbox 3 -> EMT-1"/>
+			</config>
+		</start>}
+
+append config {
 	<start name="timer">
 		<resource name="RAM" quantum="1M"/>
 		<provides><service name="Timer"/></provides>
@@ -248,7 +279,7 @@ append_if [expr $use_cpu_load] config {
 
 	<start name="top" priority="-1">
 		<resource name="RAM" quantum="2M"/>
-		<config period_ms="10000"/>
+		<config period_ms="15000"/>
 		<route>
 			<service name="TRACE"><parent/></service>
 			<service name="LOG"><parent/></service>
@@ -399,6 +430,20 @@ lappend_if [expr $use_cpu_load] boot_modules trace_subject_reporter
 lappend_if [expr $use_cpu_load] boot_modules cpu_load_display
 lappend_if [expr $use_cpu_load] boot_modules top
 lappend_if [have_spec nova] boot_modules log_core
+
+if {[expr $use_cpu_sampler]} {
+	lappend boot_modules cpu_sampler
+	lappend boot_modules cpu_sampler_platform.lib.so
+
+	# evaluated by the run tool
+	proc binary_name_cpu_sampler_platform_lib_so { } {
+		if {[have_spec foc] || [have_spec nova]} {
+			return "cpu_sampler_platform-$::env(KERNEL).lib.so"
+		} else {
+			return "cpu_sampler_platform-generic.lib.so"
+		}
+	}
+}
 
 # platform-specific modules
 lappend_if [expr            $use_ps2] boot_modules ps2_drv
