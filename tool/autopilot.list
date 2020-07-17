@@ -1,5 +1,6 @@
 bomb
 cpu_bench
+cpu_balancer
 cpu_quota
 cpu_sampler
 demo
