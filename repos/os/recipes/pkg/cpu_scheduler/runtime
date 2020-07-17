@@ -1,0 +1,18 @@
+<runtime ram="2M" caps="150" binary="cpu_scheduler">
+
+	<provides> <cpu/> </provides>
+
+	<requires>
+		<trace/>
+		<report/>
+		<timer/>
+	</requires>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="cpu_scheduler"/>
+	</content>
+
+	<config interval_us="1000000" report="yes" trace="yes"/>
+
+</runtime>
