@@ -1,0 +1,196 @@
+/*
+ * \author Alexander Boettcher
+ * \date   2020-07-16
+ */
+
+/*
+ * Copyright (C) 2020 Genode Labs GmbH
+ *
+ * This file is part of the Genode OS framework, which is distributed
+ * under the terms of the GNU Affero General Public License version 3.
+ */
+
+#include <base/attached_rom_dataspace.h>
+#include <base/component.h>
+#include <base/heap.h>
+#include <base/signal.h>
+
+#include <cpu_session/cpu_session.h>
+#include <timer_session/connection.h>
+
+#include "session.h"
+#include "config.h"
+#include "trace.h"
+
+namespace Cpu {
+	struct Scheduler;
+
+	using Genode::Affinity;
+	using Genode::Attached_rom_dataspace;
+	using Genode::Constructible;
+	using Genode::Cpu_session;
+	using Genode::Insufficient_ram_quota;
+	using Genode::Ram_quota;
+	using Genode::Rpc_object;
+	using Genode::Session_capability;
+	using Genode::Signal_handler;
+	using Genode::Sliced_heap;
+	using Genode::Typed_root;
+}
+
+struct Cpu::Scheduler : Rpc_object<Typed_root<Cpu_session>>
+{
+	Genode::Env            &env;
+	Attached_rom_dataspace  config   { env, "config" };
+	Timer::Connection       timer    { env };
+	Sliced_heap             heap     { env.ram(), env.rm() };
+	Child_list              list     { };
+	Constructible<Trace>    trace    { };
+	Constructible<Reporter> reporter { };
+
+	Signal_handler<Scheduler> signal_timeout {
+		env.ep(), *this, &Scheduler::handle_timeout };
+
+	Signal_handler<Scheduler> signal_config {
+		env.ep(), *this, &Scheduler::handle_config };
+
+	void handle_config();
+	void handle_timeout();
+
+	/***********************
+	 ** Session interface **
+	 ***********************/
+
+	Session_capability session(Root::Session_args const &args,
+	                           Affinity const &affinity) override
+	{
+		/* cap quota removal XXX ? */
+		Ram_quota const ram_quota = Genode::ram_quota_from_args(args.string());
+
+		Genode::error("session ", args.string(), " ",
+		              affinity.space().width(), "x", affinity.space().height(), " ",
+		              affinity.location().xpos(), "x", affinity.location().ypos(),
+		              " ", affinity.location().width(), "x", affinity.location().height(), " sizeof(Session)=", sizeof(Session));
+
+		Genode::size_t const session_size = Genode::max(4096UL, sizeof(Session));
+		/* when this trigger we have to think about dynamic memory allocation */
+		static_assert(session_size <= 4096);
+
+		if (ram_quota.value < session_size)
+			throw Insufficient_ram_quota();
+
+		/* XXX remove session_size from args */
+		Session * session = new (heap) Session(env, affinity, args, list);
+
+		/* check for config of new session */
+		Cpu::Config import;
+		import.apply(config.xml(), list);
+
+		return session->cap();
+	}
+
+	void upgrade(Session_capability, Root::Upgrade_args const&) override
+	{ 
+		Genode::warning(__func__, " missing");
+	}
+
+	void close(Session_capability const cap) override
+	{
+		if (!cap.valid()) return;
+
+		Session *object = nullptr;
+
+		env.ep().rpc_ep().apply(cap,
+			[&] (Session *source) {
+				object = source;
+		});
+
+		if (object)
+			destroy(heap, object);
+	}
+
+	/*****************
+	 ** Constructor **
+	 *****************/
+
+	Scheduler(Genode::Env &env) : env(env)
+	{
+		config.sigh(signal_config);
+		timer.sigh(signal_timeout);
+
+		Affinity::Space const space = env.cpu().affinity_space();
+		Genode::log("scheduler affinity space=",
+		            space.width(), "x", space.height());
+
+		handle_config();
+
+		env.parent().announce(env.ep().manage(*this));
+	}
+};
+
+void Cpu::Scheduler::handle_config()
+{
+	config.update();
+
+	if (!config.valid())
+		return;
+
+	if (config.xml().attribute_value("trace", false))
+		trace.construct(env);
+	else
+		trace.destruct();
+
+	if (config.xml().attribute_value("report", false)) {
+		reporter.construct(env, "components", "components", 4096 * 1);
+		reporter->enabled(true);
+	} else
+		reporter.destruct();
+
+	/* read in components configuration */
+	Cpu::Config import;
+	import.apply(config.xml(), list);
+
+	uint64_t time_us = config.xml().attribute_value("interval_us", 1000 * 1000UL);
+
+	timer.trigger_periodic(time_us);
+}
+
+void Cpu::Scheduler::handle_timeout()
+{
+	if (trace.constructed())
+		trace->read_idle_times();
+
+	bool report_update = false;
+
+	for (auto x = list.first(); x; x = x ->next()) {
+		auto session = x->object();
+		if (!session)
+			continue;
+
+		if (trace.constructed())
+			session->iterate_threads(*trace);
+		else
+			session->iterate_threads();
+
+		if (session->report_update())
+			report_update = true;
+	}
+
+	if (reporter.constructed() && report_update) {
+		Reporter::Xml_generator xml(*reporter, [&] () {
+			for (auto x = list.first(); x; x = x ->next()) {
+				auto session = x->object();
+				if (!session)
+					continue;
+
+				session->report_state(xml);
+			}
+		});
+	}
+
+}
+
+void Component::construct(Genode::Env &env)
+{
+	static Cpu::Scheduler server(env);
+}

@@ -46,11 +46,16 @@ struct Cpu_burner
 		unsigned iterations = 0;
 		for (;; iterations++) {
 
+			if (!iterations)
+				log("burn start=", start_ms, " ms");
+
 			uint64_t const curr_ms = _timer.elapsed_ms();
 			uint64_t passed_ms     = curr_ms - start_ms;
 
-			if (passed_ms >= 10*_percent)
+			if (passed_ms >= 10*_percent) {
+				log("sleep  end=", curr_ms, " ms");
 				break;
+			}
 
 			/* burn some time */
 			for (unsigned volatile i = 0; i < _burn_per_iteration; i++)
