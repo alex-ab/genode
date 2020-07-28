@@ -48,14 +48,25 @@ struct Cpu::Scheduler : Rpc_object<Typed_root<Cpu_session>>
 	Constructible<Trace>    trace    { };
 	Constructible<Reporter> reporter { };
 
-	Signal_handler<Scheduler> signal_timeout {
-		env.ep(), *this, &Scheduler::handle_timeout };
-
 	Signal_handler<Scheduler> signal_config {
 		env.ep(), *this, &Scheduler::handle_config };
 
 	void handle_config();
 	void handle_timeout();
+
+	/*
+	 * Need extra EP to avoid dead-lock/live-lock (depending on kernel)
+	 * due to down-calls by this component, e.g. parent.upgrade(...), and
+	 * up-calls by parent using this CPU service, e.g. to create initial thread
+	 *
+	 * Additionally, a list_mutex is required due to having 2 EPs now.
+	 */
+	Entrypoint ep { env, 2 * 4096, "live/dead-lock", Affinity::Location() };
+
+	Signal_handler<Scheduler> signal_timeout {
+		ep, *this, &Scheduler::handle_timeout };
+
+	Genode::Mutex list_mutex { };
 
 	/***********************
 	 ** Session interface **
@@ -80,6 +91,8 @@ struct Cpu::Scheduler : Rpc_object<Typed_root<Cpu_session>>
 			throw Insufficient_ram_quota();
 
 		/* XXX remove session_size from args */
+		Mutex::Guard guard(list_mutex);
+
 		Session * session = new (heap) Session(env, affinity, args, list);
 
 		/* check for config of new session */
@@ -105,8 +118,10 @@ struct Cpu::Scheduler : Rpc_object<Typed_root<Cpu_session>>
 				object = source;
 		});
 
-		if (object)
+		if (object) {
+			Mutex::Guard guard(list_mutex);
 			destroy(heap, object);
+		}
 	}
 
 	/*****************
@@ -159,6 +174,8 @@ void Cpu::Scheduler::handle_timeout()
 {
 	if (trace.constructed())
 		trace->read_idle_times();
+
+	Mutex::Guard guard(list_mutex);
 
 	bool report_update = false;
 
