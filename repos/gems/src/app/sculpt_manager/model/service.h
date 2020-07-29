@@ -27,7 +27,7 @@ struct Sculpt::Service
 	enum class Type {
 		AUDIO_IN, AUDIO_OUT, BLOCK, FILE_SYSTEM, NIC, NITPICKER,
 		RM, IO_MEM, IO_PORT, IRQ, REPORT, ROM, TERMINAL, TRACE,
-		USB, RTC, PLATFORM, VM, UNDEFINED };
+		USB, RTC, PLATFORM, VM, CPU, UNDEFINED };
 
 	enum class Match_label { EXACT, LAST };
 
@@ -46,6 +46,7 @@ struct Sculpt::Service
 		case Type::AUDIO_IN:    return "Audio_in";
 		case Type::AUDIO_OUT:   return "Audio_out";
 		case Type::BLOCK:       return "Block";
+		case Type::CPU:         return "CPU";
 		case Type::FILE_SYSTEM: return "File_system";
 		case Type::NIC:         return "Nic";
 		case Type::NITPICKER:   return "Nitpicker";
