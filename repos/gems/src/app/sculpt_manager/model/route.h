@@ -97,6 +97,8 @@ struct Sculpt::Route : List_model<Route>::Element
 
 	Id selected_service_id { };
 
+	bool predefined { false };
+
 	/**
 	 * Constructor
 	 *
