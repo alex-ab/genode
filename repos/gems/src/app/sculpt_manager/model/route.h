@@ -30,6 +30,7 @@ struct Sculpt::Route : List_model<Route>::Element
 		switch (type) {
 		case Service::Type::AUDIO_IN:    return "audio_in";
 		case Service::Type::AUDIO_OUT:   return "audio_out";
+		case Service::Type::CPU:         return "cpu";
 		case Service::Type::BLOCK:       return "block";
 		case Service::Type::FILE_SYSTEM: return "file_system";
 		case Service::Type::NIC:         return "nic";
@@ -56,6 +57,7 @@ struct Sculpt::Route : List_model<Route>::Element
 		switch (type) {
 		case Service::Type::AUDIO_IN:    return "Audio input";
 		case Service::Type::AUDIO_OUT:   return "Audio output";
+		case Service::Type::CPU:         return "CPU";
 		case Service::Type::BLOCK:       return "Block device";
 		case Service::Type::FILE_SYSTEM: return "File system";
 		case Service::Type::NIC:         return "Network";
