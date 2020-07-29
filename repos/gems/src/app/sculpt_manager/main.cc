@@ -287,7 +287,31 @@ struct Sculpt::Main : Input_event_handler,
 			return;
 
 		_runtime_state.apply_to_construction([&] (Component &component) {
-			_popup_dialog.apply_blueprint(component, blueprint); });
+			_popup_dialog.apply_blueprint(component, blueprint);
+
+			if (_popup_dialog._state == Popup_dialog::State::PKG_SHOWN) {
+				component.routes.for_each([&] (Route &route) {
+					if (route.required != Service::Type::CPU ||
+					    route.selected_service.constructed())
+						return;
+
+					unsigned cnt = 0;
+					_cached_runtime_config.for_each_service([&] (Service const &service) {
+						if (service.type == route.required)
+							cnt++;
+					});
+
+					if (cnt == 1) {
+						_cached_runtime_config.for_each_service([&] (Service const &service) {
+							if (service.type == route.required) {
+								route.selected_service.construct(service);
+								route.predefined = true;
+							}
+						});
+					}
+				});
+			}
+		});
 
 		_deploy.handle_deploy();
 	}
