@@ -48,6 +48,10 @@ void Popup_dialog::_gen_pkg_elements(Xml_generator &xml,
 
 		Route::Id const id(cnt++);
 
+		/* skip predefined parent services if requested */
+		if (route.predefined)
+			return;
+
 		gen_named_node(xml, "frame", id, [&] () {
 
 			xml.node("vbox", [&] () {
