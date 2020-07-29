@@ -430,6 +430,7 @@ void Depot_deploy::Child::gen_start_node(Xml_generator &xml, Xml_node common,
 					_gen_provides_sub_node(xml, service, "audio_in",    "Audio_in");
 					_gen_provides_sub_node(xml, service, "audio_out",   "Audio_out");
 					_gen_provides_sub_node(xml, service, "block",       "Block");
+					_gen_provides_sub_node(xml, service, "cpu",         "CPU");
 					_gen_provides_sub_node(xml, service, "file_system", "File_system");
 					_gen_provides_sub_node(xml, service, "framebuffer", "Framebuffer");
 					_gen_provides_sub_node(xml, service, "input",       "Input");
