@@ -61,7 +61,7 @@ struct Cpu::Scheduler : Rpc_object<Typed_root<Cpu_session>>
 	 *
 	 * Additionally, a list_mutex is required due to having 2 EPs now.
 	 */
-	Entrypoint ep { env, 2 * 4096, "live/dead-lock", Affinity::Location() };
+	Entrypoint ep { env, 3 * 4096, "live/dead-lock", Affinity::Location() };
 
 	Signal_handler<Scheduler> signal_timeout {
 		ep, *this, &Scheduler::handle_timeout };

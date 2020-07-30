@@ -46,29 +46,49 @@ void Cpu::Trace::read_idle_times()
 	}
 }
 
+enum { MAX_SUBJECTS = 1024 };
+
 void Cpu::Trace::_lookup_missing_idle_id(Affinity::Location const &location)
 {
 	bool found = false;
 
+static Genode::Trace::Subject_id subjects[MAX_SUBJECTS];
+
+/*
 	auto count = _trace->for_each_subject_info([&](Subject_id const &id,
 	                                               Subject_info const &info)
 	{
+*/
+	unsigned count = _trace->subjects(subjects, MAX_SUBJECTS);
+
+	for (unsigned i = 0; i < count; i++) {
+		Subject_id const &id = subjects[i];
+		Subject_info const info = _trace->subject_info(id);
+
 		if (found)
-			return;
+			continue;
+//			return;
 
 		if (info.affinity().xpos() != location.xpos() ||
 		    info.affinity().ypos() != location.ypos())
-			return;
+			continue;
+//			return;
 
 		if (info.session_label() != "kernel" || info.thread_name() != "idle")
-			return;
+			continue;
+//			return;
 
 		_idle_id[location.xpos()][location.ypos()] = id;
 
 		found = true;
+	}
+/*
 	});
 
 	if (!found && count.count == count.limit)
+		Genode::error("idle trace id missing && subject buffer too small");
+*/
+	if (!found && count == MAX_SUBJECTS)
 		Genode::error("idle trace id missing && subject buffer too small");
 }
 
@@ -76,26 +96,44 @@ Genode::Trace::Subject_id
 Cpu::Trace::lookup_missing_id(Session_label const &label,
                               Thread_name const &thread)
 {
+static Genode::Trace::Subject_id subjects[MAX_SUBJECTS];
+
 	Subject_id found_id { };
 
+/*
 	auto count = _trace->for_each_subject_info([&](Subject_id const &id,
 	                                               Subject_info const &info)
 	{
+*/
+	unsigned count = _trace->subjects(subjects, MAX_SUBJECTS);
+	for (unsigned i = 0; i < count; i++) {
+		Subject_id const &id = subjects[i];
+		Subject_info const info = _trace->subject_info(id);
+
 		if (found_id.id)
-			return;
+			continue;
+//			return;
 
 		if (label != info.session_label())
-			return;
+			continue;
+//			return;
 
 		if (thread != info.thread_name())
-			return;
+			continue;
+//			return;
 
 		found_id = id;
 
 		Genode::error("got ", label, " ", thread, " ", id.id);
+	}
+/*
 	});
 
 	if (!found_id.id && count.count == count.limit)
+		Genode::error("trace id missing && subject buffer too small");
+*/
+
+	if (!found_id.id && count == MAX_SUBJECTS)
 		Genode::error("trace id missing && subject buffer too small");
 
 	return found_id;

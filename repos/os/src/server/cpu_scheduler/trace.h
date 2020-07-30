@@ -39,8 +39,8 @@ class Cpu::Trace
 
 		Affinity::Space const _space;
 
-		Genode::size_t _ram_quota { 11 * 4096 };
-		Genode::size_t _arg_quota {  4 * 4096 };
+		Genode::size_t _ram_quota { 128 * 4096 };
+		Genode::size_t _arg_quota {  16 * 4096 };
 
 		enum { MAX_CORES = 64, MAX_THREADS = 2, HISTORY = 4 };
 
