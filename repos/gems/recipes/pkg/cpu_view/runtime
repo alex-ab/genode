@@ -1,0 +1,98 @@
+<runtime ram="38M" caps="750" binary="init">
+
+	<provides> <cpu/> </provides>
+
+	<requires>
+		<gui/>
+		<trace/>
+		<timer/>
+		<file_system label="fonts" writeable="no"/>
+	</requires>
+
+	<config>
+
+		<service name="CPU">
+			<default-policy> <child name="cpu_balancer"/> </default-policy>
+		</service>
+
+		<default-route> <any-service> <parent/> </any-service> </default-route>
+
+		<parent-provides>
+			<service name="PD"/>
+			<service name="CPU"/>
+			<service name="LOG"/>
+			<service name="ROM"/>
+			<service name="TRACE"/>
+			<service name="File_system"/>
+			<service name="Gui"/>
+			<service name="Timer"/>
+		</parent-provides>
+
+		<start name="report_rom" caps="100">
+			<resource name="RAM" quantum="1M"/>
+			<provides> <service name="Report"/> <service name="ROM"/> </provides>
+			<config verbose="no">
+				<policy label="menu_view -> dialog" report="cpu_view -> dialog"/>
+				<policy label="cpu_view -> hover" report="menu_view -> hover"/>
+				<policy label="cpu_view -> components"  report="cpu_balancer -> components"/>
+				<policy label="cpu_balancer -> config" report="cpu_view -> components"/>
+			</config>
+		</start>
+
+		<start name="menu_view" caps="200">
+			<resource name="RAM" quantum="24M"/>
+			<config xpos="200" ypos="100">
+				<report hover="yes"/>
+				<libc stderr="/dev/log"/>
+				<vfs>
+					<tar name="menu_view_styles.tar" />
+					<dir name="dev"> <log/> </dir>
+					<dir name="fonts"> <fs label="fonts"/> </dir>
+				</vfs>
+			</config>
+			<route>
+				<service name="ROM" label="dialog"> <child name="report_rom" /> </service>
+				<service name="Report" label="hover"> <child name="report_rom"/> </service>
+				<service name="File_system" label="fonts"> <parent label="fonts"/> </service>
+				<any-service> <parent/> <any-child/> </any-service>
+			</route>
+		</start>
+
+		<start name="cpu_view" caps="200">
+			<resource name="RAM" quantum="4M"/>
+			<config/>
+			<route>
+				<service name="ROM" label="hover"> <child name="report_rom" /> </service>
+				<service name="ROM" label="components"> <child name="report_rom"/> </service>
+				<service name="Report"> <child name="report_rom"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+		<start name="cpu_balancer" caps="200">
+			<resource name="RAM" quantum="2M"/>
+			<provides><service name="CPU"/></provides>
+			<route>
+				<service name="ROM" label="config"> <child name="report_rom"/> </service>
+				<service name="Report"> <child name="report_rom"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+	</config>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="libc.lib.so"/>
+		<rom label="libm.lib.so"/>
+		<rom label="vfs.lib.so"/>
+		<rom label="libpng.lib.so"/>
+		<rom label="zlib.lib.so"/>
+		<rom label="menu_view_styles.tar"/>
+		<rom label="menu_view"/>
+		<rom label="init"/>
+		<rom label="cpu_view"/>
+		<rom label="report_rom"/>
+		<rom label="cpu_balancer"/>
+	</content>
+
+</runtime>
