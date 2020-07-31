@@ -1,0 +1,227 @@
+set cpu_width  8
+set cpu_height 2
+set report_config "yes"
+set use_trace "yes"
+
+set use_wm 0
+set gui_name "nitpicker"
+if {$use_wm} {
+	set gui_name "wm"
+}
+
+
+create_boot_directory
+
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/pkg/[drivers_interactive_pkg] \
+                  [depot_user]/pkg/themed_wm \
+                  [depot_user]/pkg/fonts_fs \
+                  [depot_user]/src/init \
+                  [depot_user]/src/report_rom \
+                  [depot_user]/src/nitpicker \
+                  [depot_user]/src/libc \
+                  [depot_user]/src/libpng \
+                  [depot_user]/src/zlib \
+                  [depot_user]/src/vfs
+
+append config {
+<config prio_levels="4">
+	<affinity-space width="} $cpu_width {" height="} $cpu_height {"/>
+	<parent-provides>
+		<service name="LOG"/>
+		<service name="CPU"/>
+		<service name="ROM"/>
+		<service name="RM"/>
+		<service name="PD"/>
+		<service name="IO_PORT"/>
+		<service name="IO_MEM"/>
+		<service name="IRQ"/>
+		<service name="TRACE"/>
+	</parent-provides>
+
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+
+	<default caps="100"/>
+
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="drivers" caps="1100" managing_system="yes">
+		<resource name="RAM" quantum="42M"/>
+		<binary name="init"/>
+		<route>
+			<service name="ROM" label="config"> <parent label="drivers.config"/> </service>
+			<service name="Timer"> <child name="timer"/> </service>
+			<service name="Capture"> <child name="nitpicker"/> </service>
+			<service name="Event">   <child name="nitpicker"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+		<provides>
+			<service name="Input"/>
+		</provides>
+	</start>
+
+	<start name="nitpicker">
+		<resource name="RAM" quantum="4M"/>
+		<provides>
+			<service name="Gui"/> <service name="Capture"/> <service name="Event"/>
+		</provides>
+		<config>
+			<capture/> <event/>
+			<background color="#123456"/>
+			<domain name="pointer" layer="1" content="client" label="no" origin="pointer" />
+			<domain name="default" layer="3" content="client" label="no" hover="always" focus="click" />
+
+			<policy label_prefix="pointer" domain="pointer"/>
+			<default-policy domain="default"/>
+		</config>
+	</start>
+
+	<start name="pointer">
+		<resource name="RAM" quantum="1M"/>
+		<route>
+			<service name="Gui"> <child name="nitpicker" /> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="fonts_fs" caps="300">
+		<resource name="RAM" quantum="8M"/>
+		<binary name="vfs"/>
+		<route>
+			<service name="ROM" label="config"> <parent label="fonts_fs.config"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+		<provides> <service name="File_system"/> </provides>
+	</start>
+
+	<start name="menu_view" caps="200" priority="-1">
+		<resource name="RAM" quantum="16M"/>
+		<config xpos="200" ypos="100">
+			<report hover="yes"/>
+			<libc stderr="/dev/log"/>
+			<vfs>
+				<tar name="menu_view_styles.tar" />
+				<dir name="dev"> <log/> </dir>
+				<dir name="fonts"> <fs label="fonts"/> </dir>
+			</vfs>
+		</config>
+		<route>
+			<service name="ROM" label="dialog"> <child name="report_rom" /> </service>
+			<service name="Report" label="hover"> <child name="report_rom"/> </service>
+			<service name="File_system" label="fonts"> <child name="fonts_fs"/> </service>
+			<service name="Gui"> <child name="} $gui_name {"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="report_rom">
+		<binary name="report_rom"/>
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Report"/> <service name="ROM"/> </provides>
+		<config verbose="no">
+			<policy label="cpu_view -> components"  report="cpu_scheduler -> components"/>
+			<policy label="cpu_view -> hover"       report="menu_view -> hover"/>
+			<policy label="menu_view -> dialog"     report="cpu_view -> dialog"/>
+			<policy label="cpu_scheduler -> config" report="cpu_view -> components"/>
+		</config>
+		<route>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>}
+
+append_if [expr $use_wm] config {
+	<start name="wm" caps="1000">
+		<resource name="RAM" quantum="32M"/>
+		<binary name="init"/>
+		<provides> <service name="Gui"/> <service name="Report"/> </provides>
+		<route>
+			<service name="ROM" label="config"> <parent label="wm.config"/> </service>
+			<service name="Gui"> <child name="nitpicker"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>}
+
+append config {
+	<start name="cpu_scheduler">
+<!--		<affinity xpos="1" ypos="0" width="2" height="1"/> -->
+		<resource name="RAM" quantum="2M"/>
+		<provides><service name="CPU"/></provides>
+<!--
+		<config interval_us="1000000" report="} $report_config {" trace="} $use_trace {">
+			<component label="cpu_burner">
+				<thread name="signal handler" policy="round-robin"/>
+				<thread name="signal handler" policy="pin" xpos="1" ypos="0"/>
+				<thread name="ep"             policy="max-utilize"/>
+				<thread name="signal handler" policy="max-utilize"/>
+				<thread name="cpu_burner"     policy="max-utilize"/>
+			</component>
+		</config>
+-->
+		<route>
+			<service name="ROM" label="config"> <child name="report_rom"/> </service>
+			<service name="Timer">  <child name="timer"/> </service>
+			<service name="Report"> <child name="report_rom"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+	<start name="cpu_view" priority="-1">
+		<resource name="RAM" quantum="2M"/>
+		<route>
+			<service name="ROM"    label="components"> <child name="report_rom"/> </service>
+			<service name="ROM"    label="hover">      <child name="report_rom"/> </service>
+			<service name="Report" label="dialog">     <child name="report_rom"/> </service>
+			<service name="Report" label="components"> <child name="report_rom"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+	<start name="cpu_burner.1" priority="-2">
+		<binary name="cpu_burner"/>
+		<affinity xpos="2" ypos="0" width="4" height="1"/>
+		<resource name="RAM" quantum="2M"/>
+		<route>
+			<service name="CPU"> <child name="cpu_scheduler"/> </service>
+			<service name="Timer"> <child name="timer"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+	<start name="cpu_burner.2" priority="-2">
+		<binary name="cpu_burner"/>
+		<affinity xpos="6" ypos="0" width="2" height="1"/>
+		<resource name="RAM" quantum="2M"/>
+		<route>
+			<service name="CPU"> <child name="cpu_scheduler"/> </service>
+			<service name="Timer"> <child name="timer"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+<!--
+-->
+	<start name="top">
+		<resource name="RAM" quantum="2M"/>
+		<config period_ms="15000"/>
+		<route>
+			<service name="Timer"> <child name="timer"/> </service>
+			<service name="CPU"> <child name="cpu_scheduler"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+</config>}
+
+install_config $config
+
+build {server/cpu_scheduler app/cpu_burner app/top app/cpu_view app/menu_view}
+
+build_boot_image { cpu_scheduler cpu_burner top cpu_view menu_view menu_view_styles.tar }
+
+append qemu_args " -smp [expr $cpu_width * $cpu_height],cores=$cpu_width,threads=$cpu_height"
+
+run_genode_until forever

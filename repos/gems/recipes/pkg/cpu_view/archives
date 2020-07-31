@@ -1,0 +1,9 @@
+_/src/cpu_view
+_/src/menu_view
+_/src/cpu_scheduler
+_/src/init
+_/src/report_rom
+_/src/libc
+_/src/vfs
+_/src/libpng
+_/src/zlib
