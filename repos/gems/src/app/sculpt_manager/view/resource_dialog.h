@@ -66,7 +66,6 @@ struct Sculpt::Resource_dialog : Noncopyable, Dialog
 
 	void reset() override
 	{
-		Genode::warning(__FILE__, " ", __func__, " todo");
 		_space_item._hovered = Hoverable_item::Id();
 		_location = Affinity::Location();
 	}
