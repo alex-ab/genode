@@ -43,8 +43,7 @@ class Genode::Trace::Root : public Genode::Root_component<Session_component>
 			if (arg_buffer_size > ram_quota)
 				throw Service_denied();
 
-			Genode::error(this, " ram_quota ", ram_quota, " arg_buffer_size=", arg_buffer_size);
-			Session_component * c = new (md_alloc())
+			return new (md_alloc())
 			       Session_component(*this->ep(),
 			                         session_resources_from_args(args),
 			                         session_label_from_args(args),
@@ -52,8 +51,6 @@ class Genode::Trace::Root : public Genode::Root_component<Session_component>
 			                         _ram, _local_rm,
 			                         arg_buffer_size, parent_levels,
 			                         _sources, _policies);
-			Genode::error(this, " ram_quota ", ram_quota, " arg_buffer_size=", arg_buffer_size, " done");
-			return c;
 		}
 
 		void _upgrade_session(Session_component *s, const char *args) override

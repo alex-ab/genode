@@ -216,9 +216,9 @@ append config {
 
 install_config $config
 
-build { app/menu_view app/top_view app/graph core init }
+build { app/menu_view app/top_view app/graph }
 
-build_boot_image { menu_view menu_view_styles.tar top_view graph core init}
+build_boot_image { menu_view menu_view_styles.tar top_view graph }
 
 append qemu_args " -smp 4,cores=4"
 run_genode_until forever
