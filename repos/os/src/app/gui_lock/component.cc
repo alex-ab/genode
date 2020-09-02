@@ -132,7 +132,19 @@ struct Main
 		bool unlock = false;
 
 		_gui->input()->for_each_event([&] (Input::Event const &ev) {
+#if 0
+			Genode::log(__LINE__, " ev=", ev, " ",
+			            state == WAIT_CLICK ? "wait_click" :
+			            state == RECORD_PWD ? "record_pwd" :
+			            state == COMPARE_PWD ? "compare_pwd" : "unknown");
+#endif
 			ev.handle_press([&] (Input::Keycode key, Input::Codepoint cp) {
+#if 1
+				Genode::log(__LINE__, " key=", (int)key, " cp=", cp.value, " ",
+				            state == WAIT_CLICK ? "wait_click" :
+				            state == RECORD_PWD ? "record_pwd" :
+				            state == COMPARE_PWD ? "compare_pwd" : "unknown");
+#endif
 				if (!ev.key_press(key) || !cp.valid())
 					return;
 
@@ -146,7 +158,12 @@ struct Main
 
 				if (state == WAIT_CLICK)
 					return;
-
+#if 0
+				Genode::log(__LINE__, " key=", (int)key, " cp=", cp.value, " ",
+				            state == WAIT_CLICK ? "wait_click" :
+				            state == RECORD_PWD ? "record_pwd" :
+				            state == COMPARE_PWD ? "compare_pwd" : "unknown");
+#endif
 				bool reset = false;
 
 				if (key == Input::Keycode::KEY_ESC) {
@@ -178,6 +195,13 @@ struct Main
 						_show_box(_pwd.i, 0, ~0);
 					}
 				}
+#if 0
+				Genode::log(__LINE__, " key=", (int)key, " cp=", cp.value, " ",
+				            state == WAIT_CLICK ? "wait_click" :
+				            state == RECORD_PWD ? "record_pwd" :
+				            state == COMPARE_PWD ? "compare_pwd" : "unknown",
+				            " ", reset ? "reset" : "noreset");
+#endif
 				if (reset) {
 					if (state == RECORD_PWD)
 						_switch_view_record_pwd();
