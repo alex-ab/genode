@@ -672,6 +672,8 @@ exec sh -c "tar cf [run_dir]/genode/depot_users.tar -C [genode_dir] \
 # Create boot image
 #
 
-append boot_modules { }
+build { server/nitpicker }
+
+append boot_modules { nitpicker }
 
 build_boot_image $boot_modules
