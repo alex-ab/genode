@@ -25,6 +25,7 @@
 
 /* nitpicker graphics backend */
 #include <nitpicker_gfx/tff_font.h>
+#include <nitpicker_gfx/box_painter.h>
 
 #include <nul/motherboard.h>
 #include <host/screen.h>
@@ -283,18 +284,78 @@ unsigned Seoul::Console::_handle_fb()
 
 		for (int j=0; j<25; j++) {
 			for (int i=0; i<80; i++) {
+				using Genode::uint8_t;
+
 				Text_painter::Position const where(i*8, j*15);
-				char character = *((char *) (_guest_fb +(_regs->offset << 1) +j*80*2+i*2));
+				uint8_t character  = *((uint8_t *) (_guest_fb+(_regs->offset << 1)+j*80*2+i*2+0));
 				char colorvalue = *((char *) (_guest_fb+(_regs->offset << 1)+j*80*2+i*2+1));
+
 				char buffer[2]; buffer[0] = character; buffer[1] = 0;
+
+				{
+					char bg = (colorvalue & 0xf0) >> 4;
+					if (bg == 0x8) bg = 0x7;
+					unsigned lum = ((bg & 0x8) >> 3)*127;
+					Genode::Color color(((bg & 0x4) >> 2)*127+lum, /* R+luminosity */
+					                    ((bg & 0x2) >> 1)*127+lum, /* G+luminosity */
+					                    ((bg & 0x1) >> 0)*127+lum  /* B+luminosity */);
+
+					Gui::Rect rect(Gui::Point(i*8, j*15), Gui::Area(8, 15));
+					Box_painter::paint(_surface, rect, color);
+				}
+
 				char fg = colorvalue & 0xf;
 				if (fg == 0x8) fg = 0x7;
 				unsigned lum = ((fg & 0x8) >> 3)*127;
 				Genode::Color color(((fg & 0x4) >> 2)*127+lum, /* R+luminosity */
 				                    ((fg & 0x2) >> 1)*127+lum, /* G+luminosity */
-				                     (fg & 0x1)*127+lum        /* B+luminosity */);
+				                    ((fg & 0x1) >> 0)*127+lum  /* B+luminosity */);
 
-				Text_painter::paint(_surface, where, default_font, color, buffer);
+				if (character == 0xb3) { /* | */
+					Gui::Rect rect(Gui::Point(i*8 + 2, j*15 + 0), Gui::Area(2, 15));
+					Box_painter::paint(_surface, rect, color);
+				} else
+				if (character == 0xb4) { /* -| */
+					Gui::Rect rect(Gui::Point(i*8 + 0, j*15 + 7), Gui::Area(3, 2));
+					Box_painter::paint(_surface, rect, color);
+					rect = Gui::Rect(Gui::Point(i*8 + 2, j*15 + 0), Gui::Area(2, 15));
+					Box_painter::paint(_surface, rect, color);
+				} else
+				if (character == 0xbf) { /* -. */
+					Gui::Rect rect(Gui::Point(i*8 + 0, j*15 + 7), Gui::Area(3, 2));
+					Box_painter::paint(_surface, rect, color);
+					rect = Gui::Rect(Gui::Point(i*8 + 2, j*15 + 8), Gui::Area(2, 8));
+					Box_painter::paint(_surface, rect, color);
+				} else
+				if (character == 0xc3) { /* |- */
+					Gui::Rect rect(Gui::Point(i*8 + 2, j*15 + 7), Gui::Area(6, 2));
+					Box_painter::paint(_surface, rect, color);
+					rect = Gui::Rect(Gui::Point(i*8 + 2, j*15 + 0), Gui::Area(2, 15));
+					Box_painter::paint(_surface, rect, color);
+				} else
+				if (character == 0xc4) { /* - */
+					Gui::Rect rect(Gui::Point(i*8 + 0, j*15 + 7), Gui::Area(8, 2));
+					Box_painter::paint(_surface, rect, color);
+				} else
+				if (character == 0xc0) { /* '- */
+					Gui::Rect rect(Gui::Point(i*8 + 2, j*15 + 7), Gui::Area(6, 2));
+					Box_painter::paint(_surface, rect, color);
+					rect = Gui::Rect(Gui::Point(i*8 + 2, j*15), Gui::Area(2, 8));
+					Box_painter::paint(_surface, rect, color);
+				} else
+				if (character == 0xda) { /* .- */
+					Gui::Rect rect(Gui::Point(i*8 + 2, j*15 + 7), Gui::Area(6, 2));
+					Box_painter::paint(_surface, rect, color);
+					rect = Gui::Rect(Gui::Point(i*8 + 2, j*15 + 8), Gui::Area(2, 8));
+					Box_painter::paint(_surface, rect, color);
+				} else
+				if (character == 0xd9) { /* -' */
+					Gui::Rect rect(Gui::Point(i*8 + 0, j*15 + 7), Gui::Area(3, 2));
+					Box_painter::paint(_surface, rect, color);
+					rect = Gui::Rect(Gui::Point(i*8 + 2, j*15), Gui::Area(2, 8));
+					Box_painter::paint(_surface, rect, color);
+				} else
+					Text_painter::paint(_surface, where, default_font, color, buffer);
 
 				/* Checksum for comparing */
 				if (fb_state.cmp_even) fb_state.checksum1 += character;
