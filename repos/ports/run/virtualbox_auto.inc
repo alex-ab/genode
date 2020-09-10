@@ -35,6 +35,7 @@ append build_components {
 	server/fs_rom
 	drivers/ahci
 	drivers/framebuffer
+	core kernel lib/ld
 }
 
 lappend_if [expr $use_serial] build_components server/log_terminal
@@ -386,6 +387,7 @@ append boot_modules {
 	libc.lib.so vfs.lib.so libm.lib.so
 	libiconv.lib.so stdcxx.lib.so
 	qemu-usb.lib.so
+	core ld.lib.so hypervisor
 }
 
 lappend_if [expr $use_rumpfs] boot_modules rump.lib.so
