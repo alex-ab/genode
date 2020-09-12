@@ -19,7 +19,7 @@
 #include <base/log.h>
 #include <base/rpc_server.h>
 #include <base/rpc_client.h>
-
+#include <trace/timestamp.h>
 
 namespace Genode {
 
@@ -202,7 +202,7 @@ namespace Affinity_test {
 		volatile uint64_t cnt = 0;
 		unsigned round = 0;
 
-		char const   text_cpu[] = "Affinity:     CPU: ";
+		char const   text_cpu[] = "Affinity:      CPU: ";
 		char const text_round[] = "Affinity: Round %2u: ";
 		char * output_buffer = new (heap) char [sizeof(text_cpu) + 3 * cpus.total()];
 
@@ -323,6 +323,167 @@ namespace Tlb_shootdown_test {
 		log("TLB: --- test finished ---");
 	}
 }
+
+namespace Tsc_test {
+
+	struct Tsc_thread : Genode::Thread
+	{
+		enum { STACK_SIZE = 4 * 4096 };
+
+		Genode::Affinity::Location  const    location;
+		Genode::Blockade                     barrier   { };
+		Genode::uint64_t            volatile cnt       { 0 };
+		Genode::uint64_t            volatile tsc_value { 0 };
+		Genode::uint64_t                     last_cnt  { 0 };
+		Genode::uint64_t                     last_tsc  { 0 };
+		Genode::uint64_t                     diff      { 0 };
+		bool                        volatile loop      { true };
+		bool                        volatile spin      { true };
+
+		void entry() override
+		{
+			last_tsc = Genode::Trace::timestamp();
+
+			Genode::log(this, " ", Genode::Hex(last_tsc));
+			barrier.wakeup();
+
+			while (loop) {
+				while (spin && loop) cnt++;
+
+				measure();
+				spin = true;
+			}
+		}
+
+		void measure() { tsc_value = Genode::Trace::timestamp(); }
+
+		Tsc_thread(Genode::Env &env, Location location)
+		: Genode::Thread(env, Name("tsc_thread"), STACK_SIZE, location,
+		                 Weight(), env.cpu()), location(location)
+		{ }
+	};
+
+	template <int T>
+	Genode::String<T> _align_right(Genode::uint64_t const value)
+	{
+		Genode::String<T> result("",Genode::Hex(value));
+
+		Genode::uint64_t pow = 16;
+
+		for (Genode::uint64_t i = 3; i < (T - 1); i++, pow *= 16) {
+			if (value < pow) {
+				result = Genode::String<T>(" ", result);
+			}
+		}
+
+		if (value > pow) {
+			result = Genode::String<T>("?");
+			for (Genode::uint64_t i = 1; i < (T - 1); i++)
+				result = Genode::String<T>(" ", result);
+		}
+
+		return result;
+	}
+
+	void execute(Genode::Env &env, Genode::Heap &heap,
+	             Genode::Affinity::Space &cpus)
+	{
+		using namespace Genode;
+
+		log("TSC: --- test started ---");
+
+		/* get some memory for the thread objects */
+		Tsc_thread ** threads = new (heap) Tsc_thread*[cpus.total()];
+
+		/* construct the thread objects */
+		for (unsigned i = 0; i < cpus.total(); i++) {
+			threads[i] = new (heap) Tsc_thread(env, cpus.location_of_index(i));
+			/* skip first thread, current thread will do the measurement */
+			if (i) threads[i]->start();
+		}
+
+		/* wait until all threads are up and running */
+		for (unsigned i = 1; i < cpus.total(); i++) threads[i]->barrier.block();
+
+		/* we handle the first cpu */
+		threads[0]->measure();
+		threads[0]->last_tsc = threads[0]->tsc_value;
+
+		/* make some rounds */
+		for (unsigned round = 0; round < 20; round++) {
+
+			/* stop spinning */
+			for (unsigned i = 1; i < cpus.total(); i++)
+				threads[i]->spin = false;
+
+			/* wait for valid results */
+			for (unsigned i = 1; i < cpus.total(); i++)
+				while (!threads[i]->spin) { };
+
+			/* do measure for cpu 0 */
+			threads[0]->measure();
+
+			/* sleep XXX */
+
+			/* calculate results */
+			String<128> show;
+			String<128> show_diff;
+
+			for (unsigned i = 0; i < cpus.total(); i++) {
+				uint64_t diff = threads[i]->tsc_value - threads[i]->last_tsc;
+				if (round) {
+					bool plus = diff > threads[i]->diff;
+					show_diff = String<128>(show_diff, " ", plus ? "+" : "-",
+					                        _align_right<13>(plus ?
+					                            (diff - threads[i]->diff) :
+					                            (threads[i]->diff - diff)));
+				}
+
+				threads[i]->diff     = diff;
+				threads[i]->last_cnt = threads[i]->cnt;
+				threads[i]->last_tsc = threads[i]->tsc_value;
+
+				show = String<128>(show, " ", _align_right<14>(threads[i]->diff));
+
+			}
+			uint64_t min_diff = ~0ULL;
+			uint64_t max_diff = 0;
+
+			for (unsigned i = 0; i < cpus.total(); i++) {
+				for (unsigned j = 0; j < cpus.total(); j++) {
+					if (i == j) continue;
+
+					uint64_t diff = (threads[i]->diff > threads[j]->diff) ?
+					                (threads[i]->diff - threads[j]->diff) :
+					                (threads[j]->diff - threads[i]->diff);
+
+					if (diff < min_diff) min_diff = diff;
+					if (diff > max_diff) max_diff = diff;
+				}
+			}
+
+			/* show result */
+			if (round)
+				log("   ", show_diff); /* diff to prev column */
+			log(round, round < 10 ? "  " : " ", show,
+			    " min=", _align_right<12>(min_diff),
+			    " max=", Hex(max_diff));
+		}
+
+		/* break loop and stop spinning */
+		for (unsigned i = 1; i < cpus.total(); i++) threads[i]->loop = false;
+
+		/* join finished worker threads */
+		for (unsigned i = 1; i < cpus.total(); i++) threads[i]->join();
+
+		/* cleanup */
+		for (unsigned i = 0; i < cpus.total(); i++) destroy(heap, threads[i]);
+		destroy(heap, threads);
+
+		log("TSC: --- test finished ---");
+	}
+}
+
 void Component::construct(Genode::Env & env)
 {
 	using namespace Genode;
@@ -338,6 +499,7 @@ void Component::construct(Genode::Env & env)
 	Mp_server_test::execute(env, heap, cpus);
 	Affinity_test::execute(env, heap, cpus);
 	Tlb_shootdown_test::execute(env, heap, cpus);
+	Tsc_test::execute(env, heap, cpus);
 
 	log("--- SMP testsuite finished ---");
 }

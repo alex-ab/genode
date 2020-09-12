@@ -40,8 +40,8 @@ install_config {
 build_boot_image "core ld.lib.so init test-smp"
 
 if {[have_include "power_on/qemu"]} {
-	# in general we want to have at least 2 CPUs
-	set want_cpus 2
+	# in general we want to have at least 4 CPUs
+	set want_cpus 4
 
 	# pbxa9 - foc does only use 1 cpu even if more are configured
 	# pbxa9 - hw does not support multiple CPUs
