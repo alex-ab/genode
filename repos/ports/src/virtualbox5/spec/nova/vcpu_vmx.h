@@ -63,12 +63,21 @@ class Vcpu_handler_vmx : public Vcpu_handler
 			Genode::Thread *myself = Genode::Thread::myself();
 			Utcb *utcb = reinterpret_cast<Utcb *>(myself->utcb());
 
+			if (utcb->mtd & Nova::Mtd::TSC) {
+				_tsc_on_exit.tsc    = utcb->tsc_val;
+				_tsc_on_exit.offset = utcb->tsc_off;
+			} else {
+				_tsc_on_exit.tsc    = 0;
+				_tsc_on_exit.offset = 0;
+			}
+
 			/* configure VM exits to get */
 			next_utcb.mtd = Nova::Mtd::CTRL;
 			/* from src/VBox/VMM/VMMR0/HWVMXR0.cpp of virtualbox sources  */
 			next_utcb.ctrl[0] = VMX_VMCS_CTRL_PROC_EXEC_HLT_EXIT |
 			                    VMX_VMCS_CTRL_PROC_EXEC_MOV_DR_EXIT |
 			                    VMX_VMCS_CTRL_PROC_EXEC_UNCOND_IO_EXIT |
+			                    VMX_VMCS_CTRL_PROC_EXEC_USE_TSC_OFFSETTING |
 /* XXX commented out because TinyCore Linux won't run as guest otherwise
 			                    VMX_VMCS_CTRL_PROC_EXEC_MONITOR_EXIT |
 			                    VMX_VMCS_CTRL_PROC_EXEC_MWAIT_EXIT |
@@ -78,20 +87,19 @@ class Vcpu_handler_vmx : public Vcpu_handler
 			                    VMX_VMCS_CTRL_PROC_EXEC_USE_TPR_SHADOW |
 			                    VMX_VMCS_CTRL_PROC_EXEC_RDPMC_EXIT;
 /*			                    VMX_VMCS_CTRL_PROC_EXEC_PAUSE_EXIT | */
-			/*
-			 * Disable trapping RDTSC for now as it creates a huge load with
-			 * VM guests that execute it frequently.
-			 */
-			                    // VMX_VMCS_CTRL_PROC_EXEC_RDTSC_EXIT;
 
 			next_utcb.ctrl[1] = VMX_VMCS_CTRL_PROC_EXEC2_VIRT_APIC |
 			                    VMX_VMCS_CTRL_PROC_EXEC2_WBINVD_EXIT |
 			                    VMX_VMCS_CTRL_PROC_EXEC2_UNRESTRICTED_GUEST |
 			                    VMX_VMCS_CTRL_PROC_EXEC2_VPID |
 /*			                    VMX_VMCS_CTRL_PROC_EXEC2_X2APIC | */
-			                    VMX_VMCS_CTRL_PROC_EXEC2_RDTSCP |
 			                    VMX_VMCS_CTRL_PROC_EXEC2_EPT |
 			                    VMX_VMCS_CTRL_PROC_EXEC2_INVPCID;
+
+			Vmm::log(myself->name(), " startup ",
+			         " tsc_val=", Genode::Hex(utcb->tsc_val),
+			         " tsc_offset=", Genode::Hex(utcb->tsc_off),
+			         " -> tsc=", Genode::Hex(utcb->tsc_val + utcb->tsc_off));
 
 			void *exit_status = _start_routine(_start_routine_arg);
 			pthread_exit(exit_status);
@@ -203,13 +211,10 @@ class Vcpu_handler_vmx : public Vcpu_handler
 				&This::_vmx_default> (exc_base, Mtd::ALL | Mtd::FPU);
 			register_handler<VMX_EXIT_HLT, This,
 				&This::_vmx_default> (exc_base, Mtd::ALL | Mtd::FPU);
-
-			/* we don't support tsc offsetting for now - so let the rdtsc exit */
 			register_handler<VMX_EXIT_RDTSC, This,
 				&This::_vmx_default> (exc_base, Mtd::ALL | Mtd::FPU);
 			register_handler<VMX_EXIT_RDTSCP, This,
 				&This::_vmx_default> (exc_base, Mtd::ALL | Mtd::FPU);
-
 			register_handler<VMX_EXIT_VMCALL, This,
 				&This::_vmx_default> (exc_base, Mtd::ALL | Mtd::FPU);
 			register_handler<VMX_EXIT_IO_INSTR, This,
@@ -269,6 +274,7 @@ class Vcpu_handler_vmx : public Vcpu_handler
 				if (_ept_fault_addr_type == PGMPAGETYPE_MMIO)
 					/* EMHandleRCTmpl.h does not distinguish READ/WRITE rc */
 					return VINF_IOM_R3_MMIO_READ_WRITE;
+			case VMX_EXIT_WBINVD:
 			case VMX_EXIT_MOV_DRX:
 				/* looks complicated in original R0 code -> emulate instead */
 				return VINF_EM_RAW_EMULATE_INSTR;

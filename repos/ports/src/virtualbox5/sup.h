@@ -49,4 +49,12 @@ Genode::Cpu_connection * get_vcpu_cpu_connection();
 void genode_VMMR0_DO_GVMM_CREATE_VM(PSUPVMMR0REQHDR pReqHdr);
 void genode_VMMR0_DO_GVMM_REGISTER_VMCPU(PVMR0 pVMR0, VMCPUID idCpu);
 
+struct guest_tsc {
+	uint64_t tsc;
+	uint64_t offset;
+};
+
+guest_tsc genode_vm_enter_tsc(guest_tsc);
+void      genode_vm_exit_tsc(unsigned, guest_tsc);
+
 #endif /* _SUP_H_ */

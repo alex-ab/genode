@@ -121,6 +121,7 @@ DUMMY(SELMR3GetSelectorInfo)
 DUMMY(SELMR3GetShadowSelectorInfo)
 
 DUMMY(SUPReadTscWithDelta)
+DUMMY(SUPGetTscDeltaSlow)
 DUMMY(SUPR3ContAlloc)
 DUMMY(SUPR3ContFree)
 DUMMY(SUPR3HardenedLdrLoadPlugIn)

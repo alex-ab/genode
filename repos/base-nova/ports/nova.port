@@ -2,9 +2,9 @@ LICENSE   := GPLv2
 VERSION   := git
 DOWNLOADS := nova.git
 
-# r10_time_19_12 branch
+# r10_vmcs_tsc branch
 URL(nova) := https://github.com/alex-ab/NOVA.git
-REV(nova) := 6b7ec97af19bf5ae793229de307a67450b6d3247
+REV(nova) := 0974f470b2f050ccf0bf4716a93d07d09b6ad74c
 DIR(nova) := src/kernel/nova
 
 PATCHES   := $(sort $(wildcard $(REP_DIR)/patches/*.patch))

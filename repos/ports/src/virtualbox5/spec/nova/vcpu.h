@@ -83,6 +83,8 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 		pthread::start_routine_t const _start_routine;
 		void                   * const _start_routine_arg;
 
+		struct guest_tsc _tsc_on_exit { 0, 0 };
+
 	private:
 
 		X86FXSTATE _guest_fpu_state __attribute__((aligned(0x10)));
@@ -254,6 +256,10 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 				/* got recall during irq injection and the guest is ready for
 				 * delivery of IRQ - just continue */
 				_fpu_load();
+
+				/* avoid rewriting the tsc offset by accident */
+				utcb->mtd &= ~Nova::mword_t(Nova::Mtd::TSC);
+
 				Nova::reply(_stack_reply);
 			}
 
@@ -325,6 +331,10 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 
 			if (unmap) {
 				Vmm::log("error: unmap not implemented");
+
+				/* avoid rewriting the tsc offset by accident */
+				utcb->mtd &= ~Nova::mword_t(Nova::Mtd::TSC);
+
 				Nova::reply(_stack_reply);
 			}
 
@@ -540,6 +550,14 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 		inline bool utcb_to_vbox(Nova::Utcb * utcb, VM *pVM, PVMCPU pVCpu)
 		{
 			PCPUMCTX pCtx  = CPUMQueryGuestCtxPtr(pVCpu);
+
+			if (utcb->mtd & Nova::Mtd::TSC) {
+				_tsc_on_exit.tsc    = utcb->tsc_val;
+				_tsc_on_exit.offset = utcb->tsc_off;
+			} else {
+				_tsc_on_exit.tsc    = 0;
+				_tsc_on_exit.offset = 0;
+			}
 
 			pCtx->rip = utcb->ip;
 			pCtx->rsp = utcb->sp;
@@ -940,11 +958,21 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 			PVMCPU   pVCpu = &pVM->aCpus[_cpu_id];
 			PCPUMCTX pCtx  = CPUMQueryGuestCtxPtr(pVCpu);
 
+			/*
+			 * TM, TSC offset handling
+			 */
+
+			guest_tsc const offset = genode_vm_enter_tsc(_tsc_on_exit);
+
+			if (next_utcb.mtd & Nova::Mtd::CTRL)
+				Vmm::log(_cpu_id, " ", Genode::Hex(next_utcb.ctrl[0]), " ",
+				         next_utcb.ctrl[0] & VMX_VMCS_CTRL_PROC_EXEC_USE_TSC_OFFSETTING ? "tsc offsetting on" : "tsc offsetting off", " ", offset.offset);
+
+			/*
+			 * State transfer Vbox -> Nova::Utcb
+			 */
 			Nova::Utcb *utcb = reinterpret_cast<Nova::Utcb *>(Thread::utcb());
-
 			Assert(Thread::utcb() == Thread::myself()->utcb());
-
-			Genode::addr_t old = pCtx->rip;
 
 			/* take the utcb state prepared during the last exit */
 			utcb->mtd        = next_utcb.mtd;
@@ -954,13 +982,18 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 			utcb->ctrl[0]    = next_utcb.ctrl[0];
 			utcb->ctrl[1]    = next_utcb.ctrl[1];
 
+			if (offset.tsc) {
+				utcb->mtd     |= Nova::Mtd::TSC;
+				utcb->tsc_off  = offset.offset;
+			}
+
 			using namespace Nova;
 
 			/* Transfer vCPU state from vBox to Nova format */
 			if (!vbox_to_utcb(utcb, pVM, pVCpu) ||
 				!hw_load_state(utcb, pVM, pVCpu)) {
 
-				Genode::error("loading vCPU state failed");
+				Vmm::error("loading vCPU state failed");
 				return VERR_INTERNAL_ERROR;
 			}
 			
@@ -1016,6 +1049,8 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 				Genode::error("saving vCPU state failed");
 				return VERR_INTERNAL_ERROR;
 			}
+
+			genode_vm_exit_tsc(_cpu_id, _tsc_on_exit);
 
 #ifdef VBOX_WITH_REM
 			/* XXX see VMM/VMMR0/HMVMXR0.cpp - not necessary every time ! XXX */
