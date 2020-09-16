@@ -4,7 +4,7 @@ set use_usb 0
 set use_serial 1
 set use_top 1
 
-set use_vbox5_nova 0
+set use_vbox5_nova 1
 
 # use_gui starts two VMs
 set use_gui 0
@@ -14,6 +14,7 @@ set use_bridge [expr $use_net && $use_gui]
 set build_components {
 	drivers/framebuffer
 	server/report_rom
+	core kernel lib/ld
 }
 
 append build_components virtualbox5
@@ -259,7 +260,7 @@ install_config $config
 
 exec cp ${genode_dir}/repos/ports/run/test.vbox bin/.
 
-set boot_modules { test.iso test.vbox }
+set boot_modules { test.iso test.vbox ld.lib.so core hypervisor }
 
 append boot_modules $virtualbox_binary
 

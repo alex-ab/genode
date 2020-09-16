@@ -19,7 +19,7 @@
       <ExtraDataItem name="GUI/LastNormalWindowPosition" value="513,100,720,422"/>
     </ExtraData>
     <Hardware version="2">
-      <CPU count="1" hotplug="false">
+      <CPU count="4" hotplug="false">
         <HardwareVirtEx enabled="true"/>
         <HardwareVirtExNestedPaging enabled="true"/>
         <HardwareVirtExVPID enabled="true"/>
@@ -32,7 +32,7 @@
       <Memory RAMSize="256" PageFusion="false"/>
       <HID Pointing="PS2Mouse" Keyboard="PS2Keyboard"/>
       <HPET enabled="false"/>
-      <Chipset type="PIIX3"/>
+      <Chipset type="ICH9"/>
       <Boot>
         <Order position="1" device="Floppy"/>
         <Order position="2" device="DVD"/>
