@@ -25,11 +25,11 @@ set use_usb           0
 
 set use_framebuffer   1
 set use_fancy_stuff   0
-set use_top           0
+set use_top           1
 
 set memory_vmm_vm     "128M"
 
-set vcpus_to_be_used  1
+set vcpus_to_be_used  2
 
 set multiboot_files {
 		<rom name="munich"/>
