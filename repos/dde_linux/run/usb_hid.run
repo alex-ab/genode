@@ -193,6 +193,7 @@ append_platform_drv_boot_modules
 
 build_boot_image $boot_modules
 
+append qemu_args " -device amd-iommu,intremap=on"
 append qemu_args "  -usb  -usbdevice mouse -usbdevice keyboard"
 append qemu_args " -device usb-ehci,id=ehci"
 append xen_args  { usbdevice=\["mouse","keyboard"\] }

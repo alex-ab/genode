@@ -90,6 +90,8 @@ set cmd "mkfs.vfat -F32 $disk_image"
 puts "formating disk image with vfat file system:\$cmd"
 catch { exec sh -c $cmd }
 
+append qemu_args " -device amd-iommu,intremap=on "
+
 #
 # Qemu opts for UHCI
 #
