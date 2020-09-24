@@ -4,6 +4,11 @@ if {![have_include "power_on/qemu"]} {
 	puts "Run script is not supported on this platform"
 	exit 0
 }
+if {[have_spec foc] && ([have_spec pbxa9] || [have_spec rpi3])} {
+	# foc kernel does detect solely 1 CPU */
+	puts "Run script is not supported on this platform"
+	exit 0
+}
 if {![have_spec nova] && ![have_spec foc] && ![have_spec sel4]} {
 	puts "Run script is not supported on this platform"
 	exit 0
