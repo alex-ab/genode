@@ -287,23 +287,17 @@ const char * Platform_thread::pd_name() const {
 
 Trace::Execution_time Platform_thread::execution_time() const
 {
-	uint64_t sc_time = 0;
-	uint64_t ec_time = 0;
+	unsigned long long time = 0;
 
-	/* time executed by EC (on whatever SC) */
-	uint8_t res = Nova::ec_time(_sel_ec(), ec_time);
-	if (res != Nova::NOVA_OK)
-		warning("ec_time failed res=", res);
-
+	/* for ECs without a SC we simply return 0 */
 	if (!sc_created())
-		return { ec_time, sc_time, Nova::Qpd::DEFAULT_QUANTUM, _priority };
+		return { time, time, Nova::Qpd::DEFAULT_QUANTUM, _priority };
 
-	/* for EC with SC we provide the time caused by the SC in the system */
-	res = Nova::sc_ctrl(_sel_sc(), sc_time);
+	uint8_t res = Nova::sc_ctrl(_sel_sc(), time);
 	if (res != Nova::NOVA_OK)
 		warning("sc_ctrl failed res=", res);
 
-	return { ec_time, sc_time, Nova::Qpd::DEFAULT_QUANTUM, _priority };
+	return { time, time, Nova::Qpd::DEFAULT_QUANTUM, _priority };
 }
 
 
