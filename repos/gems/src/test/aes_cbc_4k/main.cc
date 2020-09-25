@@ -26,6 +26,9 @@ namespace Test {
 }
 
 
+extern void library_init();
+
+
 namespace Genode {
 	template <typename T>
 	static inline void print_local(Output &out, T const &data, unsigned show_max)
@@ -102,6 +105,8 @@ struct Test::Main
 
 	Main(Env &env) : _env(env)
 	{
+		library_init();
+
 		Attached_rom_dataspace config(env, "config");
 
 		Aes_cbc_4k::Block_number block_number { config.xml().attribute_value("block_number",  0U) };

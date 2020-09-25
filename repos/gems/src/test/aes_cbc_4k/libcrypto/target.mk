@@ -1,5 +1,5 @@
 TARGET := test-aes_cbc_4k_crypto
-SRC_CC := main.cc
+SRC_CC := main.cc hook.cc
 LIBS   += base aes_cbc_4k_crypto
 
 vpath main.cc $(PRG_DIR)/..
