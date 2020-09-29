@@ -218,9 +218,9 @@ append config {
 
 install_config $config
 
-build {server/cpu_scheduler app/cpu_burner app/top app/cpu_view app/menu_view}
+build {core kernel server/cpu_scheduler app/cpu_burner app/top app/cpu_view app/menu_view}
 
-build_boot_image { cpu_scheduler cpu_burner top cpu_view menu_view menu_view_styles.tar }
+build_boot_image { core hypervisor cpu_scheduler cpu_burner top cpu_view menu_view menu_view_styles.tar }
 
 append qemu_args " -smp [expr $cpu_width * $cpu_height],cores=$cpu_width,threads=$cpu_height"
 
