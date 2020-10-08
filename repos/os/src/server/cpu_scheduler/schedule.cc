@@ -1,7 +1,7 @@
 /*
  * \brief  Taking schedule decision depending on policy/scheduler algorithm
  * \author Alexander Boettcher
- * \date   2020-24-16
+ * \date   2020-07-16
  */
 
 /*

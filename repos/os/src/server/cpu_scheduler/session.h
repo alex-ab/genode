@@ -16,6 +16,7 @@
 
 /* Genode includes */
 #include <base/env.h>
+#include <base/heap.h>
 #include <base/rpc_server.h>
 #include <base/trace/types.h>
 #include <cpu_session/client.h>
@@ -36,7 +37,12 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 {
 	private:
 
-		Env                   &_env;
+		Env                       &_env;
+		Ram_quota_guard            _ram_guard;
+		Cap_quota_guard            _cap_guard;
+		Constrained_ram_allocator  _ram      { _env.pd(), _ram_guard, _cap_guard };
+		Heap                       _md_alloc { _ram, _env.rm() };
+
 		Parent::Client         _parent_client { };
 		Client_id const        _id            { _parent_client,
 		                                        _env.id_space() };

@@ -89,7 +89,7 @@ struct Cpu::Scheduler : Rpc_object<Typed_root<Cpu_session>>
 
 		Genode::size_t const session_size = Genode::max(4096UL, sizeof(Session));
 		/* when this trigger we have to think about dynamic memory allocation */
-		static_assert(session_size <= 4096);
+//		static_assert(session_size <= 4096);
 
 		if (ram_quota.value < session_size)
 			throw Insufficient_ram_quota();

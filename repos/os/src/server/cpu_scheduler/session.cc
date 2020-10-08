@@ -138,17 +138,14 @@ Cpu::Session::Session(Env &env,
                       Child_list &list, bool const verbose)
 :
 	_env(env),
+	_ram_guard(ram_quota_from_args(args.string())),
+	_cap_guard(cap_quota_from_args(args.string())),
 	_parent(_env.session<Cpu_session>(_id.id(), args, affinity)),
 	_list(list),
 	_label(session_label_from_args(args.string())),
 	_affinity(affinity.space().total() ? affinity : Affinity(Affinity::Space(1,1), Affinity::Location(0,0,1,1))),
 	_verbose(verbose)
 {
-	if (!affinity.space().total()) {
-		Genode::error("affinity space of ''", args.string(), "'' invalid");
-		throw Service_denied();
-	}
-
 	try {
 		_env.ep().rpc_ep().manage(this);
 	} catch (...) {
