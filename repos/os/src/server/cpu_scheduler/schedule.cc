@@ -22,7 +22,8 @@ void Cpu::Session::iterate_threads(Trace &trace, Session_label const &cpu_schedu
 	          Affinity::Location &stored_loc,
 	          Name const &name,
 	          enum POLICY const &policy,
-	          Subject_id &subject_id)
+	          Subject_id &subject_id,
+	          Cpu::Policy **)
 	{
 		if (!subject_id.id) {
 			Session_label const label(cpu_scheduler, " -> ", _label);
@@ -127,7 +128,8 @@ void Cpu::Session::iterate_threads()
 	          Affinity::Location &loc,
 	          Name const &name,
 	          enum POLICY const &policy,
-	          Subject_id &)
+	          Subject_id &,
+	          Cpu::Policy **)
 	{
 		_schedule(cap, loc, loc, name, policy);
 
@@ -187,59 +189,4 @@ void Cpu::Session::_schedule(Thread_capability const &cap,
 		Cpu_thread_client thread(cap);
 		thread.affinity(migrate_to);
 	}
-}
-
-void Cpu::Session::config(Name const &thread, Name const &scheduler,
-                          Affinity::Location const &relativ)
-{
-	bool found = false;
-
-	lookup(thread, [&](Thread_capability const &,
-	                   Affinity::Location &location,
-	                   enum POLICY &policy)
-	{
-		policy = string_to_policy(scheduler);
-
-		if (policy == POLICY_PIN) {
-			if (location.xpos() != relativ.xpos() ||
-			    location.ypos() != relativ.ypos())
-				_report = true;
-
-			location = relativ;
-		}
-
-		if (_verbose) {
-			String<12> const loc { location.xpos(), "x", location.ypos() };
-			log("[", _label, "] name='", thread, "' "
-			    "update policy to '", policy_to_string(policy), "' ",
-			    (policy == POLICY_PIN) ? loc : String<12>());
-		}
-
-		found = true;
-		return true;
-	});
-
-	if (found)
-		return;
-
-	construct([&](Thread_capability const &,
-	              Affinity::Location &location,
-	              Name &name,
-	              enum POLICY &policy)
-	{
-		policy = string_to_policy(scheduler);
-		name = thread;
-
-		if (policy == POLICY_PIN)
-			location = relativ;
-
-		if (_verbose) {
-			String<12> const loc { location.xpos(), "x", location.ypos() };
-			log("[", _label, "] name='", thread, "' "
-			    "new policy '", policy_to_string(policy), "' ",
-			    (policy == POLICY_PIN) ? loc : String<12>());
-		}
-
-		return true;
-	});
 }

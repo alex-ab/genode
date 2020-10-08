@@ -22,6 +22,8 @@
 #include <cpu_session/client.h>
 #include <os/reporter.h>
 
+#include "policy.h"
+
 namespace Cpu {
 	using namespace Genode;
 
@@ -29,6 +31,7 @@ namespace Cpu {
 
 	class Session;
 	class Trace;
+	class Policy;
 	typedef Id_space<Parent::Client>::Element Client_id;
 	typedef List<List_element<Session> > Child_list;
 }
@@ -63,11 +66,12 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 			POLICY_MAX_UTILIZE,
 		};
 
-		Thread_capability      _threads    [MAX_THREADS];
-		Affinity::Location     _location   [MAX_THREADS];
-		Thread::Name           _names      [MAX_THREADS];
-		Subject_id             _subject_id [MAX_THREADS];
-		enum POLICY            _policy     [MAX_THREADS];
+		Thread_capability      _threads    [MAX_THREADS] { };
+		Affinity::Location     _location   [MAX_THREADS] { };
+		Thread::Name           _names      [MAX_THREADS] { };
+		Subject_id             _subject_id [MAX_THREADS] { };
+		enum POLICY            _policy     [MAX_THREADS] { };
+		Cpu::Policy *          _pol        [MAX_THREADS] { };
 
 		bool                   _report  { true  };
 		bool                   _verbose;
@@ -82,6 +86,18 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 				return POLICY_MAX_UTILIZE;
 			else
 				return POLICY_NONE;
+		}
+
+		void construct_policy(Name const &name, Cpu::Policy **policy)
+		{
+			if (name == "pin")
+				*policy = new (_md_alloc) Policy_pin();
+			else if (name == "round-robin")
+				*policy = new (_md_alloc) Policy_round_robin();
+			else if (name == "max-utilize")
+				*policy = new (_md_alloc) Policy_max_utilize();
+			else
+				*policy = nullptr;
 		}
 
 		static char const * policy_to_string(enum POLICY const policy)
@@ -103,7 +119,7 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 					continue;
 
 				bool const done = fn(_threads[i], _location[i], _names[i],
-				                     _policy[i], _subject_id[i]);
+				                     _policy[i], _subject_id[i], _pol + i);
 				if (done)
 					break;
 			}
@@ -116,7 +132,7 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 				if (_names[i] != name)
 					continue;
 
-				if (fn(_threads[i], _location[i], _policy[i]))
+				if (fn(_threads[i], _location[i], _policy[i], _pol + i))
 					break;
 			}
 		}
@@ -128,13 +144,19 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 				if (_threads[i].valid() || _names[i].valid())
 					continue;
 
-				if (fn(_threads[i], _location[i], _names[i], _policy[i]))
+				if (fn(_threads[i], _location[i], _names[i], _policy[i], _pol + i))
 					break;
 			}
 		}
 
 		void _schedule(Thread_capability const &, Affinity::Location &,
 		               Affinity::Location &, Name const &, enum POLICY const &);
+
+		/*
+		 * Noncopyable
+		 */
+		Session(Session const &);
+		Session &operator = (Session const &);
 
 	public:
 
@@ -175,6 +197,7 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 
 		template <typename FUNC>
 		void upgrade(FUNC const &fn) {
+			Genode::warning("upgrade of session");
 			fn(_id.id());
 		}
 };
