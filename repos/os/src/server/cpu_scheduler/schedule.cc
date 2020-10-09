@@ -19,11 +19,9 @@
 void Cpu::Session::iterate_threads(Trace &trace, Session_label const &cpu_scheduler)
 {
 	apply([&](Thread_capability const &cap,
-	          Affinity::Location &stored_loc,
 	          Name const &name,
-	          enum POLICY const &policy,
 	          Subject_id &subject_id,
-	          Cpu::Policy **)
+	          Cpu::Policy &policy)
 	{
 		if (!subject_id.id) {
 			Session_label const label(cpu_scheduler, " -> ", _label);
@@ -36,8 +34,8 @@ void Cpu::Session::iterate_threads(Trace &trace, Session_label const &cpu_schedu
 		}
 
 		Affinity::Location const &base = _affinity.location();
-		Affinity::Location current { base.xpos() + stored_loc.xpos(),
-		                             base.ypos() + stored_loc.ypos(), 1, 1 };
+		Affinity::Location current { base.xpos() + policy.location.xpos(),
+		                             base.ypos() + policy.location.ypos(), 1, 1 };
 
 		/* request execution time and current location */
 		trace.retrieve(subject_id.id, [&] (Execution_time const time,
@@ -57,67 +55,21 @@ void Cpu::Session::iterate_threads(Trace &trace, Session_label const &cpu_schedu
 		});
 
 		/* update current location of thread if changed */
-		if (policy != POLICY_PIN) {
-			if (current.xpos() != stored_loc.xpos() + base.xpos() ||
-			    current.ypos() != stored_loc.ypos() + base.ypos())
-			{
-				if (current.xpos() >= base.xpos() && current.ypos() >= base.ypos()) {
+		if (policy.update(base, current))
+			_report = true;
 
-					unsigned const xpos = current.xpos() - base.xpos();
-					unsigned const ypos = current.ypos() - base.ypos();
-
-					if (xpos < base.width() && ypos < base.height()) {
-						stored_loc = Affinity::Location(xpos, ypos);
-						_report = true;
-					} else
-						Genode::error("affinity dimension raised");
-				} else
-					Genode::error("affinity location strange, current below base");
-			}
-		}
-
-		if (policy == POLICY_NONE)
-			return false;
-
-		if (policy != POLICY_MAX_UTILIZE) {
-			_schedule(cap, stored_loc, current, name, policy);
-			return false;
-		}
-
-		Execution_time     most_idle { 0UL, 0UL };
-		Affinity::Location loc_idle = current; /* in case of no idle info */
-
-		for (unsigned x = base.xpos(); x < base.xpos() + base.width(); x++) {
-			for (unsigned y = base.ypos(); y < base.ypos() + base.height(); y++) {
-				Affinity::Location const loc(x, y);
-				Execution_time const idle = trace.diff_idle_times(loc);
-
-				if (idle.scheduling_context) {
-					if (idle.scheduling_context > most_idle.scheduling_context) {
-						most_idle = idle;
-						loc_idle  = loc;
-					}
-				} else {
-					if (idle.thread_context > most_idle.thread_context) {
-						most_idle = idle;
-						loc_idle  = loc;
-					}
-				}
-			}
-		}
-
-		if ((loc_idle.xpos() != current.xpos()) ||
-		    (loc_idle.ypos() != current.ypos()))
-		{
-			if (_verbose)
+		Affinity::Location migrate_to = current;
+		if (policy.migrate(_affinity.location(), migrate_to, &trace)) {
+//			if (_verbose)
 				log("[", _label, "] name='", name, "' request to",
 				    " migrate from ", current.xpos(), "x", current.ypos(),
 				    " to most idle CPU at ",
-				    loc_idle.xpos(), "x", loc_idle.ypos());
+				    migrate_to.xpos(), "x", migrate_to.ypos());
 
 			Cpu_thread_client thread(cap);
-			thread.affinity(loc_idle);
+			thread.affinity(migrate_to);
 		}
+
 		return false;
 	});
 }
@@ -125,68 +77,32 @@ void Cpu::Session::iterate_threads(Trace &trace, Session_label const &cpu_schedu
 void Cpu::Session::iterate_threads()
 {
 	apply([&](Thread_capability const &cap,
-	          Affinity::Location &loc,
 	          Name const &name,
-	          enum POLICY const &policy,
 	          Subject_id &,
-	          Cpu::Policy **)
+	          Cpu::Policy const &policy)
 	{
-		_schedule(cap, loc, loc, name, policy);
+		Affinity::Location const &base = _affinity.location();
+		Location current = Location(base.xpos() + policy.location.xpos(),
+		                            base.ypos() + policy.location.xpos(),
+		                            1, 1);
+		_schedule(cap, current, name, policy);
 
 		return false;
 	});
 }
 
 void Cpu::Session::_schedule(Thread_capability const &cap,
-                             Affinity::Location &relativ,
-                             Affinity::Location &current,
-                             Name const &name,
-                             enum POLICY const &policy)
+                             Affinity::Location const &current,
+                             Name const &,
+                             Cpu::Policy const &policy)
 {
-	typedef Affinity::Location Location;
-
 	if (!cap.valid())
 		return;
 
-	if (policy == POLICY_NONE)
+	Affinity::Location migrate_to = current;
+	if (!policy.migrate(_affinity.location(), migrate_to, nullptr))
 		return;
 
-	Location const &base = _affinity.location();
-
-	bool migrate = false;
-	Location migrate_to = Location(base.xpos() + relativ.xpos(),
-	                               base.ypos() + relativ.ypos());
-
-	switch (policy) {
-	case POLICY_PIN:
-		{
-			/* check that we are on right CPU and if not try to migrate */
-			migrate = (migrate_to.xpos() != current.xpos()) ||
-			          (migrate_to.ypos() != current.ypos());
-			break;
-		}
-	case POLICY_ROUND_ROBIN:
-		{
-			Location rel { int((relativ.xpos() + 1) % base.width()),
-			               int(relativ.ypos() % base.height()), 1, 1 };
-
-			migrate_to = Location { int(base.xpos() + rel.xpos()),
-			                        base.ypos() + rel.ypos(), 1, 1 };
-			migrate = true;
-
-			if (_verbose)
-				log("[", _label, "] name='", name, "' request to",
-				    " migrate from ", relativ.xpos(), "x", relativ.ypos(),
-				    " to ", rel.xpos(), "x", rel.ypos(),
-				    " (", migrate_to.xpos(), "x", migrate_to.ypos(), ")");
-			break;
-		}
-	default:
-		break;
-	}
-
-	if (migrate) {
-		Cpu_thread_client thread(cap);
-		thread.affinity(migrate_to);
-	}
+	Cpu_thread_client thread(cap);
+	thread.affinity(migrate_to);
 }

@@ -59,36 +59,16 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 
 		enum { MAX_THREADS = 32 };
 
-		enum POLICY {
-			POLICY_NONE = 0,
-			POLICY_PIN,
-			POLICY_ROUND_ROBIN,
-			POLICY_MAX_UTILIZE,
-		};
-
 		Thread_capability      _threads    [MAX_THREADS] { };
-		Affinity::Location     _location   [MAX_THREADS] { };
 		Thread::Name           _names      [MAX_THREADS] { };
 		Subject_id             _subject_id [MAX_THREADS] { };
-		enum POLICY            _policy     [MAX_THREADS] { };
 		Cpu::Policy *          _pol        [MAX_THREADS] { };
 
 		bool                   _report  { true  };
 		bool                   _verbose;
 
-		enum POLICY string_to_policy(Name const &name)
-		{
-			if (name == "pin")
-				return POLICY_PIN;
-			else if (name == "round-robin")
-				return POLICY_ROUND_ROBIN;
-			else if (name == "max-utilize")
-				return POLICY_MAX_UTILIZE;
-			else
-				return POLICY_NONE;
-		}
-
-		void construct_policy(Name const &name, Cpu::Policy **policy)
+		void construct_policy(Name const &name, Cpu::Policy **policy,
+		                      Affinity::Location const loc)
 		{
 			if (name == "pin")
 				*policy = new (_md_alloc) Policy_pin();
@@ -97,18 +77,24 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 			else if (name == "max-utilize")
 				*policy = new (_md_alloc) Policy_max_utilize();
 			else
-				*policy = nullptr;
+				*policy = new (_md_alloc) Policy_none();
+
+			(*policy)->location = loc;
 		}
 
-		static char const * policy_to_string(enum POLICY const policy)
+		template <typename FUNC>
+		void kill(Thread_capability const cap, FUNC const &fn)
 		{
-			switch (policy) {
-			case POLICY_PIN:         return "pin";
-			case POLICY_ROUND_ROBIN: return "round-robin";
-			case POLICY_MAX_UTILIZE: return "max-utilize";
-			case POLICY_NONE:        return "none";
+			for (unsigned i = 0; i < MAX_THREADS; i++) {
+				if (!_threads[i].valid() || !(_threads[i] == cap))
+					continue;
+
+				fn(_threads[i], _names[i], _subject_id[i], *_pol[i]);
+
+				destroy(_md_alloc, _pol[i]);
+				_pol[i] = nullptr;
+				break;
 			}
-			return "none";
 		}
 
 		template <typename FUNC>
@@ -118,8 +104,8 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 				if (!_threads[i].valid())
 					continue;
 
-				bool const done = fn(_threads[i], _location[i], _names[i],
-				                     _policy[i], _subject_id[i], _pol + i);
+				bool const done = fn(_threads[i], _names[i],
+				                     _subject_id[i], *_pol[i]);
 				if (done)
 					break;
 			}
@@ -132,25 +118,27 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 				if (_names[i] != name)
 					continue;
 
-				if (fn(_threads[i], _location[i], _policy[i], _pol + i))
+				if (fn(_threads[i], _pol + i))
 					break;
 			}
 		}
 
 		template <typename FUNC>
-		void construct(FUNC const &fn)
+		void construct(Name const &policy_name, FUNC const &fn)
 		{
 			for (unsigned i = 0; i < MAX_THREADS; i++) {
 				if (_threads[i].valid() || _names[i].valid())
 					continue;
 
-				if (fn(_threads[i], _location[i], _names[i], _policy[i], _pol + i))
-					break;
+				construct_policy(policy_name, _pol + i, Affinity::Location());
+
+				fn(_threads[i], _names[i], *_pol[i]);
+				break;
 			}
 		}
 
-		void _schedule(Thread_capability const &, Affinity::Location &,
-		               Affinity::Location &, Name const &, enum POLICY const &);
+		void _schedule(Thread_capability const &, Affinity::Location const &,
+		               Name const &, Cpu::Policy const &);
 
 		/*
 		 * Noncopyable

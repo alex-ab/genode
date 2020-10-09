@@ -30,12 +30,12 @@ Cpu::Session::create_thread(Pd_session_capability const  pd,
 		name = Name("nobody");
 
 	lookup(name, [&](Thread_capability &store_cap,
-	                 Affinity::Location &store_loc,
-	                 enum POLICY const &policy,
-	                 Cpu::Policy **)
+	                 Cpu::Policy **store)
 	{
 		if (store_cap.valid())
 			return false;
+
+		Cpu::Policy &pol = **store;
 
 		cap = _parent.create_thread(pd, name, location, weight, utcb);
 		if (!cap.valid())
@@ -46,14 +46,12 @@ Cpu::Session::create_thread(Pd_session_capability const  pd,
 		store_cap  = cap;
 
 		/* for static case with valid location, don't overwrite config */
-		if ((policy != POLICY_PIN) ||
-		    (store_loc.width() * store_loc.height() == 0))
-			store_loc = location;
+		pol.thread_create(location);
 
 		if (_verbose)
 			log("[", _label, "] new thread at ",
-			    location.xpos(), "x", location.ypos(),
-			    ", policy=", policy_to_string(policy), ", name='", name, "'");
+			    pol.location.xpos(), "x", pol.location.ypos(),
+			    ", policy=", pol, ", name='", name, "'");
 
 		return true;
 	});
@@ -63,28 +61,24 @@ Cpu::Session::create_thread(Pd_session_capability const  pd,
 		return cap;
 	}
 
-	/* unknown thread without any configuration */
-	construct([&](Thread_capability &store_cap,
-	              Affinity::Location &store_loc,
-	              Name &store_name, enum POLICY &store_policy, Cpu::Policy **)
-	{
-		cap = _parent.create_thread(pd, name, location, weight, utcb);
+	cap = _parent.create_thread(pd, name, location, weight, utcb);
+	if (!cap.valid())
+		return cap;
 
-		if (!cap.valid())
-			/* stop creation attempt by saying done */
-			return true;
+	/* unknown thread without any configuration */
+	construct("none", [&](Thread_capability &store_cap,
+	                      Name &store_name, Cpu::Policy &policy)
+	{
+		policy.location = location;
 
 		store_cap = cap;
-		store_loc = location;
 		store_name = name;
-		store_policy = POLICY_NONE;
 
 		if (_verbose)
 			log("[", _label, "] new thread at ",
 			    location.xpos(), "x", location.ypos(),
 			    ", no policy defined",
 			    ", name='", name, "'");
-		return true;
 	});
 
 	if (cap.valid())
@@ -99,29 +93,14 @@ void Cpu::Session::kill_thread(Thread_capability const thread_cap)
 	if (!thread_cap.valid())
 		return;
 
-	bool kill_thread = false;
-
-	apply([&](Thread_capability &cap, Affinity::Location &,
-	          Name &name, enum POLICY &policy, Subject_id &, Cpu::Policy **store)
+	kill(thread_cap, [&](Thread_capability &cap,
+	                     Name &name, Subject_id &, Cpu::Policy &)
 	{
-		if (!(cap == thread_cap))
-			return false;
-
 		cap  = Thread_capability();
 		name = Thread::Name();
-		policy = POLICY_NONE;
-		kill_thread = true;
 
-		if (*store) {
-			destroy(_md_alloc, *store);
-			*store = nullptr;
-		}
-
-		return true;
-	});
-
-	if (kill_thread)
 		_parent.kill_thread(thread_cap);
+	});
 }
 
 void Cpu::Session::exception_sigh(Signal_context_capability const h)
@@ -205,15 +184,14 @@ void Cpu::Session::report_state(Xml_generator &xml)
 		xml.attribute("label",  _label);
 
 		apply([&](Thread_capability &,
-		          Affinity::Location const &location,
-		          Thread::Name const &name, enum POLICY const &policy,
-		          Subject_id const &, Cpu::Policy **)
+		          Thread::Name const &name,
+		          Subject_id const &, Cpu::Policy const &policy)
 		{
 			xml.node("thread", [&] () {
-				xml.attribute("xpos", location.xpos());
-				xml.attribute("ypos", location.ypos());
+				xml.attribute("xpos", policy.location.xpos());
+				xml.attribute("ypos", policy.location.ypos());
 				xml.attribute("name", name);
-				xml.attribute("policy", policy_to_string(policy));
+				xml.attribute("policy", policy.string());
 			});
 			return false;
 		});
@@ -229,27 +207,26 @@ void Cpu::Session::config(Name const &thread, Name const &policy_name,
 	bool found = false;
 
 	lookup(thread, [&](Thread_capability const &,
-	                   Affinity::Location &location,
-	                   enum POLICY &policy,
 	                   Cpu::Policy **store)
 	{
-		enum POLICY const np = string_to_policy(policy_name);
-		if (np != policy && *store) {
-			destroy(_md_alloc, *store);
-			construct_policy(policy_name, store);
-		}
-		policy = np;
+		bool x = (*store)->same_type(policy_name);
 
-		if (*store) {
-			_report = (*store)->report(location, relativ);
-			(*store)->config(location, relativ);
+		if (!x) {
+			Affinity::Location const location = (*store)->location;
+			destroy(_md_alloc, *store);
+			construct_policy(policy_name, store, location);
 		}
+
+		Cpu::Policy &pol = **store;
+
+		_report = pol.report(pol.location, relativ);
+
+		pol.config(relativ);
 
 		if (_verbose) {
-			String<12> const loc { location.xpos(), "x", location.ypos() };
+			String<12> const loc { pol.location.xpos(), "x", pol.location.ypos() };
 			log("[", _label, "] name='", thread, "' "
-			    "update policy to '", policy_to_string(policy), "' ",
-			    (policy == POLICY_PIN) ? loc : String<12>());
+			    "update policy to '", pol, "' ", loc);
 		}
 
 		found = true;
@@ -259,25 +236,17 @@ void Cpu::Session::config(Name const &thread, Name const &policy_name,
 	if (found)
 		return;
 
-	construct([&](Thread_capability const &,
-	              Affinity::Location &location,
-	              Name &name,
-	              enum POLICY &policy, Cpu::Policy **store)
+	construct(policy_name, [&](Thread_capability const &, Name &name,
+	                           Cpu::Policy &policy)
 	{
-		policy = string_to_policy(policy_name);
 		name = thread;
-		construct_policy(policy_name, store);
 
-		if (*store)
-			(*store)->config(location, relativ);
+		policy.config(relativ);
 
 		if (_verbose) {
-			String<12> const loc { location.xpos(), "x", location.ypos() };
+			String<12> const loc { policy.location.xpos(), "x", policy.location.ypos() };
 			log("[", _label, "] name='", thread, "' "
-			    "new policy '", policy_to_string(policy), "' ",
-			    (policy == POLICY_PIN) ? loc : String<12>());
+			    "new policy '", policy, "' ", loc);
 		}
-
-		return true;
 	});
 }
