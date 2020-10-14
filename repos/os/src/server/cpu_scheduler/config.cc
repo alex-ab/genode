@@ -39,7 +39,7 @@ void Cpu::Config::apply(Xml_node const &start, Child_list &sessions)
 					return;
 
 				Thread::Name const name = thread.attribute_value("name", Thread::Name());
-				Thread::Name const policy = thread.attribute_value("policy", Thread::Name());
+				Cpu::Policy::Name const policy = thread.attribute_value("policy", Cpu::Policy::Name());
 
 				/* explicitly create invalid width/height */
 				/* used during thread construction in policy static case */

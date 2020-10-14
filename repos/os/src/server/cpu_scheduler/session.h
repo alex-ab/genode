@@ -67,7 +67,7 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 		bool                   _report  { true  };
 		bool                   _verbose;
 
-		void construct_policy(Name const &name, Cpu::Policy **policy,
+		void construct_policy(Thread::Name const &name, Cpu::Policy **policy,
 		                      Affinity::Location const loc)
 		{
 			if (name == "pin")
@@ -121,13 +121,13 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 				if (_names[i] != name)
 					continue;
 
-				if (fn(_threads[i], _pol + i))
+				if (fn(_threads[i], *_pol[i]))
 					break;
 			}
 		}
 
 		template <typename FUNC>
-		void reconstruct(Name const &policy_name,
+		void reconstruct(Cpu::Policy::Name const &policy_name,
 		                 Thread::Name const &thread_name,
 		                 FUNC const &fn)
 		{
@@ -148,6 +148,7 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 				if (!same) {
 					Affinity::Location const location = _pol[i]->location;
 					destroy(_md_alloc, _pol[i]);
+					_pol[i] = nullptr; /* in case construct_policy throws */
 					construct_policy(policy_name, _pol + i, location);
 				}
 
@@ -165,7 +166,7 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 		}
 
 		template <typename FUNC>
-		void construct(Name const &policy_name, FUNC const &fn)
+		void construct(Cpu::Policy::Name const &policy_name, FUNC const &fn)
 		{
 			for (unsigned i = 0; i < MAX_THREADS; i++) {
 				if (_threads[i].valid() || _names[i].valid())
@@ -179,7 +180,7 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 		}
 
 		void _schedule(Thread_capability const &, Affinity::Location const &,
-		               Name const &, Cpu::Policy const &);
+		               Cpu::Policy const &);
 
 		/*
 		 * Noncopyable
@@ -202,7 +203,8 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 		 ** CPU session interface **
 		 ***************************/
 
-		Thread_capability create_thread(Pd_session_capability, Name const &,
+		Thread_capability create_thread(Pd_session_capability,
+		                                Thread::Name const &,
 		                                Affinity::Location, Weight,
 		                                addr_t) override;
 		void kill_thread(Thread_capability) override;
@@ -218,7 +220,8 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 		 **  **
 		 ******/
 		bool match(Label const &label) const { return _label == label; };
-		void config(Name const &, Name const &, Affinity::Location const &);
+		void config(Thread::Name const &, Cpu::Policy::Name const &,
+		            Affinity::Location const &);
 		void iterate_threads();
 		void iterate_threads(Trace &, Session_label const &);
 		void report_state(Xml_generator &);

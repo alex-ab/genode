@@ -77,7 +77,7 @@ void Cpu::Session::iterate_threads(Trace &trace, Session_label const &cpu_schedu
 void Cpu::Session::iterate_threads()
 {
 	apply([&](Thread_capability const &cap,
-	          Name const &name,
+	          Name const &,
 	          Subject_id &,
 	          Cpu::Policy const &policy)
 	{
@@ -85,7 +85,7 @@ void Cpu::Session::iterate_threads()
 		Location current = Location(base.xpos() + policy.location.xpos(),
 		                            base.ypos() + policy.location.xpos(),
 		                            1, 1);
-		_schedule(cap, current, name, policy);
+		_schedule(cap, current, policy);
 
 		return false;
 	});
@@ -93,7 +93,6 @@ void Cpu::Session::iterate_threads()
 
 void Cpu::Session::_schedule(Thread_capability const &cap,
                              Affinity::Location const &current,
-                             Name const &,
                              Cpu::Policy const &policy)
 {
 	if (!cap.valid())

@@ -63,6 +63,8 @@ class Cpu::Policy {
 
 	public:
 
+		typedef Genode::String<16> Name;
+
 		Location location { };
 
 		virtual ~Policy() { }

@@ -30,12 +30,10 @@ Cpu::Session::create_thread(Pd_session_capability const  pd,
 		name = Name("nobody");
 
 	lookup(name, [&](Thread_capability &store_cap,
-	                 Cpu::Policy **store)
+	                 Cpu::Policy &policy)
 	{
 		if (store_cap.valid())
 			return false;
-
-		Cpu::Policy &pol = **store;
 
 		cap = _parent.create_thread(pd, name, location, weight, utcb);
 		if (!cap.valid())
@@ -46,12 +44,12 @@ Cpu::Session::create_thread(Pd_session_capability const  pd,
 		store_cap  = cap;
 
 		/* for static case with valid location, don't overwrite config */
-		pol.thread_create(location);
+		policy.thread_create(location);
 
 		if (_verbose)
 			log("[", _label, "] new thread at ",
-			    pol.location.xpos(), "x", pol.location.ypos(),
-			    ", policy=", pol, ", name='", name, "'");
+			    policy.location.xpos(), "x", policy.location.ypos(),
+			    ", policy=", policy, ", name='", name, "'");
 
 		return true;
 	});
@@ -93,8 +91,8 @@ void Cpu::Session::kill_thread(Thread_capability const thread_cap)
 	if (!thread_cap.valid())
 		return;
 
-	kill(thread_cap, [&](Thread_capability &cap,
-	                     Name &name, Subject_id &, Cpu::Policy &)
+	kill(thread_cap, [&](Thread_capability &cap, Thread::Name &name,
+	                     Subject_id &, Cpu::Policy &)
 	{
 		cap  = Thread_capability();
 		name = Thread::Name();
@@ -201,7 +199,8 @@ void Cpu::Session::report_state(Xml_generator &xml)
 	_report = false;
 }
 
-void Cpu::Session::config(Name const &thread, Name const &policy_name,
+void Cpu::Session::config(Thread::Name const &thread,
+                          Cpu::Policy::Name const &policy_name,
                           Affinity::Location const &relativ)
 {
 	reconstruct(policy_name, thread, [&](Thread_capability const &,
