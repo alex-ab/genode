@@ -204,49 +204,17 @@ void Cpu::Session::report_state(Xml_generator &xml)
 void Cpu::Session::config(Name const &thread, Name const &policy_name,
                           Affinity::Location const &relativ)
 {
-	bool found = false;
-
-	lookup(thread, [&](Thread_capability const &,
-	                   Cpu::Policy **store)
+	reconstruct(policy_name, thread, [&](Thread_capability const &,
+	                                     Cpu::Policy &policy)
 	{
-		bool x = (*store)->same_type(policy_name);
-
-		if (!x) {
-			Affinity::Location const location = (*store)->location;
-			destroy(_md_alloc, *store);
-			construct_policy(policy_name, store, location);
-		}
-
-		Cpu::Policy &pol = **store;
-
-		_report = pol.report(pol.location, relativ);
-
-		pol.config(relativ);
-
-		if (_verbose) {
-			String<12> const loc { pol.location.xpos(), "x", pol.location.ypos() };
-			log("[", _label, "] name='", thread, "' "
-			    "update policy to '", pol, "' ", loc);
-		}
-
-		found = true;
-		return true;
-	});
-
-	if (found)
-		return;
-
-	construct(policy_name, [&](Thread_capability const &, Name &name,
-	                           Cpu::Policy &policy)
-	{
-		name = thread;
+		_report = policy.report(policy.location, relativ);
 
 		policy.config(relativ);
 
 		if (_verbose) {
 			String<12> const loc { policy.location.xpos(), "x", policy.location.ypos() };
 			log("[", _label, "] name='", thread, "' "
-			    "new policy '", policy, "' ", loc);
+			    "update policy to '", policy, "' ", loc);
 		}
 	});
 }

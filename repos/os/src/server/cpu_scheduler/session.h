@@ -114,12 +114,53 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 		template <typename FUNC>
 		void lookup(Thread::Name const &name, FUNC const &fn)
 		{
+			if (!name.valid())
+				return;
+
 			for (unsigned i = 0; i < MAX_THREADS; i++) {
 				if (_names[i] != name)
 					continue;
 
 				if (fn(_threads[i], _pol + i))
 					break;
+			}
+		}
+
+		template <typename FUNC>
+		void reconstruct(Name const &policy_name,
+		                 Thread::Name const &thread_name,
+		                 FUNC const &fn)
+		{
+			if (!thread_name.valid())
+				return;
+
+			unsigned free = ~0U;
+
+			for (unsigned i = 0; i < MAX_THREADS; i++) {
+				if (free >= MAX_THREADS && !_threads[i].valid() && !_names[i].valid())
+					free = i;
+
+				if (_names[i] != thread_name)
+					continue;
+
+				bool same = _pol[i]->same_type(policy_name);
+
+				if (!same) {
+					Affinity::Location const location = _pol[i]->location;
+					destroy(_md_alloc, _pol[i]);
+					construct_policy(policy_name, _pol + i, location);
+				}
+
+				fn(_threads[i], *_pol[i]);
+				return;
+			}
+
+			if (free < MAX_THREADS) {
+				construct_policy(policy_name, _pol + free, Affinity::Location());
+
+				_names[free] = thread_name;
+
+				fn(_threads[free], *_pol[free]);
 			}
 		}
 
