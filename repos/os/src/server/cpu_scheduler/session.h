@@ -32,37 +32,46 @@ namespace Cpu {
 	class Session;
 	class Trace;
 	class Policy;
+	struct ThreadX;
 	typedef Id_space<Parent::Client>::Element Client_id;
 	typedef List<List_element<Session> > Child_list;
+	typedef List<List_element<ThreadX> > Thread_list;
+	typedef Constrained_ram_allocator Ram_allocator;
 }
+
+struct Cpu::ThreadX
+{
+		List_element<ThreadX>  _list_element { this };
+
+		Thread_capability      _cap    { };
+		Genode::Thread::Name   _name   { };
+		Subject_id             _id     { };
+		Cpu::Policy *          _policy { nullptr };
+};
 
 class Cpu::Session : public Rpc_object<Cpu_session>
 {
 	private:
 
-		Env                       &_env;
-		Ram_quota_guard            _ram_guard;
-		Cap_quota_guard            _cap_guard;
-		Constrained_ram_allocator  _ram      { _env.pd(), _ram_guard, _cap_guard };
-		Heap                       _md_alloc { _ram, _env.rm() };
+		List_element<Session>  _list_element { this };
+
+		Child_list            &_list;
+		Env                   &_env;
+
+		Ram_quota_guard        _ram_guard;
+		Cap_quota_guard        _cap_guard;
+		Ram_allocator          _ram      { _env.pd(), _ram_guard, _cap_guard };
+		Heap                   _md_alloc { _ram, _env.rm() };
 
 		Parent::Client         _parent_client { };
 		Client_id const        _id            { _parent_client,
 		                                        _env.id_space() };
 		Cpu_session_client     _parent;
 
-		Child_list            &_list;
-		List_element<Session>  _list_element { this };
-
-		Session::Label         _label;
+		Session::Label   const _label;
 		Affinity         const _affinity;
 
-		enum { MAX_THREADS = 32 };
-
-		Thread_capability      _threads    [MAX_THREADS] { };
-		Thread::Name           _names      [MAX_THREADS] { };
-		Subject_id             _subject_id [MAX_THREADS] { };
-		Cpu::Policy *          _pol        [MAX_THREADS] { };
+		Thread_list            _threads { };
 
 		bool                   _report  { true  };
 		bool                   _verbose;
@@ -83,32 +92,46 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 		}
 
 		template <typename FUNC>
-		void kill(Thread_capability const cap, FUNC const &fn)
+		void _for_each_thread(FUNC const &fn)
 		{
-			for (unsigned i = 0; i < MAX_THREADS; i++) {
-				if (!_threads[i].valid() || !(_threads[i] == cap))
+			for (auto t = _threads.first(); t; t = t->next()) {
+				auto thread = t->object();
+				if (!thread)
 					continue;
 
-				fn(_threads[i], _names[i], _subject_id[i], *_pol[i]);
-
-				destroy(_md_alloc, _pol[i]);
-				_pol[i] = nullptr;
-				break;
+				bool done = fn(thread);
+				if (done)
+					break;
 			}
+		}
+
+		template <typename FUNC>
+		void kill(Thread_capability const &cap, FUNC const &fn)
+		{
+			_for_each_thread([&](ThreadX *thread) {
+				if (!(thread->_cap.valid()) || !(thread->_cap == cap))
+					return false;
+
+				fn(thread->_cap, thread->_name, thread->_id, *thread->_policy);
+
+				destroy(_md_alloc, thread->_policy);
+				_threads.remove(&thread->_list_element);
+				destroy(_md_alloc, thread);
+
+				return true;
+			});
 		}
 
 		template <typename FUNC>
 		void apply(FUNC const &fn)
 		{
-			for (unsigned i = 0; i < MAX_THREADS; i++) {
-				if (!_threads[i].valid())
-					continue;
+			_for_each_thread([&](ThreadX *thread) {
+				if (!thread->_cap.valid())
+					return false;
 
-				bool const done = fn(_threads[i], _names[i],
-				                     _subject_id[i], *_pol[i]);
-				if (done)
-					break;
-			}
+				return fn(thread->_cap, thread->_name,
+				          thread->_id, *thread->_policy);
+			});
 		}
 
 		template <typename FUNC>
@@ -117,13 +140,12 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 			if (!name.valid())
 				return;
 
-			for (unsigned i = 0; i < MAX_THREADS; i++) {
-				if (_names[i] != name)
-					continue;
+			_for_each_thread([&](ThreadX *thread) {
+				if (thread->_name != name)
+					return false;
 
-				if (fn(_threads[i], *_pol[i]))
-					break;
-			}
+				return fn(thread->_cap, *thread->_policy);
+			});
 		}
 
 		template <typename FUNC>
@@ -134,49 +156,47 @@ class Cpu::Session : public Rpc_object<Cpu_session>
 			if (!thread_name.valid())
 				return;
 
-			unsigned free = ~0U;
+			bool done = false;
 
-			for (unsigned i = 0; i < MAX_THREADS; i++) {
-				if (free >= MAX_THREADS && !_threads[i].valid() && !_names[i].valid())
-					free = i;
+			_for_each_thread([&](ThreadX *thread) {
+				if (thread->_name != thread_name)
+					return false;
 
-				if (_names[i] != thread_name)
-					continue;
-
-				bool same = _pol[i]->same_type(policy_name);
+				bool same = thread->_policy->same_type(policy_name);
 
 				if (!same) {
-					Affinity::Location const location = _pol[i]->location;
-					destroy(_md_alloc, _pol[i]);
-					_pol[i] = nullptr; /* in case construct_policy throws */
-					construct_policy(policy_name, _pol + i, location);
+					Affinity::Location const location = thread->_policy->location;
+					destroy(_md_alloc, thread->_policy);
+					thread->_policy = nullptr; /* in case construct_policy throws */
+					construct_policy(policy_name, &thread->_policy, location);
 				}
 
-				fn(_threads[i], *_pol[i]);
+				fn(thread->_cap, *thread->_policy);
+				done = true;
+				return true;
+			});
+
+			if (done)
 				return;
-			}
 
-			if (free < MAX_THREADS) {
-				construct_policy(policy_name, _pol + free, Affinity::Location());
-
-				_names[free] = thread_name;
-
-				fn(_threads[free], *_pol[free]);
-			}
+			construct(policy_name, [&](Thread_capability const &cap,
+			                           Thread::Name &store_name,
+			                           Cpu::Policy &policy) {
+				store_name == thread_name;
+				fn(cap, policy);
+			});
 		}
 
 		template <typename FUNC>
 		void construct(Cpu::Policy::Name const &policy_name, FUNC const &fn)
 		{
-			for (unsigned i = 0; i < MAX_THREADS; i++) {
-				if (_threads[i].valid() || _names[i].valid())
-					continue;
+			ThreadX * thread = new (_md_alloc) ThreadX();
 
-				construct_policy(policy_name, _pol + i, Affinity::Location());
+			_threads.insert(&thread->_list_element);
 
-				fn(_threads[i], _names[i], *_pol[i]);
-				break;
-			}
+			construct_policy(policy_name, &thread->_policy, Affinity::Location());
+
+			fn(thread->_cap, thread->_name, *thread->_policy);
 		}
 
 		void _schedule(Thread_capability const &, Affinity::Location const &,

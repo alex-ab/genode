@@ -121,11 +121,11 @@ Cpu::Session::Session(Env &env,
                       Root::Session_args const &args,
                       Child_list &list, bool const verbose)
 :
+	_list(list),
 	_env(env),
 	_ram_guard(ram_quota_from_args(args.string())),
 	_cap_guard(cap_quota_from_args(args.string())),
 	_parent(_env.session<Cpu_session>(_id.id(), args, affinity)),
-	_list(list),
 	_label(session_label_from_args(args.string())),
 	_affinity(affinity.space().total() ? affinity : Affinity(Affinity::Space(1,1), Affinity::Location(0,0,1,1))),
 	_verbose(verbose)
@@ -142,6 +142,7 @@ Cpu::Session::Session(Env &env,
 
 Cpu::Session::~Session()
 {
+	/* _threads in theory don't need to be cleaned up XXX */
 	Genode::warning(__func__, " todo - finish"); /* XXX */
 
 	_list.remove(&_list_element);
