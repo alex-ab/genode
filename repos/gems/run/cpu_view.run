@@ -226,9 +226,9 @@ append config {
 
 install_config $config
 
-build {core kernel server/cpu_balancer app/cpu_burner app/top app/cpu_view app/menu_view}
+build {core kernel server/cpu_balancer app/cpu_burner app/top app/cpu_view app/menu_view lib/ld init }
 
-build_boot_image { core hypervisor cpu_balancer cpu_burner top cpu_view menu_view menu_view_styles.tar }
+build_boot_image { core hypervisor cpu_balancer cpu_burner top cpu_view menu_view menu_view_styles.tar ld.lib.so init }
 
 append qemu_args " -smp [expr $cpu_width * $cpu_height],cores=$cpu_width,threads=$cpu_height"
 
