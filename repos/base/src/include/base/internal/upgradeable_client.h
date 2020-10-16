@@ -37,6 +37,7 @@ struct Genode::Upgradeable_client : CLIENT
 	void upgrade_ram(size_t quota)
 	{
 		_parent.upgrade(_id, String<64>("ram_quota=", quota).string());
+		/* XXX check for pending and block like done in env_deprecated */
 	}
 
 	void upgrade_caps(size_t quota)

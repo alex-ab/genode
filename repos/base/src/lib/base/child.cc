@@ -322,8 +322,11 @@ Parent::Upgrade_result Child::upgrade(Client::Id id, Parent::Upgrade_args const 
 
 	auto upgrade_session = [&] (Session_state &session) {
 
+		if (session.phase == Session_state::UPGRADE_REQUESTED)
+			return;
+
 		if (session.phase != Session_state::CAP_HANDED_OUT) {
-			warning("attempt to upgrade session in invalid state");
+			warning("attempt to upgrade session in invalid state ", args.string());
 			return;
 		}
 

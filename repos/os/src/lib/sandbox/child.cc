@@ -439,8 +439,12 @@ void Sandbox::Child::init(Cpu_session &session, Cpu_session_capability cap)
 		need_adj = Cpu_session::quota_lim_upscale(need, avail);
 		avail   -= need;
 	}
+
 	session.ref_account(_env.cpu_session_cap());
-	_env.cpu().transfer_quota(cap, need_adj);
+	if (need_adj) {
+		if (_env.cpu().transfer_quota(cap, need_adj))
+			Genode::error("transfer quota failed ", need_adj);
+	}
 }
 
 

@@ -51,6 +51,7 @@ struct Genode::Expanding_cpu_session_client : Upgradeable_client<Genode::Cpu_ses
 					[&] () { upgrade_caps(2); });
 				},
 			[&] () { upgrade_ram(8*1024); });
+			//[&] () { Genode::log("uprade 8K in"); upgrade_ram(8*1024); Genode::log("upgrade out"); });
 	}
 };
 
