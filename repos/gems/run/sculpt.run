@@ -668,6 +668,8 @@ exec sh -c "tar cf [run_dir]/genode/depot_users.tar -C [genode_dir] \
 # Create boot image
 #
 
-append boot_modules { }
+build { core lib/ld kernel app/sculpt_manager app/depot_deploy }
+
+append boot_modules { core ld.lib.so hypervisor sculpt_manager depot_deploy }
 
 build_boot_image $boot_modules
