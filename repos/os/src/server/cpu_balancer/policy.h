@@ -265,6 +265,9 @@ class Cpu::Policy_max_utilize : public Cpu::Policy
 					Location       const loc(x, y);
 					Execution_time const idle = trace->diff_idle_times(loc);
 
+					if (!idle.scheduling_context && !idle.thread_context)
+						Genode::log("X idle ", loc.xpos(), "x", loc.ypos(), " ", idle.scheduling_context, "/", idle.thread_context);
+
 					if (idle.scheduling_context) {
 						if (idle.scheduling_context > most_idle.scheduling_context) {
 							most_idle = idle;
