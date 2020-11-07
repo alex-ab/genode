@@ -255,8 +255,10 @@ int Platform_thread::start(void *ip, void *sp)
 		_pd->cpu_quota_unassigned(_cpu_quota);
 	}
 
+#if 0
 	if (_cpu_quota)
 		Genode::log("core: ", pd_name(), " -> ", _name, " - cpu_quota=",  _cpu_quota, " unassigned=", _pd->cpu_quota_unassigned(0), " users=", _pd->cpu_quota_users(0), " -- ", __func__);
+#endif
 
 	return 0;
 }
@@ -280,8 +282,10 @@ void Platform_thread::quota(size_t const quota)
 		return;
 	}
 
+#if 0
 	if (_cpu_quota)
 		Genode::log("core: ", pd_name(), " -> ", _name, " - cpu_quota=",  _cpu_quota, " -- destroy");
+#endif
 
 	_cpu_quota = quota;
 
@@ -303,7 +307,9 @@ uint8_t Platform_thread::_create_periodic_sc()
 
 	size_t nova_quantum_us = Cpu_session::quota_lim_downscale<__uint128_t>(_cpu_quota, PERIOD_QUANTUM);
 
+#if 0
 	Genode::log("core: ", pd_name(), " -> ", _name, " - cpu_quota=",  _cpu_quota, " nova_us=", nova_quantum_us, " -- ", __func__);
+#endif
 
 	Qpd qpd(nova_quantum_us, PERIOD_PRIORITY);
 
@@ -351,7 +357,9 @@ void Platform_thread::resume()
 		if (res == NOVA_OK)
 			_pd->cpu_quota_users(1);
 
+#if 0
 		Genode::log("core: ", pd_name(), " -> ", _name, " - cpu_quota=",  _cpu_quota, " unassigned=", _pd->cpu_quota_unassigned(0), " users=", _pd->cpu_quota_users(0), " -- ", __func__);
+#endif
 	}
 }
 
