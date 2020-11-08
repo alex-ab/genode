@@ -315,6 +315,7 @@ struct Irq_handler
 {
 	Genode::Irq_session_client           irq;
 	Genode::Signal_handler<Irq_handler>  dispatcher;
+	Genode::Signal_handler<Irq_handler>  period_handler;
 
 	typedef void (*irq_handler)(void*);
 
@@ -327,16 +328,28 @@ struct Irq_handler
 		irq.ack_irq();
 	}
 
+	void ping()
+	{
+//		Genode::log("ping");
+		handler(priv);
+	}
+
+	Timer::Connection timer { *_global_env };
+
 	Irq_handler(Genode::Entrypoint &ep, Genode::Irq_session_capability cap,
 	            irq_handler handler, void *priv)
 	:
 		irq(cap), dispatcher(ep, *this, &Irq_handler::handle),
+		period_handler(ep, *this, &Irq_handler::ping),
 		handler(handler), priv(priv)
 	{
 		irq.sigh(dispatcher);
 
 		/* intial ack so that we will receive IRQ signals */
 		irq.ack_irq();
+
+		timer.sigh(period_handler);
+		timer.trigger_periodic(1000*1000);
 	}
 };
 
