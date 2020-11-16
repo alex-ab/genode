@@ -1,0 +1,14 @@
+<runtime ram="2M" caps="150" binary="cpu_burner">
+
+	<requires>
+		<cpu/>
+	</requires>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="cpu_burner"/>
+	</content>
+
+	<config percent="100"/>
+
+</runtime>
