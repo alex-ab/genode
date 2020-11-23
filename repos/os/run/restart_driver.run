@@ -1,0 +1,715 @@
+assert_spec x86
+
+set use_fb      1
+set use_ps2     0
+set use_ahci    0
+set use_audio   0
+set use_nic     0
+set use_wifi    0
+set use_nvme    0
+set use_uart    0
+set use_usb     0
+
+set use_usb_hid     [expr $use_usb && 1]
+set use_usb_storage [expr $use_usb && 0]
+set use_usb_net     [expr $use_usb && 0]
+
+if { ![have_include "power_on/qemu"] && [expr $use_usb_storage] } {
+	puts "Usb storage naming can not be set dynamically currently."
+	exit 1
+}
+if { ![have_include "power_on/qemu"] && [expr $use_usb_net] } {
+	puts "Usb network naming can not be set dynamically currently."
+	exit 1
+}
+
+set use_rtc   $use_wifi
+set use_net   [expr $use_nic || $use_wifi || $use_usb_net]
+set use_event [expr $use_ps2 || $use_usb_hid]
+set use_block [expr $use_ahci || $use_nvme || $use_usb_storage]
+
+# exchange driver implementations of 'related' device class on the fly
+set use_alternative_driver $use_fb
+
+#
+# Framebuffer driver selection based on image/* and power_on/* switches
+#
+proc binary_fb_drv_1 {} { return "vesa_fb_drv" }
+proc binary_fb_drv_2 {} { return "intel_fb_drv" }
+
+if { [have_include "image/uefi"] } {
+	proc binary_fb_drv_1 {} { return "boot_fb_drv" }
+}
+if { [have_include "power_on/qemu"] } {
+	proc binary_fb_drv_2 {} { return "vesa_fb_drv" }
+}
+
+#
+# Prepare image for Block driver cases
+#
+if { [have_include "power_on/qemu"] && [expr $use_ahci] && [expr $use_nvme] } {
+	puts "On Qemu AHCI and NVME would use the same image at the same time"
+	exit 1
+}
+
+set disk_image "bin/ext2.raw"
+
+if { [have_include "power_on/qemu"] && $use_block } {
+	set mke2fs [installed_command mke2fs]
+	set dd     [installed_command dd]
+
+	#
+	# Build EXT2-file-system image
+	#
+	catch { exec $dd if=/dev/zero of=$disk_image bs=1M count=100 }
+	catch { exec $mke2fs -F disk_image }
+}
+
+#
+# Configure wireless lan
+#
+if { $use_wifi } {
+	proc wifi_ssid { } {
+		return $::env(GENODE_WIFI_SSID)
+	}
+
+	proc wifi_psk { } {
+		return $::env(GENODE_WIFI_PSK)
+	}
+}
+
+#
+# widi_drv config generator (supporting a network list)
+#
+# You may script your tests with this function in the dynamic_rom config below.
+# The syntax for the networks parameter is
+#
+#   { ssid protection passphrase explicit_scan }
+#
+# Example dynamic_rom config:
+#
+#   {<inline description="auto-connect both networks">
+#   } [wifi_config 30 5 no [list "net1 WPA2 net1_psk no" "net2 WPA2 net2_psk no"]] {
+#   </inline>
+#   <inline description="aquto-connect both, but net2 explicitly">
+#   } [wifi_config 30 5 no [list "net1 WPA2 net1_psk no" "net2 WPA2 net2_psk yes"]] {
+#   </inline>}
+
+set wifi_verbose       false
+set wifi_verbose_state false
+
+proc wifi_config { connected_scan_interval scan_interval rfkill networks } {
+	global wifi_verbose
+	global wifi_verbose_state
+
+	set    config "<wifi_config"
+	append config " verbose=\"$wifi_verbose\""
+	append config " verbose_state=\"$wifi_verbose_state\""
+	append config " connected_scan_interval=\"$connected_scan_interval\""
+	append config " scan_interval=\"$scan_interval\""
+	append config " rfkill=\"$rfkill\""
+	append config ">\n"
+	foreach n $networks {
+		append config "  <network"
+		append config " ssid=\"[lindex $n 0]\""
+		append config " protection=\"[lindex $n 1]\""
+		append config " passphrase=\"[lindex $n 2]\""
+		append config " explicit_scan=\"[lindex $n 3]\""
+		append config "/>\n"
+	}
+	append config "</wifi_config>\n"
+
+	return $config
+}
+
+#
+# Build Genode components
+#
+set build_components {
+	core init timer
+	server/dynamic_rom
+	server/report_rom
+}
+
+append_if $use_fb    build_components { drivers/framebuffer test/framebuffer }
+append_if $use_ps2   build_components { drivers/input }
+append_if $use_block build_components { test/block/client }
+append_if $use_ahci  build_components { drivers/ahci }
+append_if $use_nvme  build_components { drivers/nvme }
+append_if $use_usb   build_components { drivers/usb_host drivers/usb_hid drivers/usb_block drivers/usb_net }
+append_if $use_audio build_components { drivers/audio test/audio_out }
+append_if $use_nic   build_components { drivers/nic }
+append_if $use_rtc   build_components { drivers/rtc }
+append_if $use_wifi  build_components { drivers/wifi lib/vfs/jitterentropy }
+append_if $use_uart  build_components { drivers/uart app/log_core server/terminal_log }
+
+append_if $use_event build_components { server/event_dump }
+append_if $use_net   build_components { test/lwip/http_srv lib/vfs/lwip }
+
+source ${genode_dir}/repos/base/run/platform_drv.inc
+
+append_platform_drv_build_components
+
+build $build_components
+
+create_boot_directory
+
+#
+# Generate config
+#
+
+append config {
+<config prio_levels="2">
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+	<default caps="100"/>}
+
+append_platform_drv_config
+
+append config {
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="dynamic_rom">
+		<resource name="RAM" quantum="4M"/>
+		<provides><service name="ROM"/></provides>
+		<config verbose="yes">
+			<rom name="sub_init.config">
+				<inline description="start driver">
+					<config>
+						<parent-provides>
+							<service name="IRQ"/>
+							<service name="IO_MEM"/>
+							<service name="IO_PORT"/>
+							<service name="ROM"/>
+							<service name="PD"/>
+							<service name="RM"/>
+							<service name="CPU"/>
+							<service name="LOG"/>
+							<service name="Timer"/>
+							<service name="Capture"/>
+							<service name="Platform"/>
+							<service name="Event"/>
+							<service name="Report"/>
+						</parent-provides>}
+
+append_if $use_ahci config {
+<!--
+						<service name="Block">
+							<default-policy>
+								<child name="ahci_drv"/>
+							</default-policy>
+						</service>
+-->
+}
+
+append_if $use_fb config {
+						<start name="fb_drv" caps="130">
+							<binary name="} [binary_fb_drv_1] {"/>
+							<resource name="RAM" quantum="32M"/>
+							<!-- mixture of fb driver config attributes, not all are use by all drivers ! -->
+							<config width="1024" height="768">
+								<report connectors="yes"/>
+							</config>
+							<route>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append_if $use_ps2 config {
+						<start name="ps2_drv" caps="100">
+							<resource name="RAM" quantum="2M"/>
+							<config />
+							<route>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append_if $use_uart config {
+						<start name="uart_drv" caps="100">
+							<binary name="pc_uart_drv"/>
+							<resource name="RAM" quantum="1M"/>
+							<provides>
+								<service name="Uart"/>
+								<service name="Terminal"/>
+							</provides>
+							<config>
+								<policy label="terminal_log -> log" uart="0"/>
+							</config>
+							<route>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>
+
+						<start name="terminal_log" caps="100">
+							<resource name="RAM" quantum="1M"/>
+							<provides><service name="LOG"/></provides>
+							<route>
+								<service name="Terminal"> <child name="uart_drv"/> </service>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>
+
+						<start name="log_core" caps="100">
+							<resource name="RAM" quantum="10M"/>
+							<config period_ms="2000"/>
+							<route>
+								<service name="ROM" label="log"> <parent label="core_log"/> </service>
+								<service name="LOG" label="log"> <child name="terminal_log"/> </service>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append_if $use_ahci config {
+						<start name="ahci_drv" caps="100">
+							<resource name="RAM" quantum="10M" />
+							<provides><service name="Block" /></provides>
+							<config atapi="yes">
+								<report ports="yes"/>
+								<policy label="test-ahci -> " device="0" writeable="yes" />
+							</config>
+							<route>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append_if $use_nvme config {
+						<start name="nvme_drv" caps="100">
+							<resource name="RAM" quantum="10M" />
+							<provides><service name="Block" /></provides>
+							<config>
+								<policy label="test-ahci -> " writeable="yes" />
+							</config>
+							<route>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append_if $use_block config {
+						<start name="test-ahci" caps="100">
+							<binary name="test-block-client" />
+							<resource name="RAM" quantum="50M" />
+							<config test_size="100M"/>
+							<route>
+								<service name="Block"> <any-child/> </service>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append_if $use_usb config {
+						<start name="usb_drv" caps="150">
+							<binary name="x86_pc_usb_host_drv"/>
+							<resource name="RAM" quantum="12M"/>
+							<provides> <service name="Usb"/> </provides>
+							<config bios_handoff="yes">
+								<report devices="yes"/>
+								<policy label_prefix="usb_hid_drv -> "   class="0x3"/>
+								<policy label_prefix="usb_block_drv -> " class="0x8"/>
+								<policy label_prefix="usb_net_drv -> "   class="0x2"/>
+							</config>
+							<route>
+								<service name="Report"> <child name="usb_report_rom"/> </service>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>
+
+						<start name="usb_report_rom" caps="100">
+							<binary name="report_rom"/>
+							<resource name="RAM" quantum="1M"/>
+							<provides> <service name="Report"/> <service name="ROM"/> </provides>
+							<config verbose="no">
+								<default-policy report="usb_drv -> devices"/>
+							</config>
+							<route>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append_if $use_usb_hid config {
+						<start name="usb_hid_drv" caps="140">
+							<resource name="RAM" quantum="11M"/>
+							<config use_report="yes"/>
+							<route>
+								<service name="Usb"> <child name="usb_drv"/> </service>
+								<service name="ROM" label="report"> <child name="usb_report_rom"/> </service>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append_if $use_usb_net config {
+						<start name="usb_net_drv" caps="100">
+							<resource name="RAM" quantum="10M"/>
+							<provides> <service name="Nic"/> </provides>
+							<config mac="02:00:00:00:01:01" />
+							<route>
+								<!-- XXX works only for Qemu -->
+								<service name="Usb"> <child name="usb_drv" label="usb_net_drv -> usb-1-2"/> </service>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append_if $use_usb_storage config {
+						<start name="usb_block_drv" caps="100">
+							<resource name="RAM" quantum="4M"/>
+							<provides> <service name="Block"/> </provides>
+							<config report="yes" label="usb-2-2"/> <!-- XXX solely for Qemu -->
+							<route>
+								<service name="Usb"> <child name="usb_drv"/> </service>
+								<service name="Report"> <child name="usb_report_rom"/> </service>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append_if $use_audio config {
+						<start name="audio_drv" caps="100">
+							<binary name="pci_audio_drv"/>
+							<resource name="RAM" quantum="8M"/>
+							<provides>
+								<service name="Audio_in"/>
+								<service name="Audio_out"/>
+							</provides>
+							<config/>
+							<route>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>
+
+						<start name="test-audio_out" caps="100">
+							<resource name="RAM" quantum="4M"/>
+							<config>
+								<filename>sample.raw</filename>
+							</config>
+							<route>
+								<service name="Audio_out"> <child name="audio_drv"/> </service>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append_if $use_rtc config {
+						<start name="rtc_drv" caps="100">
+							<resource name="RAM" quantum="1M"/>
+							<provides> <service name="Rtc"/> </provides>
+							<route>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append_if $use_nic config {
+						<start name="nic_drv" caps="120">
+							<binary name="ipxe_nic_drv"/>
+							<resource name="RAM" quantum="4M"/>
+							<provides> <service name="Nic"/> </provides>
+							<config/>
+							<route>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+if { $use_wifi } {
+	append config {
+						<start name="wifi_drv" caps="200">
+							<resource name="RAM" quantum="24M"/>
+							<provides> <service name="Nic"/> </provides>
+							<config ld_verbose="no">
+								<libc stdout="/dev/null" stderr="/dev/null" rtc="/dev/rtc"/>
+								<vfs>
+									<dir name="dev"> <log/> <null/> <rtc/>
+										<jitterentropy name="random"/>
+										<jitterentropy name="urandom"/>
+									</dir>
+								</vfs>
+							</config>
+							<route>
+								<service name="Rtc"> <child name="rtc_drv"/> </service>
+								<service name="Report"> <child name="wifi_report_rom"/> </service>
+								<service name="ROM" label="wifi_config"> <child name="config_rom"/> </service>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>
+
+						<start name="config_rom" caps="100">
+							<binary name="dynamic_rom"/>
+							<resource name="RAM" quantum="4M"/>
+							<provides><service name="ROM"/></provides>
+							<config verbose="yes">
+								<rom name="wifi_config">
+									<inline description="disconnect">
+	} [wifi_config 30 5 no {}] {
+									</inline>
+									<sleep milliseconds="15000"/>
+									<inline description="connect">
+	} [wifi_config 30 5 no [list "[wifi_ssid] WPA2 [wifi_psk] yes"]] {
+									</inline>
+									<sleep milliseconds="60000"/>
+									<inline description="rfkill block">
+	} [wifi_config 30 5 yes [list "[wifi_ssid] WPA2 [wifi_psk] yes"]] {
+									</inline>
+									<sleep milliseconds="30000"/>
+									<inline description="rfkill unblock">
+	} [wifi_config 30 5 no [list "[wifi_ssid] WPA2 [wifi_psk] yes"]] {
+									</inline>
+									<sleep milliseconds="30000"/>
+								</rom>
+							</config>
+							<route>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>
+
+						<start name="wifi_report_rom" caps="100">
+							<binary name="report_rom"/>
+							<resource name="RAM" quantum="1M"/>
+							<provides> <service name="Report"/> <service name="ROM"/> </provides>
+							<config verbose="yes">
+							</config>
+							<route>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+}
+#end of if { $use_wifi }
+
+append_if $use_net config {
+						<start name="test-lwip_httpsrv" caps="120">
+							<resource name="RAM" quantum="4M"/>
+							<config>
+								<vfs>
+									<dir name="dev"> <log/> </dir>
+									<dir name="socket"> <lwip dhcp="yes"/> </dir>
+								</vfs>
+								<libc stdout="/dev/log" stderr="/dev/log" socket="/socket"/>
+							</config>
+							<route>
+								<service name="Nic"> <any-child/> </service>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+append config {
+					</config>
+				</inline>
+				<sleep milliseconds="10000" />
+				<inline description="kill driver - empty init config"/>
+				<sleep milliseconds="5000" />}
+
+if { $use_alternative_driver } {
+
+	append config {
+				<inline description="start another driver implementation">
+					<config>
+						<parent-provides>
+							<service name="IRQ"/>
+							<service name="IO_MEM"/>
+							<service name="IO_PORT"/>
+							<service name="ROM"/>
+							<service name="PD"/>
+							<service name="RM"/>
+							<service name="CPU"/>
+							<service name="LOG"/>
+							<service name="Timer"/>
+							<service name="Capture"/>
+							<service name="Platform"/>
+							<service name="Event"/>
+							<service name="Report"/>
+						</parent-provides>}
+
+	append_if $use_fb config {
+						<start name="fb_drv" caps="130">
+							<binary name="} [binary_fb_drv_2] {"/>
+							<resource name="RAM" quantum="48M"/>
+							<!-- mixture of fb driver config attributes, not all are use by all drivers ! -->
+							<config width="1024" height="768">
+								<report connectors="yes"/>
+							</config>
+							<route>
+								<any-service> <parent/> </any-service>
+							</route>
+						</start>}
+
+	append config {
+					</config>
+				</inline>
+				<sleep milliseconds="10000" />
+				<inline description="kill driver - empty init config - 2. time"/>
+				<sleep milliseconds="5000" />}
+}
+# end of if $use_alternative_driver
+
+append config {
+			</rom>
+		</config>
+	</start>
+
+	<start name="driver_init" caps="1000" priority="-1">
+		<binary name="init"/>
+		<resource name="RAM" quantum="128M"/>}
+
+append_if $use_ahci config {
+		<provides>
+			<service name="Block"/>
+		</provides>}
+
+append config {
+		<route>
+			<service name="ROM" label="config">
+				<child name="dynamic_rom" label="sub_init.config"/>
+			</service>
+			<service name="Capture">
+				<child name="test-framebuffer"/>
+			</service>
+			<service name="Event">
+				<child name="event_dump"/>
+			</service>
+			<service name="Platform" unscoped_label="driver_init -> fb_drv -> ">
+				<!-- platform driver config permits for label 'intel_fb_drv' more devices, e.g. isa bridge and 0:0.0 -->
+				<child name="platform_drv" label="intel_fb_drv" />
+			</service>
+			<service name="Platform" unscoped_label="driver_init -> ps2_drv -> ">
+				<child name="platform_drv" label="ps2_drv" />
+			</service>
+			<service name="Platform" unscoped_label="driver_init -> ahci_drv -> ">
+				<child name="platform_drv" label="ahci_drv" />
+			</service>
+			<service name="Platform" unscoped_label="driver_init -> nvme_drv -> ">
+				<child name="platform_drv" label="nvme_drv" />
+			</service>
+			<service name="Platform" unscoped_label="driver_init -> usb_drv -> ">
+				<child name="platform_drv" label="usb_drv" />
+			</service>
+			<service name="Platform" unscoped_label="driver_init -> audio_drv -> ">
+				<child name="platform_drv" label="audio_drv" />
+			</service>
+			<service name="Platform" unscoped_label="driver_init -> nic_drv -> ">
+				<child name="platform_drv" label="nic_drv" />
+			</service>
+			<service name="Platform" unscoped_label="driver_init -> wifi_drv -> ">
+				<child name="platform_drv" label="wifi_drv" />
+			</service>
+			<service name="Timer">
+				<child name="timer"/>
+			</service>
+			<service name="Report">
+				<any-child/>
+			</service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>}
+
+append_if $use_fb config {
+	<start name="test-framebuffer" priority="-1">
+		<resource name="RAM" quantum="10M"/>
+		<provides> <service name="Capture"/> </provides>
+		<config/>
+	</start>}
+
+append_if $use_event config {
+	<start name="event_dump" priority="-1">
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Event"/> </provides>
+		<config/>
+		<route>
+			<service name="Timer"> <child name="timer"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>}
+
+append config {
+</config>}
+
+install_config $config
+
+#
+# Boot modules
+#
+
+# generic modules
+set boot_modules {
+	core ld.lib.so init timer
+	dynamic_rom report_rom
+}
+
+append_if $use_event boot_modules { event_dump }
+append_if $use_fb    boot_modules " [binary_fb_drv_1] [binary_fb_drv_2] "
+append_if $use_fb    boot_modules { test-framebuffer }
+append_if $use_rtc   boot_modules { rtc_drv }
+append_if $use_uart  boot_modules { pc_uart_drv log_core terminal_log }
+append_if $use_ps2   boot_modules { ps2_drv }
+append_if $use_block boot_modules { test-block-client }
+append_if $use_ahci  boot_modules { ahci_drv }
+append_if $use_nvme  boot_modules { nvme_drv }
+append_if $use_usb   boot_modules { x86_pc_usb_host_drv usb_hid_drv usb_block_drv usb_net_drv }
+append_if $use_audio boot_modules { pci_audio_drv test-audio_out sample.raw }
+append_if $use_nic   boot_modules { ipxe_nic_drv }
+append_if $use_net   boot_modules { test-lwip_httpsrv libc.lib.so vfs.lib.so vfs_lwip.lib.so }
+append_if $use_wifi  boot_modules { wifi_drv wifi.lib.so wpa_driver_nl80211.lib.so wpa_supplicant.lib.so }
+append_if $use_wifi  boot_modules { libcrypto.lib.so libssl.lib.so vfs_jitterentropy.lib.so }
+append_if $use_wifi  boot_modules {
+	iwlwifi-6000-4.ucode
+	iwlwifi-6000g2a-6.ucode
+	iwlwifi-6000g2b-6.ucode
+	iwlwifi-7260-17.ucode
+	iwlwifi-7265-17.ucode
+	iwlwifi-7265D-29.ucode
+	iwlwifi-8000C-36.ucode
+	iwlwifi-8265-36.ucode
+	regulatory.db
+}
+
+# platform-specific modules
+append_platform_drv_boot_modules
+build_boot_image $boot_modules
+
+if { [have_include "power_on/qemu"] && $use_ahci } {
+	append qemu_args " -device ahci,id=ahci -boot d"
+	append qemu_args " -drive id=disk,file=$disk_image,format=raw,if=none"
+	append qemu_args " -device ide-hd,drive=disk,bus=ahci.0"
+}
+
+if { [have_include "power_on/qemu"] && $use_nvme } {
+	append qemu_args " -drive id=nvme0,file=$disk_image,format=raw,if=none "
+	append qemu_args " -device nvme,drive=nvme0,serial=fnord,id=nvme0n1 "
+}
+
+if {$use_usb} {
+	append qemu_args " -usb"
+	append qemu_args " -device usb-ehci,id=ehci"
+	append qemu_args " -device nec-usb-xhci,id=xhci"
+
+	if { $use_usb_hid } {
+		append qemu_args " -device usb-kbd,bus=ehci.0"
+		append qemu_args " -device usb-mouse,bus=ehci.0"
+	}
+
+	if { $use_usb_storage } {
+		append qemu_args " -drive if=none,id=usb_storage,file=$disk_image,format=raw "
+		append qemu_args " -device usb-storage,bus=xhci.0,drive=usb_storage "
+	}
+
+	if { $use_usb_net } {
+		append qemu_args " -netdev user,id=net0"
+		append qemu_args " -device usb-net,bus=xhci.0,netdev=net0"
+	}
+}
+
+append_if $use_audio qemu_args " -soundhw es1370"
+
+if {$use_nic} { append_qemu_nic_args }
+
+append qemu_args " -m 512"
+
+append_if [expr !$use_fb && !$use_event && ($use_net || $use_block || $use_audio || $use_uart)] qemu_args " -nographic"
+
+run_genode_until forever
