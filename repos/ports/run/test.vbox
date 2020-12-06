@@ -23,9 +23,9 @@
         <HardwareVirtEx enabled="true"/>
         <HardwareVirtExNestedPaging enabled="true"/>
         <HardwareVirtExVPID enabled="true"/>
-        <HardwareVirtExUX enabled="false"/>
-        <PAE enabled="false"/>
-        <LongMode enabled="false"/>
+        <HardwareVirtExUX enabled="true"/>
+        <PAE enabled="true"/>
+        <LongMode enabled="true"/>
         <HardwareVirtExLargePages enabled="false"/>
         <HardwareVirtForce enabled="false"/>
       </CPU>
