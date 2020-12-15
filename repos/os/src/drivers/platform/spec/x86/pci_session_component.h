@@ -1065,9 +1065,7 @@ class Platform::Root : public Genode::Root_component<Session_component>
 
 			_construct_buses();
 
-			if (config.xml().has_sub_node("report")
-			 && config.xml().sub_node("report").attribute_value("pci", true)) {
-
+			{
 				_pci_reporter.construct(_env, "pci", "pci");
 
 				Config_access config_access(*_pci_confspace);
@@ -1091,7 +1089,9 @@ class Platform::Root : public Genode::Root_component<Session_component>
 						using Genode::Hex;
 
 						xml.node("device", [&] () {
-							xml.attribute("bdf"       , String<8>(Hex(bus, Hex::Prefix::OMIT_PREFIX), ":", Hex(device, Hex::Prefix::OMIT_PREFIX), ".", function));
+							xml.attribute("bus"       , String<5>(Hex(bus)));
+							xml.attribute("device"    , String<5>(Hex(device)));
+							xml.attribute("function"  , String<5>(Hex(function)));
 							xml.attribute("vendor_id" , String<8>(Hex(config.vendor_id())));
 							xml.attribute("device_id" , String<8>(Hex(config.device_id())));
 							xml.attribute("class_code", String<12>(Hex(config.class_code())));

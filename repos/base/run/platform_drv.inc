@@ -262,6 +262,9 @@ proc platform_drv_config {} {
 		append_if [expr [have_spec x86] && ![have_spec muen]] drv_config {
 			<service name="ROM" label="acpi"> <child name="acpi_report_rom"/> </service>}
 
+		append_if [expr [have_spec x86]] drv_config {
+			<service name="Report"> <child name="acpi_report_rom"/> </service>}
+
 		append_if [expr [have_spec rpi] || [have_spec x86]] drv_config {
 			<service name="Timer"> <any-child/> </service>}
 
