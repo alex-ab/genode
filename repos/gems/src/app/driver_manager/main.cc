@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2017 Genode Labs GmbH
+ * Copyright (C) 2017-2021 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
@@ -56,6 +56,10 @@ class Driver_manager::Device_driver : Noncopyable
 		typedef String<32>  Service;
 
 	protected:
+
+		uint16_t _bus      { 0 };
+		uint16_t _device   { 0 };
+		uint8_t  _function { 0 };
 
 		static void _gen_common_start_node_content(Xml_generator &xml,
 		                                           Name    const &name,
@@ -112,16 +116,53 @@ class Driver_manager::Device_driver : Noncopyable
 			});
 		};
 
+		template <typename FUNC>
+		static void _generate_platform_policy(Xml_generator &xml,
+		                                      uint8_t const bus,
+		                                      uint8_t const device,
+		                                      uint8_t const function,
+		                                      Session_label const &label,
+		                                      FUNC const &fn)
+		{
+			xml.node("policy", [&] () {
+				xml.attribute("label", label);
+				xml.node("pci", [&] () {
+					xml.attribute("bus", bus);
+					xml.attribute("device", device);
+					xml.attribute("function", function);
+				});
+
+				fn();
+			});
+		}
+
+		static void _generate_platform_policy(Xml_generator &xml,
+		                                      uint8_t const bus,
+		                                      uint8_t const device,
+		                                      uint8_t const function,
+		                                      Session_label const &label) {
+			_generate_platform_policy(xml, bus, device, function, label,
+			                          [](){});
+		}
+
 		virtual ~Device_driver() { }
 
 	public:
 
 		virtual void generate_start_node(Xml_generator &xml) const = 0;
+		virtual void generate_platform_policy(Xml_generator &) const = 0;
 };
 
 
 struct Driver_manager::Intel_fb_driver : Device_driver
 {
+	Intel_fb_driver(uint8_t bus, uint8_t device, uint8_t function)
+	{
+		_bus = bus;
+		_device = device;
+		_function = function;
+	}
+
 	void generate_start_node(Xml_generator &xml) const override
 	{
 		xml.node("start", [&] () {
@@ -134,11 +175,34 @@ struct Driver_manager::Intel_fb_driver : Device_driver
 			});
 		});
 	}
+
+	void generate_platform_policy(Xml_generator &xml) const override
+	{
+		_generate_platform_policy(xml, _bus, _device, _function,
+		                          "dynamic -> intel_fb_drv -> ",
+		                         [&]() {
+			xml.node("pci", [&] () {
+				xml.attribute("bus", 0);
+				xml.attribute("device", 0);
+				xml.attribute("function", 0);
+			});
+			xml.node("pci", [&] () {
+				xml.attribute("class", "ISABRIDGE");
+			});
+		});
+	}
 };
 
 
 struct Driver_manager::Vesa_fb_driver : Device_driver
 {
+	Vesa_fb_driver(uint8_t bus, uint8_t device, uint8_t function)
+	{
+		_bus = bus;
+		_device = device;
+		_function = function;
+	}
+
 	void generate_start_node(Xml_generator &xml) const override
 	{
 		xml.node("start", [&] () {
@@ -150,6 +214,12 @@ struct Driver_manager::Vesa_fb_driver : Device_driver
 				_gen_default_parent_route(xml);
 			});
 		});
+	}
+
+	void generate_platform_policy(Xml_generator &xml) const override
+	{
+		_generate_platform_policy(xml, _bus, _device, _function,
+		                          "dynamic -> vesa_fb_drv -> ");
 	}
 };
 
@@ -195,11 +265,20 @@ struct Driver_manager::Boot_fb_driver : Device_driver
 			});
 		});
 	}
+
+	void generate_platform_policy(Xml_generator &) const override { }
 };
 
 
 struct Driver_manager::Ahci_driver : Device_driver
 {
+	Ahci_driver(uint8_t bus, uint8_t device, uint8_t function)
+	{
+		_bus = bus;
+		_device = device;
+		_function = function;
+	}
+
 	void generate_start_node(Xml_generator &xml) const override
 	{
 		xml.node("start", [&] () {
@@ -250,11 +329,24 @@ struct Driver_manager::Ahci_driver : Device_driver
 			});
 		}
 	}
+
+	void generate_platform_policy(Xml_generator &xml) const override
+	{
+		_generate_platform_policy(xml, _bus, _device, _function,
+		                          "dynamic -> ahci_drv -> ");
+	}
 };
 
 
 struct Driver_manager::Nvme_driver : Device_driver
 {
+	Nvme_driver(uint8_t bus, uint8_t device, uint8_t function)
+	{
+		_bus = bus;
+		_device = device;
+		_function = function;
+	}
+
 	void generate_start_node(Xml_generator &xml) const override
 	{
 		xml.node("start", [&] () {
@@ -301,6 +393,12 @@ struct Driver_manager::Nvme_driver : Device_driver
 			});
 		}
 	}
+
+	void generate_platform_policy(Xml_generator &xml) const override
+	{
+		_generate_platform_policy(xml, _bus, _device, _function,
+		                          "dynamic -> nvme_drv -> ");
+	}
 };
 
 
@@ -315,9 +413,10 @@ struct Driver_manager::Main : private Block_devices_generator
 	Attached_rom_dataspace _ahci_ports  { _env, "ahci_ports"  };
 	Attached_rom_dataspace _nvme_ns     { _env, "nvme_ns"     };
 
-	Reporter _init_config    { _env, "config", "init.config" };
-	Reporter _usb_drv_config { _env, "config", "usb_drv.config" };
-	Reporter _block_devices  { _env, "block_devices" };
+	Reporter _init_config     { _env, "config", "init.config" };
+	Reporter _usb_drv_config  { _env, "config", "usb_drv.config" };
+	Reporter _platform_config { _env, "config", "platform.config" };
+	Reporter _block_devices   { _env, "block_devices" };
 
 	Constructible<Intel_fb_driver> _intel_fb_driver { };
 	Constructible<Vesa_fb_driver>  _vesa_fb_driver  { };
@@ -364,9 +463,10 @@ struct Driver_manager::Main : private Block_devices_generator
 		xml.node("service", [&] () { xml.attribute("name", name); });
 	};
 
-	void _generate_init_config    (Reporter &) const;
-	void _generate_usb_drv_config (Reporter &, Xml_node, Xml_node) const;
-	void _generate_block_devices  (Reporter &) const;
+	void _generate_init_config     (Reporter &) const;
+	void _generate_usb_drv_config  (Reporter &, Xml_node, Xml_node) const;
+	void _generate_platform_config (Xml_generator &) const;
+	void _generate_block_devices   (Reporter &) const;
 
 	Ahci_driver::Default_label _default_block_device() const;
 
@@ -379,6 +479,7 @@ struct Driver_manager::Main : private Block_devices_generator
 	{
 		_init_config.enabled(true);
 		_usb_drv_config.enabled(true);
+		_platform_config.enabled(true);
 		_block_devices.enabled(true);
 
 		_pci_devices.sigh(_pci_devices_update_handler);
@@ -403,17 +504,15 @@ void Driver_manager::Main::_handle_pci_devices_update()
 	if (!_pci_devices.valid())
 		return;
 
-	bool has_vga            = false;
-	bool has_intel_graphics = false;
-	bool has_ahci           = false;
-	bool has_nvme           = false;
-
 	Boot_fb_driver::Mode const boot_fb_mode = _boot_fb_mode();
 
 	_pci_devices.xml().for_each_sub_node([&] (Xml_node device) {
 
 		uint16_t const vendor_id  = device.attribute_value("vendor_id",  0UL);
 		uint16_t const class_code = device.attribute_value("class_code", 0UL) >> 8;
+		uint16_t const bus        = device.attribute_value("bus", 256UL);
+		uint16_t const dev        = device.attribute_value("device", 32UL);
+		uint8_t  const function   = device.attribute_value("function", 0UL);
 
 		enum {
 			VENDOR_VBOX  = 0x80EEU,
@@ -423,53 +522,68 @@ void Driver_manager::Main::_handle_pci_devices_update()
 			CLASS_NVME   = 0x108U,
 		};
 
-		if (class_code == CLASS_VGA)
-			has_vga = true;
+		if (class_code == CLASS_VGA) {
+			if (!_vesa_fb_driver.constructed())
+				_vesa_fb_driver.construct(bus, dev, function);
 
-		if (vendor_id == VENDOR_INTEL && class_code == CLASS_VGA)
-			has_intel_graphics = true;
+			if (vendor_id == VENDOR_INTEL)
+				if (!_intel_fb_driver.constructed())
+					_intel_fb_driver.construct(bus, dev, function);
+		}
 
-		if (vendor_id == VENDOR_INTEL && class_code == CLASS_AHCI)
-			has_ahci = true;
+		if (class_code == CLASS_AHCI && vendor_id == VENDOR_INTEL)
+			if (!_ahci_driver.constructed())
+				_ahci_driver.construct(bus, dev, function);
 
 		if (vendor_id == VENDOR_VBOX)
 			_use_ohci = false;
 
 		if (class_code == CLASS_NVME)
-			has_nvme = true;
+			if (!_nvme_driver.constructed())
+				_nvme_driver.construct(bus, dev, function);
 	});
 
-	if (!_intel_fb_driver.constructed() && has_intel_graphics) {
-		_intel_fb_driver.construct();
-		_vesa_fb_driver.destruct();
-		_boot_fb_driver.destruct();
-		_generate_init_config(_init_config);
-	}
+	bool generate_init_config = false;
 
-	if (!_boot_fb_driver.constructed() && boot_fb_mode.valid() && !has_intel_graphics) {
-		_intel_fb_driver.destruct();
-		_vesa_fb_driver.destruct();
-		_boot_fb_driver.construct(boot_fb_mode);
-		_generate_init_config(_init_config);
-	}
+	Reporter::Xml_generator xml(_platform_config, [&] () {
 
-	if (!_vesa_fb_driver.constructed() && has_vga && !has_intel_graphics &&
-	    !boot_fb_mode.valid()) {
-		_intel_fb_driver.destruct();
-		_boot_fb_driver.destruct();
-		_vesa_fb_driver.construct();
-		_generate_init_config(_init_config);
-	}
+		xml.attribute("system", true);
+		xml.node("report", [&] () { xml.attribute("report", true); });
 
-	if (!_ahci_driver.constructed() && has_ahci) {
-		_ahci_driver.construct();
-		_generate_init_config(_init_config);
-	}
+		if (_intel_fb_driver.constructed()) {
+			_vesa_fb_driver.destruct();
+			_boot_fb_driver.destruct();
+			_intel_fb_driver->generate_platform_policy(xml);
+			generate_init_config = true;
+		} else {
+			if (!_boot_fb_driver.constructed() && boot_fb_mode.valid()) {
+				_vesa_fb_driver.destruct();
+				_boot_fb_driver.construct(boot_fb_mode);
+				_boot_fb_driver->generate_platform_policy(xml);
+				generate_init_config = true;
+			}
+			if (_vesa_fb_driver.constructed() && !boot_fb_mode.valid()) {
+				_boot_fb_driver.destruct();
+				_vesa_fb_driver->generate_platform_policy(xml);
+				generate_init_config = true;
+			}
+		}
 
-	if (!_nvme_driver.constructed() && has_nvme) {
-		_nvme_driver.construct();
+		if (_ahci_driver.constructed()) {
+			_ahci_driver->generate_platform_policy(xml);
+			generate_init_config = true;
+		}
+
+		if (_nvme_driver.constructed()) {
+			_nvme_driver->generate_platform_policy(xml);
+			generate_init_config = true;
+		}
+
+		_generate_platform_config(xml);
+	});
+
+	if (generate_init_config)
 		_generate_init_config(_init_config);
-	}
 
 	/* generate initial usb driver config not before we know whether ohci should be enabled */
 	_generate_usb_drv_config(_usb_drv_config,
@@ -567,6 +681,47 @@ void Driver_manager::Main::_generate_init_config(Reporter &init_config) const
 					_nvme_driver->gen_service_forwarding_policy(xml,
 						ahci_and_nvme ? Nvme_driver::Default_label() : "nvme-0");
 		});
+	});
+}
+
+
+void Driver_manager::Main::_generate_platform_config(Xml_generator &xml) const
+{
+	xml.node("policy", [&] () {
+		xml.attribute("label_prefix", "ps2_drv");
+		xml.node("device", [&] () {
+			xml.attribute("name", "PS2");
+		});
+	});
+
+	xml.node("policy", [&] () {
+		xml.attribute("label_prefix", "usb_drv");
+		xml.node("pci", [&] () {
+			xml.attribute("class", "USB");
+		});
+	});
+
+	xml.node("policy", [&] () {
+		xml.attribute("label_suffix", "-> wifi");
+		xml.node("pci", [&] () {
+			xml.attribute("class", "WIFI");
+		});
+	});
+
+	xml.node("policy", [&] () {
+		xml.attribute("label_suffix", "-> nic");
+		xml.node("pci", [&] () {
+			xml.attribute("class", "ETHERNET");
+		});
+	});
+	xml.node("policy", [&] () {
+		xml.attribute("label_suffix", "-> audio");
+		xml.node("pci", [&] () {
+			xml.attribute("class", "AUDIO");
+		});
+	});
+	xml.node("policy", [&] () {
+		xml.attribute("label", "apcica");
 	});
 }
 

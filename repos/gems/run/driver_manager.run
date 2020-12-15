@@ -46,8 +46,8 @@ install_config {
 		</config>
 	</start>
 
-	<start name="drivers" caps="2500" managing_system="yes">
-		<resource name="RAM" quantum="64M"/>
+	<start name="drivers" caps="3500" managing_system="yes">
+		<resource name="RAM" quantum="256M"/>
 		<binary name="init"/>
 		<route>
 			<service name="ROM" label_last="managed/event_filter">
@@ -159,15 +159,20 @@ if {[have_include "power_on/qemu"]} {
 
 	catch { exec $dd if=/dev/zero of=bin/hdd_disk.raw bs=1M count=32 }
 	catch { exec $mke2fs -F bin/hdd_disk.raw }
+
+	catch { exec $dd if=/dev/zero of=bin/nvme.raw bs=1M count=32 }
 }
 
 #
 # Qemu opts for supplying hdd_disk.raw as AHCI disk
 #
-append qemu_args " -m 128 "
 append qemu_args " -nographic "
 append qemu_args " -device ahci,id=ahci "
 append qemu_args " -drive id=hdd,file=bin/hdd_disk.raw,format=raw,if=none -device ide-hd,drive=hdd,bus=ahci.1 "
+
+# additional device to test driver_manager detection
+#append qemu_args " -drive id=nvme0,file=bin/nvme.raw,format=raw,if=none "
+#append qemu_args " -device nvme,drive=nvme0,serial=fnord,id=nvme0n1 "
 
 run_genode_until {.*all expected devices present and accessible.*\n} 120
 
