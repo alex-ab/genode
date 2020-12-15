@@ -18,6 +18,7 @@ create_tar_from_depot_binaries [run_dir]/genode/depot.tar \
                                [depot_user]/pkg/window_layouter \
                                [depot_user]/pkg/motif_decorator \
                                [depot_user]/pkg/themed_decorator \
+                               [depot_user]/pkg/scrcpy \
                                [depot_user]/pkg/sticks_blue_backdrop
 
 proc current_pkg { pkg } { return $pkg/[_current_depot_archive_version pkg $pkg] }
@@ -55,6 +56,17 @@ install_config {
 			<service name="Event">   <child name="nitpicker"/> </service>
 			<any-service> <parent/> </any-service>
 		</route>
+		<provides>
+			<service name="Platform"/>
+		</provides>
+	</start>
+
+	<start name="nic_drv" caps="130">
+		<binary name="ipxe_nic_drv"/>
+		<resource name="RAM" quantum="20M"/>
+		<resource name="CPU" quantum="20"/>
+		<provides> <service name="Nic"/> </provides>
+		<config/>
 	</start>
 
 	<start name="nitpicker">
@@ -85,7 +97,7 @@ install_config {
 		<binary name="report_rom"/>
 		<resource name="RAM" quantum="1M"/>
 		<provides> <service name="Report"/> <service name="ROM"/> </provides>
-		<config verbose="yes">
+		<config verbose="no">
 			<policy label="depot_deploy -> blueprint" report="depot_query -> blueprint"/>
 			<policy label="depot_query -> query"      report="depot_deploy -> query"/>
 			<policy label="dynamic -> config"         report="depot_deploy -> init.config"/>
@@ -147,6 +159,7 @@ install_config {
 					<service name="Gui"/>
 					<service name="File_system"/>
 					<service name="Report"/>
+					<service name="Nic"/>
 				</parent-provides>
 			</static>
 			<common_routes>
@@ -220,6 +233,13 @@ install_config {
 				</route>
 			</start>
 
+			<start name="scrcpy" pkg="} [depot_user]/pkg/[current_pkg scrcpy] {">
+				<route>
+					<service name="Gui"> <child name="wm"/> </service>
+					<service name="Nic"> <parent/> </service>
+				</route>
+			</start>
+<!--
 			<start name="system_shell" pkg="} [depot_user]/pkg/[current_pkg system_shell] {">
 				<route>
 					<service name="Gui"> <child name="wm"/> </service>
@@ -232,6 +252,7 @@ install_config {
 						<parent label="fs_rom"/> </service>
 				</route>
 			</start>
+-->
 
 			<!-- vbox, nic_router, acpica -->
 
@@ -246,7 +267,7 @@ install_config {
 	</start>
 
 	<start name="dynamic" caps="8000">
-		<resource name="RAM" quantum="180M"/>
+		<resource name="RAM" quantum="380M"/>
 		<binary name="init"/>
 		<route>
 			<service name="ROM" label_last="ld.lib.so"> <parent/> </service>
@@ -266,7 +287,7 @@ install_config {
 
 </config>}
 
-build { app/depot_query app/depot_deploy }
+build { app/depot_query app/depot_deploy drivers/nic }
 
 file copy -force [genode_dir]/repos/gems/run/sculpt/fonts.config [run_dir]/genode/
 file copy -force [genode_dir]/repos/ports/recipes/raw/system_shell/system_shell.config [run_dir]/genode/
@@ -289,7 +310,9 @@ set noswapfile
 set viminfo=}
 close $vimrc_fd
 
-build_boot_image { depot_query depot_deploy }
+build_boot_image { depot_query depot_deploy ipxe_nic_drv }
+
+append qemu_args " -m 1024 "
 
 run_genode_until forever
 
