@@ -75,8 +75,12 @@ set config {
 
 append_if [expr !$use_acpica_as_acpi_drv] config {
 		<start name="acpica" caps="150">
-			<resource name="RAM" quantum="5M"/>
+			<resource name="RAM" quantum="16M"/>
 			<config ld_verbose="yes" reset="no" poweroff="no" report="yes" acpi_ready="yes">
+				<vfs>
+					<dir name="dev"> <log/> </dir>
+				</vfs>
+				<libc stdout="/dev/log" stderr="/dev/log"/>
 			</config>
 			<route>
 				<service name="ROM" label="system"> <child name="dynamic_rom"/> </service>
@@ -210,7 +214,7 @@ install_config $config
 
 set boot_modules {
 	core init
-	ld.lib.so
+	ld.lib.so libc.lib.so vfs.lib.so
 	timer
 	ps2_drv
 	event_filter
