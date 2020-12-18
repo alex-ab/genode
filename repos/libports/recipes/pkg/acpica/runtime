@@ -13,9 +13,16 @@
 
 	<content>
 		<rom label="ld.lib.so"/>
+		<rom label="libc.lib.so"/>
+		<rom label="vfs.lib.so"/>
 		<rom label="acpica"/>
 	</content>
 
-	<config reset="yes" poweroff="yes" report="yes"/>
+	<config reset="yes" poweroff="yes" report="yes">
+		<vfs>
+			<dir name="dev"> <log/> </dir>
+		</vfs>
+		<libc stdout="/dev/log" stderr="/dev/log"/>
+	</config>
 
 </runtime>
