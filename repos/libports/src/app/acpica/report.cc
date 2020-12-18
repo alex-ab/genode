@@ -18,7 +18,7 @@
 
 using Genode::Reporter;
 
-extern void AcpiGenodeFreeIOMem(ACPI_PHYSICAL_ADDRESS const phys, ACPI_SIZE const size);
+extern "C" void AcpiGenodeFreeIOMem(ACPI_PHYSICAL_ADDRESS const phys, ACPI_SIZE const size);
 
 template <typename H, typename S, typename F, typename FSIZE>
 void for_each_element(H const head, S *, F const &fn, FSIZE const &fn_size)
