@@ -12,6 +12,7 @@
 
 #include <base/allocator_avl.h>
 #include <base/component.h>
+#include <libc/component.h>
 #include <base/log.h>
 #include <base/signal.h>
 #include <base/heap.h>
@@ -407,11 +408,18 @@ ACPI_STATUS AcpiOsInstallInterruptHandler(UINT32 irq, ACPI_OSD_HANDLER handler,
 	return AE_OK;
 }
 
-
+#if 0
+/* used by normal (no-printf-debug) target */
 void Component::construct(Genode::Env &env)
 {
 	/* XXX execute constructors of global statics */
 	env.exec_static_constructors();
 
 	static Acpica::Main main(env);
+}
+#endif
+
+/* used by debug target (using printf of libc) */
+void Libc::Component::construct(Libc::Env &env) {
+	 static Acpica::Main main(env);
 }
