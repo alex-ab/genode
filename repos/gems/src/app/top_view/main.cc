@@ -26,7 +26,7 @@
 
 static constexpr unsigned DIV = 10;
 enum SORT_TIME { EC_TIME = 0, SC_TIME = 1};
-enum { CHECKBOX_ID_FIRST = 7, CHECKBOX_ID_SECOND = 9 };
+enum { CHECKBOX_ID_FIRST = 7, CHECKBOX_ID_SECOND = 9, CHECKBOX_ID_POLICY = 8 /* XXX */ };
 
 using Genode::uint64_t;
 typedef Genode::Affinity::Location Location;
@@ -38,6 +38,8 @@ struct Subjects
 		Genode::Avl_tree<Genode::Avl_string_base> _components { };
 		Genode::Avl_tree<Top::Thread>             _threads    { };
 		Genode::Trace::Timestamp                  _timestamp  { 0 };
+
+		Genode::Trace::Policy_id                  _policy_id { };
 
 		Top::Component *_lookup_pd(char const * const name)
 		{
@@ -168,7 +170,7 @@ struct Subjects
 		bool _trace_top_most             { false };
 		bool _trace_top_no_idle          { false };
 
-		bool _show_second_time             { false };
+		bool _show_second_time           { false };
 
 		enum { THREAD, COMPONENT } _sort { THREAD };
 
@@ -195,6 +197,9 @@ struct Subjects
 
 		unsigned period_trace() const { return _button_trace_period.value(); }
 		unsigned period_view() const { return _button_view_period.value(); }
+
+		void update_policy_id(Genode::Trace::Policy_id const policy_id) {
+			_policy_id = policy_id; }
 
 		void _destroy_thread_object(Top::Thread *thread,
 		                            Genode::Trace::Connection &trace,
@@ -669,7 +674,8 @@ struct Subjects
 			}
 		}
 
-		bool hover_detailed(SORT_TIME const &sort_time)
+		bool hover_detailed(SORT_TIME const &sort_time,
+		                    Genode::Trace::Connection &trace)
 		{
 			if (_detailed_view_back) {
 				_detailed_view.id   = 0;
@@ -709,6 +715,19 @@ struct Subjects
 				return true;
 			}
 
+			if (_hovered_sub_id == CHECKBOX_ID_POLICY) {
+				if (thread->trace())
+					trace.pause(thread->id());
+				else {
+					Genode::log("apply tracing policy to thread: ", thread->thread_name());
+
+					trace.trace(thread->id(), _policy_id, 0x1000 /* buffer size */);
+				}
+				thread->trace(!thread->trace());
+
+				return true;
+			}
+
 			return false;
 		}
 
@@ -717,7 +736,8 @@ struct Subjects
 		           bool const click_valid,
 		           Genode::Trace::Subject_id const id,
 		           unsigned sub_id,
-		           SORT_TIME &sort_time)
+		           SORT_TIME &sort_time,
+		           Genode::Trace::Connection &trace)
 		{
 			if (click_valid) {
 
@@ -747,7 +767,7 @@ struct Subjects
 				}
 
 				if (_detailed_view.id)
-					return hover_detailed(sort_time);
+					return hover_detailed(sort_time, trace);
 
 				bool update = false;
 
@@ -1033,7 +1053,7 @@ struct Subjects
 			return button_hovered_before || _button_cpus.active() || _button_numbers.active();
 		}
 
-		void top(Genode::Reporter::Xml_generator &, SORT_TIME const, bool const);
+		void top(Genode::Reporter::Xml_generator &, SORT_TIME, bool, bool);
 
 		void graph(Genode::Reporter::Xml_generator &xml, SORT_TIME const sort)
 		{
@@ -1135,7 +1155,7 @@ struct Subjects
 		}
 
 		void detail_view(Genode::Xml_generator &xml, Top::Thread const &thread,
-		                 SORT_TIME const sort)
+		                 SORT_TIME const sort, bool const trace_policy)
 		{
 			xml.node("vbox", [&] () {
 				xml.attribute("name", "detail_view");
@@ -1206,9 +1226,8 @@ struct Subjects
 						xml.node("hbox", [&] () {
 							xml.attribute("name", "track_first");
 							xml.node("label", [&] () {
-								xml.attribute("text", "");
+								xml.attribute("text", "graph");
 								xml.attribute("color", "#ffffff");
-								xml.attribute("align", "left");
 							});
 						});
 
@@ -1251,6 +1270,30 @@ struct Subjects
 									xml.attribute("name", check.id().id * DIV + CHECKBOX_ID_SECOND);
 									xml.attribute("style", "checkbox");
 									if (check.track(sort == SC_TIME))
+										xml.attribute("selected","yes");
+									xml.node("hbox", [&] () { });
+								});
+							});
+						});
+					}
+
+					if (trace_policy) {
+						xml.node("vbox", [&] () {
+							xml.attribute("name", "trace_policy");
+
+							xml.node("hbox", [&] () {
+								xml.attribute("name", "track_policy");
+								xml.node("label", [&] () {
+									xml.attribute("text", "trace");
+									xml.attribute("color", "#ffffff");
+								});
+							});
+
+							thread.for_each_thread_of_pd([&] (Top::Thread &check) {
+								xml.node("button", [&] () {
+									xml.attribute("name", check.id().id * DIV + CHECKBOX_ID_POLICY);
+									xml.attribute("style", "checkbox");
+									if (check.trace())
 										xml.attribute("selected","yes");
 									xml.node("hbox", [&] () { });
 								});
@@ -1511,13 +1554,13 @@ struct Subjects
 };
 
 void Subjects::top(Genode::Reporter::Xml_generator &xml, SORT_TIME const sort,
-                   bool const trace_ms)
+                   bool const trace_ms, bool const trace_policy)
 {
 	if (_detailed_view.id) {
 		Top::Thread const * thread = _lookup_thread(_detailed_view);
 		if (thread) {
 			xml.node("frame", [&] () {
-				detail_view(xml, *thread, sort);
+				detail_view(xml, *thread, sort, trace_policy);
 			});
 			return;
 		}
@@ -1819,6 +1862,7 @@ struct App::Main
 	bool                   _use_log       { true };
 	bool                   _empty_graph   { true };
 	bool                   _updated_trace { false };
+	bool                   _trace_policy  { false };
 	SORT_TIME              _sort          { EC_TIME };
 	Attached_rom_dataspace _config        { _env, "config" };
 	Timer::Connection      _timer         { _env };
@@ -1833,6 +1877,7 @@ struct App::Main
 	void _handle_view(Duration);
 	void _handle_hover();
 	void _generate_report();
+	void _load_trace_policy();
 
 	void _read_config();
 	void _write_config();
@@ -1856,6 +1901,7 @@ struct App::Main
 	{
 		_config.sigh(_config_handler);
 		_handle_config();
+		_load_trace_policy();
 	}
 };
 
@@ -1983,7 +2029,7 @@ void App::Main::_handle_hover()
 		sub_id = sub_id % 10;
 	}
 
-	if (_subjects.hover(button, click, click_valid, id, sub_id, _sort))
+	if (_subjects.hover(button, click, click_valid, id, sub_id, _sort, *_trace))
 		_generate_report();
 }
 
@@ -2059,6 +2105,8 @@ void App::Main::_handle_config()
 		if (_reporter_config.constructed())
 			_reporter_config.destruct();
 	}
+
+	_trace_policy = _config.xml().attribute_value("trace_policy", false);
 
 	_read_config();
 }
@@ -2140,6 +2188,35 @@ void App::Main::_handle_trace(Duration time)
 
 	_trace.destruct();
 	_trace.construct(_env, trace_ram_quota, arg_buffer_ram, PARENT_LEVELS);
+
+	/* XXX check - required ? */
+	_load_trace_policy();
+}
+
+void App::Main::_load_trace_policy()
+{
+	if (!_trace_policy)
+		return;
+
+	try {
+		Trace::Connection &trace = *_trace;
+
+		Attached_rom_dataspace trace_rom(_env, "trace-policy");
+
+		Trace::Policy_id policy_id = trace.alloc_policy(trace_rom.size());
+
+		Attached_dataspace trace_ram(_env.rm(), trace.policy(policy_id));
+
+		memcpy(trace_ram.local_addr<void>(), trace_rom.local_addr<void>(), trace_rom.size());
+
+		_subjects.update_policy_id(policy_id);
+
+		Genode::log("trace policy loaded - id ", policy_id.id);
+	} catch (...) {
+		Genode::error("loading trace policy failed");
+		_trace_policy = false;
+		_subjects.update_policy_id(Trace::Policy_id());
+	}
 }
 
 void App::Main::_generate_report()
@@ -2150,7 +2227,9 @@ void App::Main::_generate_report()
 		do {
 			try {
 				Reporter::Xml_generator xml(*_reporter, [&] () {
-					_subjects.top(xml, _sort, _storage.constructed()); });
+					_subjects.top(xml, _sort, _storage.constructed(),
+					              _trace_policy);
+				});
 
 				retry = 0;
 			} catch (Genode::Xml_generator::Buffer_exceeded) {

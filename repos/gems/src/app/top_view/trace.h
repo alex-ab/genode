@@ -40,6 +40,7 @@ struct Top::Thread
 		Genode::uint64_t     _recent_sc_time { 0 };
 		bool                 _track_ec { false };
 		bool                 _track_sc { false };
+		bool                 _trace    { false };
 
 	public:
 
@@ -67,8 +68,10 @@ struct Top::Thread
 		Subject_id           id()             const { return _id; }
 		bool                 track_ec()       const { return _track_ec; }
 		bool                 track_sc()       const { return _track_sc; }
+		bool                 trace()          const { return _trace; }
 		void                 track_ec(bool track)   { _track_ec = track; }
 		void                 track_sc(bool track)   { _track_sc = track; }
+		void                 trace(bool trace)      { _trace = trace; }
 
 		void                 track(bool ec_time, bool track)
 		{

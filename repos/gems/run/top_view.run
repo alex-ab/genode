@@ -180,7 +180,8 @@ append config {
 		<resource name="RAM" quantum="2M"/>
 		<config view_ms="9000" trace_ms="3000" report="yes" log="no"
 		        store="yes" report_config="} $report_config {"
-		        view="list" list="components">
+		        view="list" list="components"
+		        trace_policy="yes">
 
 			<cpu xpos="0" ypos="0" show="true" threads="3"/>
 			<cpu xpos="1" ypos="0" show="true" threads="4"/>
@@ -194,6 +195,7 @@ append config {
 			<service name="Report" label="graph"> <child name="report_rom_graph" /> </service>
 			<service name="Report" label="config"> <child name="report_rom_config" /> </service>
 			<service name="File_system" label="store"> <child name="ram_fs"/> </service>
+			<service name="ROM" label="trace-policy"> <parent label="null"/> </service>
 			<any-service> <parent/> <any-child/> </any-service>
 		</route>
 	</start>
@@ -216,9 +218,9 @@ append config {
 
 install_config $config
 
-build { app/menu_view app/top_view app/graph }
+build { app/menu_view app/top_view app/graph lib/trace/policy/null }
 
-build_boot_image { menu_view menu_view_styles.tar top_view graph }
+build_boot_image { menu_view menu_view_styles.tar top_view graph null }
 
 append qemu_args " -smp 4,cores=4"
 run_genode_until forever
