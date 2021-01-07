@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2018-2020 Genode Labs GmbH
+ * Copyright (C) 2018-2021 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
@@ -131,9 +131,10 @@ struct Subjects
 		unsigned _num_pds                     { 0 };
 		unsigned _config_pds_per_cpu      { 20 };
 
-		Genode::Trace::Subject_id _hovered_subject { };
-		unsigned                  _hovered_sub_id  { 0 };
-		Genode::Trace::Subject_id _detailed_view   { };
+		Genode::Trace::Subject_id _hovered_subject    { };
+		unsigned                  _hovered_sub_id     { 0 };
+		Genode::Trace::Subject_id _detailed_view      { };
+		bool                      _detailed_view_back { false };
 
 		Button_state  _button_cpus    { 0, MAX_CPUS_X * MAX_CPUS_Y };
 		Button_state  _button_numbers { 2, 100, _config_pds_per_cpu };
@@ -668,6 +669,49 @@ struct Subjects
 			}
 		}
 
+		bool hover_detailed(SORT_TIME const &sort_time)
+		{
+			if (_detailed_view_back) {
+				_detailed_view.id   = 0;
+				_button_cpus.reset();
+				_button_numbers.reset();
+				_detailed_view_back = false;
+
+				return true;
+			}
+
+			if (!_hovered_subject.id)
+				return false;
+
+			Top::Thread * thread = _lookup_thread(_hovered_subject.id);
+			if (!thread)
+				return false;
+
+			if (_hovered_sub_id == CHECKBOX_ID_FIRST) {
+				if (thread->track(sort_time == EC_TIME))
+					_tracked_threads --;
+				else
+					_tracked_threads ++;
+
+				thread->track(sort_time == EC_TIME, !thread->track(sort_time == EC_TIME));
+
+				return true;
+			}
+
+			if (_hovered_sub_id == CHECKBOX_ID_SECOND) {
+				if (thread->track(sort_time == SC_TIME))
+					_tracked_threads --;
+				else
+					_tracked_threads ++;
+
+				thread->track(sort_time == SC_TIME, !thread->track(sort_time == SC_TIME));
+
+				return true;
+			}
+
+			return false;
+		}
+
 		bool hover(Genode::String<12> const button,
 		           Genode::String<12> const click,
 		           bool const click_valid,
@@ -702,37 +746,8 @@ struct Subjects
 					return false;
 				}
 
-				if (_detailed_view.id) {
-					/* checkbox selection */
-					if (_hovered_subject.id) {
-						Top::Thread * thread = _lookup_thread(_hovered_subject.id);
-						if (thread && (_hovered_sub_id == CHECKBOX_ID_FIRST ||
-						               _hovered_sub_id == CHECKBOX_ID_SECOND))
-						{
-							if (_hovered_sub_id == CHECKBOX_ID_FIRST) {
-								if (thread->track(sort_time == EC_TIME))
-									_tracked_threads --;
-								else
-									_tracked_threads ++;
-
-								thread->track(sort_time == EC_TIME, !thread->track(sort_time == EC_TIME));
-							}
-							if (_hovered_sub_id == CHECKBOX_ID_SECOND) {
-								if (thread->track(sort_time == SC_TIME))
-									_tracked_threads --;
-								else
-									_tracked_threads ++;
-
-								thread->track(sort_time == SC_TIME, !thread->track(sort_time == SC_TIME));
-							}
-							return true;
-						}
-					}
-					_detailed_view.id   = 0;
-					_button_cpus.reset();
-					_button_numbers.reset();
-					return true;
-				}
+				if (_detailed_view.id)
+					return hover_detailed(sort_time);
 
 				bool update = false;
 
@@ -891,6 +906,8 @@ struct Subjects
 			_button_ec_hovered = false;
 			_button_sc_hovered = false;
 
+			_detailed_view_back = false;
+
 			if (button == "")
 				return button_hovered_before;
 
@@ -998,7 +1015,10 @@ struct Subjects
 
 
 			if (button == "<") {
-				_button_cpus.prev    = true;
+				if (_detailed_view.id)
+					_detailed_view_back = true;
+				else
+					_button_cpus.prev = true;
 			} else if (button == ">") {
 				_button_cpus.next    = true;
 			} else {
@@ -1925,6 +1945,12 @@ void App::Main::_handle_hover()
 	if (button == "") {
 		button = query_attribute<Button>(hover, "dialog", "frame", "hbox",
 		                                 "vbox", "hbox", "vbox", "button", "name");
+	}
+
+	/* detailed view: to detect "<" button */
+	if (button == "") {
+		button = query_attribute<Button>(hover, "dialog", "frame", "vbox",
+		                                 "hbox", "button", "name");
 	}
 
 	bool click_valid = false;
