@@ -14,7 +14,7 @@ size_t log_output(char *dst, char const *log_message, size_t len)
 
 size_t rpc_call(char *dst, char const *rpc_name, Msgbuf_base const &)
 {
-	return 0;
+	return 5 / 0;
 }
 
 size_t rpc_returned(char *dst, char const *rpc_name, Msgbuf_base const &)
