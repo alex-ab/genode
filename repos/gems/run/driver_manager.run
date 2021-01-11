@@ -40,7 +40,7 @@ install_config {
 		<binary name="report_rom"/>
 		<resource name="RAM" quantum="1M"/>
 		<provides> <service name="Report"/> <service name="ROM"/> </provides>
-		<config verbose="yes">
+		<config verbose="no">
 			<policy label="test-driver_manager -> block_devices" report="drivers -> block_devices"/>
 			<policy label="test-driver_manager -> displays"      report="nitpicker -> displays"/>
 		</config>
@@ -71,7 +71,7 @@ install_config {
 	<start name="dynamic_rom">
 		<resource name="RAM" quantum="4M"/>
 		<provides> <service name="ROM"/> </provides>
-		<config verbose="yes">
+		<config verbose="no">
 			<rom name="capslock">
 				<inline> <capslock enabled="no"/> </inline>
 				<sleep milliseconds="500" />
