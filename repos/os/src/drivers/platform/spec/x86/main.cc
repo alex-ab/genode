@@ -99,6 +99,7 @@ struct Platform::Main
 	void config_update()
 	{
 		_config.update();
+		Genode::error("config update ", _config.valid());
 	}
 
 	static bool acpi_platform(Genode::Env & env)

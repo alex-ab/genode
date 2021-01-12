@@ -1014,6 +1014,11 @@ class Platform::Root : public Genode::Root_component<Session_component>
 		Session_component *_create_session(const char *args) override
 		{
 			try {
+Genode::error("args ", args);
+				/* XXX report may be late */
+				_config.update();
+Genode::error("args ", args, " ", _config.valid());
+
 				return  new (md_alloc())
 					Session_component(_env, _config, *_pci_confspace, *_buses,
 					                  _heap, _delayer, _devices_bars, args,
