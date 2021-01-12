@@ -22,6 +22,7 @@
 #include <io_mem_session/io_mem_session.h>
 #include <io_port_session/io_port_session.h>
 #include <timer_session/timer_session.h>
+#include <timer_session/connection.h>
 #include <log_session/log_session.h>
 #include <usb_session/usb_session.h>
 #include <platform_session/platform_session.h>
@@ -424,6 +425,8 @@ struct Driver_manager::Main : private Block_devices_generator
 	Constructible<Ahci_driver>     _ahci_driver     { };
 	Constructible<Nvme_driver>     _nvme_driver     { };
 
+	Timer::Connection _timer { _env };
+
 	bool _use_ohci { true };
 
 	Boot_fb_driver::Mode _boot_fb_mode() const
@@ -486,6 +489,9 @@ struct Driver_manager::Main : private Block_devices_generator
 		_usb_policy .sigh(_usb_policy_update_handler);
 		_ahci_ports .sigh(_ahci_ports_update_handler);
 		_nvme_ns    .sigh(_nvme_ns_update_handler);
+
+		_timer.sigh(_pci_devices_update_handler);
+		_timer.trigger_periodic(10'000'000);
 
 		_generate_init_config(_init_config);
 
