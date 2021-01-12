@@ -214,13 +214,13 @@ class Platform::Session_component : public Genode::Rpc_object<Session>
 			_env.pd(), _ram_guard, _cap_guard };
 		Genode::Heap                       _md_alloc;
 		Genode::Session_label       const  _label;
-		Genode::Session_policy      const  _policy { _label, _config.xml() };
 		Genode::List<Device_component>     _device_list { };
 		Platform::Pci_buses               &_pci_bus;
 		Genode::Heap                      &_global_heap;
 		Pci::Config::Delayer              &_delayer;
 		Device_bars_pool                  &_devices_bars;
 		bool                               _iommu;
+		bool                               _msi_usage { true };
 
 		/**
 		 * Registry of RAM dataspaces allocated by the session
@@ -325,8 +325,10 @@ class Platform::Session_component : public Genode::Rpc_object<Session>
 		{
 			using namespace Genode;
 
+			Session_policy const policy { _label, _config.xml() };
+
 			try {
-				_policy.for_each_sub_node("device", [&] (Xml_node dev) {
+				policy.for_each_sub_node("device", [&] (Xml_node dev) {
 
 					/* enforce restriction based on name name */
 					if (dev.attribute_value("name", Genode::String<10>()) == name)
@@ -373,7 +375,9 @@ class Platform::Session_component : public Genode::Rpc_object<Session>
 			using namespace Genode;
 
 			try {
-				_policy.for_each_sub_node("pci", [&] (Xml_node node) {
+				Session_policy const policy { _label, _config.xml() };
+
+				policy.for_each_sub_node("pci", [&] (Xml_node node) {
 
 					if (_bdf_exactly_specified(node)) {
 						if (_bdf_matches(node, bdf))
@@ -488,8 +492,18 @@ class Platform::Session_component : public Genode::Rpc_object<Session>
 			/* subtract the RPC session and session dataspace capabilities */
 			_cap_guard.withdraw(Genode::Cap_quota{2});
 
+			check_for_policy();
+		}
+
+		void check_for_policy()
+		{
+			Session_policy const policy { _label, _config.xml() };
+
+			typedef Genode::String<10> Mode;
+			_msi_usage = policy.attribute_value("irq_mode", Mode()) != "nomsi";
+
 			/* check policy for non-pci devices */
-			_policy.for_each_sub_node("device", [&] (Genode::Xml_node device_node) {
+			policy.for_each_sub_node("device", [&] (Genode::Xml_node device_node) {
 
 				if (!device_node.has_attribute("name")) {
 					Genode::error("'", _label, "' - device node "
@@ -509,7 +523,7 @@ class Platform::Session_component : public Genode::Rpc_object<Session>
 			});
 
 			/* pci devices */
-			_policy.for_each_sub_node("pci", [&] (Genode::Xml_node node) {
+			policy.for_each_sub_node("pci", [&] (Genode::Xml_node node) {
 
 				enum { INVALID_CLASS = 0x1000000U };
 
@@ -571,6 +585,34 @@ class Platform::Session_component : public Genode::Rpc_object<Session>
 			});
 		}
 
+		bool policy_valid()
+		{
+			try {
+				/* check that policy is available */
+				check_for_policy();
+			} catch (...) {
+				return false;
+			}
+
+			/* check that device entries in policy are still valid */
+			for (auto *dev = _device_list.first(); dev; dev = dev->next()) {
+
+				if (!dev->device_config().valid()) {
+					/* Non PCI devices */
+					if (!permit_device(dev->name().string()))
+						return false;
+
+					continue;
+				}
+
+				if (!permit_device(dev->device_config().bdf(),
+				                   dev->device_config().class_code()))
+					return false;
+			}
+
+			return true;
+		}
+
 		/**
 		 * Destructor
 		 */
@@ -610,11 +652,7 @@ class Platform::Session_component : public Genode::Rpc_object<Session>
 		/**
 		 * Check whether msi usage was explicitly switched off
 		 */
-		bool msi_usage()
-		{
-			typedef Genode::String<10> Mode;
-			return _policy.attribute_value("irq_mode", Mode()) != "nomsi";
-		}
+		bool msi_usage() const { return _msi_usage; }
 
 
 		/***************************
@@ -830,6 +868,8 @@ class Platform::Root : public Genode::Root_component<Session_component>
 			void usleep(uint64_t us) override { Timer::Connection::usleep(us); }
 		} _delayer { _env };
 
+		Genode::Registry<Genode::Registered<Session_component> > _sessions { };
+
 		void _parse_report_rom(Genode::Env &env, const char * acpi_rom,
 		                       bool acpi_platform)
 		{
@@ -1019,8 +1059,8 @@ Genode::error("args ", args);
 				_config.update();
 Genode::error("args ", args, " ", _config.valid());
 
-				return  new (md_alloc())
-					Session_component(_env, _config, *_pci_confspace, *_buses,
+				return new (md_alloc())
+					Genode::Registered<Session_component>(_sessions, _env, _config, *_pci_confspace, *_buses,
 					                  _heap, _delayer, _devices_bars, args,
 					                  _iommu);
 			}
@@ -1122,5 +1162,13 @@ Genode::error("args ", args, " ", _config.valid());
 					}
 				});
 			}
+		}
+
+		void config_update()
+		{
+			_sessions.for_each([&](auto & session) {
+				if (!session.policy_valid())
+					destroy(session);
+			});
 		}
 };

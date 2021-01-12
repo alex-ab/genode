@@ -35,12 +35,13 @@ namespace Platform {
 	typedef Registry<Registered<Device_config::Device_bars> > Device_bars_pool;
 }
 
-class Platform::Device_component : public  Genode::Rpc_object<Platform::Device>,
+class Platform::Device_component : public Genode::Rpc_object<Platform::Device>,
                                    private Genode::List<Device_component>::Element
 {
 	private:
 
 		friend class Genode::List<Device_component>;
+		friend class Session_component;
 
 		/*
 		 * Noncopyable
@@ -546,6 +547,8 @@ class Platform::Device_component : public  Genode::Rpc_object<Platform::Device>,
 
 		Device_config device_config() const { return _device_config; }
 		Genode::addr_t config_space() const { return _config_space; }
+
+		virtual String<5> name() const { return "PCI"; }
 
 		/**************************
 		 ** PCI-device interface **

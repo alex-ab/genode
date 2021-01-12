@@ -56,14 +56,21 @@ struct Platform::Main
 
 	void acpi_update()
 	{
-		acpi_rom->update();
+		if (!root.constructed()) {
+			acpi_rom->update();
 
-		if (!acpi_rom->valid() || root.constructed())
+			if (!acpi_rom->valid())
+				return;
+
+			root.construct(_env, sliced_heap, _config,
+			               acpi_rom->local_addr<const char>(), _acpi_platform);
+		}
+
+		if (root_cap.valid())
 			return;
 
-		const char * report_addr = acpi_rom->local_addr<const char>();
-
-		root.construct(_env, sliced_heap, _config, report_addr, _acpi_platform);
+		if (!_config.valid())
+			return;
 
 		root_cap = _env.ep().manage(*root);
 
@@ -99,7 +106,16 @@ struct Platform::Main
 	void config_update()
 	{
 		_config.update();
+
 		Genode::error("config update ", _config.valid());
+		if (!_config.valid())
+			return;
+
+		if (!root_cap.valid())
+			acpi_update();
+
+		if (root.constructed())
+			root->config_update();
 	}
 
 	static bool acpi_platform(Genode::Env & env)
