@@ -9,6 +9,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/init \
                   [depot_user]/src/vfs_ttf \
                   [depot_user]/src/libc \
+                  [depot_user]/pkg/system_rtc-pc \
                   [depot_user]/raw/ttf-bitstream-vera-minimal
 
 create_tar_from_depot_binaries [run_dir]/genode/depot.tar \
@@ -18,6 +19,7 @@ create_tar_from_depot_binaries [run_dir]/genode/depot.tar \
                                [depot_user]/pkg/window_layouter \
                                [depot_user]/pkg/motif_decorator \
                                [depot_user]/pkg/themed_decorator \
+                               [depot_user]/pkg/dev_shell \
                                [depot_user]/pkg/sticks_blue_backdrop
 
 proc current_pkg { pkg } { return $pkg/[_current_depot_archive_version pkg $pkg] }
@@ -33,6 +35,7 @@ install_config {
 		<service name="RM"/>
 		<service name="CPU"/>
 		<service name="LOG"/>
+		<service name="TRACE"/>
 	</parent-provides>
 
 	<default-route>
@@ -85,7 +88,7 @@ install_config {
 		<binary name="report_rom"/>
 		<resource name="RAM" quantum="1M"/>
 		<provides> <service name="Report"/> <service name="ROM"/> </provides>
-		<config verbose="yes">
+		<config verbose="no">
 			<policy label="depot_deploy -> blueprint" report="depot_query -> blueprint"/>
 			<policy label="depot_query -> query"      report="depot_deploy -> query"/>
 			<policy label="dynamic -> config"         report="depot_deploy -> init.config"/>
@@ -104,7 +107,7 @@ install_config {
 	</start>
 
 	<start name="fs_rom">
-		<resource name="RAM" quantum="50M"/>
+		<resource name="RAM" quantum="256M"/>
 		<provides> <service name="ROM"/> </provides>
 		<route>
 			<service name="File_system"> <child name="vfs"/> </service>
@@ -125,13 +128,32 @@ install_config {
 	</start>
 
 	<start name="ram_fs">
-		<resource name="RAM" quantum="8M"/>
+		<resource name="RAM" quantum="128M"/>
 		<binary name="vfs"/>
 		<provides> <service name="File_system"/> </provides>
 		<config>
-			<vfs> <ram/> </vfs>
+			<vfs>
+				<tar name="genode.tar"/>
+				<ram/>
+			</vfs>
 			<default-policy root="/" writeable="yes"/>
 		</config>
+	</start>
+
+	<start name="top">
+		<resource name="RAM" quantum="12M"/>
+		<config period_ms="10000"/>
+	</start>
+
+	<start name="system_rtc" caps="400">
+		<binary name="init"/>
+		<resource name="RAM" quantum="6M"/>
+		<provides> <service name="Rtc"/> <!-- <service name="Report"/> --> </provides>
+		<route>
+			<service name="ROM" label="config"> <parent label="system_rtc.config"/> </service>
+			<service name="Timer">   <child name="timer"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
 	</start>
 
 	<start name="depot_deploy">
@@ -142,11 +164,13 @@ install_config {
 					<service name="ROM"/>
 					<service name="CPU"/>
 					<service name="PD"/>
+					<service name="RM"/>
 					<service name="LOG"/>
 					<service name="Timer"/>
 					<service name="Gui"/>
 					<service name="File_system"/>
 					<service name="Report"/>
+					<service name="Rtc"/>
 				</parent-provides>
 			</static>
 			<common_routes>
@@ -220,6 +244,7 @@ install_config {
 				</route>
 			</start>
 
+<!--
 			<start name="system_shell" pkg="} [depot_user]/pkg/[current_pkg system_shell] {">
 				<route>
 					<service name="Gui"> <child name="wm"/> </service>
@@ -230,6 +255,20 @@ install_config {
 					<service name="ROM"    label="vimrc">     <parent label="vimrc"/> </service>
 					<service name="ROM" label_last="cached_fs_rom">
 						<parent label="fs_rom"/> </service>
+				</route>
+			</start>
+-->
+
+			<start name="dev_shell" pkg="} [depot_user]/pkg/[current_pkg dev_shell] {">
+				<route>
+					<service name="Gui"> <child name="wm"/> </service>
+					<service name="File_system" label="fonts"> <child name="fonts_fs"/> </service>
+					<service name="File_system"> <parent/> </service>
+					<service name="Report" label="clipboard"> <parent label="clipboard"/> </service>
+					<service name="ROM"    label="clipboard"> <parent label="clipboard"/> </service>
+					<service name="ROM"    label="vimrc">     <parent label="vimrc"/> </service>
+					<service name="RM"> <parent/> </service>
+					<service name="Rtc"> <parent/> </service>
 				</route>
 			</start>
 
@@ -246,7 +285,7 @@ install_config {
 	</start>
 
 	<start name="dynamic" caps="8000">
-		<resource name="RAM" quantum="180M"/>
+		<resource name="RAM" quantum="1712M"/>
 		<binary name="init"/>
 		<route>
 			<service name="ROM" label_last="ld.lib.so"> <parent/> </service>
@@ -260,13 +299,14 @@ install_config {
 			<service name="Gui" label_last="backdrop">
 				<child name="nitpicker" label="backdrop"/> </service>
 			<service name="File_system"> <child name="ram_fs"/> </service>
+			<service name="Rtc"> <child name="system_rtc"/> </service>
 			<any-service> <parent/> <any-child/> </any-service>
 		</route>
 	</start>
 
 </config>}
 
-build { app/depot_query app/depot_deploy }
+build { app/depot_query app/depot_deploy app/top }
 
 file copy -force [genode_dir]/repos/gems/run/sculpt/fonts.config [run_dir]/genode/
 file copy -force [genode_dir]/repos/ports/recipes/raw/system_shell/system_shell.config [run_dir]/genode/
@@ -289,7 +329,11 @@ set noswapfile
 set viminfo=}
 close $vimrc_fd
 
-build_boot_image { depot_query depot_deploy }
+exec tar cvf bin/genode.tar -C $genode_dir tool repos
+
+build_boot_image { depot_query depot_deploy genode.tar top }
+
+append qemu_args " -m 3072 "
 
 run_genode_until forever
 
