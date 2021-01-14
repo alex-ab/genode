@@ -20,8 +20,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/mman.h>
 #include <libc/allocator.h>
 #include <libc-plugin/fd_alloc.h>
 
@@ -38,12 +40,58 @@ typedef int (*main_fn_ptr) (int, char **, char **);
 namespace Libc {
 	struct Interpreter;
 	struct String_array;
+	struct Mmap;
 }
+
+
+struct Libc::Mmap
+{
+	Constructible<Attached_rom_dataspace> _rom;
+
+	int       _fd   { -1 };
+	size_t    _size { 0 };
+	void    * _mmap { NULL };
+
+	Mmap(Env &env, char const *name)
+	{
+		int _fd = open(name, O_RDONLY);
+		if (_fd < 0) {
+			Genode::error("ROM  interpreter version");
+			_rom.construct(env, name);
+			_size = _rom->size();
+			_mmap = _rom->local_addr<void>();
+		} else {
+			Genode::error("FILE interpreter version ", _fd);
+			off_t size = lseek(_fd, 0, SEEK_END);
+			if (size > 0) {
+				_size = size;
+				lseek(_fd, 0, SEEK_SET);
+				Genode::error("size ", size);
+				_mmap = mmap(NULL, _size, PROT_READ, MAP_PRIVATE, _fd, 0);
+				Genode::error("ptr ", _mmap);
+			}
+		}
+	}
+
+	~Mmap() {
+		Genode::error("destruct ~Mmap");
+		if (_fd >= 0) {
+			munmap(_mmap, size());
+			close(_fd);
+		}
+		if (_rom.constructed())
+			_rom.destruct();
+	};
+
+	char const * base() const { return reinterpret_cast<char *>(_mmap); }
+
+	size_t size() const { return _size; }
+};
 
 
 struct Libc::Interpreter
 {
-	Attached_rom_dataspace _rom;
+	Mmap _file;
 
 	char **args = { nullptr };
 
@@ -54,10 +102,10 @@ struct Libc::Interpreter
 	{
 		size_t const prefix_len = ::strlen(prefix);
 
-		if (prefix_len > _rom.size())
+		if (prefix_len > _file.size())
 			return false;
 
-		return strncmp(prefix, _rom.local_addr<char const>(), prefix_len) == 0;
+		return strncmp(prefix, _file.base(), prefix_len) == 0;
 	}
 
 	bool script()         const { return _content_starts_with("#!"); }
@@ -108,7 +156,7 @@ struct Libc::Interpreter
 		if (!script())
 			return;
 
-		Constrained_ptr ptr { _rom.local_addr<char const>(), _rom.size() };
+		Constrained_ptr ptr { _file.base(), _file.size() };
 
 		ptr.skip_shebang();
 
@@ -142,7 +190,7 @@ struct Libc::Interpreter
 		if (!script())
 			return Path();
 
-		Constrained_ptr ptr { _rom.local_addr<char const>(), _rom.size() };
+		Constrained_ptr ptr { _file.base(), _file.size() };
 
 		ptr.skip_shebang();
 		ptr.skip_whitespace();
@@ -170,7 +218,7 @@ struct Libc::Interpreter
 
 	Interpreter(Genode::Env &env, char const * const filename)
 	:
-		_rom(env, filename), num_args(_count_args() + 2 /* argv0 + filename */)
+		_file(env, filename), num_args(_count_args() + 2 /* argv0 + filename */)
 	{
 		if (script()) {
 			args = (char **)calloc(num_args + 1 /* null termination */, sizeof(char *));
