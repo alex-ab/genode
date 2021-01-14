@@ -1,4 +1,4 @@
-<runtime ram="7M" caps="400" binary="init">
+<runtime ram="10M" caps="400" binary="init">
 
 	<requires>
 		<gui/>
