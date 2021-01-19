@@ -29,6 +29,7 @@
 /* libc-internal includes */
 #include <internal/errno.h>
 #include <internal/init.h>
+#include <internal/sysctl.h>
 
 using namespace Libc;
 
@@ -154,7 +155,10 @@ extern "C" int __sysctl(const int *name, u_int namelen,
 		case CTL_HW: switch(index_b) {
 
 			case HW_MACHINE:
-				*oldlenp = 0;
+			case HW_MODEL:
+			case HW_MACHINE_ARCH:
+				copy_cstring(buf, sysctl_architecture_name(), *oldlenp);
+				*oldlenp = Genode::strlen(buf);
 				return 0;
 
 			case HW_NCPU:
