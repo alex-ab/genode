@@ -725,8 +725,6 @@ __SYS_(ssize_t, write, (int libc_fd, const void *buf, ::size_t count),
 {
 	int flags = fcntl(libc_fd, F_GETFL);
 
-Genode::log("write ", libc_fd, " count=", count);
-
 	if ((flags != -1) && (flags & O_APPEND))
 		lseek(libc_fd, 0, SEEK_END);
 

@@ -132,10 +132,8 @@ void File_descriptor_allocator::update_append_libc_fds()
 	Mutex::Guard guard(_mutex);
 
 	_id_space.for_each<File_descriptor>([&] (File_descriptor &fd) {
-		if (fd.flags & O_APPEND) {
-			Genode::error("update append libc ", &fd, " ", fd.flags);
+		if (fd.flags & O_APPEND)
 			fd.plugin->lseek(&fd, 0, SEEK_END);
-		}
 	});
 }
 
@@ -173,16 +171,7 @@ void File_descriptor_allocator::generate_info(Xml_generator &xml)
 			if (((fd.flags & O_ACCMODE) != O_RDONLY))
 				xml.attribute("writeable", "yes");
 
-Genode::warning("generate info ", &fd, " ", fd.flags, " ", (fd.flags & O_APPEND) ? " append" : "", " ", " fd.plugin=", fd.plugin);
-
 			if (fd.plugin) {
-#if 0
-				/* leads to deadlock XXX - not usable here */
-				if (fd.flags & O_APPEND) {
-					fd.plugin->lseek(&fd, 0, SEEK_END);
-				}
-#endif
-
 				::off_t const seek = fd.plugin->lseek(&fd, 0, SEEK_CUR);
 				if (seek)
 					xml.attribute("seek", seek);

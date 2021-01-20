@@ -376,8 +376,6 @@ Libc::File_descriptor *Libc::Vfs_plugin::open_from_kernel(const char *path, int 
 	handle->handler(&_response_handler);
 	fd->flags = flags & (O_ACCMODE|O_NONBLOCK|O_APPEND);
 
-Genode::error("open ", fd, " ", path, " from kernel ", fd->flags, " ", (fd->flags & O_APPEND) ? " append" : "");
-
 	if (flags & O_TRUNC)
 		warning(__func__, ": O_TRUNC is not supported");
 
@@ -506,8 +504,6 @@ Libc::File_descriptor *Libc::Vfs_plugin::open(char const *path, int flags)
 				return Fn::COMPLETE;
 			}
 
-Genode::error("open ", fd, " ", path);
-
 			handle->handler(&_response_handler);
 			fd->flags = flags & (O_ACCMODE|O_NONBLOCK|O_APPEND);
 
@@ -601,8 +597,6 @@ int Libc::Vfs_plugin::close(File_descriptor *fd)
 	Sync sync { *handle , _update_mtime, _current_real_time };
 
 	monitor().monitor([&] {
-		bool syncb = ((fd->modified) || (fd->flags & O_CREAT));
-Genode::error("close ", fd, " ", Genode::Hex(fd->flags), (fd->flags & O_CREAT) ? " create" : "", (fd->flags & O_APPEND) ? " append" : "", syncb ? " sync" : "", " seek=", handle->seek());
 		if ((fd->modified) || (fd->flags & O_CREAT))
 			if (!sync.complete())
 				return Fn::INCOMPLETE;
@@ -639,8 +633,6 @@ int Libc::Vfs_plugin::dup2(File_descriptor *fd,
 		new_fd->context = vfs_context(handle);
 		new_fd->flags = fd->flags;
 		new_fd->path(fd->fd_path);
-
-Genode::error("dup2 ", new_fd, " ", fd->fd_path, " flags=", new_fd->flags, " handle_old->seek=", handle->seek(), " new_fd->seek=", vfs_handle(new_fd)->seek());
 
 		result = new_fd->libc_fd;
 		return Fn::COMPLETE;
@@ -680,7 +672,6 @@ Libc::File_descriptor *Libc::Vfs_plugin::dup(File_descriptor *fd)
 		new_fd->flags = fd->flags;
 		new_fd->path(fd->fd_path);
 
-Genode::error("dup  ", new_fd, " ", fd->fd_path, " flags=", new_fd->flags, " handle_old->seek=", handle->seek(), " new_fd->seek=", vfs_handle(new_fd)->seek());
 		result = new_fd;
 		return Fn::COMPLETE;
 	});
@@ -822,7 +813,7 @@ int Libc::Vfs_plugin::stat(char const *path, struct stat *buf)
 
 
 ssize_t Libc::Vfs_plugin::write(File_descriptor *fd, const void *buf,
-                                ::size_t const count)
+                                ::size_t count)
 {
 	typedef Vfs::File_io_service::Write_result Result;
 
@@ -834,8 +825,6 @@ ssize_t Libc::Vfs_plugin::write(File_descriptor *fd, const void *buf,
 
 	Vfs::file_size out_count  = 0;
 	Result         out_result = Result::WRITE_OK;
-
-	unsigned long const seek_before = handle ? handle->seek() : 0;
 
 	if (fd->flags & O_NONBLOCK) {
 		monitor().monitor([&] {
@@ -947,7 +936,6 @@ ssize_t Libc::Vfs_plugin::write(File_descriptor *fd, const void *buf,
 	handle->advance_seek(out_count);
 	fd->modified = true;
 
-	Genode::warning("wrote ", fd, " count ", count, "/", out_count, " seek=", seek_before, "->", handle->seek());
 	return out_count;
 }
 
@@ -1589,7 +1577,6 @@ int Libc::Vfs_plugin::_legacy_ioctl(File_descriptor *fd, unsigned long request, 
 		}
 		break;
 	}
-	Genode::warning("lseek ", fd, " ", handle->seek());
 	return handle->seek();
 }
 

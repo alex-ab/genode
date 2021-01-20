@@ -192,8 +192,6 @@ void Libc::Kernel::_init_file_descriptors()
 		if (_vfs.stat_from_kernel(path.string(), &out_stat) != 0)
 			return;
 
-Genode::warning("init fd ", libc_fd, " flags=", flags);
-
 		File_descriptor *fd = _vfs.open_from_kernel(path.string(), flags, libc_fd);
 		if (!fd)
 			return;

@@ -709,17 +709,14 @@ extern "C" pid_t __sys_wait4(pid_t pid, int *status, int options, rusage *rusage
 	Wait4_functor functor { pid, *_forked_children_ptr };
 
 	monitor().monitor([&] {
-Genode::error("wait --------------------- ");
 		functor.with_exited_child([&] (Registered<Forked_child> &child) {
 			result    = child.pid();
 			exit_code = child.exit_code();
 			destroy(*_alloc_ptr, &child);
 		});
 
-		if (result >= 0 || (options & WNOHANG)) {
-Genode::error("wait --------------------- done");
+		if (result >= 0 || (options & WNOHANG))
 			return Fn::COMPLETE;
-}
 
 		return Fn::INCOMPLETE;
 	});
