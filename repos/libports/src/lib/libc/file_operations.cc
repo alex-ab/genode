@@ -462,7 +462,7 @@ __SYS_(void *, mmap, (void *addr, ::size_t length,
 extern "C" int munmap(void *start, ::size_t length)
 {
 	if (!mmap_registry()->registered(start)) {
-		warning("munmap: could not lookup plugin for address ", start);
+//		warning("munmap: could not lookup plugin for address ", start);
 		errno = EINVAL;
 		return -1;
 	}
