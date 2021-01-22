@@ -52,8 +52,6 @@ static ssize_t read_rng(char *buf, size_t buflen)
 
 	if (rng_fd == -1) {
 		if (!::strcmp(config_rng(), "")) {
-			warning("Libc RNG not configured");
-
 			/* initialize the FreeBSD random facility */
 			srandom(Trace::timestamp()|1);
 			fallback = true;
