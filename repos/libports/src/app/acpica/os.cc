@@ -96,6 +96,38 @@ struct Acpica::Statechange
 			              "spaceid=", Genode::Hex(AcpiGbl_FADT.ResetRegister.SpaceId), " "
 			              "addr=", Genode::Hex(space_addr));
 		}
+
+		if (state == "sleep") {
+			Genode::warning("prepare sleep ...");
+
+			UINT8 sleepstate = 3;
+			ACPI_STATUS res = AcpiEnterSleepStatePrep(sleepstate);
+
+			if (ACPI_FAILURE(res)) {
+				Genode::error("sleep state preparation failed : ", res);
+				return;
+			}
+
+			/* disable interrupts as seen by other impl ? XXX */
+
+			Genode::warning("goto sleep ...");
+
+			res = AcpiEnterSleepState(sleepstate);
+			if (ACPI_FAILURE(res)) {
+				Genode::error("sleep state failed : ", res);
+				return;
+			}
+
+			Genode::warning("leave sleep ...");
+
+			res = AcpiLeaveSleepState(sleepstate);
+			if (ACPI_FAILURE(res)) {
+				Genode::error("sleep state leave failed : ", res);
+				return;
+			}
+
+			Genode::warning("awaken");
+		}
 	}
 };
 
@@ -128,6 +160,7 @@ struct Acpica::Main
 		sci_irq(env.ep(), *this, &Main::acpi_irq),
 		unchanged_state_max(config.xml().attribute_value("update_unchanged", 20U))
 	{
+		bool const enable_sleep    = config.xml().attribute_value("sleep", false);
 		bool const enable_reset    = config.xml().attribute_value("reset", false);
 		bool const enable_poweroff = config.xml().attribute_value("poweroff", false);
 		bool const enable_report   = config.xml().attribute_value("report", false);
@@ -143,7 +176,7 @@ struct Acpica::Main
 		if (enable_report)
 			report->enable();
 
-		if (enable_reset || enable_poweroff)
+		if (enable_reset || enable_poweroff || enable_sleep)
 			new (heap) Acpica::Statechange(env, enable_reset, enable_poweroff);
 
 		/* setup IRQ */

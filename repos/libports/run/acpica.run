@@ -76,7 +76,7 @@ set config {
 append_if [expr !$use_acpica_as_acpi_drv] config {
 		<start name="acpica" caps="150">
 			<resource name="RAM" quantum="5M"/>
-			<config ld_verbose="yes" reset="no" poweroff="no" report="yes" acpi_ready="yes">
+			<config ld_verbose="yes" sleep="yes" reset="no" poweroff="no" report="yes" acpi_ready="yes">
 			</config>
 			<route>
 				<service name="ROM" label="system"> <child name="dynamic_rom"/> </service>
@@ -117,10 +117,13 @@ append config {
 						<system state="normal"/>
 					</inline>
 					<sleep milliseconds="5000" />
+					<inline description="set system state to 'sleep'">
+						<system state="sleep"/>
+					</inline>
+<!--
 					<inline description="set system state to 'reset'">
 						<system state="reset"/>
 					</inline>
-<!--
 					<inline description="set system state to 'poweroff'">
 						<system state="poweroff"/>
 					</inline>
