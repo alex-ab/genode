@@ -116,7 +116,6 @@ DUMMY(int   , -1, getrusage, (int, rusage *))
 DUMMY_SILENT(uid_t ,  0, getuid, (void))
 DUMMY_SILENT(int   ,  1, isatty, (int))
 DUMMY(int   , -1, link, (const char *, const char *))
-DUMMY(int   ,  0, minherit, (void *, size_t, int))
 DUMMY(int   , -1, mknod, (const char *, mode_t, dev_t))
 DUMMY(int   , -1, mprotect, (void *, size_t, int))
 DUMMY(void *,  0, ___mtctxres, (void))
@@ -124,7 +123,7 @@ DUMMY(void *,  0, __nsdefaultsrc, (void))
 DUMMY(int   , -1, _nsdispatch, (void))
 DUMMY(long  , -1, pathconf, (const char *, int))
 DUMMY(int   , -1, rmdir, (const char *))
-DUMMY(void *,  0, sbrk, (intptr_t))
+//DUMMY(void *,  0, sbrk, (intptr_t))
 DUMMY(int   , -1, sched_setparam, (pid_t, const sched_param *))
 DUMMY(int   , -1, sched_setscheduler, (pid_t, int, const sched_param *))
 DUMMY(int   , -1, sched_yield, (void))
@@ -161,6 +160,34 @@ __SYS_DUMMY(void	,   , spinunlock_stub, (spinlock_t *));
 __SYS_DUMMY(int, -1, swapcontext, (ucontext_t *, const ucontext_t *));
 __SYS_DUMMY(int, -1, system, (const char *string));
 
+/************
+ ** Memory **
+ ************/
+
+void *sbrk(intptr_t increment)
+{
+	if (increment == 0) {
+		errno = ENOMEM;
+		return (void *)-1;
+	}
+	Genode::error("sbrk not implemented ", increment);
+//	errno = ENOMEM;
+//	return -1;
+	return 0;
+}
+
+int minherit(void * addr, size_t size, int type)
+{
+	return 0;
+
+/* Error: minherit not implement 0x29000+0x450 3 */
+	errno = EACCES;
+	return -1;
+/*
+	Genode::error("minherit not implement ", addr, "+", Genode::Hex(size), " ", type);
+	return 0;
+*/
+}
 
 /*****************
  ** File-system **
