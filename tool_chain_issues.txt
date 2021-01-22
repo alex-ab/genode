@@ -1,0 +1,37 @@
+
+make -C build/x86_64 KERNEL=hw test/log
+
+no RM attachment (READ pf_addr=0x11 pf_ip=0x1116c7b from pager_object: pd='init -> dynamic -> dev_shell -> /bin/bash -> 1' thread='ep')
+page fault, pd='init -> dynamic -> dev_shell -> /bin/bash -> 1' thread='ep' cpu=0 ip=0x1116c7b address=0x11 stack pointer=0x403fe990 qualifiers=0x4 irUwp reason=1
+
+make -C build/x86_64 KERNEL=hw core
+ 
+  Warning: 1: RAM upgrade of File_system failed
+
+  Warning: /bin/bash: could not revert session cap quota (service=ROM cid=<unconstructed> args='cap_quota=3, label="/bin/bash -> /bin/make", ram_quota=4506, diag=0' state=CLOSE)
+
+
+Ctrl-C during make leads to:
+
+[init -> dynamic -> dev_shell -> /bin/bash -> 2] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23 -> 4] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23 -> 4] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23 -> 4 -> 5] Warning: object pool not empty in operator()
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23 -> 4] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23 -> 4] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23 -> 4] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23 -> 4 -> 5] Warning: object pool not empty in operator()
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23 -> 4 -> 5] Warning: object pool not empty in operator()
+page fault, pd='init -> dynamic -> dev_shell -> /bin/bash -> 5' thread='ep' cpu=0 ip=0x10f2d76b address=0x403a2610 stack pointer=0x403a25e0 qualifiers=0x6 irUWp reason=1
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23 -> 4] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23 -> 4] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23 -> 4] Warning: attempt to nested execution of signal handlers
+[init -> dynamic -> dev_shell -> /bin/bash -> 2] Error: deadlock ahead, mutex=0x10ff8ea0, return ip=0x86666
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23] Error: deadlock ahead, mutex=0x10ff8ea0, return ip=0x86666
+[init -> dynamic -> dev_shell -> /bin/bash -> 2 -> 23 -> 4] Error: deadlock ahead, mutex=0x10ff8ea0, return ip=0x86666
+
