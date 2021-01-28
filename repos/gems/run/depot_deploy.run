@@ -140,10 +140,12 @@ install_config {
 		</config>
 	</start>
 
+<!--
 	<start name="top">
 		<resource name="RAM" quantum="12M"/>
 		<config period_ms="10000"/>
 	</start>
+-->
 
 	<start name="system_rtc" caps="400">
 		<binary name="init"/>
