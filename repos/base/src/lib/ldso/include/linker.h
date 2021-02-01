@@ -239,6 +239,7 @@ class Linker::Dependency : public Fifo<Dependency>::Element, Noncopyable
 		Object      &_obj;
 		Root_object *_root     = nullptr;
 		Allocator   *_md_alloc = nullptr;
+		Fifo<Dependency> *_dep = nullptr;
 		bool   const _unload_on_destruct = true;
 
 		/**
