@@ -135,6 +135,9 @@ void Libc::Child_config::_generate(Xml_generator &xml, Xml_node config)
 	 */
 	xml.attribute("ld_check_ctors", "no");
 
+	if (config.has_attribute("ld_verbose"))
+		xml.attribute("ld_verbose", config.attribute_value("ld_verbose", false));
+
 	xml.node("libc", [&] () {
 
 		xml.attribute("pid", _pid);
