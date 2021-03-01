@@ -26,8 +26,7 @@ Linker::Dependency::Dependency(Env &env, Allocator &md_alloc,
 :
 	_obj(load(env, md_alloc, path, *this, keep)),
 	_root(root),
-	_md_alloc(&md_alloc),
-	_dep(&deps)
+	_md_alloc(&md_alloc)
 {
 	deps.enqueue(*this);
 	load_needed(env, *_md_alloc, deps, keep);
@@ -44,9 +43,6 @@ Linker::Dependency::~Dependency()
 
 	if (verbose_loading)
 		log("Destroy: ", _obj.name());
-
-//	if (_dep)
-//		_dep->remove(*this);
 
 	destroy(_md_alloc, &_obj);
 }
