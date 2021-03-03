@@ -1,6 +1,6 @@
-_/src/cpu_view
-_/src/menu_view
-_/src/cpu_balancer
+alex-ab/src/cpu_view/2021-03-03
+alex-ab/src/menu_view/2021-03-01
+alex-ab/src/cpu_balancer/2021-03-03
 _/src/init
 _/src/report_rom
 _/src/libc
