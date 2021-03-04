@@ -65,6 +65,12 @@ struct Sculpt::Pd_route_dialog : Noncopyable, Dialog
 		_menu_selected = false;
 	}
 
+	void click()
+	{
+		if (_route_item.hovered("pd_route"))
+			_menu_selected = true;
+	}
+
 	void _gen_route_entry(Xml_generator &xml,
 	                      Start_name const &name,
 	                      Start_name const &text,
