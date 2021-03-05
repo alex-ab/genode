@@ -242,7 +242,7 @@ class Vbox::Driver : Genode::Noncopyable
 
 			_vbox_controller->init();
 
-			uint64_t const interval_us = 125;
+			uint64_t const interval_us = 2000;
 
 			Genode::log("Interval: ", interval_us, " us");
 			measure_time("set_interval: ", [&] () {
