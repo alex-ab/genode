@@ -197,6 +197,9 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 		Genode::addr_t     _irq_inject  = 0;
 		Genode::addr_t     _irq_drop    = 0;
 
+		Genode::Trace::Timestamp  _run_hw_in  = 0;
+		Genode::Trace::Timestamp  _run_hw_out = 0;
+
 		struct {
 			Nova::mword_t mtd;
 			unsigned intr_state;
@@ -956,6 +959,13 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 			PVMCPU   pVCpu = &pVM->aCpus[_cpu_id];
 			PCPUMCTX pCtx  = CPUMQueryGuestCtxPtr(pVCpu);
 
+			using Genode::uint64_t;
+			using Genode::Trace::Timestamp;
+
+			_run_hw_in = Genode::Trace::timestamp();
+
+			Timestamp const tsc_vmm = _run_hw_in - _run_hw_out;
+
 			if (_last_tsc_run_hw) {
 #if 0
 				if (_last_tsc_run_hw == 1) {
@@ -1045,6 +1055,8 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 				return VERR_INTERNAL_ERROR;
 			}
 
+			_run_hw_out = Genode::Trace::timestamp();
+
 #ifdef VBOX_WITH_REM
 			/* XXX see VMM/VMMR0/HMVMXR0.cpp - not necessary every time ! XXX */
 			REMFlushTBs(pVM);
@@ -1074,15 +1086,24 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 				}
 
 				if (create_trace) {
-					Genode::uint64_t const tsc = Genode::Trace::timestamp();
-					Genode::uint64_t const diff = (tsc - _last_tsc) / (genode_cpu_hz() / 1000 / 1000);
+					Timestamp const tsc_vm  = _run_hw_out - _run_hw_in;
+					uint64_t  const diff_irq_us = (_run_hw_out - _last_tsc) / (genode_cpu_hz() / 1000 / 1000);
+					uint64_t  const diff_vm_us  = (tsc_vm)  / (genode_cpu_hz() / 1000 / 1000);
+					uint64_t  const diff_vmm_us = (tsc_vmm) / (genode_cpu_hz() / 1000 / 1000);
+
 					Genode::trace(Genode::Thread::myself()->name(),
-					              ": run_hw ",
+					              ": ",
 					              _last_tsc_run_hw < 10 ? " ": "",
 					              _last_tsc_run_hw, ". - ",
-					              diff < 100 ? " " : "",
-					              diff < 10  ? " " : "",
-					              diff, " us, "
+					              diff_irq_us < 100 ? " " : "",
+					              diff_irq_us < 10  ? " " : "",
+					              diff_irq_us, " us, ",
+					              diff_vmm_us < 100 ? " " : "",
+					              diff_vmm_us < 10  ? " " : "",
+					              diff_vmm_us, " us, ",
+					              diff_vm_us < 100 ? " " : "",
+					              diff_vm_us < 10  ? " " : "",
+					              diff_vm_us, " us, ",
 					              "exit=", exit_reason,
 					              (exit_reason == VMX_EXIT_EPT_VIOLATION) ? " EPT" :
 					              (exit_reason == VMX_EXIT_IO_INSTR) ? " IO"  :
