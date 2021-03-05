@@ -70,7 +70,7 @@ uint64_t _vm_exits = 0;
 uint64_t _vm_exit_irq_win = 0;
 
 
-#define ENABLE_TRACING 0
+#define ENABLE_TRACING 1
 
 #if ENABLE_TRACING
 #define TRACE(...) do { Genode::trace(Genode::Thread::myself()->name(), ": ", __VA_ARGS__); } while (0)
