@@ -3,7 +3,8 @@ VERSION   := git
 DOWNLOADS := nova.git
 
 URL(nova) := https://github.com/alex-ab/NOVA.git
-REV(nova) := r10_time_21_02
+# r10_freq_dyn
+REV(nova) := 976b3581fc01cb4e7552ef3a9300f7be2569271c
 DIR(nova) := src/kernel/nova
 
 PATCHES   := $(sort $(wildcard $(REP_DIR)/patches/*.patch))
