@@ -12,6 +12,7 @@ set use_gui 0
 set build_components {
 	drivers/framebuffer
 	server/report_rom
+	lib/trace/policy/null
 }
 
 append build_components virtualbox5
@@ -247,7 +248,7 @@ append_if [expr $use_gui] config {
 append config {
 	<start name="vbox1" priority="-2" caps="1200">
 		<binary name="} $virtualbox_binary {"/>
-		<resource name="RAM" quantum="448M"/>
+		<resource name="RAM" quantum="1024M"/>
 		<config vbox_file="test.vbox" vm_name="TestVM">
 			<libc stdout="/dev/log" stderr="/dev/log" pipe="/pipe" rtc="/dev/rtc"/>
 			<vfs>
@@ -295,6 +296,7 @@ append boot_modules {
 	libc.lib.so vfs.lib.so libm.lib.so
 	libiconv.lib.so stdcxx.lib.so
 	qemu-usb.lib.so
+	null
 }
 
 append_if [expr $use_net]          boot_modules { ipxe_nic_drv }
@@ -309,7 +311,7 @@ if {[have_include "power_on/qemu"]} {
 	if {[expr $use_gui]} {
 		append qemu_args " -m 2048 "
 	} else {
-		append qemu_args " -m 768 "
+		append qemu_args " -m 2048 "
 	}
 
 	append qemu_args " -cpu phenom "
