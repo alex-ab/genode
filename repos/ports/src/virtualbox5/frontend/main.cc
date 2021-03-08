@@ -18,6 +18,7 @@
 #include <base/heap.h>
 #include <base/log.h>
 #include <libc/component.h>
+#include <trace/tracer.h>
 
 /* Virtualbox includes */
 #include <iprt/initterm.h>
@@ -280,6 +281,14 @@ void Libc::Component::construct(Libc::Env &env)
 		Name const vm_name = config.attribute_value("vm_name", Name());
 		copy_cstring(c_vbox_vmname, vm_name.string(), sizeof(c_vbox_vmname));
 	}
+
+	Tracer::Config const cfg = {
+		.session_quota      = { 256u << 20 },
+		.arg_buffer_quota   = { 64u  << 10 },
+		.trace_buffer_quota = { 92u  << 20 },
+	};
+
+	Tracer::init(genode_env(), cfg);
 
 	Libc::with_libc([&] () {
 		static char  argv0[] = { '_', 'm', 'a', 'i', 'n', 0};

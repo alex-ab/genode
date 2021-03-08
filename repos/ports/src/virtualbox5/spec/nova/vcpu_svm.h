@@ -39,6 +39,8 @@ class Vcpu_handler_svm : public Vcpu_handler
 			Thread *myself = Thread::myself();
 			Utcb *utcb = reinterpret_cast<Utcb *>(myself->utcb());
 
+			_last_qual_1 = utcb->qual[1];
+
 			_exc_memory<X>(myself, utcb, utcb->qual[0] & 1,
 			               utcb->qual[1], utcb->qual[0]);
 		}

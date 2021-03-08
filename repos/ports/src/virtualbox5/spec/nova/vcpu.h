@@ -23,6 +23,7 @@
 #include <util/touch.h>
 #include <rom_session/connection.h>
 #include <timer_session/connection.h>
+#include <trace/tracer.h>
 
 #include <vmm/vcpu_thread.h>
 #include <vmm/vcpu_dispatcher.h>
@@ -56,6 +57,8 @@
 
 #include <VBox/vmm/rem.h>
 
+#include "debug.h"
+
 static bool debug_map_memory = false;
 
 /*
@@ -76,7 +79,8 @@ static inline Genode::uint32_t sel_ar_conv_from_nova(Genode::uint16_t v)
 
 
 class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
-                     public Genode::List<Vcpu_handler>::Element
+                     public Genode::List<Vcpu_handler>::Element,
+                     Debug_monitor
 {
 	protected:
 
@@ -190,6 +194,8 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 		Genode::addr_t     _irq_inject  = 0;
 		Genode::addr_t     _irq_drop    = 0;
 
+		Genode::addr_t     _last_qual_1 = 0;
+
 		struct {
 			Nova::mword_t mtd;
 			unsigned intr_state;
@@ -223,6 +229,7 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 			Assert(utcb->actv_state == ACTIVITY_STATE_ACTIVE);
 			Assert(!(utcb->inj_info & IRQ_INJ_VALID_MASK));
 
+			_last_qual_1 = utcb->qual[1];
 			_vm_exits ++;
 
 			/* go back to VirtualBox */
@@ -872,6 +879,10 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 			pthread_mutexattr_settype(&_attr, PTHREAD_MUTEX_ERRORCHECK);
 			pthread_mutex_init(&_mutex, &_attr);
 
+			/* debug start */
+			/* XXX label */
+			start_tracing("init -> vbox1", name);
+			/* debug end */
 		}
 
 		pthread &pthread_obj() { return _pthread; }
@@ -944,6 +955,10 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 			PVMCPU   pVCpu = &pVM->aCpus[_cpu_id];
 			PCPUMCTX pCtx  = CPUMQueryGuestCtxPtr(pVCpu);
 
+			/* debug - start */
+			debug_enter_hw();
+			/* debug - end */
+
 			Nova::Utcb *utcb = reinterpret_cast<Nova::Utcb *>(Thread::utcb());
 
 			Assert(Thread::utcb() == Thread::myself()->utcb());
@@ -992,6 +1007,10 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 
 			/* switch to hardware accelerated mode */
 			switch_to_hw();
+
+			/* debug - start */
+			debug_leave_hw(exit_reason, _last_qual_1);
+			/* debug - end   */
 
 			Assert(utcb->actv_state == ACTIVITY_STATE_ACTIVE);
 

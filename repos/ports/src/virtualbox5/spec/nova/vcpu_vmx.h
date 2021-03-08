@@ -42,6 +42,8 @@ class Vcpu_handler_vmx : public Vcpu_handler
 			addr_t exit_qual = utcb->qual[0];
 			addr_t exit_addr = utcb->qual[1];
 
+			_last_qual_1 = utcb->qual[1];
+
 			RTGCUINT vbox_errorcode = 0;
 			if (exit_qual & VMX_EXIT_QUALIFICATION_EPT_INSTR_FETCH)
 				vbox_errorcode |= X86_TRAP_PF_ID;

@@ -23,6 +23,7 @@ LIBS  += virtualbox5-bios virtualbox5-recompiler virtualbox5-runtime \
 LIBS  += libiconv
 
 LIBS  += qemu-usb
+LIBS  += tracer
 
 INC_DIR += $(call select_from_repositories,src/lib/libc)
 
