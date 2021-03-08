@@ -4,7 +4,7 @@ set use_usb 0
 set use_serial 1
 set use_top 1
 
-set use_vbox5_nova 0
+set use_vbox5_nova 1
 
 # use_gui starts two VMs
 set use_gui 0
