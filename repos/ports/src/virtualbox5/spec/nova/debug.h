@@ -113,10 +113,12 @@ void Debug_monitor::debug_leave_hw(unsigned long const exit,
 			exit_ioapic ++;
 			create_trace = false;
 		}
+		create_trace = false;
 		break;
 	case VMX_EXIT_RDMSR:
 	case VMX_EXIT_WRMSR:
 	case VMX_EXIT_IO_INSTR:
+	case VMX_EXIT_CPUID:
 		create_trace = false;
 		break;
 	default:

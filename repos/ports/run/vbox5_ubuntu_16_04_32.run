@@ -6,7 +6,7 @@ assert_spec x86
 assert_spec nova
 
 set flavor   "ubuntu_16_04_32"
-set vm_ram   "1280M"
+set vm_ram   "1580M"
 
 set use_vbox5 1
 
