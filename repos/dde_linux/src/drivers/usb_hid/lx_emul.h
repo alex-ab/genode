@@ -36,6 +36,8 @@ typedef int clockid_t;
 #include <lx_emul/spinlock.h>
 
 #include <lx_emul/mutex.h>
+#include <lx_emul/scatterlist.h>
+#include <lx_emul/barrier.h>
 
 LX_MUTEX_INIT_DECLARE(dquirks_lock);
 LX_MUTEX_INIT_DECLARE(input_mutex);
@@ -61,8 +63,6 @@ typedef __u64 __be64;
 #include <lx_emul/errno.h>
 #include <lx_emul/module.h>
 #include <lx_emul/gfp.h>
-
-static inline void barrier() { asm volatile ("": : :"memory"); }
 
 #define READ_ONCE(x) x
 
@@ -636,6 +636,12 @@ extern void usb_destroy_configuration(struct usb_device *dev);
 struct usb_hcd { unsigned amd_resume_bug:1; };
 
 bool usb_device_is_owned(struct usb_device *udev);
+
+struct page *virt_to_page(const void *x);
+dma_addr_t page_to_phys(struct page *page);
+#define PAGE_SIZE 4096UL
+#define PAGE_MASK (~(PAGE_SIZE-1))
+#define offset_in_page(p) ((unsigned long)(p) & ~PAGE_MASK)
 
 #include <lx_emul/extern_c_end.h>
 

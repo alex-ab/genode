@@ -48,3 +48,4 @@ linux-x.x.x/include/uapi/linux/input.h
 linux-x.x.x/include/uapi/linux/input-event-codes.h
 linux-x.x.x/include/uapi/linux/swab.h
 linux-x.x.x/include/uapi/linux/usb/ch9.h
+linux-x.x.x/lib/kfifo.c

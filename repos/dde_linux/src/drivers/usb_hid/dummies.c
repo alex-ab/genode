@@ -536,52 +536,6 @@ void usb_unpoison_urb(struct urb *urb)
 	TRACE_AND_STOP;
 }
 
-struct __kfifo;
-int __kfifo_alloc(struct __kfifo *fifo, unsigned int size, size_t esize, gfp_t gfp_mask)
-{
-	TRACE_AND_STOP;
-	return -1;
-}
-
-void __kfifo_free(struct __kfifo *fifo)
-{
-	TRACE_AND_STOP;
-}
-
-unsigned int __kfifo_in(struct __kfifo *fifo, const void *buf, unsigned int len)
-{
-	TRACE_AND_STOP;
-	return 0;
-}
-
-unsigned int __kfifo_in_r(struct __kfifo *fifo, const void *buf, unsigned int len, size_t recsize)
-{
-	TRACE_AND_STOP;
-	return 0;
-}
-
-unsigned int __kfifo_out(struct __kfifo *fifo, void *buf, unsigned int len)
-{
-	TRACE_AND_STOP;
-	return 0;
-}
-
-unsigned int __kfifo_out_r(struct __kfifo *fifo, void *buf, unsigned int len, size_t recsize)
-{
-	TRACE_AND_STOP;
-	return 0;
-}
-
-void __kfifo_skip_r(struct __kfifo *fifo, size_t recsize)
-{
-	TRACE_AND_STOP;
-}
-
-unsigned int __kfifo_max_r(unsigned int len, size_t recsize)
-{
-	TRACE_AND_STOP;
-}
-
 void usb_kill_urb(struct urb *urb)
 {
 	TRACE;

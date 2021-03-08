@@ -29,6 +29,7 @@ SRC_C += drivers/input/input.c
 SRC_C += drivers/usb/core/config.c
 SRC_C += drivers/usb/core/generic.c
 SRC_C += drivers/usb/core/quirks.c
+SRC_C += lib/kfifo.c
 
 CC_OPT   += -D__KERNEL__
 CC_C_OPT += -Wno-unused-but-set-variable -Wno-pointer-sign \
