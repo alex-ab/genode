@@ -1050,6 +1050,9 @@ class Vcpu_handler : public Vmm::Vcpu_dispatcher<Genode::Thread>,
 
 			int rc = vm_exit_requires_instruction_emulation(pCtx);
 
+			if (_vm_exits % 5000 == 0)
+				debug_dump();
+
 			/* evaluated in VMM/include/EMHandleRCTmpl.h */
 			return rc;
 		}
