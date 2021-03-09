@@ -106,12 +106,3 @@ index 584d50f..c1224fb 100644
  
  /* Function name is used for debug output. Non-ANSI, compiler-dependent */
  
-+++ src/lib/acpica/source/components/events/evgpe.c
-@@ -622,6 +622,7 @@
-             ACPI_EXCEPTION ((AE_INFO, Status,
-                 "while evaluating GPE method [%4.4s]",
-                 AcpiUtGetNodeName (GpeEventInfo->Dispatch.MethodNode)));
-+            return;
-         }
-         break;
- 
