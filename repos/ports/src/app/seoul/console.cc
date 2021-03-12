@@ -193,7 +193,7 @@ bool Seoul::Console::receive(MessageConsole &msg)
 			 * device model is going to ignore this mode.
 			 */
 			unsigned const bpp = _fb_mode.bytes_per_pixel();
-			msg.info->_vesa_mode = 0x138;
+			msg.info->_vesa_mode = 0x145;
 			msg.info->attr = 0x39f;
 			msg.info->resolution[0]      = _fb_mode.area.w();
 			msg.info->resolution[1]      = _fb_mode.area.h();

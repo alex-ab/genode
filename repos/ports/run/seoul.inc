@@ -386,7 +386,7 @@ append_if $use_framebuffer config {
 			<any-service> <parent/> </any-service>
 		</route>}
 append_if [expr $use_framebuffer &&  [have_include "power_on/qemu"]] config {
-		<config width="1280" height="960" depth="32" buffered="yes"/>}
+		<config width="1280" height="1024" depth="32" buffered="yes"/>}
 append_if [expr $use_framebuffer && ![have_include "power_on/qemu"]] config {
 		<config buffered="yes"/>}
 append_if $use_framebuffer config {
@@ -511,7 +511,7 @@ if {$use_fancy_stuff} {
 	set launchpad_cfg_fd [open "bin/launchpad-config" w]
 
 	puts $launchpad_cfg_fd "<config>
-	<launcher ram_quota=\"$memory_init\" name=\"init\" caps=\"400\" >"
+	<launcher ram_quota=\"$memory_init\" name=\"init\" caps=\"1000\" >"
 
 	puts $launchpad_cfg_fd {
 		<config>
@@ -532,7 +532,7 @@ if {$use_fancy_stuff} {
 				<service name="VM"/>
 			</parent-provides>
 
-			<start name="seoul" priority="-1" caps="200">
+			<start name="seoul" priority="-1" caps="800">
 				<binary name="seoul"/>
 				<resource name="RAM" quantum="256M"/>
 				<route>
