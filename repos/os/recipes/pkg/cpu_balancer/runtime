@@ -1,4 +1,4 @@
-<runtime ram="2M" caps="150" binary="cpu_balancer">
+<runtime ram="4M" caps="300" binary="cpu_balancer">
 
 	<provides> <pd/> <cpu/> </provides>
 
