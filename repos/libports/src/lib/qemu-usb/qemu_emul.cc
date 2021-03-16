@@ -13,6 +13,7 @@
  */
 
 /* Genode includes */
+#include <base/attached_rom_dataspace.h>
 #include <base/env.h>
 #include <base/log.h>
 #include <util/misc_math.h>
@@ -68,6 +69,9 @@ extern "C" void _type_init_usb_host_register_types(Genode::Entrypoint*,
 extern "C" void _type_init_xhci_register_types();
 extern "C" void _type_init_xhci_pci_register_types();
 
+extern "C" void _type_init_host_webcam_register_types(Genode::Env &,
+                                                      Genode::Xml_node const &);
+
 extern Genode::Mutex _mutex;
 
 Qemu::Controller *qemu_controller();
@@ -80,7 +84,9 @@ static Genode::Allocator *_heap = nullptr;
 
 Qemu::Controller *Qemu::usb_init(Timer_queue &tq, Pci_device &pci,
                                  Genode::Entrypoint &ep,
-                                 Genode::Allocator &alloc, Genode::Env &env)
+                                 Genode::Allocator &alloc,
+                                 Genode::Env &env,
+                                 Genode::Xml_node const &config)
 {
 	_heap = &alloc;
 	_timer_queue = &tq;
@@ -90,6 +96,10 @@ Qemu::Controller *Qemu::usb_init(Timer_queue &tq, Pci_device &pci,
 	_type_init_xhci_register_types();
 	_type_init_xhci_pci_register_types();
 	_type_init_usb_host_register_types(&ep, &alloc, &env);
+
+	config.with_sub_node("webcam", [&] (Genode::Xml_node const &node) {
+		_type_init_host_webcam_register_types(env, node);
+	});
 
 	return qemu_controller();
 }
@@ -210,6 +220,8 @@ struct Wrapper
 	XHCIPciState  *_xhci_pci_state = nullptr;
 	USBHostDevice  _usb_host_device;
 
+	USBWebcamState     *_webcam_state;
+
 	ObjectClass         _object_class;
 	DeviceClass         _device_class;
 	PCIDeviceClass      _pci_device_class;
@@ -259,6 +271,7 @@ struct Object_pool
 		USB_BUS,         /* bus driver */
 		USB_DEVICE,      /* USB device driver */
 		USB_HOST_DEVICE, /* USB host device driver */
+		USB_WEBCAM,      /* USB host device driver */
 		MAX = 10          /* host devices (USB_HOST_DEVICE - MAX) */
 	};
 
@@ -351,6 +364,10 @@ struct DeviceClass *cast_DeviceClass(void *ptr) {
 	return &Object_pool::p()->find_object(ptr)->_device_class; }
 
 
+struct USBWebcamState *cast_USBWebcamState(void *ptr) {
+	return Object_pool::p()->find_object(ptr)->_webcam_state; }
+
+
 struct USBDeviceClass *cast_USBDeviceClass(void *ptr) {
 	return &Object_pool::p()->find_object(ptr)->_usb_device_class; }
 
@@ -371,7 +388,8 @@ struct USBBus *cast_DeviceStateToUSBBus(void) {
 	return &Object_pool::p()->xhci_state()->bus; }
 
 
-USBHostDevice *create_usbdevice(void *data)
+template <typename FUNC>
+static USBHostDevice *_create_usbdevice(int const type, FUNC const &fn_init)
 {
 	Wrapper *obj = Object_pool::p()->create_object();
 	if (!obj) {
@@ -379,7 +397,7 @@ USBHostDevice *create_usbdevice(void *data)
 		return nullptr;
 	}
 
-	obj->_usb_device_class = Object_pool::p()->obj[Object_pool::USB_HOST_DEVICE]._usb_device_class;
+	obj->_usb_device_class = Object_pool::p()->obj[type]._usb_device_class;
 
 	/*
 	 * Set parent bus object
@@ -387,8 +405,10 @@ USBHostDevice *create_usbdevice(void *data)
 	DeviceState *dev_state = &obj->_device_state;
 	dev_state->parent_bus  = Object_pool::p()->bus();
 
-	/* set data pointer */
-	obj->_usb_host_device.data = data;
+	obj->_usb_device.qdev.parent_bus = dev_state->parent_bus;
+
+	/* per type initialization */
+	fn_init(*obj);
 
 	/*
 	 * Attach new USB host device to USB device driver
@@ -407,6 +427,16 @@ USBHostDevice *create_usbdevice(void *data)
 	}
 
 	return &obj->_usb_host_device;
+}
+
+
+USBHostDevice *create_usbdevice(void *data)
+{
+	return _create_usbdevice(Object_pool::USB_HOST_DEVICE,
+	                         [&](Wrapper &obj) {
+		/* set data pointer */
+		obj._usb_host_device.data = data;
+	});
 }
 
 
@@ -510,6 +540,15 @@ Type type_register_static(TypeInfo const *t)
 		Wrapper *w = &Object_pool::p()->obj[Object_pool::USB_BUS];
 		ObjectClass *c = &w->_object_class;
 		t->class_init(c, 0);
+	}
+
+	if (!Genode::strcmp(t->name, "usb-webcam")) {
+		Wrapper *w = &Object_pool::p()->obj[Object_pool::USB_WEBCAM];
+		t->class_init(&w->_object_class, 0);
+
+		_create_usbdevice(Object_pool::USB_WEBCAM, [&](Wrapper &obj) {
+			obj._webcam_state = (USBWebcamState *)g_malloc(t->instance_size);
+		});
 	}
 
 	return nullptr;
