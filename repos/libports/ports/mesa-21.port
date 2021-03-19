@@ -1,0 +1,138 @@
+LICENSE   := GPLv2
+VERSION   := 21.0.0
+DOWNLOADS := mesa.archive
+
+URL_BASE      := https://archive.mesa3d.org
+URL(mesa)     := $(URL_BASE)/mesa-$(VERSION).tar.xz
+SHA(mesa)     := e6204e98e6a8d77cf9dc5d34f99dd8e3ef7144f3601c808ca0dd26ba522e0d84
+
+DIR(mesa)     := src/lib/mesa
+TAR_OPT(mesa) := --strip-components=1 --files-from $(REP_DIR)/src/lib/mesa-21/files.list
+HASH_INPUT    += $(REP_DIR)/src/lib/mesa-21/files.list
+
+
+#PATCHES := src/lib/mesa/patches/egl.patch
+#PATCH_OPT := -p1
+
+SRC = ${DIR(mesa)}
+
+DIRS := include
+DIR_CONTENT(include) = $(wildcard $(SRC)/src/gallium/include/*) \
+                       $(wildcard $(SRC)/include/*)
+DIRS += include/util
+DIR_CONTENT(include/util) = $(wildcard $(SRC)/src/util/*.h) \
+                            $(wildcard $(SRC)/src/gallium/auxiliary/util/*.h)
+
+DIRS += include/util/format
+DIR_CONTENT(include/util/format) = $(wildcard $(SRC)/src/util/format/*.h) \
+
+DIRS += include/draw
+DIR_CONTENT(include/draw) = $(wildcard $(SRC)/src/gallium/auxiliary/draw/*.h)
+
+DIRS += include/nir
+DIR_CONTENT(include/nir) = $(wildcard $(SRC)/src/gallium/auxiliary/nir/*.h)
+
+DIRS += include/pipebuffer
+DIR_CONTENT(include/pipebuffer) = $(wildcard $(SRC)/src/gallium/auxiliary/pipebuffer/*.h)
+
+DIRS += include/tgsi
+DIR_CONTENT(include/tgsi) = $(wildcard $(SRC)/src/gallium/auxiliary/tgsi/*.h)
+
+DIRS += include/frontend
+DIR_CONTENT(include/frontend) = $(wildcard $(SRC)/src/gallium/include/frontend/*.h)
+
+DIRS += include/compiler
+DIR_CONTENT(include/compiler) = $(wildcard $(SRC)/src/compiler/*.h)
+
+DIRS += include/compiler/glsl
+DIR_CONTENT(include/compiler/glsl) = $(wildcard $(SRC)/src/compiler/glsl/*.h)
+
+DIRS += include/compiler/nir
+DIR_CONTENT(include/compiler/nir) = $(wildcard $(SRC)/src/compiler/nir/*.h)
+
+
+#
+##
+## Check for tools
+##
+#$(call check_tool,bison)
+#$(call check_tool,flex)
+$(call check_tool,python)
+#
+#
+##
+## Determine python version to use
+##
+PYTHON := $(notdir $(lastword $(shell which python3 $(addprefix python3.,5 6 7 8))))
+
+
+ifeq ($(PYTHON),)
+default: python_not_installed
+python_not_installed:
+	$(error mesa requires python3)
+else
+python_installed:
+	$(info Using python: $(PYTHON))
+endif
+#
+##
+## Generate files
+##
+#generated_files = src/lib/mesa/src/compiler/glsl/glsl_parser.cpp \
+#                  src/lib/mesa/src/compiler/glsl/glsl_lexer.cpp \
+#                  src/lib/mesa/src/compiler/glsl/glcpp/glcpp-parse.c \
+#                  src/lib/mesa/src/compiler/glsl/glcpp/glcpp-lex.c \
+#                  src/lib/mesa/src/mesa/program/program_parse.tab.c \
+#                  src/lib/mesa/src/mesa/program/lex.yy.c \
+#                  src/lib/mesa/src/mapi/shared-glapi/glapi_mapi_tmp.h \
+#
+generated_files = $(SRC)/src/compiler/nir/nir_opcodes.h \
+                  $(SRC)/src/compiler/nir/nir_intrinsics.h \
+                  $(SRC)/src/compiler/nir/nir_intrinsics_indices.h \
+
+
+$(SRC)/src/compiler/nir/nir_opcodes.h:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/compiler/nir/$(basename $(notdir $@))_h.py > $@
+
+$(SRC)/src/compiler/nir/nir_intrinsics.h \
+$(SRC)/src/compiler/nir/nir_intrinsics_indices.h:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/compiler/nir/$(basename $(notdir $@))_h.py --outdir $(@D)
+
+#src/lib/mesa/src/compiler/glsl/glsl_parser.cpp:
+#	@$(MSG_GENERATE)$(notdir $@)
+#	$(VERBOSE)bison  -o $@ -p "_mesa_glsl_" \
+#		--defines=$(@D)/glsl_parser.h $(@D)/glsl_parser.yy
+#
+#src/lib/mesa/src/compiler/glsl/glsl_lexer.cpp:
+#	@$(MSG_GENERATE)$(notdir $@)
+#	$(VERBOSE)flex -o $@ $(@D)/glsl_lexer.ll
+#
+#src/lib/mesa/src/compiler/glsl/glcpp/glcpp-parse.c:
+#	@$(MSG_GENERATE)$(notdir $@)
+#	$(VERBOSE)bison  -o $@ -p "glcpp_parser_" --defines=$(@D)/glcpp-parse.h \
+#		$(@D)/glcpp-parse.y
+#
+#src/lib/mesa/src/compiler/glsl/glcpp/glcpp-lex.c:
+#	@$(MSG_GENERATE)$(notdir $@)
+#	$(VERBOSE)flex  -o $@ $(@D)/glcpp-lex.l
+#
+#src/lib/mesa/src/mesa/program/program_parse.tab.c:
+#	@$(MSG_GENERATE)$(notdir $@)
+#	$(VERBOSE)bison -o $@ -p "_mesa_program_" --defines=$(@D)/program_parse.tab.h \
+#		$(@D)/program_parse.y
+#
+#src/lib/mesa/src/mesa/program/lex.yy.c:
+#	@$(MSG_GENERATE)$(notdir $@)
+#	$(VERBOSE)flex -o $@ $(@D)/program_lexer.l
+#
+#src/lib/mesa/src/mapi/shared-glapi/glapi_mapi_tmp.h:
+#	@$(MSG_GENERATE)$(notdir $@)
+#	$(VERBOSE)mkdir -p $(@D)
+#	$(VERBOSE)$(PYTHON) $(@D)/../mapi_abi.py --mode lib --printer shared-glapi \
+#		$(@D)/../glapi/gen/gl_and_es_API.xml > $@
+#
+default: python_installed $(DOWNLOADS) $(generated_files)
+
+# vi: set ft=make :
