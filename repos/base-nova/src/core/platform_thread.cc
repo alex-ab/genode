@@ -320,7 +320,7 @@ Trace::Execution_time Platform_thread::execution_time() const
 	/* time executed by EC (on whatever SC) */
 	uint8_t res = Nova::ec_time(_sel_ec(), ec_time);
 	if (res != Nova::NOVA_OK)
-		warning("ec_time failed res=", res);
+		warning("ec_time failed res=", res, " ", pd_name(), " ", _name);
 
 	if (!sc_created())
 		return { ec_time, sc_time, Nova::Qpd::DEFAULT_QUANTUM, _priority };
