@@ -50,6 +50,9 @@ DIR_CONTENT(include/compiler/glsl) = $(wildcard $(SRC)/src/compiler/glsl/*.h)
 DIRS += include/compiler/nir
 DIR_CONTENT(include/compiler/nir) = $(wildcard $(SRC)/src/compiler/nir/*.h)
 
+DIRS += include/glapi
+DIR_CONTENT(include/glapi) = $(wildcard $(SRC)/src/mapi/glapi/*.h)
+
 
 #
 ##
@@ -89,6 +92,7 @@ endif
 generated_files = $(SRC)/src/compiler/nir/nir_opcodes.h \
                   $(SRC)/src/compiler/nir/nir_intrinsics.h \
                   $(SRC)/src/compiler/nir/nir_intrinsics_indices.h \
+                  $(SRC)/src/mapi/shared-glapi/glapi_mapi_tmp.h
 
 
 $(SRC)/src/compiler/nir/nir_opcodes.h:
@@ -99,6 +103,12 @@ $(SRC)/src/compiler/nir/nir_intrinsics.h \
 $(SRC)/src/compiler/nir/nir_intrinsics_indices.h:
 	@$(MSG_GENERATE)$(notdir $@)
 	$(VERBOSE)$(PYTHON) $(SRC)/src/compiler/nir/$(basename $(notdir $@))_h.py --outdir $(@D)
+
+$(SRC)/src/mapi/shared-glapi/glapi_mapi_tmp.h:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)mkdir -p $(@D)
+	$(VERBOSE)$(PYTHON) $(@D)/../mapi_abi.py --printer shared-glapi \
+		$(@D)/../glapi/gen/gl_and_es_API.xml > $@
 
 #src/lib/mesa/src/compiler/glsl/glsl_parser.cpp:
 #	@$(MSG_GENERATE)$(notdir $@)
@@ -127,11 +137,6 @@ $(SRC)/src/compiler/nir/nir_intrinsics_indices.h:
 #	@$(MSG_GENERATE)$(notdir $@)
 #	$(VERBOSE)flex -o $@ $(@D)/program_lexer.l
 #
-#src/lib/mesa/src/mapi/shared-glapi/glapi_mapi_tmp.h:
-#	@$(MSG_GENERATE)$(notdir $@)
-#	$(VERBOSE)mkdir -p $(@D)
-#	$(VERBOSE)$(PYTHON) $(@D)/../mapi_abi.py --mode lib --printer shared-glapi \
-#		$(@D)/../glapi/gen/gl_and_es_API.xml > $@
 #
 default: python_installed $(DOWNLOADS) $(generated_files)
 
