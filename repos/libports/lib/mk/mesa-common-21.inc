@@ -1,16 +1,17 @@
 MESA_PORT_DIR := $(call select_from_ports,mesa-21)
 MESA_SRC_DIR  := $(MESA_PORT_DIR)/src/lib/mesa
-LIB_DIR       := $(REP_DIR)/src/lib/mesa
+LIB_DIR       := $(REP_DIR)/src/lib/mesa-21
 
-INC_DIR += $(MESA_PORT_DIR)/include \
+INC_DIR += $(LIB_DIR)/include \
+           $(MESA_PORT_DIR)/include \
            $(MESA_PORT_DIR)/include/nir \
            $(MESA_PORT_DIR)/include/compiler \
-           $(MESA_PORT_DIR)/include/compiler/nir
+           $(MESA_PORT_DIR)/include/mesa \
+           $(MESA_PORT_DIR)/include/compiler/nir \
 
 CC_OPT += -DENABLE_SHADER_CACHE  \
           -DENABLE_ST_OMX_BELLAGIO=0  \
           -DENABLE_ST_OMX_TIZONIA=0  \
-          -D_GNU_SOURCE  \
           -DHAVE___BUILTIN_BSWAP32  \
           -DHAVE___BUILTIN_BSWAP64  \
           -DHAVE___BUILTIN_CLZ  \
@@ -46,26 +47,20 @@ CC_OPT += -DENABLE_SHADER_CACHE  \
           -DHAVE_GETRANDOM  \
           -DHAVE_MKOSTEMP  \
           -DHAVE_POSIX_MEMALIGN  \
-          -DHAVE_PROGRAM_INVOCATION_NAME  \
           -DHAVE_PTHREAD  \
-          -DHAVE_PTHREAD_SETAFFINITY  \
+          -DHAVE_PTHREAD_NP_H \
           -DHAVE_RANDOM_R  \
-          -DHAVE_STRTOD_L  \
           -DHAVE_STRTOF  \
           -DHAVE_STRTOK_R  \
-          -DHAVE_SYS_SHM_H  \
           -DHAVE_TIMESPEC_GET  \
           -DHAVE_UINT128  \
           -DHAVE_ZLIB  \
-          -DHAVE_ZSTD  \
-          -DMAJOR_IN_SYSMACROS  \
-          -DPACKAGE_BUGREPORT="https://gitlab.freedesktop.org/mesa/mesa/-/issues" \
-          -DPACKAGE_VERSION="21.0.0"'\
+          -DPACKAGE_BUGREPORT='"https://gitlab.freedesktop.org/mesa/mesa/-/issues"' \
+          -DPACKAGE_VERSION='"21.0.0"' \
           -D__STDC_CONSTANT_MACROS  \
           -D__STDC_FORMAT_MACROS  \
-          -D__STDC_LIMIT_MACROS ' \
+          -D__STDC_LIMIT_MACROS \
           -DUSE_GCC_ATOMIC_BUILTINS  \
-          -DUSE_SSE41  \
           -DUSE_X86_64_ASM
 
 # vi: set ft=make :

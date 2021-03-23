@@ -53,6 +53,24 @@ DIR_CONTENT(include/compiler/nir) = $(wildcard $(SRC)/src/compiler/nir/*.h)
 DIRS += include/glapi
 DIR_CONTENT(include/glapi) = $(wildcard $(SRC)/src/mapi/glapi/*.h)
 
+DIRS += include/program
+DIR_CONTENT(include/program) = $(wildcard $(SRC)/src/mesa/program/*.h)
+
+DIRS += include/mesa/main
+DIR_CONTENT(include/mesa/main) = $(wildcard $(SRC)/src/mesa/main/*.h)
+
+DIRS += include/drm-uapi
+DIR_CONTENT(include/drm-uapi) = $(wildcard $(SRC)/include/drm-uapi/*.h)
+
+DIRS += include/pci_ids
+DIR_CONTENT(include/pci_ids) = $(wildcard $(SRC)/include/pci_ids/*.h)
+
+DIRS += include/math
+DIR_CONTENT(include/math) = $(wildcard $(SRC)/src/mesa/math/*.h)
+
+DIRS += include/vbo
+DIR_CONTENT(include/vbo) = $(wildcard $(SRC)/src/mesa/vbo/*.h)
+
 
 #
 ##
@@ -89,13 +107,31 @@ endif
 #                  src/lib/mesa/src/mesa/program/lex.yy.c \
 #                  src/lib/mesa/src/mapi/shared-glapi/glapi_mapi_tmp.h \
 #
-generated_files = $(SRC)/src/compiler/nir/nir_opcodes.h \
+generated_files = $(SRC)/src/compiler/glsl/float64_glsl.h \
+                  $(SRC)/src/compiler/glsl/glsl_parser.cpp \
+                  $(SRC)/src/compiler/nir/nir_builder_opcodes.h \
                   $(SRC)/src/compiler/nir/nir_intrinsics.h \
                   $(SRC)/src/compiler/nir/nir_intrinsics_indices.h \
-                  $(SRC)/src/mapi/shared-glapi/glapi_mapi_tmp.h
+                  $(SRC)/src/compiler/nir/nir_opcodes.h \
+                  $(SRC)/src/compiler/ir_expression_operation.h \
+                  $(SRC)/src/compiler/ir_expression_operation_constant.h \
+                  $(SRC)/src/compiler/ir_expression_operation_strings.h \
+                  $(SRC)/src/compiler/spirv/vtn_generator_ids.h \
+                  $(SRC)/src/mapi/shared-glapi/glapi_mapi_tmp.h \
+                  $(SRC)/src/mesa/main/dispatch.h \
+                  $(SRC)/src/mesa/main/marshal_generated.h \
+                  $(SRC)/src/mesa/main/remap_helper.h \
+                  $(SRC)/src/mesa/format_info.h \
+                  $(SRC)/src/mesa/get_hash.h \
+                  $(SRC)/src/util/format/u_format_pack.h \
+                  $(SRC)/src/git_sha1.h
 
+$(SRC)/src/compiler/glsl/float64_glsl.h:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/util/xxd.py $(subst _,.,$(basename $@)) $@ -n float64_source
 
-$(SRC)/src/compiler/nir/nir_opcodes.h:
+$(SRC)/src/compiler/nir/nir_opcodes.h \
+$(SRC)/src/compiler/nir/nir_builder_opcodes.h:
 	@$(MSG_GENERATE)$(notdir $@)
 	$(VERBOSE)$(PYTHON) $(SRC)/src/compiler/nir/$(basename $(notdir $@))_h.py > $@
 
@@ -110,11 +146,56 @@ $(SRC)/src/mapi/shared-glapi/glapi_mapi_tmp.h:
 	$(VERBOSE)$(PYTHON) $(@D)/../mapi_abi.py --printer shared-glapi \
 		$(@D)/../glapi/gen/gl_and_es_API.xml > $@
 
-#src/lib/mesa/src/compiler/glsl/glsl_parser.cpp:
-#	@$(MSG_GENERATE)$(notdir $@)
-#	$(VERBOSE)bison  -o $@ -p "_mesa_glsl_" \
-#		--defines=$(@D)/glsl_parser.h $(@D)/glsl_parser.yy
-#
+CMD(ir_expression_operation.h)          = enum
+CMD(ir_expression_operation_constant.h) = constant
+CMD(ir_expression_operation_strings.h)  = strings
+
+$(SRC)/src/compiler/ir_expression_operation.h \
+$(SRC)/src/compiler/ir_expression_operation_constant.h \
+$(SRC)/src/compiler/ir_expression_operation_strings.h:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/compiler/glsl/ir_expression_operation.py ${CMD($(notdir $@))} \
+	> $(@D)/$(notdir $@)
+
+$(SRC)/src/compiler/spirv/vtn_generator_ids.h:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)$(PYTHON) $(@D)/vtn_generator_ids_h.py $(@D)/spir-v.xml $@
+
+CMD(dispatch.h)          = gl_table.py -m remap_table
+CMD(marshal_generated.h) = gl_marshal_h.py
+CMD(remap_helper.h)        = remap_helper.py
+
+$(SRC)/src/mesa/main/dispatch.h \
+$(SRC)/src/mesa/main/marshal_generated.h \
+$(SRC)/src/mesa/main/remap_helper.h:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/mapi/glapi/gen/${CMD($(notdir $@))} \
+	-f $(SRC)/src/mapi/glapi/gen/gl_and_es_API.xml  > $@
+
+$(SRC)/src/git_sha1.h:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)$(PYTHON) $(SRC)/bin/git_sha1_gen.py --output $@
+
+$(SRC)/src/mesa/format_info.h:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/mesa/main/format_info.py $(SRC)/src/mesa/main/formats.csv \
+	> $@
+
+$(SRC)/src/mesa/get_hash.h:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/mesa/main/get_hash_generator.py \
+	-f $(SRC)/src/mapi/glapi/gen/gl_and_es_API.xml \
+	> $@
+
+$(SRC)/src/util/format/u_format_pack.h:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)$(PYTHON) $(@D)/u_format_table.py $(@D)/u_format.csv --header > $@
+	
+$(SRC)/src/compiler/glsl/glsl_parser.cpp:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)bison  -Wno-deprecated -o $@ -p "_mesa_glsl_" \
+		--defines=$(@D)/glsl_parser.h $(@D)/glsl_parser.yy
+
 #src/lib/mesa/src/compiler/glsl/glsl_lexer.cpp:
 #	@$(MSG_GENERATE)$(notdir $@)
 #	$(VERBOSE)flex -o $@ $(@D)/glsl_lexer.ll
