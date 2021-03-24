@@ -1,5 +1,5 @@
 SHARED_LIB = yes
-LIBS       = libc stdcxx zlib expat
+LIBS       = libc stdcxx zlib expat glapi softpipe
 
 include $(REP_DIR)/lib/mk/mesa-common-21.inc
 
@@ -17,8 +17,8 @@ INC_DIR += $(MESA_SRC_DIR)/src/compiler/nir \
 
 # C++ generated
 
-#SRC_CC += compiler/glsl/glsl_lexer.cpp \
-#          compiler/glsl/glsl_parser.cpp
+SRC_CC += compiler/glsl/glsl_lexer.cpp \
+          compiler/glsl/glsl_parser.cpp
 
 # C++
 SRC_CC += compiler/glsl/ast_array_index.cpp \
@@ -140,14 +140,21 @@ SRC_CC += compiler/glsl/ast_array_index.cpp \
           util/u_printf.cpp
 
 # C generated
-#SRC_C += compiler/glsl/glcpp/glcpp-lex.c \
-#         compiler/glsl/glcpp/glcpp-parse.c \
-#         compiler/nir/nir_constant_expressions.c \
-#         compiler/nir/nir_intrinsics.c \
-#         compiler/nir/nir_opcodes.c \
-#         compiler/nir/nir_opt_algebraic.c \
-#         compiler/spirv/spirv_info.c \
-#         compiler/spirv/vtn_gather_types.c \
+SRC_C += \
+         compiler/glsl/glcpp/glcpp-parse.c \
+         compiler/glsl/glcpp/glcpp-lex.c \
+         compiler/nir/nir_constant_expressions.c \
+         compiler/nir/nir_intrinsics.c \
+         compiler/nir/nir_opt_algebraic.c \
+         compiler/nir/nir_opcodes.c \
+         compiler/spirv/spirv_info.c \
+         compiler/spirv/vtn_gather_types.c \
+         mesa/format_fallback.c \
+         mesa/program/program_parse.tab.c \
+         util/format_srgb.c \
+         util/format/u_format_table.c
+
+#SRC_C +=
 #         mapi/glapi/gen/api_exec.c \
 #         mapi/glapi/gen/enums.c \
 #         mapi/glapi/gen/marshal_generated0.c \
@@ -158,13 +165,9 @@ SRC_CC += compiler/glsl/ast_array_index.cpp \
 #         mapi/glapi/gen/marshal_generated5.c \
 #         mapi/glapi/gen/marshal_generated6.c \
 #         mapi/glapi/gen/marshal_generated7.c \
-#         mesa/format_fallback.c \
 #         mesa/format_pack.c \
 #         mesa/format_unpack.c \
 #         mesa/program/lex.yy.c \
-#         mesa/program/program_parse.tab.c \
-#         util/format_srgb.c \
-#         util/format/u_format_table.c
 
 # C
 SRC_C += compiler/glsl/glcpp/pp.c \
