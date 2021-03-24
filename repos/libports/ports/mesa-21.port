@@ -17,47 +17,7 @@ HASH_INPUT    += $(REP_DIR)/src/lib/mesa-21/files.list
 SRC = ${DIR(mesa)}
 
 DIRS := include
-DIR_CONTENT(include) = $(wildcard $(SRC)/src/gallium/include/*) \
-                       $(wildcard $(SRC)/include/*)
-DIRS += include/util
-DIR_CONTENT(include/util) = $(wildcard $(SRC)/src/util/*.h) \
-                            $(wildcard $(SRC)/src/gallium/auxiliary/util/*.h)
-
-DIRS += include/util/format
-DIR_CONTENT(include/util/format) = $(wildcard $(SRC)/src/util/format/*.h) \
-
-DIRS += include/draw
-DIR_CONTENT(include/draw) = $(wildcard $(SRC)/src/gallium/auxiliary/draw/*.h)
-
-DIRS += include/nir
-DIR_CONTENT(include/nir) = $(wildcard $(SRC)/src/gallium/auxiliary/nir/*.h)
-
-DIRS += include/pipebuffer
-DIR_CONTENT(include/pipebuffer) = $(wildcard $(SRC)/src/gallium/auxiliary/pipebuffer/*.h)
-
-DIRS += include/tgsi
-DIR_CONTENT(include/tgsi) = $(wildcard $(SRC)/src/gallium/auxiliary/tgsi/*.h)
-
-DIRS += include/frontend
-DIR_CONTENT(include/frontend) = $(wildcard $(SRC)/src/gallium/include/frontend/*.h)
-
-DIRS += include/compiler
-DIR_CONTENT(include/compiler) = $(wildcard $(SRC)/src/compiler/*.h)
-
-DIRS += include/compiler/glsl
-DIR_CONTENT(include/compiler/glsl) = $(wildcard $(SRC)/src/compiler/glsl/*.h)
-
-DIRS += include/compiler/nir
-DIR_CONTENT(include/compiler/nir) = $(wildcard $(SRC)/src/compiler/nir/*.h)
-
-DIRS += include/glapi
-DIR_CONTENT(include/glapi) = $(wildcard $(SRC)/src/mapi/glapi/*.h)
-
-DIRS += include/program
-DIR_CONTENT(include/program) = $(wildcard $(SRC)/src/mesa/program/*.h)
-
-DIRS += include/mesa/main
-DIR_CONTENT(include/mesa/main) = $(wildcard $(SRC)/src/mesa/main/*.h)
+DIR_CONTENT(include) = $(wildcard $(SRC)/include/*)
 
 DIRS += include/drm-uapi
 DIR_CONTENT(include/drm-uapi) = $(wildcard $(SRC)/include/drm-uapi/*.h)
@@ -65,19 +25,12 @@ DIR_CONTENT(include/drm-uapi) = $(wildcard $(SRC)/include/drm-uapi/*.h)
 DIRS += include/pci_ids
 DIR_CONTENT(include/pci_ids) = $(wildcard $(SRC)/include/pci_ids/*.h)
 
-DIRS += include/math
-DIR_CONTENT(include/math) = $(wildcard $(SRC)/src/mesa/math/*.h)
-
-DIRS += include/vbo
-DIR_CONTENT(include/vbo) = $(wildcard $(SRC)/src/mesa/vbo/*.h)
-
-
 #
 ##
 ## Check for tools
 ##
-#$(call check_tool,bison)
-#$(call check_tool,flex)
+$(call check_tool,bison)
+$(call check_tool,flex)
 $(call check_tool,python)
 #
 #
@@ -163,7 +116,7 @@ $(SRC)/src/compiler/spirv/vtn_generator_ids.h:
 
 CMD(dispatch.h)          = gl_table.py -m remap_table
 CMD(marshal_generated.h) = gl_marshal_h.py
-CMD(remap_helper.h)        = remap_helper.py
+CMD(remap_helper.h)      = remap_helper.py
 
 $(SRC)/src/mesa/main/dispatch.h \
 $(SRC)/src/mesa/main/marshal_generated.h \

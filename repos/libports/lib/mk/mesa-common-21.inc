@@ -4,10 +4,8 @@ LIB_DIR       := $(REP_DIR)/src/lib/mesa-21
 
 INC_DIR += $(LIB_DIR)/include \
            $(MESA_PORT_DIR)/include \
-           $(MESA_PORT_DIR)/include/nir \
-           $(MESA_PORT_DIR)/include/compiler \
-           $(MESA_PORT_DIR)/include/mesa \
-           $(MESA_PORT_DIR)/include/compiler/nir \
+           $(MESA_SRC_DIR)/src/gallium/include \
+           $(MESA_SRC_DIR)/src
 
 CC_OPT += -DENABLE_SHADER_CACHE  \
           -DENABLE_ST_OMX_BELLAGIO=0  \

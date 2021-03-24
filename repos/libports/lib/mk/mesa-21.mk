@@ -3,14 +3,17 @@ LIBS       = libc stdcxx zlib expat
 
 include $(REP_DIR)/lib/mk/mesa-common-21.inc
 
-INC_DIR += $(MESA_SRC_DIR)/src \
-           $(MESA_SRC_DIR)/src/util \
+INC_DIR += $(MESA_SRC_DIR)/src/compiler/nir \
+           $(MESA_SRC_DIR)/src/compiler \
+           $(MESA_SRC_DIR)/src/gallium/frontends/dri \
            $(MESA_SRC_DIR)/src/gallium/auxiliary \
            $(MESA_SRC_DIR)/src/gallium/winsys \
-           $(MESA_SRC_DIR)/src/gallium/frontends/dri \
-           $(MESA_SRC_DIR)/src/mesa \
-           $(MESA_SRC_DIR)/src/mesa/main \
+           $(MESA_SRC_DIR)/src/mapi \
            $(MESA_SRC_DIR)/src/mesa/drivers/dri/common \
+           $(MESA_SRC_DIR)/src/mesa/main \
+           $(MESA_SRC_DIR)/src/mesa \
+           $(MESA_SRC_DIR)/src/util \
+           $(MESA_SRC_DIR)/src \
 
 # C++ generated
 
