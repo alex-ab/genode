@@ -7,6 +7,8 @@ INC_DIR += $(LIB_DIR)/include \
            $(MESA_SRC_DIR)/src/gallium/include \
            $(MESA_SRC_DIR)/src
 
+CC_OPT += -D__GENODE__
+
 CC_OPT += -DENABLE_SHADER_CACHE  \
           -DENABLE_ST_OMX_BELLAGIO=0  \
           -DENABLE_ST_OMX_TIZONIA=0  \

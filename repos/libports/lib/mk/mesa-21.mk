@@ -1,7 +1,9 @@
 SHARED_LIB = yes
-LIBS       = libc stdcxx zlib expat glapi softpipe
+LIBS       = libc stdcxx zlib expat glapi-21 softpipe mesa_api
 
 include $(REP_DIR)/lib/mk/mesa-common-21.inc
+
+SRC_CC += mesa.cc
 
 INC_DIR += $(MESA_SRC_DIR)/src/compiler/nir \
            $(MESA_SRC_DIR)/src/compiler \
@@ -149,14 +151,25 @@ SRC_C += \
          compiler/nir/nir_opcodes.c \
          compiler/spirv/spirv_info.c \
          compiler/spirv/vtn_gather_types.c \
+         mapi/glapi/gen/api_exec.c \
+         mapi/glapi/gen/enums.c \
+         mapi/glapi/gen/marshal_generated0.c \
+         mapi/glapi/gen/marshal_generated1.c \
+         mapi/glapi/gen/marshal_generated2.c \
+         mapi/glapi/gen/marshal_generated3.c \
+         mapi/glapi/gen/marshal_generated4.c \
+         mapi/glapi/gen/marshal_generated5.c \
+         mapi/glapi/gen/marshal_generated6.c \
+         mapi/glapi/gen/marshal_generated7.c \
          mesa/format_fallback.c \
+         mesa/format_pack.c \
+         mesa/format_unpack.c \
+         mesa/program/lex.yy.c \
          mesa/program/program_parse.tab.c \
          util/format_srgb.c \
          util/format/u_format_table.c
 
 #SRC_C +=
-#         mapi/glapi/gen/api_exec.c \
-#         mapi/glapi/gen/enums.c \
 #         mapi/glapi/gen/marshal_generated0.c \
 #         mapi/glapi/gen/marshal_generated1.c \
 #         mapi/glapi/gen/marshal_generated2.c \
@@ -165,9 +178,6 @@ SRC_C += \
 #         mapi/glapi/gen/marshal_generated5.c \
 #         mapi/glapi/gen/marshal_generated6.c \
 #         mapi/glapi/gen/marshal_generated7.c \
-#         mesa/format_pack.c \
-#         mesa/format_unpack.c \
-#         mesa/program/lex.yy.c \
 
 # C
 SRC_C += compiler/glsl/glcpp/pp.c \
@@ -417,12 +427,12 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          gallium/frontends/dri/dri_helpers.c \
          gallium/frontends/dri/dri_query_renderer.c \
          gallium/frontends/dri/dri_screen.c \
-         gallium/frontends/dri/drisw.c \
          gallium/targets/dri/target.c \
          gallium/winsys/sw/dri/dri_sw_winsys.c \
          loader/loader.c \
          loader/pci_id_driver_map.c \
          mesa/drivers/dri/common/dri_util.c \
+         mapi/entry.c \
          mesa/drivers/dri/common/megadriver_stub.c \
          mesa/drivers/dri/common/utils.c \
          mesa/main/accum.c \
@@ -683,9 +693,14 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          util/u_vector.c \
          util/xmlconfig.c
 
-CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader_sw = -DPIPE_SEARCH_DIR='"/pipe"'
+CC_OPT += -DMAPI_ABI_HEADER=\"glapi/gen/glapi_mapi_tmp.h\" \
+          -DMAPI_MODE_BRIDGE
+
+
 CC_OPT_loader/loader = -DDEFAULT_DRIVER_DIR='"/drivers"'
-#CC_OPT_mesa/drivers/dri/common/utils = -DPACKAGE_VERSION='"21.0.0"'
+CC_OPT_compiler/glsl/glsl_lexer = -include "stdint.h"
+CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader_sw = -DPIPE_SEARCH_DIR='"/pipe"'
 
 vpath %.c   $(MESA_SRC_DIR)/src
 vpath %.cpp $(MESA_SRC_DIR)/src
+vpath %.cc  $(LIB_DIR)

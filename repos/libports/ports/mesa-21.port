@@ -11,8 +11,8 @@ TAR_OPT(mesa) := --strip-components=1 --files-from $(REP_DIR)/src/lib/mesa-21/fi
 HASH_INPUT    += $(REP_DIR)/src/lib/mesa-21/files.list
 
 
-#PATCHES := src/lib/mesa/patches/egl.patch
-#PATCH_OPT := -p1
+PATCHES := src/lib/mesa-21/patches/mesa.patch
+PATCH_OPT := -p1
 
 SRC = ${DIR(mesa)}
 
@@ -79,14 +79,28 @@ generated_files = $(SRC)/src/compiler/glsl/float64_glsl.h \
                   $(SRC)/src/compiler/spirv/vtn_generator_ids.h \
                   $(SRC)/src/compiler/spirv/vtn_gather_types.c \
                   $(SRC)/src/compiler/spirv/spirv_info.c \
-                  $(SRC)/src/mesa/program/program_parse.tab.c \
+                  $(SRC)/src/mapi/glapi/gen/api_exec.c \
+                  $(SRC)/src/mapi/glapi/gen/enums.c \
+                  $(SRC)/src/mapi/glapi/gen/glapi_mapi_tmp.h \
+                  $(SRC)/src/mapi/glapi/gen/marshal_generated0.c \
+                  $(SRC)/src/mapi/glapi/gen/marshal_generated1.c \
+                  $(SRC)/src/mapi/glapi/gen/marshal_generated2.c \
+                  $(SRC)/src/mapi/glapi/gen/marshal_generated3.c \
+                  $(SRC)/src/mapi/glapi/gen/marshal_generated4.c \
+                  $(SRC)/src/mapi/glapi/gen/marshal_generated5.c \
+                  $(SRC)/src/mapi/glapi/gen/marshal_generated6.c \
+                  $(SRC)/src/mapi/glapi/gen/marshal_generated7.c \
                   $(SRC)/src/mapi/shared-glapi/glapi_mapi_tmp.h \
                   $(SRC)/src/mesa/main/dispatch.h \
                   $(SRC)/src/mesa/main/marshal_generated.h \
                   $(SRC)/src/mesa/main/remap_helper.h \
                   $(SRC)/src/mesa/format_fallback.c \
                   $(SRC)/src/mesa/format_info.h \
+                  $(SRC)/src/mesa/format_pack.c \
+                  $(SRC)/src/mesa/format_unpack.c \
                   $(SRC)/src/mesa/get_hash.h \
+                  $(SRC)/src/mesa/program/lex.yy.c \
+                  $(SRC)/src/mesa/program/program_parse.tab.c \
                   $(SRC)/src/util/format/u_format_pack.h \
                   $(SRC)/src/util/format/u_format_table.c \
                   $(SRC)/src/util/format_srgb.c \
@@ -120,11 +134,15 @@ $(SRC)/src/compiler/nir/nir_intrinsics_indices.h:
 	@$(MSG_GENERATE)$(notdir $@)
 	$(VERBOSE)$(PYTHON) $(SRC)/src/compiler/nir/${CMD($(notdir $@))} --outdir $(@D)
 
-$(SRC)/src/mapi/shared-glapi/glapi_mapi_tmp.h:
+CMD($(SRC)/src/mapi/shared-glapi/glapi_mapi_tmp.h) = shared-glapi
+CMD($(SRC)/src/mapi/glapi/gen/glapi_mapi_tmp.h)    = glapi
+
+$(SRC)/src/mapi/shared-glapi/glapi_mapi_tmp.h \
+$(SRC)/src/mapi/glapi/gen/glapi_mapi_tmp.h:
 	@$(MSG_GENERATE)$(notdir $@)
 	$(VERBOSE)mkdir -p $(@D)
-	$(VERBOSE)$(PYTHON) $(@D)/../mapi_abi.py --printer shared-glapi \
-		$(@D)/../glapi/gen/gl_and_es_API.xml > $@
+	$(VERBOSE)$(PYTHON) $(SRC)/src/mapi/mapi_abi.py --printer ${CMD($@)} \
+		$(SRC)/src/mapi/glapi/gen/gl_and_es_API.xml > $@
 
 CMD(ir_expression_operation.h)          = enum
 CMD(ir_expression_operation_constant.h) = constant
@@ -147,37 +165,64 @@ $(SRC)/src/compiler/spirv/spirv_info.c:
 	@$(MSG_GENERATE)$(notdir $@)
 	$(VERBOSE)$(PYTHON) $(@D)/${CMD($(notdir $@))} $@
 
-CMD(dispatch.h)          = gl_table.py -m remap_table
-CMD(marshal_generated.h) = gl_marshal_h.py
-CMD(remap_helper.h)      = remap_helper.py
+CMD(dispatch.h)           = gl_table.py -m remap_table
+CMD(marshal_generated.h)  = gl_marshal_h.py
+CMD(remap_helper.h)       = remap_helper.py
+CMD(api_exec.c)           = gl_genexec.py
+CMD(marshal_generated0.c) = gl_marshal.py -i 0 -n 8
+CMD(marshal_generated1.c) = gl_marshal.py -i 1 -n 8
+CMD(marshal_generated2.c) = gl_marshal.py -i 2 -n 8
+CMD(marshal_generated3.c) = gl_marshal.py -i 3 -n 8
+CMD(marshal_generated4.c) = gl_marshal.py -i 4 -n 8
+CMD(marshal_generated5.c) = gl_marshal.py -i 5 -n 8
+CMD(marshal_generated6.c) = gl_marshal.py -i 6 -n 8
+CMD(marshal_generated7.c) = gl_marshal.py -i 7 -n 8
 
 $(SRC)/src/mesa/main/dispatch.h \
 $(SRC)/src/mesa/main/marshal_generated.h \
-$(SRC)/src/mesa/main/remap_helper.h:
+$(SRC)/src/mesa/main/remap_helper.h \
+$(SRC)/src/mapi/glapi/gen/api_exec.c \
+$(SRC)/src/mapi/glapi/gen/marshal_generated0.c \
+$(SRC)/src/mapi/glapi/gen/marshal_generated1.c \
+$(SRC)/src/mapi/glapi/gen/marshal_generated2.c \
+$(SRC)/src/mapi/glapi/gen/marshal_generated3.c \
+$(SRC)/src/mapi/glapi/gen/marshal_generated4.c \
+$(SRC)/src/mapi/glapi/gen/marshal_generated5.c \
+$(SRC)/src/mapi/glapi/gen/marshal_generated6.c \
+$(SRC)/src/mapi/glapi/gen/marshal_generated7.c:
 	@$(MSG_GENERATE)$(notdir $@)
 	$(VERBOSE)$(PYTHON) $(SRC)/src/mapi/glapi/gen/${CMD($(notdir $@))} \
 	-f $(SRC)/src/mapi/glapi/gen/gl_and_es_API.xml  > $@
+
+$(SRC)/src/mesa/get_hash.h:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/mesa/main/get_hash_generator.py \
+	-f $(SRC)/src/mapi/glapi/gen/gl_and_es_API.xml > $@
+
+$(SRC)/src/mapi/glapi/gen/enums.c:
+	@$(MSG_GENERATE)$(notdir $@)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/mapi/glapi/gen/gl_enums.py \
+	-f $(SRC)/src/mapi/glapi/registry/gl.xml > $@
 
 $(SRC)/src/git_sha1.h:
 	@$(MSG_GENERATE)$(notdir $@)
 	$(VERBOSE)$(PYTHON) $(SRC)/bin/git_sha1_gen.py --output $@
 
-$(SRC)/src/mesa/format_info.h:
+CMD(format_info.h)   = format_info.py
+CMD(format_pack.c) = format_pack.py
+CMD(format_unpack.c) = format_unpack.py
+
+$(SRC)/src/mesa/format_info.h \
+$(SRC)/src/mesa/format_pack.c \
+$(SRC)/src/mesa/format_unpack.c:
 	@$(MSG_GENERATE)$(notdir $@)
-	$(VERBOSE)$(PYTHON) $(SRC)/src/mesa/main/format_info.py $(SRC)/src/mesa/main/formats.csv \
+	$(VERBOSE)$(PYTHON) $(SRC)/src/mesa/main/${CMD($(notdir $@))} $(SRC)/src/mesa/main/formats.csv \
 	> $@
 
 $(SRC)/src/mesa/format_fallback.c:
 	@$(MSG_GENERATE)$(notdir $@)
 	$(VERBOSE)$(PYTHON) $(SRC)/src/mesa/main/format_fallback.py $(SRC)/src/mesa/main/formats.csv \
 	$@
-
-
-$(SRC)/src/mesa/get_hash.h:
-	@$(MSG_GENERATE)$(notdir $@)
-	$(VERBOSE)$(PYTHON) $(SRC)/src/mesa/main/get_hash_generator.py \
-	-f $(SRC)/src/mapi/glapi/gen/gl_and_es_API.xml \
-	> $@
 
 CMD(u_format_pack.h) = --header
 $(SRC)/src/util/format/u_format_pack.h \
@@ -206,9 +251,11 @@ $(SRC)/src/mesa/program/program_parse.tab.c:
 
 CMD(glcpp-lex.c)    = glcpp-lex.l
 CMD(glsl_lexer.cpp) = glsl_lexer.ll
+CMD(lex.yy.c)       = program_lexer.l
 
 $(SRC)/src/compiler/glsl/glcpp/glcpp-lex.c \
-$(SRC)/src/compiler/glsl/glsl_lexer.cpp:
+$(SRC)/src/compiler/glsl/glsl_lexer.cpp \
+$(SRC)/src/mesa/program/lex.yy.c:
 	@$(MSG_GENERATE)$(notdir $@)
 	$(VERBOSE)flex -o $@ $(@D)/${CMD($(notdir $@))}
 

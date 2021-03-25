@@ -418,6 +418,9 @@ mesa-21.0.0/src/egl/main/eglsurface.h
 mesa-21.0.0/src/egl/main/eglsync.c
 mesa-21.0.0/src/egl/main/eglsync.h
 mesa-21.0.0/src/egl/main/egltypedefs.h
+mesa-21.0.0/src/egl/drivers/dri2/egl_dri2.h
+mesa-21.0.0/src/egl/drivers/dri2/egl_dri2.c
+mesa-21.0.0/src/egl/drivers/dri2/platform_device.c
 mesa-21.0.0/src/gallium/auxiliary/cso_cache/cso_cache.c
 mesa-21.0.0/src/gallium/auxiliary/cso_cache/cso_cache.h
 mesa-21.0.0/src/gallium/auxiliary/cso_cache/cso_context.c
@@ -816,6 +819,7 @@ mesa-21.0.0/src/mapi/glapi/gen/AMD_depth_clamp_separate.xml
 mesa-21.0.0/src/mapi/glapi/gen/AMD_draw_buffers_blend.xml
 mesa-21.0.0/src/mapi/glapi/gen/AMD_gpu_shader_int64.xml
 mesa-21.0.0/src/mapi/glapi/gen/AMD_performance_monitor.xml
+mesa-21.0.0/src/mapi/glapi/gen/apiexec.py
 mesa-21.0.0/src/mapi/glapi/gen/APPLE_object_purgeable.xml
 mesa-21.0.0/src/mapi/glapi/gen/APPLE_vertex_array_object.xml
 mesa-21.0.0/src/mapi/glapi/gen/ARB_base_instance.xml
@@ -914,7 +918,10 @@ mesa-21.0.0/src/mapi/glapi/gen/GL4x.xml
 mesa-21.0.0/src/mapi/glapi/gen/gl_and_es_API.xml
 mesa-21.0.0/src/mapi/glapi/gen/gl_and_glX_API.xml
 mesa-21.0.0/src/mapi/glapi/gen/gl_API.xml
+mesa-21.0.0/src/mapi/glapi/gen/gl_enums.py
+mesa-21.0.0/src/mapi/glapi/gen/gl_genexec.py
 mesa-21.0.0/src/mapi/glapi/gen/gl_marshal_h.py
+mesa-21.0.0/src/mapi/glapi/gen/gl_marshal.py
 mesa-21.0.0/src/mapi/glapi/gen/gl_table.py
 mesa-21.0.0/src/mapi/glapi/gen/glX_API.xml
 mesa-21.0.0/src/mapi/glapi/gen/gl_XML.py
@@ -945,6 +952,7 @@ mesa-21.0.0/src/mapi/glapi/gen/remap_helper.py
 mesa-21.0.0/src/mapi/glapi/gen/static_data.py
 mesa-21.0.0/src/mapi/glapi/gen/typeexpr.py
 mesa-21.0.0/src/mapi/glapi/glapi.h
+mesa-21.0.0/src/mapi/glapi/registry/gl.xml
 mesa-21.0.0/src/mapi/mapi_abi.py
 mesa-21.0.0/src/mapi/mapi_glapi.c
 mesa-21.0.0/src/mapi/mapi_tmp.h
@@ -1249,6 +1257,7 @@ mesa-21.0.0/src/mesa/program/arbprogparse.c
 mesa-21.0.0/src/mesa/program/arbprogparse.h
 mesa-21.0.0/src/mesa/program/ir_to_mesa.cpp
 mesa-21.0.0/src/mesa/program/ir_to_mesa.h
+mesa-21.0.0/src/mesa/program/program_lexer.l
 mesa-21.0.0/src/mesa/program/prog_cache.c
 mesa-21.0.0/src/mesa/program/prog_cache.h
 mesa-21.0.0/src/mesa/program/prog_execute.h
