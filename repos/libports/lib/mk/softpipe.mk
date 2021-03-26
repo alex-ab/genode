@@ -4,6 +4,7 @@ include $(REP_DIR)/lib/mk/mesa-common-21.inc
 
 INC_DIR += $(MESA_SRC_DIR)/src/gallium/auxiliary \
            $(MESA_SRC_DIR)/src/compiler/nir \
+           $(MESA_GEN_DIR)/src/compiler/nir \
 
 SRC_C = gallium/drivers/softpipe/sp_buffer.c \
         gallium/drivers/softpipe/sp_clear.c \

@@ -3,6 +3,8 @@ LIBS       = libc
 
 include $(REP_DIR)/lib/mk/mesa-common-21.inc
 
+INC_DIR += $(MESA_GEN_DIR)/src/mapi
+
 SRC_C = mapi/entry.c \
         mapi/mapi_glapi.c \
         mapi/stub.c \

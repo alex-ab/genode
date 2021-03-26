@@ -1,11 +1,13 @@
 MESA_PORT_DIR := $(call select_from_ports,mesa-21)
 MESA_SRC_DIR  := $(MESA_PORT_DIR)/src/lib/mesa
+MESA_GEN_DIR  := $(MESA_PORT_DIR)/generated
 LIB_DIR       := $(REP_DIR)/src/lib/mesa-21
 
 INC_DIR += $(LIB_DIR)/include \
            $(MESA_PORT_DIR)/include \
            $(MESA_SRC_DIR)/src/gallium/include \
-           $(MESA_SRC_DIR)/src
+           $(MESA_SRC_DIR)/src \
+           $(MESA_GEN_DIR)/src
 
 CC_OPT += -D__GENODE__
 

@@ -5,17 +5,29 @@ include $(REP_DIR)/lib/mk/mesa-common-21.inc
 
 SRC_CC += mesa.cc
 
-INC_DIR += $(MESA_SRC_DIR)/src/compiler/nir \
+INC_DIR += $(MESA_GEN_DIR)/src/compiler \
+           $(MESA_GEN_DIR)/src/compiler/glsl \
+           $(MESA_GEN_DIR)/src/compiler/nir \
+           $(MESA_GEN_DIR)/src/compiler/spirv \
+           $(MESA_GEN_DIR)/src/mapi \
+           $(MESA_GEN_DIR)/src/mesa \
+           $(MESA_GEN_DIR)/src/mesa/main \
+           $(MESA_GEN_DIR)/src/util/format \
+           $(MESA_SRC_DIR)/src \
            $(MESA_SRC_DIR)/src/compiler \
-           $(MESA_SRC_DIR)/src/gallium/frontends/dri \
+           $(MESA_SRC_DIR)/src/compiler/glsl \
+           $(MESA_SRC_DIR)/src/compiler/glsl/glcpp \
+           $(MESA_SRC_DIR)/src/compiler/nir \
+           $(MESA_SRC_DIR)/src/compiler/spirv \
            $(MESA_SRC_DIR)/src/gallium/auxiliary \
+           $(MESA_SRC_DIR)/src/gallium/frontends/dri \
            $(MESA_SRC_DIR)/src/gallium/winsys \
            $(MESA_SRC_DIR)/src/mapi \
+           $(MESA_SRC_DIR)/src/mesa \
            $(MESA_SRC_DIR)/src/mesa/drivers/dri/common \
            $(MESA_SRC_DIR)/src/mesa/main \
-           $(MESA_SRC_DIR)/src/mesa \
            $(MESA_SRC_DIR)/src/util \
-           $(MESA_SRC_DIR)/src \
+           $(MESA_SRC_DIR)/src/util/format
 
 # C++ generated
 
@@ -702,5 +714,7 @@ CC_OPT_compiler/glsl/glsl_lexer = -include "stdint.h"
 CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader_sw = -DPIPE_SEARCH_DIR='"/pipe"'
 
 vpath %.c   $(MESA_SRC_DIR)/src
+vpath %.c   $(MESA_GEN_DIR)/src
 vpath %.cpp $(MESA_SRC_DIR)/src
+vpath %.cpp $(MESA_GEN_DIR)/src
 vpath %.cc  $(LIB_DIR)
