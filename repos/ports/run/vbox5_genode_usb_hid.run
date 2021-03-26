@@ -82,7 +82,7 @@ append config {
 				<ram/>
 				<import>
 					<inline name="usb_drv.config">
-<config uhci="yes" ehci="yes" xhci="yes">
+<config uhci="yes" ohci="yes" ehci="yes" xhci="yes" bios_handoff="no">
 	<raw>
 		<report devices="yes"/>
 	</raw>
