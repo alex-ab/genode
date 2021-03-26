@@ -2,6 +2,9 @@ LICENSE   := GPLv2
 VERSION   := 21.0.0
 DOWNLOADS := mesa.archive
 
+#
+# Mesa sources
+#
 URL_BASE      := https://archive.mesa3d.org
 URL(mesa)     := $(URL_BASE)/mesa-$(VERSION).tar.xz
 SHA(mesa)     := e6204e98e6a8d77cf9dc5d34f99dd8e3ef7144f3601c808ca0dd26ba522e0d84
@@ -10,9 +13,19 @@ DIR(mesa)     := src/lib/mesa
 TAR_OPT(mesa) := --strip-components=1 --files-from $(REP_DIR)/src/lib/mesa-21/files.list
 HASH_INPUT    += $(REP_DIR)/src/lib/mesa-21/files.list
 
-PATCHES := src/lib/mesa-21/patches/mesa.patch
-PATCH_OPT := -p1
+PATCHES       := src/lib/mesa-21/patches/mesa.patch
+PATCH_OPT     := -p1
 
+#
+# Generated Mesa sources
+#
+URL(generated) = https://github.com/ssumpf/mesa_generated.git
+REV(generated) = ba569dd5118e44a6b830059407906e34c2caa0fe
+DIR(generated) = generated
+
+#
+# Include directories for API
+#
 SRC = ${DIR(mesa)}
 
 DIRS := include
@@ -260,7 +273,6 @@ $(call check_tool,flex)
 #
 PYTHON := $(notdir $(lastword $(shell which python3 $(addprefix python3.,5 6 7 8))))
 
-
 ifeq ($(PYTHON),)
 default: python_not_installed
 python_not_installed:
@@ -273,7 +285,7 @@ endif
 generated: python_installed  $(generated_files)
 
 else
-generated:
+generated: generated.git
 endif # GENERATE_FILES
 
 # vi: set ft=make :
