@@ -140,6 +140,9 @@ CC_WARN   ?= -Wall
 #
 CC_WARN += -Wno-error=implicit-fallthrough
 
+# XXX fix the errors and remove this option
+CC_WARN += -Wno-error=address-of-packed-member
+
 #
 # Additional warnings for C++
 #
