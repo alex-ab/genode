@@ -146,7 +146,7 @@ void *memset(void *s, int c, size_t n) {
 
 void qemu_printf(char const *fmt, ...)
 {
-	enum { BUF_SIZE = 128 };
+	enum { BUF_SIZE = 196 };
 	char buf[BUF_SIZE] { };
 	va_list args;
 	va_start(args, fmt);
