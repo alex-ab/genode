@@ -9,7 +9,7 @@ INC_DIR += $(LIB_DIR)/include \
            $(MESA_SRC_DIR)/src \
            $(MESA_GEN_DIR)/src
 
-CC_OPT += -D__GENODE__
+CC_OPT += -D__GENODE__ -DGALLIUM_SOFTPIPE
 
 CC_OPT += -DENABLE_SHADER_CACHE  \
           -DENABLE_ST_OMX_BELLAGIO=0  \
@@ -48,6 +48,7 @@ CC_OPT += -DENABLE_SHADER_CACHE  \
           -DHAVE_FUNC_ATTRIBUTE_WEAK  \
           -DHAVE_GETRANDOM  \
           -DHAVE_MKOSTEMP  \
+          -DHAVE_PIPE_LOADER_DRI \
           -DHAVE_POSIX_MEMALIGN  \
           -DHAVE_PTHREAD  \
           -DHAVE_PTHREAD_NP_H \

@@ -1,1 +1,1 @@
-LIBS = softpipe
+LIBS = egl_swrast-21

@@ -808,7 +808,9 @@ mesa-21.0.0/src/gallium/winsys/sw/dri/dri_sw_winsys.c
 mesa-21.0.0/src/gallium/winsys/sw/dri/dri_sw_winsys.h
 mesa-21.0.0/src/gallium/winsys/sw/kms-dri/kms_dri_sw_winsys.h
 mesa-21.0.0/src/gallium/winsys/sw/null/null_sw_winsys.h
+mesa-21.0.0/src/gallium/winsys/sw/null/null_sw_winsys.c
 mesa-21.0.0/src/gallium/winsys/sw/wrapper/wrapper_sw_winsys.h
+mesa-21.0.0/src/gallium/winsys/sw/wrapper/wrapper_sw_winsys.c
 mesa-21.0.0/src/loader/loader.c
 mesa-21.0.0/src/loader/loader.h
 mesa-21.0.0/src/loader/pci_id_driver_map.c

@@ -20,6 +20,7 @@ INC_DIR += $(MESA_GEN_DIR)/src/compiler \
            $(MESA_SRC_DIR)/src/compiler/nir \
            $(MESA_SRC_DIR)/src/compiler/spirv \
            $(MESA_SRC_DIR)/src/gallium/auxiliary \
+           $(MESA_SRC_DIR)/src/gallium/drivers \
            $(MESA_SRC_DIR)/src/gallium/frontends/dri \
            $(MESA_SRC_DIR)/src/gallium/winsys \
            $(MESA_SRC_DIR)/src/mapi \
@@ -180,16 +181,6 @@ SRC_C += \
          mesa/program/program_parse.tab.c \
          util/format_srgb.c \
          util/format/u_format_table.c
-
-#SRC_C +=
-#         mapi/glapi/gen/marshal_generated0.c \
-#         mapi/glapi/gen/marshal_generated1.c \
-#         mapi/glapi/gen/marshal_generated2.c \
-#         mapi/glapi/gen/marshal_generated3.c \
-#         mapi/glapi/gen/marshal_generated4.c \
-#         mapi/glapi/gen/marshal_generated5.c \
-#         mapi/glapi/gen/marshal_generated6.c \
-#         mapi/glapi/gen/marshal_generated7.c \
 
 # C
 SRC_C += compiler/glsl/glcpp/pp.c \
@@ -439,8 +430,11 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          gallium/frontends/dri/dri_helpers.c \
          gallium/frontends/dri/dri_query_renderer.c \
          gallium/frontends/dri/dri_screen.c \
+         gallium/frontends/dri/drisw.c \
          gallium/targets/dri/target.c \
          gallium/winsys/sw/dri/dri_sw_winsys.c \
+         gallium/winsys/sw/null/null_sw_winsys.c \
+         gallium/winsys/sw/wrapper/wrapper_sw_winsys.c \
          loader/loader.c \
          loader/pci_id_driver_map.c \
          mesa/drivers/dri/common/dri_util.c \
@@ -711,7 +705,8 @@ CC_OPT += -DMAPI_ABI_HEADER=\"glapi/gen/glapi_mapi_tmp.h\" \
 
 CC_OPT_loader/loader = -DDEFAULT_DRIVER_DIR='"/drivers"'
 CC_OPT_compiler/glsl/glsl_lexer = -include "stdint.h"
-CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader_sw = -DPIPE_SEARCH_DIR='"/pipe"'
+CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader_sw = -DPIPE_SEARCH_DIR='"/pipe"' -DGALLIUM_STATIC_TARGETS=1
+CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader    = -DGALLIUM_STATIC_TARGETS=1
 
 vpath %.c   $(MESA_SRC_DIR)/src
 vpath %.c   $(MESA_GEN_DIR)/src

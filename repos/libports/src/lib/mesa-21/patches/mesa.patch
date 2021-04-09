@@ -63,6 +63,35 @@ index 4d2afbc..3dd6b72 100644
  
     _EGL_NUM_PLATFORMS,
     _EGL_INVALID_PLATFORM = -1
+diff --git a/src/lib/mesa/src/egl/main/egllog.c b/src/lib/mesa/src/egl/main/egllog.c
+index 6a91952..b41b481 100644
+--- a/src/lib/mesa/src/egl/main/egllog.c
++++ b/src/lib/mesa/src/egl/main/egllog.c
+@@ -57,7 +57,7 @@
+ #endif /* HAVE_ANDROID_PLATFORM */
+ 
+ #define MAXSTRING 1000
+-#define FALLBACK_LOG_LEVEL _EGL_WARNING
++#define FALLBACK_LOG_LEVEL _EGL_DEBUG
+ 
+ 
+ static struct {
+diff --git a/src/lib/mesa/src/loader/loader.c b/src/lib/mesa/src/loader/loader.c
+index d64bc7c..136a84a 100644
+--- a/src/lib/mesa/src/loader/loader.c
++++ b/src/lib/mesa/src/loader/loader.c
+@@ -561,7 +561,7 @@ loader_open_driver(const char *driver_name,
+       driver = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+ #endif
+       if (driver == NULL) {
+-         snprintf(path, sizeof(path), "%.*s/%s_dri.so", len, p, driver_name);
++         snprintf(path, sizeof(path), "%.*s/egl_%s.lib.so", len, p, driver_name);
+          driver = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+          if (driver == NULL) {
+             dl_error = dlerror();
+diff --git a/src/lib/mesa/src/mapi/glapi/gen/__pycache__/glX_XML.cpython-38.pyc b/src/lib/mesa/src/mapi/glapi/gen/__pycache__/glX_XML.cpython-38.pyc
+index 9d37806..8362159 100644
+Binary files a/src/lib/mesa/src/mapi/glapi/gen/__pycache__/glX_XML.cpython-38.pyc and b/src/lib/mesa/src/mapi/glapi/gen/__pycache__/glX_XML.cpython-38.pyc differ
 diff --git a/src/lib/mesa/src/util/u_thread.h b/src/lib/mesa/src/util/u_thread.h
 index c5f7fb6..f3166a4 100644
 --- a/src/lib/mesa/src/util/u_thread.h
