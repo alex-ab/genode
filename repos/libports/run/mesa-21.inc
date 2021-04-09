@@ -77,7 +77,7 @@ set config {
 		<resource name="RAM" quantum="1M"/>
 	</start>}
 
-set backend_library egl_swrast.lib.so
+set backend_library egl_swrast-21.lib.so
 if {$use_i965} {
 set backend_library egl_i965.lib.so
 }
@@ -154,7 +154,7 @@ set boot_modules {
 	libc.lib.so vfs.lib.so libm.lib.so
 	egl-21.lib.so mesa-21.lib.so stdcxx.lib.so
 	expat.lib.so glapi-21.lib.so zlib.lib.so
-	core init ld.lib.so timer egl_swrast.lib.so
+	core init ld.lib.so timer egl_swrast-21.lib.so
 }
 
 append_if $use_i965 boot_modules {

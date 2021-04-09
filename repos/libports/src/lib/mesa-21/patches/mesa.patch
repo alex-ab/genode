@@ -77,7 +77,7 @@ index 6a91952..b41b481 100644
  
  static struct {
 diff --git a/src/lib/mesa/src/loader/loader.c b/src/lib/mesa/src/loader/loader.c
-index d64bc7c..136a84a 100644
+index d64bc7c..9a25398 100644
 --- a/src/lib/mesa/src/loader/loader.c
 +++ b/src/lib/mesa/src/loader/loader.c
 @@ -561,7 +561,7 @@ loader_open_driver(const char *driver_name,
@@ -85,13 +85,10 @@ index d64bc7c..136a84a 100644
  #endif
        if (driver == NULL) {
 -         snprintf(path, sizeof(path), "%.*s/%s_dri.so", len, p, driver_name);
-+         snprintf(path, sizeof(path), "%.*s/egl_%s.lib.so", len, p, driver_name);
++         snprintf(path, sizeof(path), "%.*s/egl_drv.lib.so", len, p);
           driver = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
           if (driver == NULL) {
              dl_error = dlerror();
-diff --git a/src/lib/mesa/src/mapi/glapi/gen/__pycache__/glX_XML.cpython-38.pyc b/src/lib/mesa/src/mapi/glapi/gen/__pycache__/glX_XML.cpython-38.pyc
-index 9d37806..8362159 100644
-Binary files a/src/lib/mesa/src/mapi/glapi/gen/__pycache__/glX_XML.cpython-38.pyc and b/src/lib/mesa/src/mapi/glapi/gen/__pycache__/glX_XML.cpython-38.pyc differ
 diff --git a/src/lib/mesa/src/util/u_thread.h b/src/lib/mesa/src/util/u_thread.h
 index c5f7fb6..f3166a4 100644
 --- a/src/lib/mesa/src/util/u_thread.h
