@@ -1,0 +1,10 @@
+LICENSE   := MIT
+VERSION   := 2.4.105
+DOWNLOADS := libdrm.archive
+
+URL(libdrm) := https://dri.freedesktop.org/libdrm/libdrm-$(VERSION).tar.xz
+SHA(libdrm) := 1d1d024b7cadc63e2b59cddaca94f78864940ab440843841113fbac6afaf2a46
+DIR(libdrm) := src/lib/libdrm
+
+PATCHES   := $(wildcard $(REP_DIR)/src/lib/libdrm/patches/*.patch)
+PATCH_OPT := -p1
