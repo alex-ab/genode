@@ -18,6 +18,7 @@
 #include <base/connection.h>
 #include <base/env.h>
 #include <platform_session/client.h>
+#include <platform_device/client.h>
 #include <rom_session/client.h>
 #include <util/xml_node.h>
 

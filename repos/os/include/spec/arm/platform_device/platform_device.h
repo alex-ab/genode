@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2020 Genode Labs GmbH
+ * Copyright (C) 2020-2021 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
@@ -20,34 +20,47 @@
 #include <irq_session/capability.h>
 #include <util/string.h>
 
-namespace Platform { struct Device; }
+namespace Platform {
+
+	using namespace Genode;
+
+	struct Device;
+}
+
 
 struct Platform::Device : Genode::Session
 {
 	enum { DEVICE_NAME_LEN = 64 };
 
-	using Name = Genode::String<DEVICE_NAME_LEN>;
+	using Name = String<DEVICE_NAME_LEN>;
+
+	/**
+	 * Byte-offset range of memory-mapped I/O registers within dataspace
+	 */
+	struct Range { addr_t start; size_t size; };
 
 	virtual ~Device() { }
 
 	/**
 	 * Get IRQ session capability
 	 */
-	virtual	Genode::Irq_session_capability irq(unsigned id) = 0;
+	virtual Irq_session_capability irq(unsigned id) = 0;
 
 	/**
 	 * Get IO mem session capability of specified resource id
 	 */
-	virtual Genode::Io_mem_session_capability io_mem(unsigned id, Genode::Cache) = 0;
+	virtual Io_mem_session_capability io_mem(unsigned id, Range &, Cache) = 0;
+
+	struct Mmio;
 
 
 	/*********************
 	 ** RPC declaration **
 	 *********************/
 
-	GENODE_RPC(Rpc_irq, Genode::Irq_session_capability, irq, unsigned);
-	GENODE_RPC(Rpc_io_mem, Genode::Io_mem_session_capability, io_mem,
-	           unsigned, Genode::Cache);
+	GENODE_RPC(Rpc_irq, Irq_session_capability, irq, unsigned);
+	GENODE_RPC(Rpc_io_mem, Io_mem_session_capability, io_mem,
+	           unsigned, Range &, Cache);
 
 	GENODE_RPC_INTERFACE(Rpc_irq, Rpc_io_mem);
 };

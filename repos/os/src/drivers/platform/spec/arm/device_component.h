@@ -49,7 +49,7 @@ class Driver::Device_component : public Rpc_object<Platform::Device>
 		 **************************/
 
 		Irq_session_capability    irq(unsigned) override;
-		Io_mem_session_capability io_mem(unsigned, Cache) override;
+		Io_mem_session_capability io_mem(unsigned, Range &, Cache) override;
 
 	private:
 

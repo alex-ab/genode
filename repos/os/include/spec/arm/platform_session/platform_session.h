@@ -23,12 +23,7 @@
 #include <rom_session/capability.h>
 #include <session/session.h>
 
-namespace Platform {
-
-	using namespace Genode;
-
-	struct Session;
-}
+namespace Platform { struct Session; }
 
 
 struct Platform::Session : Genode::Session

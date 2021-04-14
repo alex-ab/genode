@@ -70,7 +70,8 @@ class Driver::Device : private List_model<Device>::Element
 			: name(name), value(value) {}
 		};
 
-		using Name = Genode::String<64>;
+		using Name  = Genode::String<64>;
+		using Range = Platform::Device::Range;
 
 		Device(Name name);
 		virtual ~Device();
@@ -80,10 +81,9 @@ class Driver::Device : private List_model<Device>::Element
 		virtual bool acquire(Session_component &);
 		virtual void release(Session_component &);
 
-		Irq_session_capability    irq(unsigned idx,
-		                              Session_component & session);
-		Io_mem_session_capability io_mem(unsigned idx, Cache,
-		                                 Session_component & session);
+		Irq_session_capability    irq(unsigned idx, Session_component &);
+		Io_mem_session_capability io_mem(unsigned idx, Range &, Cache,
+		                                 Session_component &);
 
 		void report(Xml_generator &, Session_component &);
 
