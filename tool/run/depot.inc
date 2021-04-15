@@ -475,6 +475,7 @@ proc drivers_interactive_pkg { } {
 	if {[have_board imx8q_evk]} { return drivers_interactive-imx8q_evk }
 	if {[have_board panda]}     { return drivers_interactive-panda }
 	if {[have_board arndale]}   { return drivers_interactive-arndale }
+	if {[have_board virt_qemu]} { return drivers_interactive-virt_qemu }
 
 	puts stderr "drivers_interactive package undefined for this build configuration"
 	exit 1
