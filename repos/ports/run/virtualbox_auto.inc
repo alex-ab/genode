@@ -158,10 +158,10 @@ append_if [expr $use_rumpfs] config {
 	</start>}
 
 append_if [expr $use_ram_fs] config {
-	<start name="ram_fs" priority="-1" caps="1800">
+	<start name="ram_fs" priority="-1" caps="4800">
 		<binary name="vfs"/>}
 append_if [expr $use_ram_fs] config "
-		<resource name=\"RAM\" quantum=\"[expr $use_vms * 8 * 256]M\"/>"
+		<resource name=\"RAM\" quantum=\"[expr $use_vms * 7 * 1024]M\"/>"
 append_if [expr $use_ram_fs] config {
 		<provides><service name="File_system"/></provides>
 		<config>

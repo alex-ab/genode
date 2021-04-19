@@ -234,7 +234,7 @@ append config_of_app {
 						<default-policy domain=""/>
 					</config>
 				</inline>
-				<sleep milliseconds="50000"/>}
+				<sleep milliseconds="5000000"/>}
 
 append_if [expr !$use_rumpfs] config_of_app {
 				<inline description="shutdown">
