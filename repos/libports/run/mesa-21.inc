@@ -75,6 +75,14 @@ set config {
 	</start>
 	<start name="pointer">
 		<resource name="RAM" quantum="1M"/>
+	</start>
+	<start name="liquid_fb" caps="200">
+		<resource name="RAM" quantum="16M"/>
+		<provides> <service name="Framebuffer"/> <service name="Input"/> </provides>
+		<config resize_handle="off" animate="off" title="gears" width="600" height="600" xpos="100" ypos="100"/>
+		<route>
+		<any-service> <parent/> <any-child/> </any-service>
+		</route>
 	</start>}
 
 set backend_library egl_swrast-21.lib.so
@@ -82,58 +90,75 @@ if {$use_i965} {
 set backend_library egl_i965.lib.so
 }
 
-set launchpad_config {
-<config>
-	<launcher name="init" ram_quota="1G" caps="2000">
-		<config verbose="yes">
-			<parent-provides>
-				<service name="ROM"/>
-				<service name="IRQ"/>
-				<service name="IO_MEM"/>
-				<service name="IO_PORT"/>
-				<service name="PD"/>
-				<service name="RM"/>
-				<service name="CPU"/>
-				<service name="LOG"/>
-				<service name="Gui"/>
-				<service name="Timer"/>
-				<service name="Gpu"/>
-			</parent-provides>
-
-			<start name="liquid_fb" caps="200">
-				<resource name="RAM" quantum="16M"/>
-				<provides> <service name="Framebuffer"/> <service name="Input"/> </provides>
-				<config resize_handle="off" animate="off" title="gears" width="600" height="600" xpos="100" ypos="100"/>
-				<route>
-				<any-service> <parent/> <any-child/> </any-service>
-				</route>
-			</start>}
-
-append launchpad_config "
+append config "
 			<start name=\"$demo_binary\" caps=\"$demo_caps\">
 				<resource name=\"RAM\" quantum=\"$demo_ram_quota\"/>"
 
-append launchpad_config $demo_config
+append config $demo_config
 
-append launchpad_config "
+append config "
 				<route>
 					<service name=\"ROM\" label=\"egl_drv.lib.so\">
 						<parent label=\"$backend_library\"/>
 					</service>"
-append launchpad_config {
+append config {
 					<any-service> <parent/> <any-child/> </any-service>
 				</route>
-			</start>
-			</config>
-	</launcher>
-</config>}
+			</start>}
 
-append config {
-	<start name="launchpad" caps="3000">
-		<resource name="RAM" quantum="512M"/>}
-append config $launchpad_config
-append config {
-	</start>}
+
+#set launchpad_config {
+#<config>
+#	<launcher name="init" ram_quota="1G" caps="2000">
+#		<config verbose="yes">
+#			<parent-provides>
+#				<service name="ROM"/>
+#				<service name="IRQ"/>
+#				<service name="IO_MEM"/>
+#				<service name="IO_PORT"/>
+#				<service name="PD"/>
+#				<service name="RM"/>
+#				<service name="CPU"/>
+#				<service name="LOG"/>
+#				<service name="Gui"/>
+#				<service name="Timer"/>
+#				<service name="Gpu"/>
+#			</parent-provides>
+#
+#			<start name="liquid_fb" caps="200">
+#				<resource name="RAM" quantum="16M"/>
+#				<provides> <service name="Framebuffer"/> <service name="Input"/> </provides>
+#				<config resize_handle="off" animate="off" title="gears" width="600" height="600" xpos="100" ypos="100"/>
+#				<route>
+#				<any-service> <parent/> <any-child/> </any-service>
+#				</route>
+#			</start>}
+#
+#append launchpad_config "
+#			<start name=\"$demo_binary\" caps=\"$demo_caps\">
+#				<resource name=\"RAM\" quantum=\"$demo_ram_quota\"/>"
+#
+#append launchpad_config $demo_config
+#
+#append launchpad_config "
+#				<route>
+#					<service name=\"ROM\" label=\"egl_drv.lib.so\">
+#						<parent label=\"$backend_library\"/>
+#					</service>"
+#append launchpad_config {
+#					<any-service> <parent/> <any-child/> </any-service>
+#				</route>
+#			</start>
+#			</config>
+#	</launcher>
+#</config>}
+
+#append config {
+#	<start name="launchpad" caps="3000">
+#		<resource name="RAM" quantum="512M"/>}
+#append config $launchpad_config
+#append config {
+#	</start>}
 
 append_if $use_i965 config {
 	<start name="intel_fb_drv" caps="200">
