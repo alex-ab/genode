@@ -28,14 +28,15 @@ class Main
 	private:
 
 		enum {
-			SCR_WIDTH  = 640u,
-			SCR_HEIGHT = 480u,
+			SCR_WIDTH  = 1024u,
+			SCR_HEIGHT = 768u,
 			SCR_STRIDE = SCR_WIDTH * 4,
 		};
 
 		/*****************************
 		 ** Qemu firmware interface **
 		 *****************************/
+
 		struct Fw : Mmio
 		{
 			template <typename T>

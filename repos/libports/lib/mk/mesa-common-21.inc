@@ -64,6 +64,8 @@ CC_OPT += -DENABLE_SHADER_CACHE  \
           -D__STDC_FORMAT_MACROS  \
           -D__STDC_LIMIT_MACROS \
           -DUSE_GCC_ATOMIC_BUILTINS  \
-          -DUSE_X86_64_ASM
+
+
+#-DUSE_X86_64_ASM
 
 # vi: set ft=make :
