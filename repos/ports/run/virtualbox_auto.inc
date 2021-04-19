@@ -244,18 +244,6 @@ append_if [expr $use_cpu_load] config {
 			<service name="Gui"><child name="nitpicker"/></service>
 			<any-service><parent/></any-service>
 		</route>
-	</start>
-
-	<start name="top" priority="-1">
-		<resource name="RAM" quantum="2M"/>
-		<config period_ms="10000"/>
-		<route>
-			<service name="TRACE"><parent/></service>
-			<service name="LOG"><parent/></service>
-			<service name="Timer"><child name="timer"/></service>
-			<service name="Report"><child name="report_rom"/></service>
-			<any-service><parent/></any-service>
-		</route>
 	</start>}
 
 append_if [expr $use_usb] config {
