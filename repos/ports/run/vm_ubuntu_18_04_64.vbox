@@ -56,7 +56,7 @@
         <DeviceFilters/>
       </USB>
       <Network>
-        <Adapter slot="0" enabled="false" MACAddress="0800271D7901" cable="true" speed="0" type="82540EM">
+        <Adapter slot="0" enabled="true" MACAddress="0800271D7901" cable="true" speed="0" type="82540EM">
           <HostInterface/>
           <DisabledModes/>
         </Adapter>
