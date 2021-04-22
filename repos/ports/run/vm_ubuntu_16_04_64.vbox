@@ -28,7 +28,7 @@
         <HardwareVirtExLargePages enabled="false"/>
         <HardwareVirtForce enabled="false"/>
       </CPU>
-      <Memory RAMSize="9216" PageFusion="false"/>
+      <Memory RAMSize="4216" PageFusion="false"/>
       <HID Pointing="USBTablet" Keyboard="PS2Keyboard"/>
       <HPET enabled="false"/>
       <Chipset type="PIIX3"/>
@@ -56,7 +56,7 @@
         <DeviceFilters/>
       </USB>
       <Network>
-        <Adapter slot="0" enabled="false" MACAddress="0800271D7901" cable="true" speed="0" type="82540EM">
+        <Adapter slot="0" enabled="true" MACAddress="0800271D7901" cable="true" speed="0" type="82540EM">
           <HostInterface/>
           <DisabledModes/>
         </Adapter>
