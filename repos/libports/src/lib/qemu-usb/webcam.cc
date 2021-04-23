@@ -20,8 +20,6 @@ extern "C" {
 	#include "webcam-backend.h"
 
 	void _type_init_usb_webcam_register_types();
-
-	void convert_rgba_to_yuv(void * src, int w, int h, unsigned pitch, void * out);
 }
 
 using namespace Genode;
@@ -56,9 +54,6 @@ struct Capture_webcam
 	void update_yuv(void *frame)
 	{
 		_capture.capture_at(Capture::Point(0, 0));
-
-		convert_rgba_to_yuv(_ds.local_addr<void>(), _area.w(), _area.h(),
-		                    _area.w() * 4 /* pitch */, frame);
 	}
 
 	void update_bgr(void *frame)
