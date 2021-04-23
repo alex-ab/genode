@@ -88,6 +88,7 @@ struct Capture_webcam
 
 	void capture_state_changed(bool on, char const * format)
 	{
+		Genode::error(__func__, " capture=", on ? "on" : "off", " ", format);
 		if (!_reporter.constructed())
 			return;
 
