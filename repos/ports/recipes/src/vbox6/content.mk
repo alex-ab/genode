@@ -31,9 +31,11 @@ src/virtualbox6_sdk:
 
 MIRROR_FROM_LIBPORTS := \
 	include/qemu \
+	lib/import/import-libyuv.mk \
 	lib/import/import-qemu-usb_include.mk \
 	lib/mk/libc-common.inc \
 	lib/mk/libc-mem.mk \
+	lib/mk/libyuv.mk
 	lib/mk/qemu-usb.mk \
 	lib/mk/qemu-usb_include.mk \
 	src/lib/libc/internal/init.h \
@@ -62,6 +64,16 @@ content: $(MIRROR_FROM_QEMU_USB_PORT_DIR)
 $(MIRROR_FROM_QEMU_USB_PORT_DIR):
 	mkdir -p $(dir $@)
 	cp -r $(QEMU_USB_PORT_DIR)/$@ $(dir $@)
+
+LIBYUV_PORT_DIR := $(call port_dir,$(GENODE_DIR)/repos/libports/ports/libyuv)
+
+MIRROR_FROM_LIBYUV_PORT_DIR := libyuv
+
+content: $(MIRROR_FROM_LIBYUV_PORT_DIR)
+
+$(MIRROR_FROM_LIBYUV_PORT_DIR):
+	mkdir -p $(dir $@)
+	cp -r $(LIBYUV_PORT_DIR)/$@ $(dir $@)
 
 MIRROR_FROM_OS := src/drivers/ps2/scan_code_set_1.h \
                   include/pointer/shape_report.h \

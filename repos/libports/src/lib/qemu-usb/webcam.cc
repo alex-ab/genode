@@ -16,10 +16,13 @@
 #include <os/reporter.h>
 #include <util/xml_node.h>
 
+#include <libyuv/convert_from_argb.h>
+
 extern "C" {
 	#include "webcam-backend.h"
 
 	void _type_init_usb_webcam_register_types();
+
 }
 
 using namespace Genode;
@@ -54,6 +57,13 @@ struct Capture_webcam
 	void update_yuv(void *frame)
 	{
 		_capture.capture_at(Capture::Point(0, 0));
+
+		int const src_stride_argb = _area.w() * 4;
+		int const dst_stride_yuy2 = _area.w() * 2;
+
+		libyuv::ARGBToYUY2(_ds.local_addr<uint8_t>(), src_stride_argb,
+		                   reinterpret_cast<uint8_t*>(frame), dst_stride_yuy2,
+		                   _area.w(), _area.h());
 	}
 
 	void update_bgr(void *frame)
