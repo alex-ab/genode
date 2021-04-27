@@ -220,7 +220,8 @@ struct Wrapper
 	XHCIPciState  *_xhci_pci_state = nullptr;
 	USBHostDevice  _usb_host_device;
 
-	USBWebcamState     *_webcam_state;
+	USBWebcamState     *_webcam_state = nullptr;
+	unsigned long       _webcam_state_size = 0;
 
 	ObjectClass         _object_class;
 	DeviceClass         _device_class;
@@ -249,6 +250,11 @@ struct Wrapper
 		if (_xhci_pci_state != nullptr
 		    && ptr >= _xhci_pci_state
 		    && ptr < ((char*)_xhci_pci_state + sizeof(XHCIPciState)))
+			return true;
+
+		if (_webcam_state != nullptr
+		    && ptr >= _webcam_state
+		    && ptr < ((char*)_webcam_state + _webcam_state_size))
 			return true;
 
 		using addr_t = Genode::addr_t;
@@ -548,6 +554,7 @@ Type type_register_static(TypeInfo const *t)
 
 		_create_usbdevice(Object_pool::USB_WEBCAM, [&](Wrapper &obj) {
 			obj._webcam_state = (USBWebcamState *)g_malloc(t->instance_size);
+			obj._webcam_state_size = t->instance_size;
 		});
 	}
 

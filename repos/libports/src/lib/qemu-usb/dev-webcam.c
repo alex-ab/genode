@@ -454,7 +454,6 @@ static void usb_webcam_setup_packet(USBWebcamState * const state, USBPacket * co
 		packet_size = p->iov.size;
 
 	if (packet_size <= sizeof(header)) {
-		qemu_printf("%s:%u\n", __func__, __LINE__);
 		p->status = USB_RET_STALL;
 		if (state->capture)
 			usb_webcam_capture_state_changed(false);
@@ -463,7 +462,6 @@ static void usb_webcam_setup_packet(USBWebcamState * const state, USBPacket * co
 	}
 
 	if (state->bytes_frame >= max_frame_size(active_format())) {
-		qemu_printf("%s:%u\n", __func__, __LINE__);
 		p->status = USB_RET_STALL;
 		if (state->capture)
 			usb_webcam_capture_state_changed(false);
@@ -662,8 +660,16 @@ static void usb_webcam_handle_control(USBDevice * const dev,
 		vs_probe_state.dwMaxVideoFrameSize      = max_frame_size(vs_probe_state.bFormatIndex - 1);
 		vs_probe_state.dwMaxPayLoadTransferSize = max_frame_size(vs_probe_state.bFormatIndex - 1) / 2;
 
-		if (cs == VS_COMMIT_CONTROL)
+		if (cs == VS_COMMIT_CONTROL) {
+			bool const notify = vs_commit_state.bFormatIndex != vs_probe_state.bFormatIndex;
+
 			vs_commit_state = vs_probe_state;
+
+			if (notify) {
+				USBWebcamState *state = USB_WEBCAM(dev);
+				usb_webcam_capture_state_changed(state->capture);
+			}
+		}
 
 		stall = false;
 		break;
@@ -689,7 +695,6 @@ static void usb_webcam_handle_data(USBDevice *dev, USBPacket *p)
 	switch (p->pid) {
 	case USB_TOKEN_IN:
 		if (!p->ep || p->ep->nr != DEVICE_EP_ID) {
-			qemu_printf("%s:%u\n", __func__, __LINE__);
 			p->status = USB_RET_STALL;
 			if (state->capture)
 				usb_webcam_capture_state_changed(false);
@@ -698,7 +703,6 @@ static void usb_webcam_handle_data(USBDevice *dev, USBPacket *p)
 		}
 		break;
 	default:
-		qemu_printf("%s:%u\n", __func__, __LINE__);
 		p->status = USB_RET_STALL;
 		if (state->capture)
 			usb_webcam_capture_state_changed(false);
@@ -718,25 +722,25 @@ static void usb_webcam_handle_data(USBDevice *dev, USBPacket *p)
 
 static void usb_webcam_class_initfn(ObjectClass *klass, void *data)
 {
-    DeviceClass    *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+	DeviceClass    *dc = DEVICE_CLASS(klass);
+	USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->realize        = usb_webcam_realize;
-    uc->product_desc   = desc_strings[STR_PRODUCT];
-    uc->usb_desc       = &descriptor_webcam;
-    uc->handle_reset   = usb_webcam_handle_reset;
-    uc->handle_control = usb_webcam_handle_control;
-    uc->handle_data    = usb_webcam_handle_data;
+	uc->realize        = usb_webcam_realize;
+	uc->product_desc   = desc_strings[STR_PRODUCT];
+	uc->usb_desc       = &descriptor_webcam;
+	uc->handle_reset   = usb_webcam_handle_reset;
+	uc->handle_control = usb_webcam_handle_control;
+	uc->handle_data    = usb_webcam_handle_data;
 
-    dc->vmsd = &vmstate_usb_webcam;
-    device_class_set_props(dc, webcam_properties);
+	dc->vmsd = &vmstate_usb_webcam;
+	device_class_set_props(dc, webcam_properties);
 }
 
 static const TypeInfo webcam_info = {
-    .name          = TYPE_USB_WEBCAM,
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBWebcamState),
-    .class_init    = usb_webcam_class_initfn,
+	.name          = TYPE_USB_WEBCAM,
+	.parent        = TYPE_USB_DEVICE,
+	.instance_size = sizeof(USBWebcamState),
+	.class_init    = usb_webcam_class_initfn,
 };
 
 static void usb_webcam_register_types(void)
