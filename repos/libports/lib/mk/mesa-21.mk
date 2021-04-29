@@ -404,6 +404,7 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          gallium/auxiliary/translate/translate_sse.c \
          gallium/auxiliary/util/u_bitmask.c \
          gallium/auxiliary/util/u_blitter.c \
+         gallium/auxiliary/util/u_debug_describe.c \
          gallium/auxiliary/util/u_dl.c \
          gallium/auxiliary/util/u_draw.c \
          gallium/auxiliary/util/u_draw_quad.c \

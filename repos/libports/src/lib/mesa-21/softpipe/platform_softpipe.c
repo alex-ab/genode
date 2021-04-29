@@ -165,8 +165,8 @@ static EGLBoolean
 dri2_initialize_genode_swrast(_EGLDisplay *disp)
 {
 	struct dri2_egl_display *dri2_dpy;
-	static int      rgb888_shifts[4] = { 16, 8, 0, -1 };
-	static unsigned rgb888_sizes[4]  = {  8, 8, 8, 0 };
+	static int      rgb888_shifts[4] = { 16, 8, 0, 24 };
+	static unsigned rgb888_sizes[4]  = {  8, 8, 8, 8 };
 	int i;
 
 	dri2_dpy = calloc(1, sizeof *dri2_dpy);

@@ -639,6 +639,7 @@ mesa-21.0.0/src/gallium/auxiliary/util/u_blitter.h
 mesa-21.0.0/src/gallium/auxiliary/util/u_box.h
 mesa-21.0.0/src/gallium/auxiliary/util/u_cache.h
 mesa-21.0.0/src/gallium/auxiliary/util/u_compute.h
+mesa-21.0.0/src/gallium/auxiliary/util/u_debug_describe.c
 mesa-21.0.0/src/gallium/auxiliary/util/u_debug_describe.h
 mesa-21.0.0/src/gallium/auxiliary/util/u_debug_flush.h
 mesa-21.0.0/src/gallium/auxiliary/util/u_debug_image.h
