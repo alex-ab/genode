@@ -1,4 +1,5 @@
 mesa-21.0.0/bin/git_sha1_gen.py
+mesa-21.0.0/docs/license.rst
 mesa-21.0.0/include/c11_compat.h
 mesa-21.0.0/include/c11/threads.h
 mesa-21.0.0/include/c11/threads_posix.h

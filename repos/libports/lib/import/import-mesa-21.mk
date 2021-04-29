@@ -1,1 +1,1 @@
-INC_DIR += $(call select_from_ports,mesa-21)/include
+include $(call select_from_repositories,lib/import/import-mesa-21_api.mk)

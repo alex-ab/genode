@@ -1,5 +1,5 @@
 SHARED_LIB = yes
-LIBS       = libc stdcxx zlib expat glapi-21 softpipe mesa_api
+LIBS       = libc stdcxx zlib expat glapi-21 softpipe mesa-21_api
 
 include $(REP_DIR)/lib/mk/mesa-common-21.inc
 
@@ -708,6 +708,8 @@ CC_OPT_loader/loader = -DDEFAULT_DRIVER_DIR='"/drivers"'
 CC_OPT_compiler/glsl/glsl_lexer = -include "stdint.h"
 CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader_sw = -DPIPE_SEARCH_DIR='"/pipe"' -DGALLIUM_STATIC_TARGETS=1
 CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader    = -DGALLIUM_STATIC_TARGETS=1
+
+CC_CXX_WARN_STRICT =
 
 vpath %.c   $(MESA_SRC_DIR)/src
 vpath %.c   $(MESA_GEN_DIR)/src
