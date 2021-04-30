@@ -22,7 +22,9 @@ set build_components {
 }
 
 lappend_if $use_i965 build_components lib/mesa/i965
-lappend build_components $demo_component 
+lappend_if $use_etnaviv build_components lib/mesa-21/etnaviv
+lappend build_components $demo_component
+
 build $build_components
 
 set config {
@@ -88,6 +90,9 @@ set config {
 set backend_library egl_swrast-21.lib.so
 if {$use_i965} {
 set backend_library egl_i965.lib.so
+}
+if {$use_etnaviv} {
+set backend_library egl_etnaviv-21.lib.so
 }
 
 append config "
@@ -185,6 +190,10 @@ set boot_modules {
 append_if $use_i965 boot_modules {
 	egl_i965.lib.so drm.lib.so
 	intel_gpu_drv
+}
+
+append_if $use_etnaviv boot_modules {
+	egl_etnaviv-21.lib.so drm.lib.so
 }
 
 append boot_modules $demo_modules
