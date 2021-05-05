@@ -16,8 +16,7 @@ proc core_link_address { } { return "0x100000" }
 
 proc core_ld_opts { } {
 	set ret { -Wl,-T }
-	lappend ret "-Wl,[genode_dir]/repos/base/src/ld/genode.ld"
-	lappend ret "-Wl,[genode_dir]/repos/base-nova/src/core/core-bss.ld"
+	lappend ret "-Wl,[genode_dir]/repos/base-nova/src/core/core.ld"
 	return $ret
 }
 
