@@ -1,13 +1,15 @@
 set demo_component test/mesa_demo/triangle_gl
 set demo_binary    triangle_gl
-set demo_ram_quota 32M
+set demo_ram_quota 34M
 set demo_caps      200
 
 set demo_config {
 <config ld_verbose="true">
-	<libc stdout="/dev/log" stderr="/dev/log"/>
+	<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc"/>
 	<vfs>
-		<dir name="dev"> <log/> </dir>
+		<dir name="dev">
+			<log/> <inline name="rtc">2020-01-01 00:00</inline>
+		</dir>
 	</vfs>
 </config>}
 
