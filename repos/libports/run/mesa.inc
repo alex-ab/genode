@@ -9,6 +9,17 @@ if {[have_include power_on/qemu] && $use_i965} {
 	exit 1
 }
 
+if {$use_i965} {
+	set backend_library egl_i965.lib.so
+} else {
+	set backend_library egl_swrast.lib.so
+}
+
+set driver_config "drivers.config"
+if {[have_board pc]} {
+	set driver_config "drivers_platform.config"
+}
+
 create_boot_directory
 import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/pkg/[drivers_interactive_pkg] \
@@ -27,7 +38,7 @@ lappend build_components $demo_component
 build $build_components
 
 set config {
-<config prio_levels="2">
+<config prio_levels="4">
 	<parent-provides>
 		<service name="CPU"/>
 		<service name="IRQ"/>
@@ -46,13 +57,17 @@ set config {
 	<start name="timer">
 		<resource name="RAM" quantum="1M"/>
 		<provides><service name="Timer"/></provides>
-	</start>
+	</start>}
 
-	<start name="drivers" caps="1500" managing_system="yes">
+append config {
+	<start name="drivers" caps="1500" managing_system="yes" priority="-1">
 		<resource name="RAM" quantum="64M"/>
+		<provides>
+			<service name="Platform"/>
+		</provides>
 		<binary name="init"/>
 		<route>
-			<service name="ROM" label="config"> <parent label="drivers.config"/> </service>
+			<service name="ROM" label="config"> <parent label="} $driver_config {"/> </service>
 			<service name="Timer">   <child name="timer"/> </service>
 			<service name="Capture"> <child name="nitpicker"/> </service>
 			<service name="Event">   <child name="nitpicker"/> </service>
@@ -60,7 +75,7 @@ set config {
 		</route>
 	</start>
 
-	<start name="nitpicker" caps="200">
+	<start name="nitpicker" caps="200" priority="-1">
 		<resource name="RAM" quantum="2M"/>
 		<provides>
 			<service name="Gui"/> <service name="Capture"/> <service name="Event"/>
@@ -74,18 +89,25 @@ set config {
 		</config>
 		<route><any-service><parent/><any-child/></any-service></route>
 	</start>
-	<start name="pointer">
+	<start name="pointer" priority="-1">
 		<resource name="RAM" quantum="1M"/>
 	</start>}
 
-set backend_library egl_swrast.lib.so
-if {$use_i965} {
-set backend_library egl_i965.lib.so
-}
+append_if $use_i965 config {
+	<start name="intel_fb_drv" caps="2000" priority="-1">
+		<binary name="intel_gpu_drv"/>
+		<resource name="RAM" quantum="40M"/>
+		<provides> <service name="Gpu"/> </provides>
+		<route>
+			<any-service> <parent /> <any-child/> </any-service>
+		</route>
+	</start>}
 
-set launchpad_config {
+set launchpad_config ""
+append launchpad_config {
 <config>
-	<launcher name="init" ram_quota="1G" caps="2000">
+	<launcher name="init.} $demo_binary {" ram_quota="1G" caps="2000">
+		<binary name="init"/>
 		<config verbose="yes">
 			<parent-provides>
 				<service name="ROM"/>
@@ -110,18 +132,17 @@ set launchpad_config {
 				</route>
 			</start>}
 
-append launchpad_config "
-			<start name=\"$demo_binary\" caps=\"$demo_caps\">
-				<resource name=\"RAM\" quantum=\"$demo_ram_quota\"/>"
+append launchpad_config {
+			<start name="} $demo_binary {" caps="} $demo_caps {">
+				<resource name="RAM" quantum="} $demo_ram_quota {"/>}
 
 append launchpad_config $demo_config
 
-append launchpad_config "
-				<route>
-					<service name=\"ROM\" label=\"egl_drv.lib.so\">
-						<parent label=\"$backend_library\"/>
-					</service>"
 append launchpad_config {
+				<route>
+					<service name="ROM" label="egl_drv.lib.so">
+						<parent label="} $backend_library {"/>
+					</service>
 					<any-service> <parent/> <any-child/> </any-service>
 				</route>
 			</start>
@@ -130,21 +151,18 @@ append launchpad_config {
 </config>}
 
 append config {
-	<start name="launchpad" caps="512">
-		<resource name="RAM" quantum="512M"/>}
+	<start name="launchpad" caps="60000" priority="-2">
+		<resource name="RAM" quantum="32G"/>}
 append config $launchpad_config
 append config {
-	</start>}
-
-append_if $use_i965 config {
-	<start name="intel_fb_drv" caps="200">
-		<binary name="intel_gpu_drv"/>
-		<resource name="RAM" quantum="40M"/>
-		<provides> <service name="Gpu"/> </provides>
 		<route>
+			<service name="ROM" label="init.} $demo_binary {">
+				<parent label="init"/>
+			</service>
 			<any-service> <parent /> <any-child/> </any-service>
 		</route>
 	</start>}
+
 
 append config {
 </config>}
@@ -167,6 +185,8 @@ append_if $use_i965 boot_modules {
 append boot_modules $demo_modules
 build_boot_image $boot_modules
 
-append qemu_args " -m 768"
+append qemu_args " -m 2048"
+# limit resolution
+append qemu_args " -device VGA,vgamem_mb=4 "
 
 run_genode_until forever
