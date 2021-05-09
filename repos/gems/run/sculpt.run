@@ -52,7 +52,7 @@ install_config {
 
 	<start name="timer" priority="0">
 		<resource name="RAM" quantum="1M"/>
-		<resource name="CPU" quantum="10"/>
+<!--		<resource name="CPU" quantum="10"/> -->
 		<provides><service name="Timer"/></provides>
 	</start>
 
@@ -243,7 +243,7 @@ install_config {
 
 	<start name="drivers" caps="4600" priority="-1" managing_system="yes">
 		<resource name="RAM" quantum="200M"/>
-		<resource name="CPU" quantum="40"/>
+<!--		<resource name="CPU" quantum="40"/> -->
 		<binary name="init"/>
 		<route>
 			<service name="LOG"> <child name="log"/> </service>
@@ -450,7 +450,7 @@ install_config {
 	<start name="runtime" caps="50000" priority="-1">
 		<binary name="init"/>
 		<resource name="RAM" quantum="32G"/>
-		<resource name="CPU" quantum="40"/>
+		<resource name="CPU" quantum="100"/>
 		<route>
 			<service name="ROM" label="config">
 				<child name="config_fs_rom" label="managed/runtime"/> </service>
@@ -695,8 +695,8 @@ exec sh -c "tar cf [run_dir]/genode/depot_users.tar -C [genode_dir] \
 # Create boot image
 #
 
-build { core lib/ld kernel server/nic_router }
+build { core lib/ld kernel server/nic_router app/sculpt_manager }
 
-append boot_modules { core ld.lib.so hypervisor nic_router }
+append boot_modules { core ld.lib.so hypervisor nic_router sculpt_manager}
 
 build_boot_image $boot_modules
