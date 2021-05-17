@@ -52,7 +52,18 @@ struct Gui_buffer
 	Genode::Dataspace_capability _ds_cap(Gui::Connection &gui)
 	{
 		/* setup virtual framebuffer mode */
-		gui.buffer(mode, true);
+		try {
+			gui.buffer(mode, true);
+		} catch (Genode::Out_of_ram) {
+			Genode::error("----- 55 catch/rethrow Out_of_ram");
+			throw;
+		} catch (Genode::Out_of_caps) {
+			Genode::error("----- 55 catch/rethrow Out_of_caps");
+			throw;
+		} catch (...) {
+			Genode::error("----- 55 catch unknown");
+			throw;
+		}
 
 		return gui.framebuffer()->dataspace();
 	}
