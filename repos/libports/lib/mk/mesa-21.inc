@@ -1,5 +1,5 @@
-SHARED_LIB = yes
-LIBS       = libc stdcxx zlib expat glapi-21 softpipe mesa-21_api
+SHARED_LIB := yes
+LIBS       += libc stdcxx zlib expat glapi-21 softpipe mesa-21_api
 
 include $(REP_DIR)/lib/mk/mesa-common-21.inc
 
