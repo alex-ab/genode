@@ -90,6 +90,15 @@ generated_files = $(GEN_TARGET)/src/compiler/glsl/float64_glsl.h \
                   $(GEN_TARGET)/src/util/format_srgb.c \
                   $(GEN_TARGET)/src/util/format/u_format_pack.h \
                   $(GEN_TARGET)/src/util/format/u_format_table.c \
+                  $(GEN_TARGET)/src/intel/genxml/gen8_pack.h \
+                  $(GEN_TARGET)/src/intel/genxml/gen9_pack.h \
+                  $(GEN_TARGET)/src/intel/genxml/gen11_pack.h \
+                  $(GEN_TARGET)/src/intel/genxml/gen12_pack.h \
+                  $(GEN_TARGET)/src/intel/genxml/gen125_pack.h \
+                  $(GEN_TARGET)/src/intel/genxml/genX_bits.h \
+                  $(GEN_TARGET)/src/intel/genxml/genX_xml.h \
+                  $(GEN_TARGET)/src/intel/isl/isl_format_layout.c \
+                  $(GEN_TARGET)/src/intel/perf/gen_perf_metrics.h
 
 #
 # Print message and create directory
@@ -252,6 +261,72 @@ $(GEN_TARGET)/src/mesa/program/program_parse.tab.c:
 	$(MSG_DIR)
 	$(VERBOSE)bison  -Wno-deprecated -o $@ \
 		--defines=$(@D)/program_parse.tab.h $(SRC)/src/mesa/program/program_parse.y
+
+$(GEN_TARGET)/src/intel/genxml/gen8_pack.h:
+	$(MSG_DIR)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/intel/genxml/gen_pack_header.py $(SRC)/src/intel/genxml/gen8.xml >$@
+
+$(GEN_TARGET)/src/intel/genxml/gen9_pack.h:
+	$(MSG_DIR)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/intel/genxml/gen_pack_header.py $(SRC)/src/intel/genxml/gen9.xml >$@
+
+$(GEN_TARGET)/src/intel/genxml/gen11_pack.h:
+	$(MSG_DIR)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/intel/genxml/gen_pack_header.py $(SRC)/src/intel/genxml/gen11.xml >$@
+
+$(GEN_TARGET)/src/intel/genxml/gen12_pack.h:
+	$(MSG_DIR)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/intel/genxml/gen_pack_header.py $(SRC)/src/intel/genxml/gen12.xml >$@
+
+$(GEN_TARGET)/src/intel/genxml/gen125_pack.h:
+	$(MSG_DIR)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/intel/genxml/gen_pack_header.py $(SRC)/src/intel/genxml/gen125.xml >$@
+
+$(GEN_TARGET)/src/intel/genxml/genX_bits.h:
+	$(MSG_DIR)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/intel/genxml/gen_bits_header.py \
+	                    $(SRC)/src/intel/genxml/gen8.xml \
+	                    $(SRC)/src/intel/genxml/gen9.xml \
+	                    $(SRC)/src/intel/genxml/gen11.xml \
+	                    $(SRC)/src/intel/genxml/gen12.xml \
+	                    $(SRC)/src/intel/genxml/gen125.xml \
+	                    -o $@
+
+$(GEN_TARGET)/src/intel/genxml/genX_xml.h:
+	$(MSG_DIR)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/intel/genxml/gen_zipped_file.py \
+	                    $(SRC)/src/intel/genxml/gen8.xml \
+	                    $(SRC)/src/intel/genxml/gen9.xml \
+	                    $(SRC)/src/intel/genxml/gen11.xml \
+	                    $(SRC)/src/intel/genxml/gen12.xml \
+	                    $(SRC)/src/intel/genxml/gen125.xml \
+	                    > $@
+
+$(GEN_TARGET)/src/intel/isl/isl_format_layout.c:
+	$(MSG_DIR)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/intel/isl/gen_format_layout.py \
+	                    --csv $(call _src,$(@D))/isl_format_layout.csv --out $@
+
+$(GEN_TARGET)/src/intel/perf/gen_perf_metrics.h:
+	$(MSG_DIR)
+	$(VERBOSE)$(PYTHON) $(SRC)/src/intel/perf/gen_perf.py \
+	                    --code generated/src/intel/perf/gen_perf_metrics.c \
+	                    --header generated/src/intel/perf/gen_perf_metrics.h \
+	                    $(SRC)/src/intel/perf/oa-bdw.xml \
+	                    $(SRC)/src/intel/perf/oa-bxt.xml \
+	                    $(SRC)/src/intel/perf/oa-cflgt2.xml \
+	                    $(SRC)/src/intel/perf/oa-cflgt3.xml \
+	                    $(SRC)/src/intel/perf/oa-chv.xml \
+	                    $(SRC)/src/intel/perf/oa-glk.xml \
+	                    $(SRC)/src/intel/perf/oa-hsw.xml \
+	                    $(SRC)/src/intel/perf/oa-icl.xml \
+	                    $(SRC)/src/intel/perf/oa-kblgt2.xml \
+	                    $(SRC)/src/intel/perf/oa-kblgt3.xml \
+	                    $(SRC)/src/intel/perf/oa-lkf.xml \
+	                    $(SRC)/src/intel/perf/oa-sklgt2.xml \
+	                    $(SRC)/src/intel/perf/oa-sklgt3.xml \
+	                    $(SRC)/src/intel/perf/oa-sklgt4.xml \
+	                    $(SRC)/src/intel/perf/oa-tgl.xml
 
 CMD(glcpp-lex.c)    = glcpp-lex.l
 CMD(glsl_lexer.cpp) = glsl_lexer.ll
