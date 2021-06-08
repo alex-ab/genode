@@ -23,6 +23,7 @@ INC_DIR += $(MESA_GEN_DIR)/src/compiler \
            $(MESA_SRC_DIR)/src/gallium/drivers \
            $(MESA_SRC_DIR)/src/gallium/frontends/dri \
            $(MESA_SRC_DIR)/src/gallium/winsys \
+           $(MESA_SRC_DIR)/src/loader \
            $(MESA_SRC_DIR)/src/mapi \
            $(MESA_SRC_DIR)/src/mesa \
            $(MESA_SRC_DIR)/src/mesa/drivers/dri/common \
@@ -367,6 +368,7 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          gallium/auxiliary/nir/nir_to_tgsi.c \
          gallium/auxiliary/os/os_process.c \
          gallium/auxiliary/pipe-loader/pipe_loader.c \
+         gallium/auxiliary/pipe-loader/pipe_loader_drm.c \
          gallium/auxiliary/pipe-loader/pipe_loader_sw.c \
          gallium/auxiliary/postprocess/pp_celshade.c \
          gallium/auxiliary/postprocess/pp_colors.c \
@@ -424,6 +426,7 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          gallium/auxiliary/util/u_texture.c \
          gallium/auxiliary/util/u_tile.c \
          gallium/auxiliary/util/u_transfer.c \
+         gallium/auxiliary/util/u_transfer_helper.c \
          gallium/auxiliary/util/u_upload_mgr.c \
          gallium/auxiliary/util/u_vbuf.c \
          gallium/frontends/dri/dri_context.c \
@@ -432,6 +435,7 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          gallium/frontends/dri/dri_query_renderer.c \
          gallium/frontends/dri/dri_screen.c \
          gallium/frontends/dri/drisw.c \
+         gallium/frontends/dri/dri2.c \
          gallium/targets/dri/target.c \
          gallium/winsys/sw/dri/dri_sw_winsys.c \
          gallium/winsys/sw/null/null_sw_winsys.c \
@@ -703,11 +707,13 @@ SRC_C += compiler/glsl/glcpp/pp.c \
 CC_OPT += -DMAPI_ABI_HEADER=\"glapi/gen/glapi_mapi_tmp.h\" \
           -DMAPI_MODE_BRIDGE
 
+CC_OPT_gallium/targets/dri/target += -DGALLIUM_IRIS=1
 
 CC_OPT_loader/loader = -DDEFAULT_DRIVER_DIR='"/drivers"'
 CC_OPT_compiler/glsl/glsl_lexer = -include "stdint.h"
-CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader_sw = -DPIPE_SEARCH_DIR='"/pipe"' -DGALLIUM_STATIC_TARGETS=1
-CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader    = -DGALLIUM_STATIC_TARGETS=1
+CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader_sw  = -DPIPE_SEARCH_DIR='"/pipe"' -DGALLIUM_STATIC_TARGETS=1
+CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader     = -DGALLIUM_STATIC_TARGETS=1
+CC_OPT_gallium/auxiliary/pipe-loader/pipe_loader_drm = -DGALLIUM_STATIC_TARGETS=1 -DDRM_DIR_NAME='"/dev/dri"'
 
 CC_CXX_WARN_STRICT =
 
