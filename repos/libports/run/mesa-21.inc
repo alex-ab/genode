@@ -1,11 +1,11 @@
 
-if {[have_spec linux] && $use_i965} {
-	puts "i965 driver not supported on Linux."
+if {[have_spec linux] && $use_iris} {
+	puts "iris driver not supported on Linux."
 	exit 1
 }
 
-if {[have_include power_on/qemu] && $use_i965} {
-	puts "i965 driver not supported in Qemu."
+if {[have_include power_on/qemu] && $use_iris} {
+	puts "iris driver not supported in Qemu."
 	exit 1
 }
 
@@ -21,7 +21,7 @@ set build_components {
 	core init timer
 }
 
-lappend_if $use_i965 build_components lib/mesa/i965
+lappend_if $use_iris    build_components lib/mesa-21/iris
 lappend_if $use_etnaviv build_components lib/mesa-21/etnaviv
 lappend build_components $demo_component
 
@@ -88,12 +88,8 @@ set config {
 	</start>}
 
 set backend_library egl_swrast-21.lib.so
-if {$use_i965} {
-set backend_library egl_i965.lib.so
-}
-if {$use_etnaviv} {
-set backend_library egl_etnaviv-21.lib.so
-}
+if {$use_iris}    { set backend_library egl_iris-21.lib.so }
+if {$use_etnaviv} { set backend_library egl_etnaviv-21.lib.so }
 
 append config "
 			<start name=\"$demo_binary\" caps=\"$demo_caps\">
@@ -165,7 +161,7 @@ append config {
 #append config {
 #	</start>}
 
-append_if $use_i965 config {
+append_if $use_iris config {
 	<start name="intel_fb_drv" caps="200">
 		<binary name="intel_gpu_drv"/>
 		<resource name="RAM" quantum="40M"/>
@@ -187,8 +183,8 @@ set boot_modules {
 	core init ld.lib.so timer egl_swrast-21.lib.so
 }
 
-append_if $use_i965 boot_modules {
-	egl_i965.lib.so drm.lib.so
+append_if $use_iris boot_modules {
+	egl_iris-21.lib.so libdrm-iris.lib.so
 	intel_gpu_drv
 }
 
