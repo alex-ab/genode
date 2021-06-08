@@ -549,6 +549,7 @@ mesa-21.0.0/src/gallium/auxiliary/pipebuffer/pb_validate.h
 mesa-21.0.0/src/gallium/auxiliary/pipe-loader/driinfo_gallium.h
 mesa-21.0.0/src/gallium/auxiliary/pipe-loader/pipe_loader.c
 mesa-21.0.0/src/gallium/auxiliary/pipe-loader/pipe_loader.h
+mesa-21.0.0/src/gallium/auxiliary/pipe-loader/pipe_loader_drm.c
 mesa-21.0.0/src/gallium/auxiliary/pipe-loader/pipe_loader_priv.h
 mesa-21.0.0/src/gallium/auxiliary/pipe-loader/pipe_loader_sw.c
 mesa-21.0.0/src/gallium/auxiliary/postprocess/filters.h
@@ -721,6 +722,7 @@ mesa-21.0.0/src/gallium/auxiliary/util/u_trace.h
 mesa-21.0.0/src/gallium/auxiliary/util/u_trace_priv.h
 mesa-21.0.0/src/gallium/auxiliary/util/u_transfer.c
 mesa-21.0.0/src/gallium/auxiliary/util/u_transfer.h
+mesa-21.0.0/src/gallium/auxiliary/util/u_transfer_helper.c
 mesa-21.0.0/src/gallium/auxiliary/util/u_transfer_helper.h
 mesa-21.0.0/src/gallium/auxiliary/util/u_upload_mgr.c
 mesa-21.0.0/src/gallium/auxiliary/util/u_upload_mgr.h
@@ -875,6 +877,7 @@ mesa-21.0.0/src/gallium/frontends/dri/dri_query_renderer.c
 mesa-21.0.0/src/gallium/frontends/dri/dri_query_renderer.h
 mesa-21.0.0/src/gallium/frontends/dri/dri_screen.c
 mesa-21.0.0/src/gallium/frontends/dri/dri_screen.h
+mesa-21.0.0/src/gallium/frontends/dri/dri2.c
 mesa-21.0.0/src/gallium/frontends/dri/drisw.c
 mesa-21.0.0/src/gallium/include/frontend/api.h
 mesa-21.0.0/src/gallium/include/frontend/drisw_api.h
@@ -1631,6 +1634,7 @@ mesa-21.0.0/src/util/ralloc.h
 mesa-21.0.0/src/util/rand_xor.c
 mesa-21.0.0/src/util/rand_xor.h
 mesa-21.0.0/src/util/rb_tree.h
+mesa-21.0.0/src/util/register_allocate.c
 mesa-21.0.0/src/util/register_allocate.h
 mesa-21.0.0/src/util/rgtc.c
 mesa-21.0.0/src/util/rgtc.h
@@ -1642,6 +1646,7 @@ mesa-21.0.0/src/util/sha1/sha1.c
 mesa-21.0.0/src/util/sha1/sha1.h
 mesa-21.0.0/src/util/simple_list.h
 mesa-21.0.0/src/util/simple_mtx.h
+mesa-21.0.0/src/util/slab.c
 mesa-21.0.0/src/util/slab.h
 mesa-21.0.0/src/util/softfloat.c
 mesa-21.0.0/src/util/softfloat.h
