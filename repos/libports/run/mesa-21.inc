@@ -52,8 +52,11 @@ set config {
 	<start name="drivers" caps="1500" managing_system="yes">
 		<resource name="RAM" quantum="64M"/>
 		<binary name="init"/>
+		<provides>
+			<service name="Platform"/>
+		</provides>
 		<route>
-			<service name="ROM" label="config"> <parent label="drivers.config"/> </service>
+			<service name="ROM" label="config"> <parent label="drivers_platform.config"/> </service>
 			<service name="Timer">   <child name="timer"/> </service>
 			<service name="Capture"> <child name="nitpicker"/> </service>
 			<service name="Event">   <child name="nitpicker"/> </service>
