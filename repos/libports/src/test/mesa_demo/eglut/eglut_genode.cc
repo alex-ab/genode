@@ -30,6 +30,7 @@
 #include <base/debug.h>
 #include <framebuffer_session/connection.h>
 #include <libc/component.h>
+#include <libc/args.h>
 
 extern "C" {
 #include "eglutint.h"
@@ -171,10 +172,28 @@ void _eglutNativeEventLoop()
 extern "C" int eglut_main(int argc, char *argv[]);
 
 
+/* initial environment for the FreeBSD libc implementation */
+extern char **environ;
+
+
+static void construct_component(Libc::Env &env)
+{
+	int argc    = 0;
+	char **argv = nullptr;
+	char **envp = nullptr;
+
+	populate_args_and_env(env, argc, argv, envp);
+
+	environ = envp;
+
+	exit(eglut_main(argc, argv));
+}
+
+
 void Libc::Component::construct(Libc::Env &env)
 {
 	genode_env = &env;
 	signal_ep.construct(env, 1024*sizeof(long), "eglut_signal_ep",
 	                    Genode::Affinity::Location());
-	Libc::with_libc([] () { eglut_main(1, nullptr); });
+	Libc::with_libc([&] () { construct_component(env); });
 }
