@@ -47,6 +47,7 @@ static inline Libc::File_descriptor *libc_fd_to_fd(int libc_fd, const char *func
 {																		\
 	File_descriptor *fd = libc_fd_to_fd(libc_fd, #func_name);			\
 	if (!fd || !fd->plugin) {											\
+		Genode::error("fd=", libc_fd, " invalid fd=", fd, " ", fd ? fd->plugin : nullptr); \
 		errno = EBADF;													\
 		result_stm result_err_val;											\
 	} else																\
