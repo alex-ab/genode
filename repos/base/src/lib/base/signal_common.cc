@@ -191,8 +191,10 @@ void Signal_receiver::_unsynchronized_dissolve(Signal_context * const context)
 
 void Signal_receiver::dissolve(Signal_context *context)
 {
-	if (context->_receiver != this)
+	if (context->_receiver != this) {
+		Genode::error("??? ", context->_receiver, "!=", this);
 		throw Context_not_associated();
+	}
 
 	{
 		/*
