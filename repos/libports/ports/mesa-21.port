@@ -13,7 +13,10 @@ DIR(mesa)     := src/lib/mesa
 TAR_OPT(mesa) := --strip-components=1 --files-from $(REP_DIR)/src/lib/mesa-21/files.list
 HASH_INPUT    += $(REP_DIR)/src/lib/mesa-21/files.list
 
-PATCHES       := src/lib/mesa-21/patches/mesa.patch
+PATCHES       := src/lib/mesa-21/patches/mesa.patch \
+                 src/lib/mesa-21/patches/iris_fd_tmp.patch \
+                 src/lib/mesa-21/patches/iris_bufmgr_tmp.patch \
+                 src/lib/mesa-21/patches/bitset_redefined.patch
 PATCH_OPT     := -p1
 
 #

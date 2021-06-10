@@ -1,0 +1,41 @@
+--- a/src/lib/mesa/src/gallium/winsys/iris/drm/iris_drm_winsys.c
++++ b/src/lib/mesa/src/gallium/winsys/iris/drm/iris_drm_winsys.c
+@@ -33,7 +33,8 @@
+ iris_drm_screen_create(int fd, const struct pipe_screen_config *config)
+ {
+    int newfd = os_dupfd_cloexec(fd);
+-   if (newfd < 0)
+-      return NULL;
++   printf("%s:%u fd=%d newfd=%d\n", __func__, __LINE__, fd, newfd);
++//   if (newfd < 0)
++//      return NULL;
+    return iris_screen_create(newfd, config);
+ }
+--- a/src/lib/mesa/src/gallium/auxiliary/pipe-loader/pipe_loader_drm.c
++++ b/src/lib/mesa/src/gallium/auxiliary/pipe-loader/pipe_loader_drm.c
+@@ -33,7 +33,7 @@
+ #include <fcntl.h>
+ #include <stdio.h>
+ #include <string.h>
+-#include <xf86drm.h>
++//#include <xf86drm.h>
+ #include <unistd.h>
+ #include <fcntl.h>
+ 
+@@ -182,10 +195,14 @@
+    bool ret;
+    int new_fd;
+ 
+-   if (fd < 0 || (new_fd = os_dupfd_cloexec(fd)) < 0)
+-     return false;
++   printf("%s:%u fd=%d\n", __func__, __LINE__, fd);
++//   if (fd < 0 || (new_fd = os_dupfd_cloexec(fd)) < 0)
++//     return false;
++   new_fd = -1;
+ 
++   printf("%s:%u newfd=%d\n", __func__, __LINE__, new_fd);
+    ret = pipe_loader_drm_probe_fd_nodup(dev, new_fd);
++   printf("%s:%u ret=%d\n", __func__, __LINE__, ret);
+    if (!ret)
+       close(new_fd);
+ 
