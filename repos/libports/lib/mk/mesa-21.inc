@@ -215,8 +215,10 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          compiler/nir/nir_lower_alpha_test.c \
          compiler/nir/nir_lower_alu.c \
          compiler/nir/nir_lower_alu_to_scalar.c \
+         compiler/nir/nir_lower_array_deref_of_vec.c \
          compiler/nir/nir_lower_atomics_to_ssbo.c \
          compiler/nir/nir_lower_bitmap.c \
+         compiler/nir/nir_lower_bit_size.c \
          compiler/nir/nir_lower_bool_to_float.c \
          compiler/nir/nir_lower_bool_to_int32.c \
          compiler/nir/nir_lower_clamp_color_outputs.c \
@@ -249,6 +251,7 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          compiler/nir/nir_lower_regs_to_ssa.c \
          compiler/nir/nir_lower_returns.c \
          compiler/nir/nir_lower_samplers.c \
+         compiler/nir/nir_lower_subgroups.c \
          compiler/nir/nir_lower_system_values.c \
          compiler/nir/nir_lower_tex.c \
          compiler/nir/nir_lower_to_source_mods.c \
@@ -261,8 +264,11 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          compiler/nir/nir_lower_vec_to_movs.c \
          compiler/nir/nir_lower_wpos_ytransform.c \
          compiler/nir/nir_metadata.c \
+         compiler/nir/nir_normalize_cubemap_coords.c \
          compiler/nir/nir_opt_access.c \
+         compiler/nir/nir_opt_barriers.c \
          compiler/nir/nir_opt_combine_stores.c \
+         compiler/nir/nir_opt_comparison_pre.c \
          compiler/nir/nir_opt_conditional_discard.c \
          compiler/nir/nir_opt_constant_folding.c \
          compiler/nir/nir_opt_copy_propagate.c \
@@ -273,13 +279,18 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          compiler/nir/nir_opt_dead_write_vars.c \
          compiler/nir/nir_opt_find_array_copies.c \
          compiler/nir/nir_opt_gcm.c \
+         compiler/nir/nir_opt_idiv_const.c \
          compiler/nir/nir_opt_if.c \
          compiler/nir/nir_opt_intrinsics.c \
+         compiler/nir/nir_opt_large_constants.c \
          compiler/nir/nir_opt_load_store_vectorize.c \
          compiler/nir/nir_opt_loop_unroll.c \
+         compiler/nir/nir_opt_move.c \
          compiler/nir/nir_opt_peephole_select.c \
+         compiler/nir/nir_opt_rematerialize_compares.c \
          compiler/nir/nir_opt_remove_phis.c \
          compiler/nir/nir_opt_shrink_vectors.c \
+         compiler/nir/nir_opt_sink.c \
          compiler/nir/nir_opt_trivial_continues.c \
          compiler/nir/nir_opt_undef.c \
          compiler/nir/nir_opt_vectorize.c \
@@ -292,6 +303,7 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          compiler/nir/nir_serialize.c \
          compiler/nir/nir_split_per_member_structs.c \
          compiler/nir/nir_split_var_copies.c \
+         compiler/nir/nir_split_vars.c \
          compiler/nir/nir_sweep.c \
          compiler/nir/nir_to_lcssa.c \
          compiler/nir/nir_validate.c \
@@ -366,6 +378,7 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          gallium/auxiliary/hud/hud_fps.c \
          gallium/auxiliary/nir/nir_draw_helpers.c \
          gallium/auxiliary/nir/nir_to_tgsi.c \
+         gallium/auxiliary/nir/tgsi_to_nir.c \
          gallium/auxiliary/os/os_process.c \
          gallium/auxiliary/pipe-loader/pipe_loader.c \
          gallium/auxiliary/pipe-loader/pipe_loader_drm.c \
@@ -407,6 +420,7 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          gallium/auxiliary/util/u_bitmask.c \
          gallium/auxiliary/util/u_blitter.c \
          gallium/auxiliary/util/u_debug_describe.c \
+         gallium/auxiliary/util/u_debug_refcnt.c \
          gallium/auxiliary/util/u_dl.c \
          gallium/auxiliary/util/u_draw.c \
          gallium/auxiliary/util/u_draw_quad.c \

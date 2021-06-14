@@ -267,8 +267,10 @@ mesa-21.0.0/src/compiler/nir/nir_loop_analyze.h
 mesa-21.0.0/src/compiler/nir/nir_lower_alpha_test.c
 mesa-21.0.0/src/compiler/nir/nir_lower_alu.c
 mesa-21.0.0/src/compiler/nir/nir_lower_alu_to_scalar.c
+mesa-21.0.0/src/compiler/nir/nir_lower_array_deref_of_vec.c
 mesa-21.0.0/src/compiler/nir/nir_lower_atomics_to_ssbo.c
 mesa-21.0.0/src/compiler/nir/nir_lower_bitmap.c
+mesa-21.0.0/src/compiler/nir/nir_lower_bit_size.c
 mesa-21.0.0/src/compiler/nir/nir_lower_bool_to_float.c
 mesa-21.0.0/src/compiler/nir/nir_lower_bool_to_int32.c
 mesa-21.0.0/src/compiler/nir/nir_lower_clamp_color_outputs.c
@@ -301,6 +303,7 @@ mesa-21.0.0/src/compiler/nir/nir_lower_point_size_mov.c
 mesa-21.0.0/src/compiler/nir/nir_lower_regs_to_ssa.c
 mesa-21.0.0/src/compiler/nir/nir_lower_returns.c
 mesa-21.0.0/src/compiler/nir/nir_lower_samplers.c
+mesa-21.0.0/src/compiler/nir/nir_lower_subgroups.c
 mesa-21.0.0/src/compiler/nir/nir_lower_system_values.c
 mesa-21.0.0/src/compiler/nir/nir_lower_tex.c
 mesa-21.0.0/src/compiler/nir/nir_lower_to_source_mods.c
@@ -313,12 +316,15 @@ mesa-21.0.0/src/compiler/nir/nir_lower_vars_to_ssa.c
 mesa-21.0.0/src/compiler/nir/nir_lower_vec_to_movs.c
 mesa-21.0.0/src/compiler/nir/nir_lower_wpos_ytransform.c
 mesa-21.0.0/src/compiler/nir/nir_metadata.c
+mesa-21.0.0/src/compiler/nir/nir_normalize_cubemap_coords.c
 mesa-21.0.0/src/compiler/nir/nir_opcodes_c.py
 mesa-21.0.0/src/compiler/nir/nir_opcodes_h.py
 mesa-21.0.0/src/compiler/nir/nir_opcodes.py
 mesa-21.0.0/src/compiler/nir/nir_opt_access.c
 mesa-21.0.0/src/compiler/nir/nir_opt_algebraic.py
+mesa-21.0.0/src/compiler/nir/nir_opt_barriers.c
 mesa-21.0.0/src/compiler/nir/nir_opt_combine_stores.c
+mesa-21.0.0/src/compiler/nir/nir_opt_comparison_pre.c
 mesa-21.0.0/src/compiler/nir/nir_opt_conditional_discard.c
 mesa-21.0.0/src/compiler/nir/nir_opt_constant_folding.c
 mesa-21.0.0/src/compiler/nir/nir_opt_copy_propagate.c
@@ -329,13 +335,18 @@ mesa-21.0.0/src/compiler/nir/nir_opt_dead_cf.c
 mesa-21.0.0/src/compiler/nir/nir_opt_dead_write_vars.c
 mesa-21.0.0/src/compiler/nir/nir_opt_find_array_copies.c
 mesa-21.0.0/src/compiler/nir/nir_opt_gcm.c
+mesa-21.0.0/src/compiler/nir/nir_opt_idiv_const.c
 mesa-21.0.0/src/compiler/nir/nir_opt_if.c
 mesa-21.0.0/src/compiler/nir/nir_opt_intrinsics.c
+mesa-21.0.0/src/compiler/nir/nir_opt_large_constants.c
 mesa-21.0.0/src/compiler/nir/nir_opt_load_store_vectorize.c
 mesa-21.0.0/src/compiler/nir/nir_opt_loop_unroll.c
+mesa-21.0.0/src/compiler/nir/nir_opt_move.c
 mesa-21.0.0/src/compiler/nir/nir_opt_peephole_select.c
+mesa-21.0.0/src/compiler/nir/nir_opt_rematerialize_compares.c
 mesa-21.0.0/src/compiler/nir/nir_opt_remove_phis.c
 mesa-21.0.0/src/compiler/nir/nir_opt_shrink_vectors.c
+mesa-21.0.0/src/compiler/nir/nir_opt_sink.c
 mesa-21.0.0/src/compiler/nir/nir_opt_trivial_continues.c
 mesa-21.0.0/src/compiler/nir/nir_opt_undef.c
 mesa-21.0.0/src/compiler/nir/nir_opt_vectorize.c
@@ -354,6 +365,7 @@ mesa-21.0.0/src/compiler/nir/nir_serialize.c
 mesa-21.0.0/src/compiler/nir/nir_serialize.h
 mesa-21.0.0/src/compiler/nir/nir_split_per_member_structs.c
 mesa-21.0.0/src/compiler/nir/nir_split_var_copies.c
+mesa-21.0.0/src/compiler/nir/nir_split_vars.c
 mesa-21.0.0/src/compiler/nir/nir_sweep.c
 mesa-21.0.0/src/compiler/nir/nir_to_lcssa.c
 mesa-21.0.0/src/compiler/nir/nir_validate.c
@@ -535,6 +547,7 @@ mesa-21.0.0/src/gallium/auxiliary/nir/nir_draw_helpers.h
 mesa-21.0.0/src/gallium/auxiliary/nir/nir_to_tgsi.c
 mesa-21.0.0/src/gallium/auxiliary/nir/nir_to_tgsi.h
 mesa-21.0.0/src/gallium/auxiliary/nir/nir_to_tgsi_info.h
+mesa-21.0.0/src/gallium/auxiliary/nir/tgsi_to_nir.c
 mesa-21.0.0/src/gallium/auxiliary/nir/tgsi_to_nir.h
 mesa-21.0.0/src/gallium/auxiliary/os/os_mman.h
 mesa-21.0.0/src/gallium/auxiliary/os/os_process.c
@@ -657,6 +670,7 @@ mesa-21.0.0/src/gallium/auxiliary/util/u_debug_describe.c
 mesa-21.0.0/src/gallium/auxiliary/util/u_debug_describe.h
 mesa-21.0.0/src/gallium/auxiliary/util/u_debug_flush.h
 mesa-21.0.0/src/gallium/auxiliary/util/u_debug_image.h
+mesa-21.0.0/src/gallium/auxiliary/util/u_debug_refcnt.c
 mesa-21.0.0/src/gallium/auxiliary/util/u_debug_refcnt.h
 mesa-21.0.0/src/gallium/auxiliary/util/u_dirty_flags.h
 mesa-21.0.0/src/gallium/auxiliary/util/u_dirty_surfaces.h
