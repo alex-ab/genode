@@ -719,7 +719,7 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          util/xmlconfig.c
 
 CC_OPT += -DMAPI_ABI_HEADER=\"glapi/gen/glapi_mapi_tmp.h\" \
-          -DMAPI_MODE_BRIDGE
+          -DMAPI_MODE_BRIDGE -DHAVE_LIBDRM
 
 CC_OPT_gallium/targets/dri/target += -DGALLIUM_IRIS=1
 
