@@ -650,8 +650,6 @@ struct Igd::Device
 		void setup_ring_buffer(Genode::addr_t const buffer_addr,
 		                       Genode::addr_t const scratch_addr)
 		{
-			Genode::log(__func__, " buffer=", Genode::Hex(buffer_addr), " scratch=", Genode::Hex(scratch_addr));
-
 			_current_seqno++;
 
 			Execlist &el = *rcs.execlist;
@@ -874,8 +872,6 @@ struct Igd::Device
 		Mmio::HWS_PGA_RCSUNIT::access_t const addr = rcs.hw_status_page();
 		_mmio->write_post<Igd::Mmio::HWS_PGA_RCSUNIT>(addr);
 
-		Genode::warning(__func__);
-
 		_submit_execlist(rcs);
 
 		_active_vgpu = gpu;
@@ -914,13 +910,12 @@ struct Igd::Device
 
 	void _handle_irq()
 	{
-		Genode::error(__func__);
 		_mmio->disable_master_irq();
 
 		Mmio::GT_0_INTERRUPT_IIR::access_t const v = _mmio->read<Mmio::GT_0_INTERRUPT_IIR>();
 
 		bool const ctx_switch    = Mmio::GT_0_INTERRUPT_IIR::Cs_ctx_switch_interrupt::get(v);
-//		(void)ctx_switch;
+		(void)ctx_switch;
 		bool const user_complete = Mmio::GT_0_INTERRUPT_IIR::Cs_mi_user_interrupt::get(v);
 
 		Vgpu *notify_gpu = nullptr;
@@ -936,12 +931,10 @@ struct Igd::Device
 
 		_mmio->update_context_status_pointer();
 
-		Genode::error(__func__, " ", __LINE__, " user_complete=", user_complete, " ctx_switch=", ctx_switch);
 		if (user_complete) {
 			_unschedule_current_vgpu();
 			_active_vgpu = nullptr;
 
-		Genode::error(__func__, " ", __LINE__);
 			if (notify_gpu) { _notify_complete(notify_gpu); }
 
 			/* keep the ball rolling...  */
@@ -949,7 +942,6 @@ struct Igd::Device
 				_schedule_current_vgpu();
 			}
 		}
-		Genode::error(__func__, " ", __LINE__);
 
 		_mmio->enable_master_irq();
 		_irq->ack_irq();
@@ -1003,8 +995,6 @@ struct Igd::Device
 		gpu->rcs.context->dump_hw_status_page();
 		Execlist const &el = *gpu->rcs.execlist;
 		el.ring_dump(52);
-
-		_mmio->intr_dump();
 
 		_device_reset_and_init();
 
