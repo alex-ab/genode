@@ -19,6 +19,7 @@ set build_components {
 	drivers/gpu/intel
 	lib/mesa-21/softpipe
 	core init timer
+	app/top
 }
 
 lappend_if $use_iris    build_components lib/mesa-21/iris
@@ -38,6 +39,7 @@ set config {
 		<service name="PD"/>
 		<service name="RM"/>
 		<service name="ROM"/>
+		<service name="TRACE"/>
 	</parent-provides>
 	<default caps="100"/>
 	<default-route>
@@ -87,6 +89,13 @@ set config {
 		<config resize_handle="off" animate="off" title="gears" width="600" height="600" xpos="100" ypos="100"/>
 		<route>
 		<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+	<start name="top">
+		<resource name="RAM" quantum="2M"/>
+		<config sort_time="sc"/>
+		<route>
+			<any-service> <parent/> <any-child/> </any-service>
 		</route>
 	</start>}
 
@@ -184,6 +193,7 @@ set boot_modules {
 	egl-21.lib.so mesa-21.lib.so stdcxx.lib.so
 	expat.lib.so glapi-21.lib.so zlib.lib.so
 	core init ld.lib.so timer egl_swrast-21.lib.so
+	top
 }
 
 append_if $use_iris boot_modules {
