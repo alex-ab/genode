@@ -162,6 +162,7 @@ class Drm_call
 		Gpu::Info         _gpu_info           { _gpu_session.info() };
 		Genode::Blockade  _completion_lock    { };
 		size_t            _available_gtt_size { _gpu_info.aperture_size };
+		bool              _gpu_throttle       { }; /* XXX HACK */
 
 		using Offset = unsigned long;
 
@@ -660,6 +661,10 @@ class Drm_call
 		{
 			auto const * const p = reinterpret_cast<drm_i915_gem_execbuffer2*>(arg);
 
+			while (_gpu_throttle) {
+				wait_for_completion();
+			}
+
 			/* batch-buffer index and cap */
 			unsigned const bb_id = (p->flags & I915_EXEC_BATCH_FIRST) ? 0 : p->buffer_count - 1;
 
@@ -772,6 +777,8 @@ class Drm_call
 
 			command_buffer->seqno = _gpu_session.exec_buffer(command_buffer->cap,
 			                                                 p->batch_len);
+
+			_gpu_throttle = true;
 
 			for (uint64_t i = 0; i < p->buffer_count; i++) {
 				Handle_id const id { .value = obj[i].handle };
@@ -1092,6 +1099,7 @@ class Drm_call
 				h.busy = false;
 			});
 
+			_gpu_throttle = false;
 		}
 };
 
