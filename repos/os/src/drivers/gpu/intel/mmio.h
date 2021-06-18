@@ -1159,13 +1159,6 @@ class Igd::Mmio : public Genode::Mmio
 			GFX_MODE::Execlist_enable_mask::set(v, 1);
 			GFX_MODE::Execlist_enable::set(v, 1);
 
-/*
-			GFX_MODE::Ppgtt_enable_mask::set(v, 1);
-			GFX_MODE::Ppgtt_enable::set(v, 1);
-
-			GFX_MODE::Virtual_addressing_enable_mask::set(v, 1);
-			GFX_MODE::Virtual_addressing_enable::set(v, 1);
-*/
 			write<GFX_MODE>(v);
 		}
 
