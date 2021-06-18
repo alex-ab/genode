@@ -13,7 +13,6 @@ set demo_config {
 	</vfs>
 	<arg value="mesa-gears"/>
 	<env key="MESA_LOADER_DRIVER_OVERRIDE" value="iris"/>
-	<env key="INTEL_DEBUG" value="buf, submit"/>
 </config>}
 
 set demo_modules {
