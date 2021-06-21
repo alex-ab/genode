@@ -31,7 +31,6 @@ import_from_depot [depot_user]/src/[base_src] \
 set build_components {
 	drivers/gpu/intel
 	lib/mesa/swrast
-	app/top
 }
 
 lappend_if $use_i965 build_components lib/mesa/i965
@@ -49,7 +48,6 @@ set config {
 		<service name="PD"/>
 		<service name="RM"/>
 		<service name="ROM"/>
-		<service name="TRACE"/>
 	</parent-provides>
 	<default caps="100"/>
 	<default-route>
@@ -93,14 +91,6 @@ append config {
 	</start>
 	<start name="pointer" priority="-1">
 		<resource name="RAM" quantum="1M"/>
-	</start>
-
-	<start name="top">
-		<resource name="RAM" quantum="2M"/>
-		<config sort_time="sc"/>
-		<route>
-			<any-service> <parent/> <any-child/> </any-service>
-		</route>
 	</start>}
 
 append_if $use_i965 config {
@@ -185,7 +175,6 @@ set boot_modules {
 	expat.lib.so glapi.lib.so
 
 	egl_swrast.lib.so
-	top
 }
 
 append_if $use_i965 boot_modules {
