@@ -572,12 +572,12 @@ class Drm_call
 
 		int _device_gem_context_create(void *arg)
 		{
-			static unsigned cnt = 0;
+			//static unsigned cnt = 0;
 
 			drm_i915_gem_context_create * const p = reinterpret_cast<drm_i915_gem_context_create*>(arg);
-			p->ctx_id = _gpu_info.ctx_id + cnt;
+			p->ctx_id = _gpu_info.ctx_id; // + cnt;
 			Genode::error("create gem context ", p->ctx_id);
-			cnt ++;
+			//cnt ++;
 			return 0;
 		}
 
@@ -605,8 +605,7 @@ class Drm_call
 
 			switch (p->param) {
 			case I915_CONTEXT_PARAM_SSEU:
-			Genode::error("get ", p->ctx_id, " ", p->param, " ", p->size, " ", Genode::Hex(p->value));
-				Genode::error(__func__, " sseu ");
+				Genode::error(__func__, " sseu ", p->ctx_id, " ", p->param, " ", p->size, " ", Genode::Hex(p->value));
 				return 0;
 			default:
 				Genode::error(__func__, " ctx=", p->ctx_id, " param=", p->param, " size=", p->size, " value=", Genode::Hex(p->value));
