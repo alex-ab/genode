@@ -79,13 +79,23 @@ _create_surface(_EGLDisplay *disp,
 		dri2_surf->dri_drawable = (*dri2_dpy->dri2->createNewDrawable)(dri2_dpy->dri_screen, config,
 		                                                               dri2_surf);
 		/* create back buffer image */
-		dri2_surf->back_image = dri2_dpy->image->createImage(dri2_dpy->dri_screen,
-		                                                     dri2_surf->base.Width,
-		                                                     dri2_surf->base.Height,
-		                                                     __DRI_IMAGE_FORMAT_ARGB8888,
-		                                                     dri2_dpy->is_different_gpu ?
-		                                                     0 : __DRI_IMAGE_USE_SHARE,
-		                                                     NULL);
+		dri2_surf->back_image0 = dri2_dpy->image->createImage(dri2_dpy->dri_screen,
+		                                                      dri2_surf->base.Width,
+		                                                      dri2_surf->base.Height,
+		                                                      __DRI_IMAGE_FORMAT_ARGB8888,
+		                                                      dri2_dpy->is_different_gpu ?
+		                                                      0 : __DRI_IMAGE_USE_SHARE,
+		                                                      NULL);
+		/* create back buffer image */
+		dri2_surf->back_image1 = dri2_dpy->image->createImage(dri2_dpy->dri_screen,
+		                                                      dri2_surf->base.Width,
+		                                                      dri2_surf->base.Height,
+		                                                      __DRI_IMAGE_FORMAT_ARGB8888,
+		                                                      dri2_dpy->is_different_gpu ?
+		                                                      0 : __DRI_IMAGE_USE_SHARE,
+		                                                      NULL);
+		printf("%s %u - %p %p\n", __func__, __LINE__, dri2_surf->back_image0, dri2_surf->back_image1);
+		dri2_surf->back_current = 0;
 	} else {
 		assert(dri2_dpy->swrast);
 		dri2_surf->dri_drawable =
@@ -146,8 +156,11 @@ dri2_genode_destroy_surface(_EGLDisplay *disp, _EGLSurface *surf)
 
 	dri2_dpy->core->destroyDrawable(dri2_surf->dri_drawable);
 
-	if (dri2_surf->back_image)
-		dri2_dpy->image->destroyImage(dri2_surf->back_image);
+	if (dri2_surf->back_image0)
+		dri2_dpy->image->destroyImage(dri2_surf->back_image0);
+
+	if (dri2_surf->back_image1)
+		dri2_dpy->image->destroyImage(dri2_surf->back_image1);
 
 	if (window->type == PIXMAP)
 		free(window);
