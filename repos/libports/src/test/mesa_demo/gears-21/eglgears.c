@@ -191,20 +191,27 @@ draw(void)
    glRotatef(angle, 0.0, 0.0, 1.0);
    glCallList(gear1);
    glPopMatrix();
+   glFlush();
 
    glPushMatrix();
    glTranslatef(3.1, -2.0, 0.0);
    glRotatef(-2.0 * angle - 9.0, 0.0, 0.0, 1.0);
    glCallList(gear2);
    glPopMatrix();
+   glFlush();
+
 
    glPushMatrix();
    glTranslatef(-3.1, 4.2, 0.0);
    glRotatef(-2.0 * angle - 25.0, 0.0, 0.0, 1.0);
    glCallList(gear3);
    glPopMatrix();
+   glFlush();
+
 
    glPopMatrix();
+   glFlush();
+
 #endif
 }
 
@@ -289,7 +296,7 @@ eglut_main(int argc, char *argv[])
 
    eglutCreateWindow("eglgears");
 
-   eglutIdleFunc(idle);
+//   eglutIdleFunc(idle);
    eglutReshapeFunc(reshape);
    eglutDisplayFunc(draw);
 
