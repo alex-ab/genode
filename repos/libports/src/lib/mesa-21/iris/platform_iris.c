@@ -47,9 +47,7 @@ dri2_genode_put_image(__DRIdrawable * draw, int op,
 
 	int src_stride;
 	int dst_stride = stride(dri2_surf->base.Width);
-	__DRIimage * const image = dri2_surf->back_current ? dri2_surf->back_image1 : dri2_surf->back_image0;
-
-	dri2_dpy->image->queryImage(image, __DRI_IMAGE_ATTRIB_STRIDE, &src_stride);
+	dri2_dpy->image->queryImage(dri2_surf->back_image, __DRI_IMAGE_ATTRIB_STRIDE, &src_stride);
 
 	int copy_width = src_stride;
 	int x_offset = stride(x);
@@ -79,14 +77,12 @@ dri2_genode_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw)
 	dri2_flush_drawable_for_swapbuffers(disp, draw);
 	dri2_dpy->flush->invalidate(dri2_surf->dri_drawable);
 
-	__DRIimage * const image = dri2_surf->back_current ? dri2_surf->back_image1 : dri2_surf->back_image0;
-
 	_EGLContext *ctx = _eglGetCurrentContext();
 	struct dri2_egl_context *dri2_ctx = dri2_egl_context(ctx);
 	void *map_data = NULL;
 	int stride;
 	void *data =
-		dri2_dpy->image->mapImage(dri2_ctx->dri_context, image,
+		dri2_dpy->image->mapImage(dri2_ctx->dri_context, dri2_surf->back_image,
 		                          0, 0,
 		                          dri2_surf->base.Width,
 		                          dri2_surf->base.Height,
@@ -98,7 +94,7 @@ dri2_genode_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw)
 			dri2_surf->base.Width, dri2_surf->base.Height,
 			(char *)data, (void *)dri2_surf);
 	}
-	dri2_dpy->image->unmapImage(dri2_ctx->dri_context, image, map_data);
+	dri2_dpy->image->unmapImage(dri2_ctx->dri_context, dri2_surf->back_image, map_data);
 
 	return EGL_TRUE;
 }
@@ -141,16 +137,8 @@ static void
 back_bo_to_dri_buffer(struct dri2_egl_surface *dri2_surf, __DRIbuffer *buffer)
 {
 	struct dri2_egl_display *dri2_dpy = dri2_egl_display(dri2_surf->base.Resource.Display);
-	__DRIimage * image = NULL;
+	__DRIimage * const image = dri2_surf->back_image;
 	int name, pitch;
-
-	if (dri2_surf->back_current) {
-		image = dri2_surf->back_image0;
-		dri2_surf->back_current = 0;
-	} else {
-		image = dri2_surf->back_image1;
-		dri2_surf->back_current = 1;
-	}
 
 	dri2_dpy->image->queryImage(image, __DRI_IMAGE_ATTRIB_NAME,   &name);
 	dri2_dpy->image->queryImage(image, __DRI_IMAGE_ATTRIB_STRIDE, &pitch);
