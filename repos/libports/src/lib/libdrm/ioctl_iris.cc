@@ -545,14 +545,25 @@ class Drm_call
 				Genode::error("I915_PARAM_CS_TIMESTAMP_FREQUENCY not supported");
 				return -1;
 			case I915_PARAM_SLICE_MASK:
-				Genode::error("I915_PARAM_SLICE_MASK not supported");
-				return -1;
+				*value = 1;
+				Genode::warning("I915_PARAM_SLICE_MASK ", *value);
+				return 0;
+			case I915_PARAM_EU_TOTAL:
+				*value = 24;
+				Genode::warning("I915_PARAM_EU_TOTAL ", *value);
+				return 0;
 			case I915_PARAM_SUBSLICE_TOTAL:
-				Genode::error("I915_PARAM_SUBSLICE_TOTAL not supported");
-				return -1;
+				*value = 3;
+				Genode::warning("I915_PARAM_SUBSLICE_TOTAL ", *value);
+				return 0;
+			case I915_PARAM_SUBSLICE_MASK:
+				*value = 0x7;
+				Genode::warning("I915_PARAM_SUBSLICE_MASK ", *value);
+				return 0;
 			case I915_PARAM_MMAP_GTT_VERSION:
-				Genode::error("I915_PARAM_MMAP_GTT_VERSION not supported");
-				return -1;
+				*value = 0;
+				Genode::warning("I915_PARAM_MMAP_GTT_VERSION ", *value);
+				return 0;
 			default:
 				Genode::error("Unhandled device param:", Genode::Hex(param));
 				return -1;
