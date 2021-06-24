@@ -660,9 +660,20 @@ class Drm_call
 		{
 			auto const * const p = reinterpret_cast<drm_i915_gem_execbuffer2*>(arg);
 
+			static unsigned cnt = 0;
+
+#if 1
 			while (_gpu_throttle) {
+				Genode::error(__func__, " cnt=", p->buffer_count, " throttle");
+
 				wait_for_completion();
+
+				if (!_gpu_throttle)
+					Genode::error(__func__, " cnt=", p->buffer_count, " throttle done");
 			}
+#endif
+
+			cnt ++;
 
 			/* batch-buffer index and cap */
 			unsigned const bb_id = (p->flags & I915_EXEC_BATCH_FIRST) ? 0 : p->buffer_count - 1;
@@ -774,8 +785,17 @@ class Drm_call
 			if (!command_buffer)
 				return -1;
 
+			if (cnt > 4) {
+				Genode::error("skip ", cnt);
+				return 0;
+			}
+
+			Genode::error(__func__, " cnt=", p->buffer_count, " send");
+
 			command_buffer->seqno = _gpu_session.exec_buffer(command_buffer->cap,
 			                                                 p->batch_len);
+
+			Genode::error(__func__, " ", command_buffer->seqno.id, " cnt=", p->buffer_count, " send done");
 
 			_gpu_throttle = true;
 
@@ -817,6 +837,7 @@ class Drm_call
 			Handle_id const id { .value = p->bo_handle };
 
 			bool busy = true;
+			bool wait_for = false;
 
 			while (busy) {
 				bool handled = _apply_buffer(id, [&](Buffer_handle &bh) {
@@ -828,8 +849,11 @@ class Drm_call
 					return -1;
 				}
 
-				if (!busy)
+				if (!busy) {
+					if (wait_for)
+						Genode::error("_device_gem_wait done");
 					break;
+				}
 
 				if (p->timeout_ns != -1LL) {
 					Genode::error(__func__, " not supported ",
@@ -838,6 +862,8 @@ class Drm_call
 					return -1;
 				}
 
+				Genode::error("_device_gem_wait ", p->bo_handle);
+				wait_for = true;
 				wait_for_completion();
 			}
 
@@ -1087,6 +1113,10 @@ class Drm_call
 		}
 
 		void wait_for_completion() {
+			static unsigned cnt = 0;
+
+			cnt ++;
+			Genode::error(__func__, " block");
 			_completion_lock.block();
 
 			/* make done buffer objects */
@@ -1099,6 +1129,8 @@ class Drm_call
 			});
 
 			_gpu_throttle = false;
+
+			Genode::error(__func__, " ", gpu_info.last_completed.id, " done irq_cnt=", cnt);
 		}
 };
 
