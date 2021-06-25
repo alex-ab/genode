@@ -28,6 +28,7 @@
 
 #include <base/heap.h>
 #include <base/debug.h>
+#include <dataspace/client.h>
 #include <framebuffer_session/connection.h>
 #include <libc/component.h>
 #include <libc/args.h>
@@ -55,6 +56,10 @@ struct Window : Genode_egl_window
 	Genode::Io_signal_handler<Window>              mode_dispatcher;
 	bool                                           mode_change_pending = false;
 
+	Genode::addr_t fb_addr { 0 };
+	Genode::addr_t fb_size { 0 };
+	Genode::Ram_dataspace_capability buffer_cap { };
+
 	Window(Genode::Env &env, int w, int h)
 	:
 		env(env),
@@ -66,9 +71,17 @@ struct Window : Genode_egl_window
 		Framebuffer::Mode const mode { .area = { (unsigned)width, (unsigned)height } };
 
 		framebuffer.construct(env, mode);
-		addr = env.rm().attach(framebuffer->dataspace());
+
+		auto fb_cap = framebuffer->dataspace();
+		fb_size     = Genode::Dataspace_client(fb_cap).size();
+		fb_addr     = env.rm().attach(fb_cap);
+
+		buffer_cap  = env.ram().alloc(fb_size);
+		addr        = env.rm().attach(buffer_cap);
 
 		framebuffer->mode_sigh(mode_dispatcher);
+
+		Genode::error("initial - addr ", addr, " fb_addr=", Genode::Hex(fb_addr), " +", Genode::Hex(fb_size));
 
 		mode_change();
 	}
@@ -81,7 +94,21 @@ struct Window : Genode_egl_window
 	void update()
 	{
 		env.rm().detach(addr);
-		addr = env.rm().attach(framebuffer->dataspace());
+		env.rm().detach(fb_addr);
+
+		auto fb_cap = framebuffer->dataspace();
+		auto size   = Genode::Dataspace_client(fb_cap).size();
+
+		fb_addr = env.rm().attach(fb_cap);
+
+		env.ram().free(buffer_cap);
+
+		buffer_cap = env.ram().alloc(size);
+		addr       = env.rm().attach(buffer_cap);
+
+		fb_size = size;
+
+		Genode::error("changed - addr ", addr, " fb_addr=", Genode::Hex(fb_addr), " +", Genode::Hex(fb_size));
 	}
 
 	void mode_change()
@@ -105,6 +132,9 @@ struct Window : Genode_egl_window
 
 	void refresh()
 	{
+		Genode::memcpy(reinterpret_cast<void *>(fb_addr),
+		               reinterpret_cast<void *>(addr), fb_size);
+
 		framebuffer->refresh(0, 0, width, height);
 	}
 };
