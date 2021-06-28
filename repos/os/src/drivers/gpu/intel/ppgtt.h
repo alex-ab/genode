@@ -204,6 +204,20 @@ namespace Genode
 				pdp.next   = &pd;
 			}
 
+			unsigned cnt = 0;
+
+			void check_dump(Genode::Env &env)
+			{
+				Attached_dataspace check_x(env.rm(), page.ds);
+				uint8_t * data = check_x.local_addr<uint8_t>();
+
+				cnt ++;
+				for (unsigned i = 0; i < PAGE_SIZE; i++) {
+					if (data[i])
+						Genode::error("--- i=", i, " ", Genode::Hex(data[i]));
+				}
+			}
+
 			virtual ~Scratch()
 			{
 				_backend.free(pdp.ds);
