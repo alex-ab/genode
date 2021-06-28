@@ -526,6 +526,8 @@ struct Igd::Device
 
 			ppgtt = new (ppgtt_allocator) Igd::Ppgtt(&ppgtt_scratch.pdp);
 
+			ppgtt_scratch.check_dump(device._env);
+
 			try {
 				size_t const ring_size = RING_PAGES * PAGE_SIZE;
 
@@ -867,6 +869,8 @@ struct Igd::Device
 		}
 
 		Engine<Rcs_context> &rcs = gpu->rcs;
+
+		rcs.ppgtt_scratch.check_dump(_env);
 
 		_mmio->flush_gfx_tlb();
 
