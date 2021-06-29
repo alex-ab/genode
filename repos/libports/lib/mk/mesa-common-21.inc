@@ -9,6 +9,8 @@ INC_DIR += $(LIB_DIR)/include \
            $(MESA_SRC_DIR)/src \
            $(MESA_GEN_DIR)/src
 
+CC_OPT += -DDEBUG
+
 CC_OPT += -D__GENODE__ -DGALLIUM_SOFTPIPE
 
 #CC_OPT += -DENABLE_SHADER_CACHE
