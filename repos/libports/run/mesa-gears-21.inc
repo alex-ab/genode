@@ -13,10 +13,10 @@ set demo_config {
 	</vfs>
 	<arg value="mesa-gears"/>
 	<env key="MESA_LOADER_DRIVER_OVERRIDE" value="iris"/>
-	<env key="INTEL_DEBUG" value="buf,submit,pc,sync"/>
-	<env key="EGL_LOG_LEVEL" value="debug"/>
-	<env key="ST_DEBUG" value="buffer"/>
-	<env key="MESA_VERBOSE" value="list"/>
+<!--	<env key="INTEL_DEBUG" value="buf,submit,pc,sync"/> -->
+<!--	<env key="EGL_LOG_LEVEL" value="debug"/> -->
+<!--	<env key="ST_DEBUG" value="buffer"/> -->
+<!--	<env key="MESA_VERBOSE" value="list"/> -->
 	<env key="GALLIUM_HUD" value="fps"/>
 </config>}
 
