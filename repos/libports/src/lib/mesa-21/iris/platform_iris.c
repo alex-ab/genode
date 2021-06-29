@@ -237,15 +237,21 @@ EGLBoolean dri2_initialize_genode_backend(_EGLDisplay *disp)
 
 	EGLint attrs[] = {
 		EGL_DEPTH_SIZE, 0, /* set in loop below (from DRI config) */
-		EGL_NATIVE_VISUAL_TYPE, 0,
-		EGL_NATIVE_VISUAL_ID, 0,
-		EGL_NONE };
+//		EGL_STENCIL_SIZE, 0,
+//		EGL_NATIVE_VISUAL_TYPE, 0,
+//		EGL_NATIVE_VISUAL_ID, 0,
+//		EGL_ALPHA_MASK_SIZE, 0,
+		EGL_NONE, 0 };
 
 	for (unsigned i = 0; dri2_dpy->driver_configs[i]; i++) {
 		/* set depth size in attrs */
 		attrs[1] = dri2_dpy->driver_configs[i]->modes.depthBits;
+//		attrs[3] = dri2_dpy->driver_configs[i]->modes.stencilBits;
+//		if (attrs[1] == 0)
+//			attrs[1] = 1;
+		printf("%s:%u i=%u attrs[1]=%u\n", __func__, __LINE__, i, attrs[1]);
 		dri2_add_config(disp, dri2_dpy->driver_configs[i], i,
-		                EGL_WINDOW_BIT, attrs,
+		                EGL_WINDOW_BIT /*| EGL_PBUFFER_BIT | EGL_PIXMAP_BIT*/, attrs,
 		                rgb888_shifts, rgb888_sizes);
 	}
 
