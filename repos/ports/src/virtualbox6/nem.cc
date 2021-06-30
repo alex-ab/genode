@@ -327,6 +327,10 @@ void nemR3NativeNotifyFF(PVM pVM, PVMCPU pVCpu, ::uint32_t fFlags)
 static void update_pgm_large_page(PVM pVM, addr_t guest_addr, addr_t host_addr,
                                   uint32_t page_id)
 {
+log(__func__, " :"
+   , " host=", (void *)host_addr
+   , " page_id=", (void *)(unsigned long)page_id
+   );
 	/* init all pages in large page (see PGMR3PhysAllocateLargeHandyPage()) */
 	for (unsigned i = 0; i < X86_PAGE_2M_SIZE/X86_PAGE_4K_SIZE; ++i) {
 
@@ -516,5 +520,14 @@ void nemHCNativeNotifyPhysPageProtChanged(PVMCC pVM, RTGCPHYS GCPhys, RTHCPHYS H
 
 void nemHCNativeNotifyPhysPageChanged(PVMCC pVM, RTGCPHYS GCPhys, RTHCPHYS HCPhysPrev,
                                       RTHCPHYS HCPhysNew, ::uint32_t fPageProt,
-                                      PGMPAGETYPE enmType, ::uint8_t *pu2State) STOP
+                                      PGMPAGETYPE enmType, ::uint8_t *pu2State)
+{
+//	log(__func__, ":"
+//	   , " GCPhys=", (void *)GCPhys
+//	   , " HCPhysPrev=", (void *)HCPhysPrev
+//	   , " HCPhysNew=", (void *)HCPhysNew
+//	   );
+
+	nemHCNativeNotifyPhysPageProtChanged(pVM, GCPhys, HCPhysNew, fPageProt, enmType, pu2State);
+}
 

@@ -320,6 +320,33 @@ static int vmmr0_gmm_allocate_pages(GMMALLOCATEPAGESREQ &request)
 }
 
 
+static int vmmr0_gmm_free_pages(GMMFREEPAGESREQ &request)
+{
+	for (unsigned i = 0; i < request.cPages; i++) {
+
+		GMMFREEPAGEDESC &page = request.aPages[i];
+
+		Sup::Gmm::Pages one_page { 1 };
+
+		using Vmm_addr = Sup::Gmm::Vmm_addr;
+		using Page_id  = Sup::Gmm::Page_id;
+
+		Page_id const page_id { page.idPage };
+
+		Vmm_addr const vmm_addr = sup_drv->gmm().vmm_addr(page_id);
+
+		log(__func__, ":"
+		   , " page_id=",  (void *)page_id.value
+		   , " vmm_addr=", (void *)vmm_addr.value
+		   );
+
+		sup_drv->gmm().free(vmm_addr, one_page);
+	}
+
+	return VINF_SUCCESS;
+}
+
+
 static int vmmr0_gmm_map_unmap_chunk(GMMMAPUNMAPCHUNKREQ &request)
 {
 	if (request.idChunkMap != NIL_GMM_CHUNKID) {
@@ -595,6 +622,10 @@ static void ioctl(SUPCALLVMMR0 &request)
 
 	case VMMR0_DO_GMM_ALLOCATE_PAGES:
 		rc = vmmr0_gmm_allocate_pages(*(GMMALLOCATEPAGESREQ *)request.abReqPkt);
+		return;
+
+	case VMMR0_DO_GMM_FREE_PAGES:
+		rc = vmmr0_gmm_free_pages(*(GMMFREEPAGESREQ *)request.abReqPkt);
 		return;
 
 	case VMMR0_DO_GMM_MAP_UNMAP_CHUNK:
