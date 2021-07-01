@@ -35,11 +35,18 @@ namespace Utils {
 
 	template <unsigned int ELEMENTS> class Address_map;
 
-	inline void clflush(volatile void *addr)
+	template <typename T>
+	inline void _clflush(T addr)
 	{
-		asm volatile("clflush %0" : "+m" (*(volatile char *)addr));
+		asm volatile("clflush %0" : : "m" (*addr): "memory");
 	}
 
+	inline void clflush(void * addr, unsigned size)
+	{
+		/* XXX cache line assumed to be at least 32 byte */
+		for (unsigned i = 0; i < size; i += 32)
+			_clflush(static_cast<char *>(addr) + i);
+	}
 }
 
 template <unsigned int ELEMENTS>

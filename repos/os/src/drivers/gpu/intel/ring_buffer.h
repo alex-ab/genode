@@ -176,10 +176,8 @@ class Igd::Ring_buffer
 		void flush(Index from, Index to) const
 		{
 			uint32_t *start = _dwords + from;
-			for (Index i = 0; i < (to - from); i++) {
-				uint32_t *addr = start++;
-				Utils::clflush(addr);
-			}
+			if (to >= from)
+				Utils::clflush(start, to - from + 1);
 		}
 
 		/*********************

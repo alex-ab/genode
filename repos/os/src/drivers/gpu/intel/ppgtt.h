@@ -296,6 +296,7 @@ class Genode::Level_4_translation_table
 					throw Double_insertion();
 				}
 				desc = table_entry;
+				Utils::clflush(&desc, sizeof(desc));
 			}
 		};
 
@@ -313,6 +314,7 @@ class Genode::Level_4_translation_table
 				                  Descriptor::access_t &desc)
 				{
 					desc = scratch->addr;
+					Utils::clflush(&desc, sizeof(desc));
 				}
 		};
 
@@ -521,6 +523,7 @@ class Genode::Page_directory
 
 					addr_t const pa = (addr_t)(phys_addr ? phys_addr : table);
 					desc = (typename Base_descriptor::access_t) Table_descriptor::create(flags, pa);
+					Utils::clflush(&desc, sizeof(desc));
 
 				} else if (Base_descriptor::maps_page(desc)) {
 					throw Double_insertion();
@@ -555,6 +558,7 @@ class Genode::Page_directory
 
 						if (Base_descriptor::maps_page(desc)) {
 							desc = scratch->addr;
+							Utils::clflush(&desc, sizeof(desc));
 						} else {
 							/* use allocator to retrieve virt address of table */
 							ENTRY *phys_addr = (ENTRY*)
@@ -567,6 +571,7 @@ class Genode::Page_directory
 							if (table->empty(scratch->next->addr)) {
 								destroy(alloc, table);
 								desc = scratch->addr;
+								Utils::clflush(&desc, sizeof(desc));
 							}
 						}
 					}
@@ -722,6 +727,7 @@ class Genode::Pml4_table
 						ENTRY * phys_addr = (ENTRY*) alloc->phys_addr(table);
 						addr_t const pa = (addr_t)(phys_addr ? phys_addr : table);
 						desc = Descriptor::create(flags, pa);
+						Utils::clflush(&desc, sizeof(desc));
 					} else {
 						Descriptor::merge_access_rights(desc, flags);
 						ENTRY * phys_addr = (ENTRY*) Descriptor::Pa::masked(desc);
@@ -759,6 +765,7 @@ class Genode::Pml4_table
 						if (table->empty(scratch->next->addr)) {
 							destroy(alloc, table);
 							desc = scratch->addr;
+							Utils::clflush(&desc, sizeof(desc));
 						}
 					}
 				}

@@ -795,6 +795,7 @@ struct Igd::Device
 				rcs.ppgtt->insert_translation(vo, pa, size, pf,
 				                              &rcs.ppgtt_allocator,
 				                              &rcs.ppgtt_scratch.pdp);
+				_device._mmio->flush_gfx_tlb();
 			} catch (Igd::Ppgtt_allocator::Out_of_memory) {
 				throw Igd::Device::Out_of_ram();
 			} catch (...) {
@@ -808,6 +809,7 @@ struct Igd::Device
 			rcs.ppgtt->remove_translation(vo, size,
 			                              &rcs.ppgtt_allocator,
 			                              &rcs.ppgtt_scratch.pdp);
+			_device._mmio->flush_gfx_tlb();
 		}
 	};
 

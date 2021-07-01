@@ -122,6 +122,7 @@ class Igd::Ggtt
 			Page_table_entry::Present::set(pte, 1);
 
 			_entries[offset] = pte;
+			Utils::clflush(_entries + offset, sizeof(pte));
 			_mmio.flush_gfx_tlb();
 			Igd::wmb();
 		}
