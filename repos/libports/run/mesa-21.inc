@@ -19,6 +19,7 @@ set build_components {
 	drivers/gpu/intel
 	lib/mesa-21/softpipe
 	core init timer
+	server/gui_fb
 }
 
 lappend_if $use_iris    build_components lib/mesa-21/iris
@@ -81,7 +82,7 @@ set config {
 	<start name="pointer">
 		<resource name="RAM" quantum="1M"/>
 	</start>
-	<start name="liquid_fb" caps="200">
+	<start name="gui_fb" caps="200">
 		<resource name="RAM" quantum="16M"/>
 		<provides> <service name="Framebuffer"/> <service name="Input"/> </provides>
 		<config resize_handle="off" animate="off" title="gears" width="600" height="600" xpos="100" ypos="100"/>
@@ -184,6 +185,7 @@ set boot_modules {
 	egl-21.lib.so mesa-21.lib.so stdcxx.lib.so
 	expat.lib.so glapi-21.lib.so zlib.lib.so
 	core init ld.lib.so timer egl_swrast-21.lib.so
+	gui_fb
 }
 
 append_if $use_iris boot_modules {
