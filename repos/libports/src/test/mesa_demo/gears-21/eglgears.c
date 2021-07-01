@@ -180,6 +180,7 @@ static void
 draw(void)
 {
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 #if 1
    glPushMatrix();
    glRotatef(view_rotx, 1.0, 0.0, 0.0);
@@ -289,7 +290,7 @@ eglut_main(int argc, char *argv[])
 
    eglutCreateWindow("eglgears");
 
-   eglutIdleFunc(idle);
+//   eglutIdleFunc(idle);
    eglutReshapeFunc(reshape);
    eglutDisplayFunc(draw);
 
