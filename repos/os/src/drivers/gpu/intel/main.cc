@@ -495,6 +495,8 @@ struct Igd::Device
 		{ }
 	};
 
+	enum { HWS_OFFSET_DATA = 0xc0 };
+
 	template <typename CONTEXT>
 	struct Engine
 	{
@@ -565,8 +567,7 @@ struct Igd::Device
 		addr_t hw_status_page() const { return ctx.gmaddr(); }
 
 		uint64_t seqno() const {
-			Utils::clflush((uint32_t*)(ctx.vaddr() + 0xc0));
-			return *(uint32_t*)(ctx.vaddr() + 0xc0); }
+			return *(volatile uint64_t*)(ctx.vaddr() + HWS_OFFSET_DATA); }
 
 		private:
 
@@ -673,7 +674,7 @@ struct Igd::Device
 			/* prolog */
 			if (1)
 			{
-				enum { CMD_NUM = 6, HWS_DATA = 0xc0, };
+				enum { CMD_NUM = 6 };
 				Genode::uint32_t cmd[CMD_NUM] = {};
 				Igd::Pipe_control pc(CMD_NUM);
 				cmd[0] = pc.value;
@@ -722,7 +723,7 @@ struct Igd::Device
 			/* epilog */
 			if (1)
 			{
-				enum { CMD_NUM = 6, HWS_DATA = 0xc0, };
+				enum { CMD_NUM = 6 };
 				Genode::uint32_t cmd[CMD_NUM] = {};
 				Igd::Pipe_control pc(CMD_NUM);
 				cmd[0] = pc.value;
@@ -751,7 +752,7 @@ struct Igd::Device
 			 */
 			if (1)
 			{
-				enum { CMD_NUM = 8, HWS_DATA = 0xc0, };
+				enum { CMD_NUM = 8 };
 				Genode::uint32_t cmd[8] = {};
 				Igd::Pipe_control pc(6);
 				cmd[0] = pc.value;
@@ -760,7 +761,7 @@ struct Igd::Device
 				tmp |= Igd::Pipe_control::CS_STALL;
 				tmp |= Igd::Pipe_control::QW_WRITE;
 				cmd[1] = tmp;
-				cmd[2] = (rcs.hw_status_page() + HWS_DATA) & 0xffffffff;
+				cmd[2] = (rcs.hw_status_page() + HWS_OFFSET_DATA) & 0xffffffff;
 				cmd[3] = 0; /* upper addr 0 */
 				cmd[4] = _current_seqno & 0xffffffff;
 				cmd[5] = _current_seqno >> 32;
