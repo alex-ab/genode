@@ -144,7 +144,7 @@ proc run_boot_dir {binaries} {
 		if {[apply_microcode]} {
 			puts $fh " module2 /boot/micro.code micro.code"
 		}
-		puts $fh " module2 /boot/hypervisor hypervisor iommu novpid [kernel_output]"
+		puts $fh " module2 /boot/hypervisor hypervisor novpid [kernel_output]"
 		puts $fh " module2 /boot/image.elf.gz image.elf"
 		puts $fh "}"
 		close $fh
@@ -169,7 +169,7 @@ proc run_boot_dir {binaries} {
 		if {[apply_microcode]} {
 			puts $fh " load /boot/micro.code micro.code"
 		}
-		puts $fh " load /boot/hypervisor iommu novpid [kernel_output]"
+		puts $fh " load /boot/hypervisor novpid [kernel_output]"
 		puts $fh " load /boot/image.elf"
 		close $fh
 
