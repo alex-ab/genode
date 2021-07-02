@@ -13,11 +13,22 @@ set demo_config {
 	</vfs>
 	<arg value="mesa-gears"/>
 	<env key="MESA_LOADER_DRIVER_OVERRIDE" value="iris"/>
-<!--	<env key="INTEL_DEBUG" value="buf,submit,pc,sync"/> -->
+	<env key="INTEL_DEBUG" value="buf, submit, pc"/>
 <!--	<env key="EGL_LOG_LEVEL" value="debug"/> -->
-<!--	<env key="ST_DEBUG" value="buffer"/> -->
+<!--
+	<env key="ST_DEBUG" value="mesa,buffer,nir,tgsi,wf,fallback,precompile,gremedy,noreadpixcache"/>
+   { "mesa",     DEBUG_MESA, NULL },
+   { "tgsi",     DEBUG_PRINT_IR, NULL },
+   { "nir",      DEBUG_PRINT_IR, NULL },
+   { "fallback", DEBUG_FALLBACK, NULL },
+   { "buffer",   DEBUG_BUFFER, NULL },
+   { "wf",       DEBUG_WIREFRAME, NULL },
+   { "precompile",  DEBUG_PRECOMPILE, NULL },
+   { "gremedy",  DEBUG_GREMEDY, "Enable GREMEDY debug extensions" },
+   { "noreadpixcache", DEBUG_NOREADPIXCACHE, NULL },
+-->
 <!--	<env key="MESA_VERBOSE" value="list"/> -->
-	<env key="GALLIUM_HUD" value="fps"/>
+<!--	<env key="GALLIUM_HUD" value="fps"/> -->
 </config>}
 
 set demo_modules {

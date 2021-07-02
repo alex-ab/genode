@@ -831,6 +831,8 @@ struct Igd::Device
 
 	void _submit_execlist(Engine<Rcs_context> &engine)
 	{
+		asm volatile ("":::"memory");
+
 		Execlist &el = *engine.execlist;
 
 		int const port = _mmio->read<Igd::Mmio::EXECLIST_STATUS_RSCUNIT::Execlist_write_pointer>();
@@ -872,6 +874,8 @@ struct Igd::Device
 			Genode::warning("no valid vGPU for scheduling found.");
 			return;
 		}
+
+//		gpu->_device.reset();
 
 		Engine<Rcs_context> &rcs = gpu->rcs;
 
@@ -930,7 +934,10 @@ struct Igd::Device
 
 		bool const ctx_switch    = Mmio::GT_0_INTERRUPT_IIR::Cs_ctx_switch_interrupt::get(v);
 		(void)ctx_switch;
-		bool const user_complete = Mmio::GT_0_INTERRUPT_IIR::Cs_mi_user_interrupt::get(v);
+		bool user_complete = Mmio::GT_0_INTERRUPT_IIR::Cs_mi_user_interrupt::get(v);
+
+		Genode::warning(" ", v, " ", ctx_switch ? " ctx_switch" : "",
+		                             user_complete ? " user_complete" : "");
 
 		if (v) { _clear_rcs_iir(v); }
 
@@ -1297,6 +1304,7 @@ void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
 		uint32_t const pitch = ((mode & 0xffff0000) >> 16) / 128 - 1;
 		bool     const tilex = (mode & 0x1);
 
+		Genode::error("tilex ", tilex, " id=", id, " lower=", Genode::Hex(lower), " upper=", Genode::Hex(upper));
 		return _update_fence(id, lower, upper, pitch, tilex);
 	}
 
