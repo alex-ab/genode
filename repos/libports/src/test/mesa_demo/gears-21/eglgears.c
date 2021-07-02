@@ -179,6 +179,7 @@ gear(GLfloat inner_radius, GLfloat outer_radius, GLfloat width,
 static void
 draw(void)
 {
+   glDisable(GL_DEPTH_TEST);
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 #if 1
