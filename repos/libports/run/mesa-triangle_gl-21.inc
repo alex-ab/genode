@@ -14,6 +14,16 @@ set demo_config {
 	<arg value="triangle_gl"/>
 	<env key="MESA_LOADER_DRIVER_OVERRIDE" value="iris"/>
 	<env key="INTEL_DEBUG" value="buf, submit, pc, sync"/>
+	<env key="ST_DEBUG" value="mesa,buffer,nir,tgsi,wf,fallback,precompile,gremedy,noreadpixcache"/>
+	<env key="MESA_DEBUG" value="flush,context,incomplete_tex,incomplete_fbo"/>
+	<env key="MESA_VERBOSE" value="all"/>
+<!--
+      { "silent", DEBUG_SILENT }, /* turn off debug messages */
+      { "flush", DEBUG_ALWAYS_FLUSH }, /* flush after each drawing command */
+      { "incomplete_tex", DEBUG_INCOMPLETE_TEXTURE },
+      { "incomplete_fbo", DEBUG_INCOMPLETE_FBO },
+      { "context", DEBUG_CONTEXT } /* force set GL_CONTEXT_FLAG_DEBUG_BIT flag */
+-->
 </config>}
 
 set demo_modules {
