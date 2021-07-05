@@ -724,15 +724,51 @@ public:
 				reinterpret_cast<drm_i915_gem_exec_object2*>(p->buffers_ptr);
 
 			for (uint64_t i = 0; i < p->buffer_count; i++) {
-				if (verbose_ioctl) {
+//				if (verbose_ioctl) {
 					Genode::log("  obj[", i, "] ",
 					            "handle: ", obj[i].handle, " "
 					            "relocation_count: ", obj[i].relocation_count, " "
 					            "relocs_ptr: ", Genode::Hex(obj[i].relocs_ptr), " "
 					            "alignment: ", Genode::Hex(obj[i].alignment), " "
 					            "offset: ", Genode::Hex(obj[i].offset), " "
-					            "flags: ", Genode::Hex(obj[i].flags));
-				}
+					            "flags: ", Genode::Hex(obj[i].flags),
+					            (obj[i].flags & EXEC_OBJECT_NEEDS_FENCE) ? " needs_fence" : "",
+					            (obj[i].flags & EXEC_OBJECT_NEEDS_GTT) ? " needs_gtt" : "",
+					            (obj[i].flags & EXEC_OBJECT_WRITE) ? " write" : "",
+					            (obj[i].flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS) ? " supports_48bit" : "",
+					            (obj[i].flags & EXEC_OBJECT_PINNED) ? " pinned" : "",
+					            (obj[i].flags & EXEC_OBJECT_PAD_TO_SIZE) ? " pad_to_size" : "",
+/* The kernel implicitly tracks GPU activity on all GEM objects, and
+ * synchronises operations with outstanding rendering. This includes
+ * rendering on other devices if exported via dma-buf. However, sometimes
+ * this tracking is too coarse and the user knows better. For example,
+ * if the object is split into non-overlapping ranges shared between different
+ * clients or engines (i.e. suballocating objects), the implicit tracking
+ * by kernel assumes that each operation affects the whole object rather
+ * than an individual range, causing needless synchronisation between clients.
+ * The kernel will also forgo any CPU cache flushes prior to rendering from
+ * the object as the client is expected to be also handling such domain
+ * tracking.
+ *
+ * The kernel maintains the implicit tracking in order to manage resources
+ * used by the GPU - this flag only disables the synchronisation prior to
+ * rendering with this object in this execbuf.
+ *
+ * Opting out of implicit synhronisation requires the user to do its own
+ * explicit tracking to avoid rendering corruption. See, for example,
+ * I915_PARAM_HAS_EXEC_FENCE to order execbufs and execute them asynchronously.
+ */
+				                (obj[i].flags & EXEC_OBJECT_ASYNC) ? " async" : "",
+/* Request that the contents of this execobject be copied into the error
+ * state upon a GPU hang involving this batch for post-mortem debugging.
+ * These buffers are recorded in no particular order as "user" in
+ * /sys/class/drm/cardN/error. Query I915_PARAM_HAS_EXEC_CAPTURE to see
+ * if the kernel supports this flag.
+ */
+				                (obj[i].flags & EXEC_OBJECT_CAPTURE) ? " capture" : "",
+/* All remaining bits are MBZ and RESERVED FOR FUTURE USE */
+				                (obj[i].flags & __EXEC_OBJECT_UNKNOWN_FLAGS) ? " unknown_flags" : "");
+//				}
 
 				if (obj[i].relocation_count > 0) {
 					Genode::error("no relocation supported");
