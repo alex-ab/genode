@@ -719,6 +719,14 @@ class Igd::Mmio : public Genode::Mmio
 		};
 
 		/*
+		 * IHD-OS-BDW-Vol 2c-11.15 p. 1062 ff.
+		 */
+		struct FUSE2_GEN8 : Register<0x09120, 32>
+		{
+			struct Gt_slice_enable_fuse: Bitfield<25, 3> { };
+		};
+
+		/*
 		 * IHD-OS-BDW-Vol 2c-11.15 p. 611 ff.
 		 */
 		struct FENCE_REG : Register_array<0x100000, 64, NUM_FENCES, 64>

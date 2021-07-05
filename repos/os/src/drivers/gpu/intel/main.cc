@@ -1075,6 +1075,35 @@ struct Igd::Device
 		addr_t gttmmadr_base = _map_pci_resource(GTTMMADR);
 		_mmio.construct(_delayer, gttmmadr_base);
 
+		if (true) { /* BROADWELL - bdw_sseu_info_init */
+			unsigned const r32        = _mmio->read<Igd::Mmio::FUSE2_GEN8>();
+			unsigned const slice_mask = _mmio->read<Igd::Mmio::FUSE2_GEN8::Gt_slice_enable_fuse>();
+/*
+			uint8_t max_slices = 3;
+			uint8_t max_subslices = 3;
+			uint8_t max_eus_per_subslice = 8;
+*/
+			error("slice_mask ", Genode::Hex(slice_mask), " register=", Genode::Hex(r32));
+		}
+
+		// drivers/gpu/drm/i915/intel_device_info.c bdw_sseu_info_init
+//	fuse2 = I915_READ(GEN8_FUSE2);
+//	sseu->slice_mask = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;
+		//intel_sseu_set_info(sseu, 3, 3, 8);
+/*
+void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
+			 u8 max_subslices, u8 max_eus_per_subslice)
+{
+	sseu->max_slices = max_slices;
+	sseu->max_subslices = max_subslices;
+	sseu->max_eus_per_subslice = max_eus_per_subslice;
+
+	sseu->ss_stride = GEN_SSEU_STRIDE(sseu->max_subslices);
+	GEM_BUG_ON(sseu->ss_stride > GEN_MAX_SUBSLICE_STRIDE);
+	sseu->eu_stride = GEN_SSEU_STRIDE(sseu->max_eus_per_subslice);
+	GEM_BUG_ON(sseu->eu_stride > GEN_MAX_EU_STRIDE);
+}
+*/
 		/* GGTT */
 		Number_of_bytes const fb_size =
 			config.attribute_value("fb_size", 32u<<20);
