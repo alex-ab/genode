@@ -184,6 +184,9 @@ public:
 
 			Constructible<Attached_dataspace> buffer_attached { };
 
+			Genode::addr_t ptr_cpy1;
+			Genode::addr_t ptr_cpy2;
+
 			Genode::Dataspace_capability map_cap    { };
 			Offset                       map_offset { 0 };
 
@@ -195,16 +198,109 @@ public:
 
 			Buffer_handle(Genode::Dataspace_capability cap,
 			              Genode::size_t              size,
-			              Genode::Id_space<Buffer_handle> &space)
+			              Genode::Id_space<Buffer_handle> &space,
+			              void *ptr_cpy1, void *ptr_cpy2)
 			:
 				cap(cap), size(size),
-				handle(*this, space)
+				handle(*this, space),
+				ptr_cpy1(reinterpret_cast<Genode::addr_t>(ptr_cpy1)),
+				ptr_cpy2(reinterpret_cast<Genode::addr_t>(ptr_cpy2))
 			{
 				if (!cap.valid() || !size)
 					Genode::warning("invalid Buffer_handle ?");
 			}
 
 			virtual ~Buffer_handle() { }
+
+			void make_copy_before()
+			{
+				if (!buffer_attached.constructed()) {
+					Genode::error(__func__, " ", handle, " buffer not attached");
+					return;
+				}
+
+				Genode::memcpy(reinterpret_cast<void *>(ptr_cpy1),
+				               buffer_attached->local_addr<void>(),
+				               size);
+			}
+
+			void make_copy_after()
+			{
+				if (!buffer_attached.constructed()) {
+					Genode::error(__func__, " ", handle, " buffer not attached");
+					return;
+				}
+
+				Genode::memcpy(reinterpret_cast<void *>(ptr_cpy2),
+				               buffer_attached->local_addr<void>(),
+				               size);
+			}
+
+			bool cmp_copy_before() {
+				return _cmp_copy(reinterpret_cast<char *>(ptr_cpy1)); }
+
+			bool cmp_copy_after() {
+				return _cmp_copy(reinterpret_cast<char *>(ptr_cpy2)); }
+
+			bool _cmp_copy(char * const data_cpy)
+			{
+				if (!buffer_attached.constructed()) {
+					Genode::error(__func__, " ", handle, " buffer not attached");
+					return false;
+				}
+
+				char * data     = buffer_attached->local_addr<char>();
+
+				char     last_value      = 0;
+				char     last_value_cpy  = 0;
+				unsigned first_same_i    = 0;
+				unsigned unequal_pending = 0;
+
+				unsigned cnt_diff  = 0;
+
+				bool equal = true;
+
+				for (unsigned i=0; i < size; i++) {
+					bool same = data_cpy[i] == data[i];
+					bool show = false;
+
+					if (!same) {
+						equal = false;
+						cnt_diff ++;
+						if (unequal_pending && last_value     == data[i]
+						                    && last_value_cpy == data_cpy[i]) {
+							unequal_pending ++;
+							continue;
+						}
+
+						if (!unequal_pending) {
+							last_value      = data[i];
+							last_value_cpy  = data_cpy[i];
+							first_same_i    = i;
+							unequal_pending = 1;
+						} else
+							show = true;
+					} else {
+						show = unequal_pending;
+					}
+
+					if (show) {
+						Genode::warning(__func__, " ", handle, " ",
+						                first_same_i, "...", i - 1,
+						                " (", unequal_pending, ") --- ",
+						                Genode::Hex(last_value_cpy & 0xff),
+						                "!=", Genode::Hex(last_value & 0xff));
+						unequal_pending = 0;
+					}
+
+					if (cnt_diff >= 30) {
+						Genode::warning("more than ", cnt_diff, " - stop reporting");
+						break;
+					}
+				}
+
+				return equal;
+			}
 
 			bool valid() const { return cap.valid() && size != 0; }
 
@@ -290,7 +386,9 @@ public:
 			});
 
 			try {
-				Buffer * buffer = new (&_heap) Buffer(_buffer_registry, cap, size, _buffer_handles);
+				auto ptr1 = new (&_heap) char[size];
+				auto ptr2 = new (&_heap) char[size];
+				Buffer * buffer = new (&_heap) Buffer(_buffer_registry, cap, size, _buffer_handles, ptr1, ptr2);
 				fn(buffer->handle);
 			} catch (...) {
 				_gpu_session.free_buffer(cap);
@@ -663,6 +761,7 @@ public:
 
 		int _device_gem_execbuffer2(void *arg)
 		{
+			Genode::error(__func__, " ---------------------------------------------------------- in ");
 			auto const * const p = reinterpret_cast<drm_i915_gem_execbuffer2*>(arg);
 
 #if 0
@@ -690,6 +789,10 @@ public:
 				            " flags: ",              Genode::Hex(p->flags),
 				            " ctx_id: ",             Genode::Hex(ctx_id));
 			}
+
+			static unsigned exec_buffer_invocation = 0;
+			if (p->buffer_count > 5) /* ignore perf exec buffer */
+				exec_buffer_invocation ++;
 
 			if (!(p->flags & I915_EXEC_NO_RELOC)) {
 				Genode::error("no relocation supported");
@@ -806,6 +909,7 @@ public:
 						command_buffer = &bh;
 
 					ret = 0;
+
 				});
 
 				if (!handled || ret) {
@@ -814,8 +918,22 @@ public:
 				}
 			}
 
-			if (!command_buffer)
+			if (!command_buffer) {
+				Genode::error(" no command buffer");
 				return -1;
+			}
+
+			for (uint64_t i = 0; i < p->buffer_count; i++) {
+				Handle_id const id { .value = obj[i].handle };
+				_apply_buffer(id, [&](Buffer_handle &bh) {
+					if (exec_buffer_invocation % 3 == 1) {
+
+						bool equal = bh.cmp_copy_before();
+						Genode::warning("...... before ", bh.handle, " ", equal ? "equal" : "unequal");
+						bh.make_copy_before();
+					}
+				});
+			}
 
 			command_buffer->seqno = _gpu_session.exec_buffer(command_buffer->cap,
 			                                                 p->batch_len);
@@ -832,6 +950,19 @@ public:
 			/* wait immediately on results */
 			drm_complete();
 
+			/* make copy of all buffers after gpu finished */
+			for (uint64_t i = 0; i < p->buffer_count; i++) {
+				Handle_id const id { .value = obj[i].handle };
+				_apply_buffer(id, [&](Buffer_handle &bh) {
+					if (exec_buffer_invocation % 3 == 1) {
+						bool equal = bh.cmp_copy_after();
+						Genode::warning("...... after  ", bh.handle, " ", equal ? "equal" : "unequal");
+						bh.make_copy_after();
+					}
+				});
+			}
+
+			Genode::error(__func__, " ---------------------------------------------------------- out ");
 			return 0;
 		}
 
