@@ -112,6 +112,9 @@ class Igd::Ring_buffer
 			_dwords[index] = cmd.value;
 			_tail++;
 
+			Utils::clflush(_dwords + index, sizeof(cmd));
+			Utils::clflush(&_tail, sizeof(_tail));
+
 			if (_tail > _max) {
 				Genode::warning("ring buffer wrapped ",
 				                "_tail: ", _tail, " ", "_max: ", _max);
@@ -178,6 +181,8 @@ class Igd::Ring_buffer
 			uint32_t *start = _dwords + from;
 			if (to >= from)
 				Utils::clflush(start, to - from + 1);
+			else
+				Genode::error("-------------- ooooooooooooooooO");
 		}
 
 		/*********************

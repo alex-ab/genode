@@ -711,8 +711,8 @@ struct Igd::Device
 				Igd::Mi_batch_buffer_start mi;
 
 				cmd[0] = mi.value;
-				cmd[1] = buffer_addr & 0xffffffff;
-				cmd[2] = (buffer_addr >> 32) & 0xffff;
+				cmd[1] = buffer_addr & 0xffffffffu;
+				cmd[2] = (buffer_addr >> 32) & 0xffffu;
 				cmd[3] = 0; /* MI_NOOP */
 
 				for (size_t i = 0; i < CMD_NUM; i++) {
@@ -760,10 +760,11 @@ struct Igd::Device
 				tmp |= Igd::Pipe_control::GLOBAL_GTT_IVB;
 				tmp |= Igd::Pipe_control::CS_STALL;
 				tmp |= Igd::Pipe_control::QW_WRITE;
+
 				cmd[1] = tmp;
-				cmd[2] = (rcs.hw_status_page() + HWS_OFFSET_DATA) & 0xffffffff;
+				cmd[2] = (rcs.hw_status_page() + HWS_OFFSET_DATA) & 0xffffffffu;
 				cmd[3] = 0; /* upper addr 0 */
-				cmd[4] = _current_seqno & 0xffffffff;
+				cmd[4] = _current_seqno & 0xffffffffu;
 				cmd[5] = _current_seqno >> 32;
 				Igd::Mi_user_interrupt ui;
 				cmd[6] = ui.value;
