@@ -64,7 +64,9 @@ dri2_genode_put_image(__DRIdrawable * draw, int op,
 		h = dri2_surf->base.Height - y;
 
 	/* copy to frame buffer and refresh */
+printf("%s:%u blit %p %p\n", __func__, __LINE__, data, dst);
 	genode_blit(data, src_stride, dst, dst_stride, copy_width, h);
+printf("%s:%u blit\n", __func__, __LINE__);
 }
 
 
@@ -74,9 +76,13 @@ dri2_genode_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw)
 	struct dri2_egl_surface *dri2_surf = dri2_egl_surface(draw);
 	struct dri2_egl_display *dri2_dpy = dri2_egl_display(dri2_surf->base.Resource.Display);
 
+printf("swap  buffers in -----------\n");
+	genode_drm_complete();
+
 	dri2_flush_drawable_for_swapbuffers(disp, draw);
 	dri2_dpy->flush->invalidate(dri2_surf->dri_drawable);
 
+printf("swap  buffers in ----------- swap and flush invalidate \n");
 	_EGLContext *ctx = _eglGetCurrentContext();
 	struct dri2_egl_context *dri2_ctx = dri2_egl_context(ctx);
 	void *map_data = NULL;
@@ -101,7 +107,7 @@ dri2_genode_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw)
 			(char *)data, (void *)dri2_surf);
 	}
 	dri2_dpy->image->unmapImage(dri2_ctx->dri_context, dri2_surf->back_image, map_data);
-
+printf("swap  buffers out -----------\n");
 	return EGL_TRUE;
 }
 
