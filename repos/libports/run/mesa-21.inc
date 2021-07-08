@@ -221,7 +221,7 @@ set boot_modules {
 }
 
 append_if $use_iris boot_modules {
-	egl_iris-21.lib.so libdrm-iris.lib.so
+	egl_iris-21.lib.so libdrm.lib.so
 	intel_gpu_drv
 }
 
