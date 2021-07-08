@@ -10,6 +10,7 @@
 #endif
 #include <math.h>
 #include <stdio.h>
+#include <unistd.h>
 
 
 /*
@@ -17,6 +18,7 @@
  */
 static void update_timer(void)
 {
+	sleep(3);
 	eglutPostRedisplay();
 }
 
@@ -29,20 +31,19 @@ static void render(void)
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glLoadIdentity();
-
+#if 0
 	glRotatef(rotate, 0.f, 0.f, 1.f);
 	glBegin(GL_TRIANGLES);
 		glVertex3f( 0.0f, 1.0f, 0.0f);
 		glVertex3f(-1.0f,-1.0f, 0.0f);
 		glVertex3f( 1.0f,-1.0f, 0.0f);
 	glEnd();
-
+#endif
 	glFlush();
 
-	if (rotate >= 360)
-		rotate   = 0.0f;
-	else
-		rotate += 90.f;
+	rotate += 90.f;
+	if (rotate >= 360.f)
+		rotate  = 0.0f;
 
 	if (r_color >= 1.0f) {
 		r_color  = 0.0f;

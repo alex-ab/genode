@@ -13,8 +13,8 @@ set demo_config {
 	</vfs>
 	<arg value="triangle_gl"/>
 	<env key="MESA_LOADER_DRIVER_OVERRIDE" value="iris"/>
+	<env key="INTEL_DEBUG" value="buf, submit, pc, sync, bat"/>
 <!--
-	<env key="INTEL_DEBUG" value="buf, submit, pc, sync"/>
 	<env key="ST_DEBUG" value="mesa,buffer,nir,tgsi,wf,fallback,precompile,gremedy,noreadpixcache"/>
 	<env key="MESA_DEBUG" value="flush,context,incomplete_tex,incomplete_fbo"/>
 	<env key="MESA_VERBOSE" value="all"/>

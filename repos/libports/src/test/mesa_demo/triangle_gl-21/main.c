@@ -29,14 +29,14 @@ static void render(void)
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glLoadIdentity();
-
+#if 0
 	glRotatef(rotate, 0.f, 0.f, 1.f);
 	glBegin(GL_TRIANGLES);
 		glVertex3f( 0.0f, 1.0f, 0.0f);
 		glVertex3f(-1.0f,-1.0f, 0.0f);
 		glVertex3f( 1.0f,-1.0f, 0.0f);
 	glEnd();
-
+#endif
 	glFlush();
 
 	rotate += 90.f;
