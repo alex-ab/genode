@@ -140,7 +140,7 @@ back_bo_to_dri_buffer(struct dri2_egl_surface *dri2_surf, __DRIbuffer *buffer)
 	__DRIimage * const image = dri2_surf->back_image;
 	int name, pitch;
 
-	dri2_dpy->image->queryImage(image, __DRI_IMAGE_ATTRIB_NAME,   &name);
+	dri2_dpy->image->queryImage(image, __DRI_IMAGE_ATTRIB_FD,     &name);
 	dri2_dpy->image->queryImage(image, __DRI_IMAGE_ATTRIB_STRIDE, &pitch);
 
 	buffer->attachment = __DRI_BUFFER_BACK_LEFT;
@@ -213,7 +213,7 @@ EGLBoolean dri2_initialize_genode_backend(_EGLDisplay *disp)
 	if (!dri2_dpy)
 		return _eglError(EGL_BAD_ALLOC, "eglInitialize");
 
-	dri2_dpy->fd          = 42; /* checked by pipe_loader_drm_probe_fd to be >= 0 */
+	dri2_dpy->fd          = 43;
 	dri2_dpy->driver_name = strdup("iris");
 
 	disp->DriverData = (void *)dri2_dpy;
