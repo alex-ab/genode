@@ -20,6 +20,10 @@ lappend imports [depot_user]/pkg/drivers_interactive-[board]
 if {$use_etnaviv} {
 lappend imports [depot_user]/pkg/drivers_managed-[board]
 }
+if {$use_iris} {
+lappend imports [depot_user]/pkg/[drivers_interactive_pkg]
+}
+
 lappend imports [depot_user]/src/nitpicker
 lappend imports [depot_user]/src/gui_fb
 lappend imports [depot_user]/src/demo
@@ -77,7 +81,7 @@ set config {
 		<binary name="init"/>
 		<provides> <service name="Platform"/> </provides>
 		<route>
-			<service name="ROM" label="config"> <parent label="drivers.config"/> </service>
+			<service name="ROM" label="config"> <parent label="drivers_platform.config"/> </service>
 			<service name="Timer">   <child name="timer"/> </service>
 			<service name="Capture"> <child name="nitpicker"/> </service>
 			<service name="Event">   <child name="nitpicker"/> </service>
