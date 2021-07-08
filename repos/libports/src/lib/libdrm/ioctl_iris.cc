@@ -48,16 +48,16 @@ namespace Utils
 /**
  * Get DRM command number
  */
-static long command_number(long request)
+static unsigned long command_number(unsigned long request)
 {
-	return request & 0xff;
+	return request & 0xffu;
 }
 
 
 /**
  * Get device specific command number
  */
-static long device_number(long request)
+static unsigned long device_number(unsigned long request)
 {
 	return command_number(request) - DRM_COMMAND_BASE;
 }
@@ -66,14 +66,14 @@ static long device_number(long request)
 /**
  * Check if request is device command
  */
-static bool device_ioctl(long request)
+static bool device_ioctl(unsigned long request)
 {
-	long const cmd = command_number(request);
+	unsigned long const cmd = command_number(request);
 	return cmd >= DRM_COMMAND_BASE && cmd < DRM_COMMAND_END;
 }
 
 
-static const char *command_name(long request)
+static const char *command_name(unsigned long request)
 {
 	if (IOCGROUP(request) != DRM_IOCTL_BASE)
 		return "<non-DRM>";
@@ -139,7 +139,7 @@ static const char *command_name(long request)
 	}
 }
 
-static void dump_ioctl(long request)
+static void dump_ioctl(unsigned long request)
 {
 	using namespace Genode;
 
@@ -735,10 +735,8 @@ class Drm_call
 					if (!bh.valid())
 						return;
 
-					if (bh.busy) {
-						/* XXX "workaround" bo in iris driver with handle 2 */
+					if (bh.busy)
 						Genode::warning("handle: ", obj[i].handle, " reused but is busy");
-					}
 
 					if (bh.gpu_vaddr_valid && bh.gpu_vaddr.addr != obj[i].offset) {
 						Genode::error("unmap already mapped ", bh.handle, " ", Genode::Hex(bh.gpu_vaddr.addr), "->", Genode::Hex(obj[i].offset));
@@ -897,8 +895,7 @@ class Drm_call
 		int _generic_gem_flink(void *arg)
 		{
 			auto const p = reinterpret_cast<drm_gem_flink*>(arg);
-			Genode::error(__func__, " CHECK !? ", p->handle);
-			p->name = p->handle;
+			p->name = prime_fd;
 			return 0;
 		}
 
@@ -980,8 +977,8 @@ class Drm_call
 			auto const p = reinterpret_cast<drm_get_cap *>(arg);
 
 			if (p->capability == DRM_CAP_PRIME) {
-				Genode::error("cap ", p->capability, " ", DRM_CAP_PRIME);
-				/* XXX fd == 42 check */
+				Genode::error("cap ", p->capability, " ", DRM_CAP_PRIME, " XXXXX");
+				/* XXX fd == 43 check */
 				p->value = DRM_PRIME_CAP_IMPORT;
 				return 0;
 			}
@@ -989,6 +986,39 @@ class Drm_call
 			Genode::error("generic ioctl DRM_IOCTL_GET_CAP not supported ",
 			              p->capability);
 			return -1;
+		}
+
+		int       const prime_fd     { 44 };
+		Handle_id       prime_handle { };
+
+		int _generic_prime_fd_to_handle(void *arg)
+		{
+			auto const p = reinterpret_cast<drm_prime_handle *>(arg);
+			if (p->fd != prime_fd) {
+				Genode::error("generic ioctl DRM_IOCTL_PRIME_FD_TO_HANDLE not supported ", __builtin_return_address(0), " ", p->fd);
+				return -1;
+			}
+			p->handle = prime_handle.value;
+			return 0;
+		}
+
+		int _generic_prime_handle_to_fd(void *arg)
+		{
+			auto const p = reinterpret_cast<drm_prime_handle *>(arg);
+
+			Handle_id const handle { .value = p->handle };
+			bool handled = _apply_buffer(handle, [&](Buffer_handle const &bh) {
+				if (!prime_handle.value)
+					prime_handle = handle;
+
+				if (prime_handle.value != handle.value)
+					Genode::error("prime handle changed - ignored ", bh.handle);
+			});
+			if (!handled)
+				return -1;
+
+			p->fd = prime_fd;
+			return 0;
 		}
 
 		int _generic_ioctl(unsigned cmd, void *arg)
@@ -1006,9 +1036,10 @@ class Drm_call
 			case DRM_NUMBER(DRM_IOCTL_SYNCOBJ_DESTROY): return _generic_syncobj_destroy(arg);
 			case DRM_NUMBER(DRM_IOCTL_GEM_OPEN): return _generic_gem_open(arg);
 			case DRM_NUMBER(DRM_IOCTL_GET_CAP): return _generic_get_cap(arg);
+			case DRM_NUMBER(DRM_IOCTL_PRIME_FD_TO_HANDLE):
+				return _generic_prime_fd_to_handle(arg);
 			case DRM_NUMBER(DRM_IOCTL_PRIME_HANDLE_TO_FD):
-				Genode::error("generic ioctl DRM_IOCTL_PRIME_HANDLE_TO_FD not supported");
-				return -1;
+				return _generic_prime_handle_to_fd(arg);
 			default:
 				Genode::error("Unhandled generic DRM ioctl:", Genode::Hex(cmd));
 				break;
