@@ -477,7 +477,6 @@ class Drm_call
 				Genode::error(__func__, ": ", "handle: ", id.value,
 				              " offset: ", Genode::Hex(p->offset), " (mapped)");
 			}
-
 			return p->offset ? 0 : -1;
 		}
 
@@ -1078,6 +1077,34 @@ class Drm_call
 			return result;
 		}
 
+		void unmap_buffer(void *addr, size_t length)
+		{
+			bool found = false;
+
+			_buffer_registry.for_each([&] (Buffer_handle &bh) {
+				if (found || !bh.buffer_attached.constructed())
+					return;
+
+				if (reinterpret_cast<void *>(bh.mmap_addr()) != addr)
+					return;
+
+				if (bh.buffer_attached->size() != length) {
+					Genode::warning(__func__, " size mismatch");
+					Genode::sleep_forever();
+					return;
+				}
+
+				bh.buffer_attached.destruct();
+				found = true;
+			});
+
+			if (!found) {
+				Genode::warning(__func__, " unknown region ",
+				                addr, "+", Genode::Hex(length));
+				Genode::sleep_forever();
+			}
+		}
+
 		void unmap_buffer_ggtt(void *addr, size_t length)
 		{
 			Offset const offset = Offset(addr);
@@ -1141,12 +1168,14 @@ void drm_init(Genode::Env &env, Genode::Entrypoint &signal_ep)
  *
  * On Genode the virtual address of MMAP_GTT is stored in the offset.
  */
-extern "C" void *drm_mmap(void * /*vaddr*/, size_t length,
+extern "C" void *drm_mmap(void * vaddr, size_t length,
                           int /* prot */, int /* flags */,
                           int /* fd */, off_t offset)
 {
 	/* sanity check if we got a GTT mapped offset */
 	bool const ok = _call->map_buffer_ggtt(offset, length);
+	Genode::error(__func__, " ", vaddr, "+", Genode::Hex(length), " ", Genode::Hex(offset), " ok=", ok);
+	Genode::sleep_forever();
 	return ok ? (void *)offset : nullptr;
 }
 
@@ -1155,7 +1184,7 @@ extern "C" void *drm_mmap(void * /*vaddr*/, size_t length,
  */
 extern "C" int drm_munmap(void *addr, size_t length)
 {
-	_call->unmap_buffer_ggtt(addr, length);
+	_call->unmap_buffer(addr, length);
 	return 0;
 }
 
