@@ -47,6 +47,7 @@ namespace Utils
 		return (Genode::int64_t)(addr << 16) >> 16; }
 }
 
+void drm_complete();
 
 /**
  * Get DRM command number
@@ -166,6 +167,8 @@ class Drm_call
 		Gpu::Info         _gpu_info           { _gpu_session.info() };
 		Genode::Blockade  _completion_lock    { };
 		size_t            _available_gtt_size { _gpu_info.aperture_size };
+public:
+		bool              _gpu_throttle       { }; /* XXX HACK */
 
 		using Offset = unsigned long;
 
@@ -247,6 +250,8 @@ class Drm_call
 
 		bool _map_buffer_ppgtt(Buffer_handle &buffer, Gpu_virtual_address const vaddr)
 		{
+			Genode::error(__func__, "--------------------");
+
 			if (buffer.gpu_vaddr_valid)
 				Genode::warning(__func__, " already have a gpu virtual address ",
 				                Genode::Hex(buffer.gpu_vaddr.addr), " vs ",
@@ -465,10 +470,10 @@ class Drm_call
 			auto      const p = reinterpret_cast<drm_i915_gem_mmap_gtt *>(arg);
 			Handle_id const id { .value = p->handle };
 
-			if (verbose_ioctl) {
+//			if (verbose_ioctl) {
 				Genode::error(__func__, ": ", "handle: ", id.value,
 				              " offset: ", Genode::Hex(p->offset));
-			}
+//			}
 
 			/*
 			 * We always map a buffer when the tiling is set. Since Mesa
@@ -477,10 +482,12 @@ class Drm_call
 			 */
 			p->offset = _map_buffer(id);
 
-			if (verbose_ioctl) {
+//			if (verbose_ioctl) {
 				Genode::error(__func__, ": ", "handle: ", id.value,
 				              " offset: ", Genode::Hex(p->offset), " (mapped)");
-			}
+//			}
+
+			Genode::sleep_forever();
 
 			return p->offset ? 0 : -1;
 		}
@@ -649,13 +656,13 @@ class Drm_call
 			uint32_t  const stride  = p->stride;
 			uint32_t  const swizzle = p->swizzle_mode;
 
-			if (verbose_ioctl) {
+//			if (verbose_ioctl) {
 				Genode::error(__func__, ": ",
 				                "handle: ", id.value, " "
 				                "mode: ", mode, " "
 				                "stride: ", stride , " "
 				                "swizzle: ", swizzle);
-			}
+//			}
 
 			bool ok      = false;
 			bool handled = _apply_buffer(id, [&] (Buffer_handle &bh) {
@@ -670,7 +677,7 @@ class Drm_call
 				ok = _gpu_session.set_tiling(bh.map_cap, m);
 			});
 
-			if (!handled)
+			if (!handled || !ok)
 				Genode::error(__func__, ": invalid handle: ", id.value);
 
 			return ok ? 0 : -1;
@@ -905,12 +912,17 @@ class Drm_call
 			command_buffer->seqno = _gpu_session.exec_buffer(command_buffer->cap,
 			                                                 p->batch_len);
 
+			_gpu_throttle = true;
+
 			for (uint64_t i = 0; i < p->buffer_count; i++) {
 				Handle_id const id { .value = obj[i].handle };
 				_apply_buffer(id, [&](Buffer_handle &bh) {
 					bh.seqno = command_buffer->seqno;
 				});
 			}
+
+			/* wait immediately on results */
+			drm_complete();
 
 			return 0;
 		}
@@ -1306,6 +1318,7 @@ class Drm_call
 				h.busy = false;
 			});
 
+			_gpu_throttle = false;
 		}
 };
 
@@ -1318,6 +1331,18 @@ void drm_init(Genode::Env &env, Genode::Entrypoint &signal_ep)
 	_call.construct(env, signal_ep);
 }
 
+#include <unistd.h>
+
+void drm_complete()
+{
+	if (_call->_gpu_throttle) {
+		Genode::error(__func__, " in flight, wait");
+		sleep(1);
+		_call->wait_for_completion();
+		Genode::error(__func__, " in flight, done");
+		sleep(2);
+	}
+}
 
 /**
  * Mmap buffer object
