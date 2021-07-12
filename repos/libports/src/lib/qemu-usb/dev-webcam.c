@@ -435,7 +435,7 @@ static void usb_webcam_handle_reset(USBDevice *dev)
 	usb_webcam_init_state(state);
 }
 
-static void usb_webcam_capture_state_changed(bool const on)
+static void usb_webcam_capture_state_changed(bool const on, int who)
 {
 	char const * format = "unknown";
 
@@ -444,6 +444,7 @@ static void usb_webcam_capture_state_changed(bool const on)
 	else if (vs_commit_state.bFormatIndex == DEVICE_VS_FORMAT_YUV)
 		format = "YUY2";
 
+	qemu_printf("%s who=%u\n", __func__, who);
 	capture_state_changed(on, format);
 }
 
@@ -458,7 +459,7 @@ static void usb_webcam_setup_packet(USBWebcamState * const state, USBPacket * co
 	if (packet_size <= sizeof(header)) {
 		p->status = USB_RET_STALL;
 		if (state->capture)
-			usb_webcam_capture_state_changed(false);
+			usb_webcam_capture_state_changed(false, 1);
 		usb_webcam_init_state(state);
 		return;
 	}
@@ -466,7 +467,7 @@ static void usb_webcam_setup_packet(USBWebcamState * const state, USBPacket * co
 	if (state->bytes_frame >= max_frame_size(active_format())) {
 		p->status = USB_RET_STALL;
 		if (state->capture)
-			usb_webcam_capture_state_changed(false);
+			usb_webcam_capture_state_changed(false, 2);
 		usb_webcam_init_state(state);
 		return;
 	}
@@ -478,7 +479,7 @@ static void usb_webcam_setup_packet(USBWebcamState * const state, USBPacket * co
 	/* check for capture state change */
 	if (!state->capture) {
 		state->capture = true;
-		usb_webcam_capture_state_changed(state->capture);
+		usb_webcam_capture_state_changed(state->capture, 3);
 	}
 
 	if (!state->timer_active)
@@ -543,7 +544,7 @@ static void webcam_timeout(void *opague)
 		if (state->delay_packet || (state->watchdog && state->watchdog >= fps)) {
 			state->capture      = false;
 			state->delay_packet = false;
-			usb_webcam_capture_state_changed(state->capture);
+			usb_webcam_capture_state_changed(state->capture, 4);
 		} else {
 			state->watchdog ++;
 			webcam_start_timer(state);
@@ -625,7 +626,7 @@ static void usb_webcam_handle_control(USBDevice * const dev,
 				if (state->capture) {
 					state->capture = false;
 					state->delay_packet = false;
-					usb_webcam_capture_state_changed(state->capture);
+					usb_webcam_capture_state_changed(state->capture, 5);
 				}
 			}
 			stall = false;
@@ -689,7 +690,7 @@ static void usb_webcam_handle_control(USBDevice * const dev,
 
 			if (notify) {
 				USBWebcamState *state = USB_WEBCAM(dev);
-				usb_webcam_capture_state_changed(state->capture);
+				usb_webcam_capture_state_changed(state->capture, 6);
 			}
 		}
 
@@ -719,7 +720,7 @@ static void usb_webcam_handle_data(USBDevice *dev, USBPacket *p)
 		if (!p->ep || p->ep->nr != DEVICE_EP_ID) {
 			p->status = USB_RET_STALL;
 			if (state->capture)
-				usb_webcam_capture_state_changed(false);
+				usb_webcam_capture_state_changed(false, 7);
 			usb_webcam_init_state(state);
 			return;
 		}
@@ -727,7 +728,7 @@ static void usb_webcam_handle_data(USBDevice *dev, USBPacket *p)
 	default:
 		p->status = USB_RET_STALL;
 		if (state->capture)
-			usb_webcam_capture_state_changed(false);
+			usb_webcam_capture_state_changed(false, 8);
 		usb_webcam_init_state(state);
 		return;
 	}
