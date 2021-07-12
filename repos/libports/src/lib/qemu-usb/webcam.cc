@@ -123,6 +123,7 @@ struct Capture_webcam
 		/* next time update whole frame due to format changes or on/off */
 		_force_update = true;
 
+		Genode::error(__func__, " ", on ? "on" : "off", " ", format, " report=", _reporter.constructed());
 		if (!_reporter.constructed())
 			return;
 
