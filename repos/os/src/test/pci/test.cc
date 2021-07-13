@@ -57,6 +57,7 @@ enum {
 	EXT_CAP_DEVSNR = 0x03, /* device serial number */
 	EXT_CAP_VENDOR = 0x0b, /* vendor specific */
 	EXT_CAP_ACSERV = 0x0d, /* access control service */
+	EXT_CAP_PASID  = 0x1b,
 };
 
 typedef Platform::Device::Access_size Size;
@@ -83,6 +84,9 @@ static void dump_extended_pci_caps(Platform::Device_client &device)
 			break;
 		case EXT_CAP_ACSERV:
 			cap_string = String<128>(cap_string, " ACS");
+			break;
+		case EXT_CAP_PASID:
+			cap_string = String<128>(cap_string, " PASID");
 			break;
 		default:
 			cap_string = String<128>(cap_string, " ", Hex(val & 0xffff));
