@@ -102,13 +102,13 @@ Genode::Io_mem_session_capability Platform::Device_component::io_mem(uint8_t con
 	return Io_mem_session_capability();
 }
 
-void Platform::Device_component::config_write(unsigned char address,
+void Platform::Device_component::config_write(unsigned address,
                                               unsigned value,
                                               Access_size size)
 {
 	/* white list of ports which we permit to write */
 	switch (address) {
-		case 0x40 ... 0xff:
+		case 0x40 ... 0xffff:
 			/* allow access to device-specific registers if not used by us */
 			if (!_device_config.reg_in_use(_config_access, address, size))
 				break;

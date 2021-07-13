@@ -586,13 +586,13 @@ class Platform::Device_component : public  Rpc_object<Platform::Device>,
 			return _device_config.resource(resource_id).api_resource();
 		}
 
-		unsigned config_read(unsigned char address, Access_size size) override
+		unsigned config_read(unsigned address, Access_size size) override
 		{
 			return _device_config.read(_config_access, address, size,
 			                           _device_config.DONT_TRACK_ACCESS);
 		}
 
-		void config_write(unsigned char address, unsigned value,
+		void config_write(unsigned address, unsigned value,
 		                  Access_size size) override;
 
 		Irq_session_capability irq(uint8_t) override;

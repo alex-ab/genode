@@ -159,7 +159,7 @@ struct Platform::Device : Platform::Abstract_device
 	/**
 	 * Read configuration space
 	 */
-	virtual unsigned config_read(unsigned char address, Access_size size) = 0;
+	virtual unsigned config_read(unsigned address, Access_size size) = 0;
 
 	/**
 	 * Write configuration space
@@ -167,7 +167,7 @@ struct Platform::Device : Platform::Abstract_device
 	 * \throw Out_of_ram
 	 * \throw Out_of_caps
 	 */
-	virtual void config_write(unsigned char address, unsigned value,
+	virtual void config_write(unsigned address, unsigned value,
 	                          Access_size size) = 0;
 
 	/**
@@ -241,10 +241,10 @@ struct Platform::Device : Platform::Abstract_device
 	GENODE_RPC(Rpc_class_code, unsigned, class_code);
 	GENODE_RPC(Rpc_resource, Resource, resource, int);
 	GENODE_RPC(Rpc_config_read, unsigned, config_read,
-	           unsigned char, Access_size);
+	           unsigned, Access_size);
 	GENODE_RPC_THROW(Rpc_config_write, void, config_write,
 	                 GENODE_TYPE_LIST(Out_of_ram, Out_of_caps),
-	                 unsigned char, unsigned, Access_size);
+	                 unsigned, unsigned, Access_size);
 	GENODE_RPC(Rpc_irq, Irq_session_capability, irq, uint8_t);
 	GENODE_RPC_THROW(Rpc_io_port, Io_port_session_capability, io_port,
 	                 GENODE_TYPE_LIST(Out_of_ram, Out_of_caps),
