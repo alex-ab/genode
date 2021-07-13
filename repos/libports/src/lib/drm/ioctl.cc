@@ -24,6 +24,7 @@
 extern "C" {
 #include <drm.h>
 #include <i915_drm.h>
+#include <unistd.h>
 
 #define DRM_NUMBER(req) ((req) & 0xff)
 }
@@ -49,6 +50,7 @@ static long command_number(long request)
 	return request & 0xff;
 }
 
+void drm_complete();
 
 /**
  * Get device specific command number
@@ -183,6 +185,9 @@ class Drm_call
 
 			bool valid() { return cap.valid() && size != 0; }
 		};
+
+public:
+		bool              _gpu_throttle       { }; /* XXX HACK */
 
 		using Buffer = Genode::Registered<Buffer_handle>;
 
@@ -712,6 +717,12 @@ class Drm_call
 			}
 
 			_gpu_session.exec_buffer(bb_cap, batch_len);
+
+			_gpu_throttle = true;
+
+			/* wait immediately on results */
+			drm_complete();
+
 			return 0;
 		}
 
@@ -835,7 +846,10 @@ class Drm_call
 			              : _generic_ioctl(command_number(request), arg);
 		}
 
-		void wait_for_completion() { _completion_lock.block(); }
+		void wait_for_completion() {
+			_completion_lock.block();
+			_gpu_throttle = false;
+		}
 };
 
 
@@ -848,7 +862,15 @@ void drm_init(Genode::Env &env, Genode::Entrypoint &signal_ep)
 }
 
 
-void drm_complete() { _call->wait_for_completion(); }
+void drm_complete() {
+	if (_call->_gpu_throttle) {
+		Genode::error(__func__, " in flight, wait");
+		sleep(1);
+		_call->wait_for_completion();
+		Genode::error(__func__, " in flight, done");
+		sleep(2);
+	}
+}
 
 
 /**
