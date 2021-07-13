@@ -304,7 +304,7 @@ namespace Platform {
 			 * Read configuration space
 			 */
 			enum { DONT_TRACK_ACCESS = false };
-			unsigned read(Config_access &pci_config, unsigned char address,
+			unsigned read(Config_access &pci_config, unsigned address,
 			              Device::Access_size size, bool track = true)
 			{
 				return pci_config.read(_bdf, address, size, track);
@@ -313,7 +313,7 @@ namespace Platform {
 			/**
 			 * Write configuration space
 			 */
-			void write(Config_access &pci_config, unsigned char address,
+			void write(Config_access &pci_config, unsigned address,
 			           unsigned long value, Device::Access_size size,
 			           bool track = true)
 			{

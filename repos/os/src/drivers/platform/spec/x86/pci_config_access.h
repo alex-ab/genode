@@ -70,9 +70,9 @@ namespace Platform {
 				return unsigned(bdf.value()) << 12;
 			}
 
-			Bit_array<256> _used { };
+			Bit_array<4096> _used { };
 
-			void _use_register(unsigned char addr, unsigned short width)
+			void _use_register(unsigned addr, unsigned short width)
 			{
 				for (unsigned i = 0; i < width; i++)
 					if (!_used.get(addr + i, 1))
@@ -103,7 +103,7 @@ namespace Platform {
 			 *
 			 * There is no range check for the input values.
 			 */
-			unsigned read(Pci::Bdf const bdf, unsigned char const addr,
+			unsigned read(Pci::Bdf const bdf, unsigned const addr,
 			              Device::Access_size const size, bool const track = true)
 			{
 				unsigned     const offset    = _dev_base(bdf) + addr;
@@ -142,7 +142,7 @@ namespace Platform {
 			 *
 			 * There is no range check for the input values.
 			 */
-			void write(Pci::Bdf const bdf, unsigned char const addr,
+			void write(Pci::Bdf const bdf, unsigned const addr,
 			           unsigned const value, Device::Access_size const size,
 			           bool const track = true)
 			{
@@ -178,7 +178,7 @@ namespace Platform {
 				}
 			}
 
-			bool reg_in_use(unsigned char addr, Device::Access_size size)
+			bool reg_in_use(unsigned addr, Device::Access_size size)
 			{
 				switch (size) {
 				case Device::ACCESS_8BIT:

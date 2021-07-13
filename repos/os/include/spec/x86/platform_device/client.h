@@ -42,10 +42,10 @@ struct Platform::Device_client : public Rpc_client<Device>
 	Resource resource(int resource_id) override {
 		return call<Rpc_resource>(resource_id); }
 
-	unsigned config_read(unsigned char address, Access_size size) override {
+	unsigned config_read(unsigned address, Access_size size) override {
 		return call<Rpc_config_read>(address, size); }
 
-	void config_write(unsigned char address, unsigned value, Access_size size) override {
+	void config_write(unsigned address, unsigned value, Access_size size) override {
 		call<Rpc_config_write>(address, value, size); }
 
 	Irq_session_capability irq(uint8_t id) override {
