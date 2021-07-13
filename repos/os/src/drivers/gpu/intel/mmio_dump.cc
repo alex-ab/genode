@@ -26,6 +26,7 @@ void Igd::Mmio::dump()
 	log("  Execlist_enable:           ", Hex(read<GFX_MODE::Execlist_enable>()));
 	log("  Virtual_addressing_enable: ", Hex(read<GFX_MODE::Virtual_addressing_enable>()));
 	log("  Ppgtt_enable:              ", Hex(read<GFX_MODE::Ppgtt_enable>()));
+	log("  Flush_tlb_mode:            ", Hex(read<GFX_MODE::Flush_tlb_mode>()));
 	log("HWS_PGA: ", Hex(read<HWS_PGA_RCSUNIT>()));
 	log("HWSTAM: ", Hex(read<HWSTAM>()));
 }
@@ -76,6 +77,11 @@ void Igd::Mmio::error_dump()
 	if (read<ERROR_2>()) {
 		log("  Tlbpend_reg_faultcnt:               ", Hex(read<ERROR_2::Tlbpend_reg_faultcnt>()));
 	}
+	log("Render Element: ", Hex(read<Render_element>()));
+	log("Render pdp0:    ", Hex(read<Render_pdp0>()));
+	log("Render pdp1:    ", Hex(read<Render_pdp1>()));
+	log("Render pdp2:    ", Hex(read<Render_pdp2>()));
+	log("Render pdp3:    ", Hex(read<Render_pdp3>()));
 
 	log("RCS_EIR:        ", Hex(read<RCS_EIR>()));
 	log("RCS_ESR:        ", Hex(read<RCS_ESR>()));

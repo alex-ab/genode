@@ -441,6 +441,9 @@ class Igd::Mmio : public Genode::Mmio
 			struct Execlist_enable_mask : Bitfield<31, 1> { };
 			struct Execlist_enable      : Bitfield<15, 1> { };
 
+			struct Flush_tlb_mode_mask : Bitfield<29, 1> { };
+			struct Flush_tlb_mode      : Bitfield<13, 1> { };
+
 			struct Ppgtt_enable_mask : Bitfield<25, 1> { };
 			struct Ppgtt_enable      : Bitfield< 9, 1> { };
 
@@ -543,6 +546,15 @@ class Igd::Mmio : public Genode::Mmio
 		{
 			struct Tlbpend_reg_faultcnt : Bitfield< 0, 6> { };
 		};
+
+		/*
+		 * IHD-OS-BDW-Vol 5-11.15 p. 52
+		 */
+		struct Render_element : Register<0x04400, 64> { };
+		struct Render_pdp0    : Register<0x04408, 64> { };
+		struct Render_pdp1    : Register<0x04410, 64> { };
+		struct Render_pdp2    : Register<0x04418, 64> { };
+		struct Render_pdp3    : Register<0x04420, 64> { };
 
 		/*
 		 * IHD-OS-BDW-Vol 2c-11.15 p. 1237
@@ -1152,12 +1164,23 @@ class Igd::Mmio : public Genode::Mmio
 		 */
 		void _enable_execlist()
 		{
+#if 1
 			GFX_MODE::access_t v = read<GFX_MODE>();
 
 			GFX_MODE::Execlist_enable_mask::set(v, 1);
 			GFX_MODE::Execlist_enable::set(v, 1);
 
+			GFX_MODE::Ppgtt_enable_mask::set(v, 1);
+			GFX_MODE::Ppgtt_enable::set(v, 1);
+
+			GFX_MODE::Virtual_addressing_enable_mask::set(v, 1);
+			GFX_MODE::Virtual_addressing_enable::set(v, 1);
+
+			GFX_MODE::Flush_tlb_mode_mask::set(v, 1);
+			GFX_MODE::Flush_tlb_mode::set(v, 0);
+
 			write<GFX_MODE>(v);
+#endif
 		}
 
 	public:
