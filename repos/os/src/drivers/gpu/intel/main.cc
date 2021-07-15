@@ -934,18 +934,6 @@ struct Igd::Device
 		Genode::warning(" ", v, " ", ctx_switch ? " ctx_switch" : "",
 		                             user_complete ? " user_complete" : "");
 
-		if (user_complete) {
-			_mmio->dump();
-			_mmio->error_dump();
-			_mmio->fault_dump();
-			_mmio->execlist_status_dump();
-
-			_active_vgpu->rcs.context->dump();
-			_active_vgpu->rcs.context->dump_hw_status_page();
-			Execlist const &el = *_active_vgpu->rcs.execlist;
-			el.ring_dump(52);
-		}
-
 		if (v) { _clear_rcs_iir(v); }
 
 		Vgpu *notify_gpu = nullptr;
@@ -1026,7 +1014,7 @@ struct Igd::Device
 		_active_vgpu->rcs.context->dump();
 		_active_vgpu->rcs.context->dump_hw_status_page();
 		Execlist const &el = *_active_vgpu->rcs.execlist;
-		el.ring_dump(512);
+		el.ring_dump(52);
 
 		_device_reset_and_init();
 
