@@ -20,6 +20,7 @@
 #include <base/registry.h>
 #include <base/rpc_server.h>
 #include <base/session_object.h>
+#include <base/sleep.h>
 #include <dataspace/client.h>
 #include <gpu_session/gpu_session.h>
 #include <io_mem_session/connection.h>
@@ -581,6 +582,40 @@ struct Igd::Device
 			_completed_seqno = rcs.seqno();
 		}
 
+#define MI_NOOP			MI_INSTR(0, 0)
+#define MI_INSTR(opcode, flags) (((opcode) << 23) | (flags))
+#define MI_ARB_ON_OFF		MI_INSTR(0x08, 0)
+#define   MI_ARB_ENABLE			(1<<0)
+#define   MI_ARB_DISABLE		(0<<0)
+#define MI_STORE_REGISTER_MEM_GEN8   MI_INSTR(0x24, 2)
+#define   MI_SRM_LRM_GLOBAL_GTT		(1<<22)
+#define MI_LOAD_REGISTER_MEM_GEN8  MI_INSTR(0x29, 2)
+/*
+ * Official intel docs are somewhat sloppy concerning MI_LOAD_REGISTER_IMM:
+ * - Always issue a MI_NOOP _before_ the MI_LOAD_REGISTER_IMM - otherwise hw
+ *   simply ignores the register load under certain conditions.
+ * - One can actually load arbitrary many arbitrary registers: Simply issue x
+ *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
+ */
+#define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*(x)-1)
+
+#define  GEN8_LQSC_FLUSH_COHERENT_LINES             (1 << 21)
+
+		void align_cacheline_with_noop(Ring_buffer::Index &advance_4b,
+		                               Execlist &el)
+		{
+			enum { CACHELINE_BYTES = 64 };
+			unsigned noops = 0;
+
+			while (advance_4b % (CACHELINE_BYTES / 4)) {
+				advance_4b += el.ring_append(MI_NOOP);
+				noops ++;
+			}
+
+			if (noops)
+				Genode::warning("added ", noops, " NOOPs");
+		}
+
 		bool setup_ring_buffer(Genode::addr_t const buffer_addr,
 		                       Genode::addr_t const scratch_addr)
 		{
@@ -661,12 +696,16 @@ struct Igd::Device
 				tmp |= Igd::Pipe_control::MEDIA_STATE_CLEAR;
 */
 
+				tmp |= Igd::Pipe_control::FLUSH_L3;
+
 				cmd[1] = tmp;
 				cmd[2] = scratch_addr;
 
 				for (size_t i = 0; i < CMD_NUM; i++) {
 					advance += el.ring_append(cmd[i]);
 				}
+
+				align_cacheline_with_noop(advance, el);
 			}
 
 			if (dc_flush_wa) {
@@ -730,6 +769,8 @@ struct Igd::Device
 				for (size_t i = 0; i < CMD_NUM; i++) {
 					advance += el.ring_append(cmd[i]);
 				}
+
+				align_cacheline_with_noop(advance, el);
 			}
 
 			/* epilog 1/3 - gen8_emit_fini_breadcrumb_rcs, gen8_emit_pipe_control */
@@ -743,12 +784,84 @@ struct Igd::Device
 				tmp |= Igd::Pipe_control::RENDER_TARGET_CACHE_FLUSH;
 				tmp |= Igd::Pipe_control::DEPTH_CACHE_FLUSH;
 				tmp |= Igd::Pipe_control::DC_FLUSH_ENABLE;
+				tmp |= Igd::Pipe_control::FLUSH_ENABLE;
+				tmp |= Igd::Pipe_control::FLUSH_L3;
 
 				cmd[1] = tmp;
 
 				for (size_t i = 0; i < CMD_NUM; i++) {
 					advance += el.ring_append(cmd[i]);
 				}
+
+				align_cacheline_with_noop(advance, el);
+			}
+
+			/* drivers/gpu/drm/i915/gt/intel_lrc. - gen8_init_indirectctx_bb */
+			if (1)
+			{
+				enum { CMD_NUM = 32 };
+				Genode::uint32_t cmd[CMD_NUM] = {};
+				unsigned pos = 0;
+
+				// gen8_init_indirectctx_b - start
+				cmd[pos++] = MI_ARB_ON_OFF | MI_ARB_DISABLE;
+
+				// gen8_emit_flush_coherentl3_wa(engine, batch) - start
+				#define GEN8_L3SQCREG4                              0xb118
+				cmd[pos++] = MI_STORE_REGISTER_MEM_GEN8 | MI_SRM_LRM_GLOBAL_GTT;
+				cmd[pos++] = GEN8_L3SQCREG4;
+				cmd[pos++] = scratch_addr + 256;
+				cmd[pos++] = 0;
+				cmd[pos++] = MI_LOAD_REGISTER_IMM(1);
+				cmd[pos++] = GEN8_L3SQCREG4;
+				cmd[pos++] = 0x40400000 | GEN8_LQSC_FLUSH_COHERENT_LINES;
+
+				Igd::Pipe_control pc(6);
+				cmd[pos++] = pc.value;
+				Genode::uint32_t tmp = 0;
+				tmp |= Igd::Pipe_control::CS_STALL;
+				tmp |= Igd::Pipe_control::FLUSH_ENABLE;
+				tmp |= Igd::Pipe_control::FLUSH_L3;
+				cmd[pos++] = tmp;
+				cmd[pos++] = scratch_addr;
+				cmd[pos++] = 0;
+				cmd[pos++] = 0;
+				cmd[pos++] = 0;
+
+				cmd[pos++] = MI_LOAD_REGISTER_MEM_GEN8 | MI_SRM_LRM_GLOBAL_GTT;
+				cmd[pos++] = GEN8_L3SQCREG4;
+				cmd[pos++] = scratch_addr + 256;
+				cmd[pos++] = 0;
+
+				// gen8_emit_flush_coherentl3_wa(engine, batch) - end
+
+				Igd::Pipe_control pc2(6);
+				cmd[pos++] = pc2.value;
+				tmp  = 0;
+				tmp |= Igd::Pipe_control::FLUSH_L3;
+				tmp |= Igd::Pipe_control::STORE_DATA_INDEX;
+				tmp |= Igd::Pipe_control::CS_STALL;
+				tmp |= Igd::Pipe_control::QW_WRITE;
+				cmd[pos++] = tmp;
+				cmd[pos++] = scratch_addr;
+				cmd[pos++] = 0;
+				cmd[pos++] = 0;
+				cmd[pos++] = 0;
+
+				cmd[pos++] = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+
+				// gen8_init_indirectctx_b - end
+
+				if (pos >= CMD_NUM) {
+					Genode::error("buf to small");
+					sleep_forever();
+				}
+
+				for (size_t i = 0; i < pos; i++) {
+					advance += el.ring_append(cmd[i]);
+				}
+
+				align_cacheline_with_noop(advance, el);
 			}
 
 			/* epilog 2/3 - gen8_emit_fini_breadcrumb_rcs, gen8_emit_ggtt_write_rcs */
@@ -763,7 +876,7 @@ struct Igd::Device
 				tmp |= Igd::Pipe_control::FLUSH_ENABLE;
 				tmp |= Igd::Pipe_control::GLOBAL_GTT_IVB;
 				tmp |= Igd::Pipe_control::QW_WRITE;
-
+				tmp |= Igd::Pipe_control::FLUSH_L3;
 				cmd[1] = tmp;
 				cmd[2] = (rcs.hw_status_page() + HWS_DATA) & 0xffffffff;
 				cmd[3] = 0; /* upper addr 0 */
@@ -794,6 +907,8 @@ struct Igd::Device
 				for (size_t i = 0; i < CMD_NUM; i++) {
 					advance += el.ring_append(cmd[i]);
 				}
+
+				align_cacheline_with_noop(advance, el);
 			}
 
 			if (1)
@@ -808,6 +923,8 @@ struct Igd::Device
 				for (size_t i = 0; i < CMD_NUM; i++) {
 					advance += el.ring_append(cmd[i]);
 				}
+
+				align_cacheline_with_noop(advance, el);
 			}
 
 			addr_t const offset = ((tail + advance) * sizeof(uint32_t));
