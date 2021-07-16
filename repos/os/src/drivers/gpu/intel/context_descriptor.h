@@ -50,6 +50,7 @@ class Igd::Context_descriptor : Genode::Register<64>
 		{
 			enum { FAULT_AND_HANG = 0b00, };
 		};
+		struct L3_llc_coherent              : Bitfield< 5,  1> { };
 		struct Addressing_mode              : Bitfield< 3,  2>
 		{
 			enum {
@@ -87,6 +88,7 @@ class Igd::Context_descriptor : Genode::Register<64>
 			Fault_handling::set(_value, Fault_handling::FAULT_AND_HANG);
 			Addressing_mode::set(_value, Addressing_mode::LEGACY_WITH_64);
 			Context_id::set(_value, id);
+			L3_llc_coherent::set(_value, 1);
 			Force_restore::set(_value, 1);
 			Force_pd_restore::set(_value, 1);
 			Valid::set(_value, 1);
