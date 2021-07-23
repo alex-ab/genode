@@ -9,4 +9,6 @@ FILE_LIST    := $(REP_DIR)/src/lib/drm/files.list
 TAR_OPT(drm) := --strip-components=1 --files-from $(FILE_LIST)
 HASH_INPUT   += $(FILE_LIST)
 
+PATCHES   := $(wildcard $(REP_DIR)/src/lib/drm/patches/*.patch)
+PATCH_OPT := -p1
 
