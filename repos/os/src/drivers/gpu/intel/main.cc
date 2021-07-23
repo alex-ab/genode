@@ -71,6 +71,9 @@ static Igd::Device_info _supported_devices[] = {
 	{ 0x1616, "HD Graphics 5500 (BDW GT2 ULT)", 0ull },
 	/* TODO proper eDRAM probing + caching */
 	{ 0x1622, "Iris Pro Graphics 6200 (BDW GT3e)", 0ull },
+	{ 0x1916, "HD Graphics 520 (Skylake, Gen9)", 0ull },
+	{ 0x191b, "HD Graphics 530 (Skylake, Gen9)", 0ull },
+	{ 0x5917, "UHD Graphics 620 (Kaby Lake, Gen9p5)", 0ull },
 };
 
 #define ELEM_NUMBER(x) (sizeof((x)) / sizeof((x)[0]))
