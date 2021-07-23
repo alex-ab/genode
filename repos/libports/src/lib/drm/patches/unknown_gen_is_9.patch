@@ -1,0 +1,16 @@
+--- a/src/lib/drm/intel/intel_bufmgr_gem.c
+--- b/src/lib/drm/intel/intel_bufmgr_gem.c
+@@ -3202,9 +3202,13 @@
+ 	else if (IS_GEN9(bufmgr_gem->pci_device))
+ 		bufmgr_gem->gen = 9;
+ 	else {
++		fprintf(stderr, "%s %u - overwriting gen to be 9 - XXX HACK\n", __func__, __LINE__);
++		bufmgr_gem->gen = 9;
++/*
+ 		free(bufmgr_gem);
+ 		bufmgr_gem = NULL;
+ 		goto exit;
++*/
+ 	}
+ 
+ 	if (IS_GEN3(bufmgr_gem->pci_device) &&
