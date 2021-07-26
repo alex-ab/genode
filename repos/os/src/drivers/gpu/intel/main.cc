@@ -578,6 +578,11 @@ struct Igd::Device
 #define MI_STORE_REGISTER_MEM_GEN8   MI_INSTR(0x24, 2)
 #define   MI_SRM_LRM_GLOBAL_GTT		(1<<22)
 #define MI_LOAD_REGISTER_MEM_GEN8  MI_INSTR(0x29, 2)
+#define MI_ARB_CHECK            MI_INSTR(0x05, 0)
+#define MI_BATCH_BUFFER_END	MI_INSTR(0x0a, 0)
+#define MI_FLUSH_DW		MI_INSTR(0x26, 1) /* for GEN6 */
+#define MI_FORCE_WAKEUP		MI_INSTR(0x1d, 1)
+
 /*
  * Official intel docs are somewhat sloppy concerning MI_LOAD_REGISTER_IMM:
  * - Always issue a MI_NOOP _before_ the MI_LOAD_REGISTER_IMM - otherwise hw
@@ -628,10 +633,11 @@ struct Igd::Device
 			/* prolog */
 			if (1)
 			{
-				enum { CMD_NUM = 6, HWS_DATA = 0xc0, };
+				enum { CMD_NUM = 7, HWS_DATA = 0xc0, };
 				Genode::uint32_t cmd[CMD_NUM] = {};
+				cmd[0] = MI_FLUSH_DW | 1 | (1u << 9) /* llc */ | (1u << 18) /* tlb */;
 				Igd::Pipe_control pc(CMD_NUM);
-				cmd[0] = pc.value;
+				cmd[1] = pc.value;
 				Genode::uint32_t tmp = 0;
 				tmp |= Igd::Pipe_control::CS_STALL;
 				tmp |= Igd::Pipe_control::TLB_INVALIDATE;
@@ -647,11 +653,11 @@ struct Igd::Device
 				tmp |= Igd::Pipe_control::MEDIA_STATE_CLEAR;
 				tmp |= Igd::Pipe_control::FLUSH_L3;
 
-				cmd[1] = tmp;
-				cmd[2] = scratch_addr;
-				cmd[3] = 0;
+				cmd[2] = tmp;
+				cmd[3] = scratch_addr;
 				cmd[4] = 0;
 				cmd[5] = 0;
+				cmd[6] = 0;
 
 				for (size_t i = 0; i < CMD_NUM; i++) {
 					advance += el.ring_append(cmd[i]);
@@ -663,14 +669,18 @@ struct Igd::Device
 			/* batch-buffer commands */
 			if (1)
 			{
-				enum { CMD_NUM = 4, };
+				enum { CMD_NUM = 9 };
 				Genode::uint32_t cmd[CMD_NUM] = {};
 				Igd::Mi_batch_buffer_start mi;
 
-				cmd[0] = mi.value;
-				cmd[1] = buffer_addr & 0xffffffff;
-				cmd[2] = (buffer_addr >> 32) & 0xffff;
-				cmd[3] = 0; /* MI_NOOP */
+				cmd[0] = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+				cmd[1] = mi.value; 
+				cmd[2] = buffer_addr & 0xffffffff;
+				cmd[3] = (buffer_addr >> 32) & 0xffff;
+				cmd[4] = MI_ARB_ON_OFF | MI_ARB_DISABLE;
+				cmd[6] = MI_FLUSH_DW | 1 | (1u << 9) /* llc */ | (1u << 18) /* tlb */;
+				cmd[7] = MI_BATCH_BUFFER_END;
+				cmd[8] = MI_NOOP;
 
 				for (size_t i = 0; i < CMD_NUM; i++) {
 					advance += el.ring_append(cmd[i]);
