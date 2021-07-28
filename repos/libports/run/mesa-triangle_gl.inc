@@ -12,7 +12,7 @@ set demo_config {
 		</dir>
 	</vfs>
 	<arg value="triangle_gl"/>
-	<env key="INTEL_DEBUG" value="buf, submit, pc, sync"/>
+ 	<env key="INTEL_DEBUG" value="buf,submit,pc,sync"/>
 </config>}
 
 set demo_modules {
