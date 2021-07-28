@@ -13,9 +13,8 @@ set demo_config {
 	</vfs>
 	<arg value="triangle_gl"/>
 	<env key="MESA_LOADER_DRIVER_OVERRIDE" value="iris"/>
-<!-- 	<env key="INTEL_DEBUG" value="buf,submit,pc,sync,mip,clip,color,hex,bat"/> -->
- 	<env key="INTEL_DEBUG" value="buf,submit,pc,sync"/>
- 	<env key="ST_DEBUG" value="mesa,nir,tgsi,buffer"/>
+	<env key="INTEL_DEBUG" value="buf,submit,pc,sync,mip,clip,color,hex,bat"/>
+	<env key="ST_DEBUG" value="mesa,nir,tgsi,buffer"/>
 	<env key="GALLIUM_DUMP_CPU" value="1"/>
 </config>}
 
