@@ -29,7 +29,7 @@ static void render(void)
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glLoadIdentity();
-
+/*
 	glRotatef(rotate, 0.f, 0.f, 1.f);
 	glBegin(GL_TRIANGLES);
 		glVertex3f( 0.0f, 1.0f, 0.0f);
@@ -44,7 +44,7 @@ static void render(void)
 	rotate += 90.f;
 	if (rotate >= 360.f)
 		rotate  = 0.0f;
-
+*/
 	if (r_color >= 1.0f) {
 		r_color  = 0.0f;
 	} else {
