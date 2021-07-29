@@ -23,6 +23,9 @@ lappend imports [depot_user]/pkg/drivers_managed-[board]
 if {$use_iris} {
 lappend imports [depot_user]/pkg/[drivers_interactive_pkg]
 }
+if {$use_i965} {
+lappend imports [depot_user]/pkg/[drivers_interactive_pkg]
+}
 
 lappend imports [depot_user]/src/nitpicker
 lappend imports [depot_user]/src/gui_fb
@@ -40,6 +43,7 @@ set build_components {
 }
 
 lappend_if $use_iris    build_components lib/mesa-21/iris
+lappend_if $use_i965    build_components lib/mesa-21/i965
 lappend_if $use_etnaviv build_components lib/mesa-21/etnaviv
 lappend_if $use_etnaviv build_components drivers/gpu/etnaviv
 lappend build_components $demo_component
@@ -120,6 +124,7 @@ set config {
 set backend_library egl_swrast-21.lib.so
 if {$use_iris}    { set backend_library egl_iris-21.lib.so }
 if {$use_etnaviv} { set backend_library egl_etnaviv-21.lib.so }
+if {$use_i965}    { set backend_library egl_i965-21.lib.so }
 
 append config "
 			<start name=\"$demo_binary\" caps=\"$demo_caps\">
@@ -191,7 +196,7 @@ append config {
 #append config {
 #	</start>}
 
-append_if $use_iris config {
+append_if [expr $use_iris || $use_i965] config {
 	<start name="intel_gpu_drv" caps="2000">
 		<resource name="RAM" quantum="40M"/>
 		<provides>
@@ -237,6 +242,11 @@ set boot_modules {
 
 append_if $use_iris boot_modules {
 	egl_iris-21.lib.so libdrm.lib.so
+	intel_gpu_drv intel_fb_drv
+}
+
+append_if $use_i965 boot_modules {
+	egl_i965-21.lib.so libdrm.lib.so
 	intel_gpu_drv intel_fb_drv
 }
 
