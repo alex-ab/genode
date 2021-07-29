@@ -42,6 +42,9 @@ namespace Utils
 {
 	uint64_t limit_to_48bit(uint64_t addr) {
 		return addr & ((1ULL << 48) - 1); }
+
+	uint64_t canonical_addr(uint64_t addr) {
+		return (Genode::int64_t)(addr << 16) >> 16; }
 }
 
 void drm_complete();
@@ -538,6 +541,8 @@ public:
 			case I915_PARAM_HAS_VEBOX:
 			case I915_PARAM_HAS_WAIT_TIMEOUT:
 			case I915_PARAM_HAS_RESOURCE_STREAMER:
+			case I915_PARAM_HAS_SCHEDULER:
+			case I915_PARAM_HAS_EXEC_FENCE:
 			case 54 /* I915_PARAM_PERF_REVISION */:
 				*value = 0;
 				break;
@@ -568,6 +573,26 @@ public:
 				*value = 0; /* XXX */
 				Genode::warning("I915_PARAM_MMAP_GTT_VERSION ", *value);
 				return 0;
+			case I915_PARAM_HAS_EXEC_NO_RELOC:
+				*value = 1;
+				Genode::warning("I915_PARAM_HAS_EXEC_NO_RELOC ", *value);
+				return 0;
+			case I915_PARAM_MMAP_VERSION:
+				*value = 0; /* if > 0 write combine may be used ?! XXX */
+				Genode::warning("I915_PARAM_MMAP_VERSION ", *value);
+				return 0;
+			case I915_PARAM_HAS_EXEC_BATCH_FIRST:
+				*value = 1;
+				Genode::warning("I915_PARAM_HAS_EXEC_BATCH_FIRST ", *value);
+				return 0;
+			case I915_PARAM_CMD_PARSER_VERSION:
+				Genode::error("Unhandled device param: ", Genode::Hex(param),
+				              " I915_PARAM_CMD_PARSER_VERSION");
+				return -1;
+			case I915_PARAM_HAS_EXEC_CAPTURE:
+				Genode::error("Unhandled device param: ", Genode::Hex(param),
+				              " I915_PARAM_HAS_EXEC_CAPTURE");
+				return -1;
 			default:
 				Genode::error("Unhandled device param:", Genode::Hex(param));
 				return -1;
@@ -663,6 +688,102 @@ public:
 			return 0;
 		}
 
+		bool vgpu_addr_check(Buffer_handle &bh)
+		{
+			if (bh.gpu_vaddr_valid)
+				return true;
+
+			/*
+			 * Every buffer always is mapped into the PPGTT. To make things
+			 * simplish[sic], we reuse the client local virtual address for the
+			 * PPGTT mapping.
+			 */
+			Genode::error("valid=", bh.gpu_vaddr_valid, " ",
+			              "gpu_addr=", Genode::Hex(bh.gpu_vaddr.addr));
+
+			if (!bh.mmap(_env))
+				return false;
+
+			Gpu_virtual_address gpu_vaddr { .addr = bh.mmap_addr() };
+			if (!_map_buffer_ppgtt(bh, gpu_vaddr))
+				return false;
+
+			return true;
+		}
+
+		bool _relocate_batch_buffer(Buffer_handle &bb_handle,
+		                            drm_i915_gem_exec_object2 &obj,
+		                            drm_i915_gem_exec_object2 const * const obj_list,
+		                            unsigned const obj_list_len,
+		                            bool const target_handle_is_index)
+		{
+			if (!vgpu_addr_check(bb_handle))
+				return false;
+
+			Genode::warning("valid=", bb_handle.gpu_vaddr_valid, " ",
+			                "gpu_addr=", Genode::Hex(bb_handle.gpu_vaddr.addr));
+
+			uint8_t *bb_addr = (uint8_t*)bb_handle.gpu_vaddr.addr;
+
+			drm_i915_gem_relocation_entry *e =
+				reinterpret_cast<drm_i915_gem_relocation_entry*>(obj.relocs_ptr);
+
+			uint32_t const count = obj.relocation_count;
+			for (uint64_t i = 0; i < count; i++) {
+				if (target_handle_is_index && e[i].target_handle > obj_list_len)
+					return false;
+
+				unsigned const target_handle = target_handle_is_index ? obj_list[e[i].target_handle].handle
+				                                                      : e[i].target_handle;
+
+//				if (verbose_ioctl) {
+					using namespace Genode;
+					log("index ", e[i].target_handle, " "
+					    " -> handle ", target_handle,
+					    ", delta: ", Hex(e[i].delta), " "
+					    "offset: ", Hex(e[i].offset), " "
+					    "presumed_offset: ", Hex(e[i].presumed_offset), " "
+					    "read_domains: ", Hex(e[i].read_domains),
+					    " (", _domain_name(e[i].read_domains), ") "
+					    "write_domain: ", Hex(e[i].write_domain),
+					    " (", _domain_name(e[i].write_domain), ") ");
+//				}
+
+				bool found = false;
+
+				Handle_id const id { .value = target_handle };
+				_apply_buffer(id, [&](Buffer_handle &bh) {
+					if (!vgpu_addr_check(bh)) {
+						Genode::error("target handle=", target_handle,
+						              " valid=", bh.gpu_vaddr_valid,
+						              " gpu_vaddr=", Genode::Hex(bh.gpu_vaddr.addr));
+						return;
+					}
+
+					Genode::warning("target handle=", target_handle,
+					                " valid=", bh.gpu_vaddr_valid,
+					                " gpu_vaddr=", Genode::Hex(bh.gpu_vaddr.addr));
+
+					found = true;
+
+					Genode::uint64_t target_offset = Utils::canonical_addr(bh.gpu_vaddr.addr + e[i].delta);
+
+					uint32_t *addr = (uint32_t*)(bb_addr + e[i].offset);
+					*addr       = (target_offset & 0xffffffff);
+					*(addr + 1) = (target_offset >> 32) & 0xffffffff;
+
+					e[i].presumed_offset = target_offset;
+				});
+
+				if (!found) {
+					Genode::error("target_handle: ", target_handle, " invalid");
+					return false;
+				}
+			}
+
+			return true;
+		}
+
 		int _device_gem_execbuffer2(void *arg)
 		{
 			auto const * const p = reinterpret_cast<drm_i915_gem_execbuffer2*>(arg);
@@ -672,7 +793,7 @@ public:
 
 			Buffer_handle *command_buffer = nullptr;
 
-			if (verbose_ioctl) {
+//			if (verbose_ioctl) {
 				uint64_t const ctx_id = p->rsvd1;
 				Genode::log(__func__,
 				            " buffers_ptr: ",        Genode::Hex(p->buffers_ptr),
@@ -685,10 +806,10 @@ public:
 				            " cliprects_ptr: ",      Genode::Hex(p->cliprects_ptr),
 				            " flags: ",              Genode::Hex(p->flags),
 				            " ctx_id: ",             Genode::Hex(ctx_id));
-			}
+//			}
 
 			if (!(p->flags & I915_EXEC_NO_RELOC)) {
-				Genode::error("no relocation supported");
+				Genode::error("no relocation supported ", Genode::Hex(p->flags), " ", arg);
 				return -1;
 			}
 
@@ -719,8 +840,16 @@ public:
 			auto const obj =
 				reinterpret_cast<drm_i915_gem_exec_object2*>(p->buffers_ptr);
 
+			bool no_remap = false;
 			for (uint64_t i = 0; i < p->buffer_count; i++) {
-				if (verbose_ioctl) {
+				if (obj[i].relocation_count > 0) {
+					no_remap = true;
+					break;
+				}
+			}
+
+			for (uint64_t i = 0; i < p->buffer_count; i++) {
+//				if (verbose_ioctl) {
 					Genode::log("  obj[", i, "] ",
 					            "handle: ", obj[i].handle, " "
 					            "relocation_count: ", obj[i].relocation_count, " "
@@ -728,12 +857,7 @@ public:
 					            "alignment: ", Genode::Hex(obj[i].alignment), " "
 					            "offset: ", Genode::Hex(obj[i].offset), " "
 					            "flags: ", Genode::Hex(obj[i].flags));
-				}
-
-				if (obj[i].relocation_count > 0) {
-					Genode::error("no relocation supported");
-					return -1;
-				}
+//				}
 
 				int             ret = -1;
 				Handle_id const id  { .value = obj[i].handle };
@@ -742,16 +866,33 @@ public:
 					if (!bh.valid())
 						return;
 
+					if (obj[i].relocation_count > 0) {
+						bool ok = _relocate_batch_buffer(bh, obj[i], obj,
+						                                 p->buffer_count,
+						                                 p->flags & I915_EXEC_BATCH_FIRST);
+						if (!ok) {
+							Genode::error("relocation failed");
+							return;
+						}
+					}
+
 					if (bh.busy)
 						Genode::warning("handle: ", obj[i].handle, " reused but is busy");
 
-					if (bh.gpu_vaddr_valid && bh.gpu_vaddr.addr != obj[i].offset) {
-						Genode::error("unmap already mapped ", bh.handle, " ", Genode::Hex(bh.gpu_vaddr.addr), "->", Genode::Hex(obj[i].offset));
-						_unmap_buffer_ppgtt(bh);
-					}
+					if (no_remap) {
+						if (!vgpu_addr_check(bh)) {
+							Genode::error("handle: ", obj[i].handle, " gpu_vaddr invalid");
+							return;
+						}
+					} else {
+						if (bh.gpu_vaddr_valid && bh.gpu_vaddr.addr != obj[i].offset) {
+							Genode::error("unmap already mapped ", bh.handle, " ", Genode::Hex(bh.gpu_vaddr.addr), "->", Genode::Hex(obj[i].offset));
+							_unmap_buffer_ppgtt(bh);
+						}
 
-					if (!bh.gpu_vaddr_valid)
-						_map_buffer_ppgtt(bh, Gpu_virtual_address { .addr = obj[i].offset });
+						if (!bh.gpu_vaddr_valid)
+							_map_buffer_ppgtt(bh, Gpu_virtual_address { .addr = obj[i].offset });
+					}
 
 					if (!bh.gpu_vaddr_valid) {
 						Genode::error("handle: ", obj[i].handle, " gpu_vaddr invalid");
@@ -889,8 +1030,17 @@ public:
 			case DRM_I915_QUERY:              return _device_query(arg);
 			case DRM_I915_GEM_CONTEXT_SETPARAM: return _device_gem_context_set_param(arg);
 			case DRM_I915_GEM_CONTEXT_GETPARAM: return _device_gem_context_get_param(arg);
+			case DRM_I915_REG_READ:
+				Genode::error("Unhandled device specific: ", Genode::Hex(cmd),
+				              " DRM_I915_REG_READ");
+				break;
+			case DRM_I915_GET_RESET_STATS:
+				Genode::error("Unhandled device specific: ", Genode::Hex(cmd),
+				              " DRM_I915_GET_RESET_STATS");
+				break;
 			default:
-				Genode::error("Unhandled device specific ioctl:", Genode::Hex(cmd));
+				Genode::error("Unhandled device specific ioctl: ",
+				              Genode::Hex(cmd));
 				break;
 			}
 
@@ -979,7 +1129,12 @@ public:
 			auto const p = reinterpret_cast<drm_gem_open *>(arg);
 
 			Genode::error("generic ioctl DRM_IOCTL_GEM_OPEN not supported ",
-			              p->handle, " name=", Genode::Hex(p->name));
+			              p->handle, " name=", p->name);
+
+			if (p->name == prime_fd) {
+				p->handle = prime_handle.value;
+				return 0;
+			}
 
 			return -1;
 		}
@@ -1000,7 +1155,7 @@ public:
 			return -1;
 		}
 
-		int       const prime_fd     { 44 };
+		unsigned  const prime_fd     { 44 };
 		Handle_id       prime_handle { };
 
 		int _generic_prime_fd_to_handle(void *arg)
@@ -1020,8 +1175,10 @@ public:
 
 			Handle_id const handle { .value = p->handle };
 			bool handled = _apply_buffer(handle, [&](Buffer_handle const &bh) {
-				if (!prime_handle.value)
+				if (!prime_handle.value) {
 					prime_handle = handle;
+					Genode::warning("prime handle initial ", prime_handle);
+				}
 
 				if (prime_handle.value != handle.value)
 					Genode::error("prime handle changed - ignored ", bh.handle);
