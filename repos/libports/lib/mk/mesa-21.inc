@@ -102,6 +102,7 @@ SRC_CC += compiler/glsl/ast_array_index.cpp \
           compiler/glsl/lower_shared_reference.cpp \
           compiler/glsl/lower_subroutine.cpp \
           compiler/glsl/lower_tess_level.cpp \
+          compiler/glsl/lower_texture_projection.cpp \
           compiler/glsl/lower_ubo_reference.cpp \
           compiler/glsl/lower_variable_index_to_cond_assign.cpp \
           compiler/glsl/lower_vec_index_to_cond_assign.cpp \
@@ -474,6 +475,10 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          mapi/entry.c \
          mesa/drivers/dri/common/megadriver_stub.c \
          mesa/drivers/dri/common/utils.c \
+         mesa/drivers/common/driverfuncs.c \
+         mesa/drivers/common/meta.c \
+         mesa/drivers/common/meta_generate_mipmap.c \
+         mesa/drivers/common/meta_blit.c \
          mesa/main/accum.c \
          mesa/main/api_arrayelt.c \
          mesa/main/arbprogram.c \
@@ -594,8 +599,6 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          mesa/main/version.c \
          mesa/main/viewport.c \
          mesa/main/vtxfmt.c \
-         mesa/math/m_eval.c \
-         mesa/math/m_matrix.c \
          mesa/program/arbprogparse.c \
          mesa/program/prog_cache.c \
          mesa/program/prog_instruction.c \
@@ -735,6 +738,8 @@ SRC_C += compiler/glsl/glcpp/pp.c \
          util/u_vector.c \
          util/vma.c \
          util/xmlconfig.c
+
+SRC_C += $(addprefix mesa/math/, $(notdir $(wildcard $(MESA_SRC_DIR)/src/mesa/math/*.c)))
 
 CC_OPT += -DMAPI_ABI_HEADER=\"glapi/gen/glapi_mapi_tmp.h\" \
           -DMAPI_MODE_BRIDGE

@@ -18,7 +18,8 @@ PATCHES       := src/lib/mesa-21/patches/bitset_redefined.patch \
                  src/lib/mesa-21/patches/iris.patch \
                  src/lib/mesa-21/patches/iris_bufmgr_tmp.patch \
                  src/lib/mesa-21/patches/mesa.patch \
-                 src/lib/mesa-21/patches/os_mmap.patch
+                 src/lib/mesa-21/patches/os_mmap.patch \
+                 src/lib/mesa-21/patches/i965.patch
 
 PATCH_OPT     := -p1
 
