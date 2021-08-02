@@ -21,6 +21,7 @@ INC_DIR += $(MESA_SRC_DIR)/src/compiler/nir \
            $(MESA_SRC_DIR)/src/gallium/auxiliary \
            $(MESA_SRC_DIR)/src/intel \
            $(MESA_SRC_DIR)/src/mapi \
+           $(MESA_SRC_DIR)/src/mesa/main \
            $(MESA_SRC_DIR)/src/mesa
 
 SRC_C = gallium/drivers/iris/iris_batch.c \
@@ -150,6 +151,10 @@ SRC_C += intel/isl/isl.c \
          intel/isl/isl_storage_image.c \
          intel/isl/isl_tiled_memcpy_normal.c \
          intel/isl/isl_tiled_memcpy_sse41.c
+
+SRC_C  += $(addprefix mesa/swrast/, $(notdir $(wildcard $(MESA_SRC_DIR)/src/mesa/swrast/*.c)))
+SRC_C  += $(addprefix mesa/tnl/, $(notdir $(wildcard $(MESA_SRC_DIR)/src/mesa/tnl/*.c)))
+SRC_C  += mesa/main/texformat.c
 
 vpath %.c   $(MESA_GEN_DIR)/src
 
