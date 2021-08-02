@@ -268,14 +268,19 @@ struct Igd::Device
 	{
 		size_t const num = Genode::Dataspace_client(cap).size() / PAGE_SIZE;
 
+		bool freed = false;
 		auto lookup_and_free = [&] (Ggtt_mmio_mapping &m) {
 			if (!(m.cap == cap)) { return; }
 
 			_ggtt->remove_pte_range(m.offset, num);
 			Genode::destroy(&alloc, &m);
+			freed = true;
 		};
 
 		_ggtt_mmio_mapping_registry.for_each(lookup_and_free);
+
+		if (!freed)
+			Genode::error(__func__, " failed ", cap, " pages=", num);
 	}
 
 	struct Invalid_ppgtt : Genode::Exception { };
@@ -513,7 +518,7 @@ struct Igd::Device
 	{
 		enum {
 			APERTURE_SIZE = 32u << 20,
-			MAX_FENCES    = 4,
+			MAX_FENCES    = 32,
 		};
 
 		Device                          &_device;
@@ -1095,7 +1100,7 @@ struct Igd::Device
 	 * \param guard    resource allocator and guard
 	 * \param mapping  GGTT mapping
 	 */
-	void unmap_buffer(Genode::Allocator &guard, Ggtt::Mapping mapping)
+	void unmap_buffer(Genode::Allocator &guard, Ggtt::Mapping const &mapping)
 	{
 		unmap_dataspace_ggtt(guard, mapping.cap);
 	}
