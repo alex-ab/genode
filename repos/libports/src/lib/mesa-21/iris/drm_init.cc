@@ -25,10 +25,3 @@ void genode_drm_init()
 {
 	drm_init(*genode_env, genode_entrypoint());
 }
-
-extern void drm_complete();
-
-void genode_drm_complete()
-{
-	drm_complete();
-}
