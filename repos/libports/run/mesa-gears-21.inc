@@ -11,6 +11,7 @@ set demo_config {
 			<log/> <inline name="rtc">2000-01-01 00:00</inline>
 		</dir>
 	</vfs>
+	<env key="INTEL_DEBUG" value="buf, submit, pc, sync"/>
 </config>}
 
 set demo_modules {
