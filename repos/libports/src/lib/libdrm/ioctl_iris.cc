@@ -929,7 +929,17 @@ class Drm_call
 
 		int _device_gem_madvise(void *arg)
 		{
-			drm_i915_gem_madvise * const p = reinterpret_cast<drm_i915_gem_madvise*>(arg);
+			auto const p = reinterpret_cast<drm_i915_gem_madvise*>(arg);
+
+			if (p->madv == I915_MADV_DONTNEED) {
+				Handle_id const id { .value = p->handle };
+				/* another handle may re-use the vgpu addr, so we have to unmap */
+				_apply_buffer(id, [&] (Buffer_handle &bh) {
+					if (!bh.busy && bh.gpu_vaddr_valid)
+						_unmap_buffer_ppgtt(bh);
+				});
+			}
+
 			// Handle const handle = p->handle;
 			// uint32_t const madv = p->madv;
 			/* all buffer are always available */
