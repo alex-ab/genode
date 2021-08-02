@@ -81,6 +81,12 @@ dri2_genode_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw)
 	struct dri2_egl_context *dri2_ctx = dri2_egl_context(ctx);
 	void *map_data = NULL;
 	int stride;
+
+	if (!dri2_ctx || !dri2_ctx->dri_context) {
+		printf("%s:%u no context \n", __func__, __LINE__);
+		return EGL_FALSE;
+	}
+
 	void *data =
 		dri2_dpy->image->mapImage(dri2_ctx->dri_context, dri2_surf->back_image,
 		                          0, 0,
