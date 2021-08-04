@@ -597,6 +597,10 @@ struct Igd::Device
 			 * Pipeline synchronization
 			 */
 
+			bool dc_flush_wa = _device.match(Device_info::Platform::KABYLAKE,
+			                                 Device_info::Stepping::A0,
+			                                 Device_info::Stepping::B0);
+
 			/*
 			 * on GEN9: emit empty pipe control before VF_CACHE_INVALIDATE
 			 * - Linux 5.13 gen8_emit_flush_rcs()
@@ -606,6 +610,18 @@ struct Igd::Device
 				Genode::uint32_t cmd[CMD_NUM] = {};
 				Igd::Pipe_control pc(CMD_NUM);
 				cmd[0] = pc.value;
+
+				for (size_t i = 0; i < CMD_NUM; i++) {
+					advance += el.ring_append(cmd[i]);
+				}
+			}
+
+			if (dc_flush_wa) {
+				enum { CMD_NUM = 6 };
+				Genode::uint32_t cmd[CMD_NUM] = {};
+				Igd::Pipe_control pc(CMD_NUM);
+				cmd[0] = pc.value;
+				cmd[1] = Igd::Pipe_control::DC_FLUSH_ENABLE;
 
 				for (size_t i = 0; i < CMD_NUM; i++) {
 					advance += el.ring_append(cmd[i]);
@@ -639,6 +655,18 @@ struct Igd::Device
 
 				cmd[1] = tmp;
 				cmd[2] = scratch_addr;
+
+				for (size_t i = 0; i < CMD_NUM; i++) {
+					advance += el.ring_append(cmd[i]);
+				}
+			}
+
+			if (dc_flush_wa) {
+				enum { CMD_NUM = 6 };
+				Genode::uint32_t cmd[CMD_NUM] = {};
+				Igd::Pipe_control pc(CMD_NUM);
+				cmd[0] = pc.value;
+				cmd[1] = Igd::Pipe_control::CS_STALL;
 
 				for (size_t i = 0; i < CMD_NUM; i++) {
 					advance += el.ring_append(cmd[i]);
