@@ -591,6 +591,21 @@ struct Igd::Device
 			 * Pipeline synchronization
 			 */
 
+			/*
+			 * on GEN9: emit empty pipe control before VF_CACHE_INVALIDATE
+			 * - Linux 5.13 gen8_emit_flush_rcs()
+			 */
+			if (_device.generation().value == 9) {
+				enum { CMD_NUM = 6 };
+				Genode::uint32_t cmd[CMD_NUM] = {};
+				Igd::Pipe_control pc(CMD_NUM);
+				cmd[0] = pc.value;
+
+				for (size_t i = 0; i < CMD_NUM; i++) {
+					advance += el.ring_append(cmd[i]);
+				}
+			}
+
 			/* prolog */
 			if (1)
 			{
