@@ -534,27 +534,22 @@ class Drm_call
 				*value = 0;
 				break;
 			case I915_PARAM_REVISION:
-				*value = 9; /* XXX todo - read out*/
-				Genode::warning("I915_PARAM_REVISION ", *value);
+				*value = _gpu_info.revision.value;
 				return 0;
 			case I915_PARAM_CS_TIMESTAMP_FREQUENCY:
 				Genode::error("I915_PARAM_CS_TIMESTAMP_FREQUENCY not supported");
 				return -1;
 			case I915_PARAM_SLICE_MASK:
-				*value = 1; /* XXX todo - read out */
-				Genode::warning("I915_PARAM_SLICE_MASK ", *value);
+				*value = _gpu_info.slice_mask.value;
 				return 0;
 			case I915_PARAM_EU_TOTAL:
-				*value = 24; /* XXX todo - read out */
-				Genode::warning("I915_PARAM_EU_TOTAL ", *value);
+				*value = _gpu_info.eus.value;
 				return 0;
 			case I915_PARAM_SUBSLICE_TOTAL:
-				*value = 3; /* XXX todo - read out */
-				Genode::warning("I915_PARAM_SUBSLICE_TOTAL ", *value);
+				*value = _gpu_info.subslices.value;
 				return 0;
 			case I915_PARAM_SUBSLICE_MASK:
-				*value = 0x7; /* XXX todo - read out */
-				Genode::warning("I915_PARAM_SUBSLICE_MASK ", *value);
+				*value = _gpu_info.subslice_mask.value;
 				return 0;
 			case I915_PARAM_MMAP_GTT_VERSION:
 				*value = 0; /* XXX */
