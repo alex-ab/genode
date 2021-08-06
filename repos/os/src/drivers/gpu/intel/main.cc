@@ -142,6 +142,9 @@ struct Igd::Device
 
 	} _pci_backend_alloc { _resources.platform() };
 
+#define mb()  asm volatile("mfence":::"memory")
+#define rmb() asm volatile("lfence":::"memory")
+#define wmb() asm volatile("sfence":::"memory")
 
 	Device_info              _info          { };
 	Gpu::Info::Revision      _revision      { };
@@ -933,8 +936,16 @@ struct Igd::Device
 
 			el.ring_flush(tail, tail + advance);
 
+		mb();
+		rmb();
+		wmb();
+
 			/* tail_offset must be specified in qword */
 			rcs.context->tail_offset((offset % (rcs.ring_size())) / 8);
+
+		mb();
+		rmb();
+		wmb();
 
 			return true;
 		}
@@ -985,6 +996,10 @@ struct Igd::Device
 		desc[1] = el.elem0().high();
 		desc[0] = el.elem0().low();
 
+		mb();
+		rmb();
+		wmb();
+
 		_mmio->write<Igd::Mmio::EXECLIST_SUBMITPORT_RSCUNIT>(desc[3]);
 		_mmio->write<Igd::Mmio::EXECLIST_SUBMITPORT_RSCUNIT>(desc[2]);
 		_mmio->write<Igd::Mmio::EXECLIST_SUBMITPORT_RSCUNIT>(desc[1]);
@@ -1021,12 +1036,20 @@ struct Igd::Device
 
 		_mmio->flush_gfx_tlb();
 
+		mb();
+		rmb();
+		wmb();
+
 		/*
 		 * XXX check if HWSP is shared across contexts and if not when
 		 *     we actually need to write the register
 		 */
 		Mmio::HWS_PGA_RCSUNIT::access_t const addr = rcs.hw_status_page();
 		_mmio->write_post<Igd::Mmio::HWS_PGA_RCSUNIT>(addr);
+
+		mb();
+		rmb();
+		wmb();
 
 		_submit_execlist(rcs);
 
@@ -1111,10 +1134,12 @@ struct Igd::Device
 		_active_vgpu->rcs.context->dump_hw_status_page();
 		Execlist &el = *_active_vgpu->rcs.execlist;
 		el.ring_update_head(_active_vgpu->rcs.context->head_offset());
+/*
 		el.ring_dump(4096, _active_vgpu->rcs.context->tail_offset() * 2,
 		                   _active_vgpu->rcs.context->head_offset());
+*/
 
-		_device_reset_and_init();
+		_device_reset_and_init(true);
 
 		if (_active_vgpu == _current_vgpu()) {
 			_unschedule_current_vgpu();
@@ -1128,13 +1153,19 @@ struct Igd::Device
 	Genode::Signal_handler<Device> _watchdog_timeout_sigh {
 		_env.ep(), *this, &Device::_handle_watchdog_timeout };
 
-	void _device_reset_and_init()
+	void _device_reset_and_init(bool show)
 	{
+		if (show) Genode::warning(__LINE__);
 		_mmio->reset();
+		if (show) Genode::warning(__LINE__);
 		_mmio->clear_errors();
+		if (show) Genode::warning(__LINE__);
 		_mmio->init();
+		if (show) Genode::warning(__LINE__);
 		_mmio->enable_intr();
+		if (show) Genode::warning(__LINE__);
 		_mmio->forcewake_enable();
+		if (show) Genode::warning(__LINE__);
 	}
 
 	/**
@@ -1192,7 +1223,7 @@ struct Igd::Device
 
 		_vgpu_avail = (gmadr_size - aperture_reserved) / Vgpu::APERTURE_SIZE;
 
-		_device_reset_and_init();
+		_device_reset_and_init(false);
 
 
 		_mmio->dump();
@@ -1274,7 +1305,7 @@ struct Igd::Device
 	/**
 	 * Reset the physical device
 	 */
-	void reset() { _device_reset_and_init(); }
+	void reset() { _device_reset_and_init(true); }
 
 	/**
 	 * Get chip id of the physical device
