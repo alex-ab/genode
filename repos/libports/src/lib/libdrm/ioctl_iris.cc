@@ -592,12 +592,9 @@ class Drm_call
 
 		int _device_gem_context_create(void *arg)
 		{
-			static unsigned cnt = 0;
-
 			drm_i915_gem_context_create * const p = reinterpret_cast<drm_i915_gem_context_create*>(arg);
-			p->ctx_id = _gpu_info.ctx_id + cnt;
+			p->ctx_id = _gpu_info.ctx_id;;
 			Genode::error("create gem context ", p->ctx_id);
-			cnt ++;
 			return 0;
 		}
 
