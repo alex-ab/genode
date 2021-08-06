@@ -1,5 +1,5 @@
-LIBS += libdrm i965-21
+LIBS += libdrm iris
 
-CC_OPT += -DGALLIUM_I965
+CC_OPT += -DGALLIUM_IRIS
 
 include $(REP_DIR)/lib/mk/mesa-21.inc
