@@ -40,6 +40,7 @@ set build_components {
 	drivers/framebuffer/intel
 	lib/mesa-21/softpipe
 	core init timer
+	app/top
 }
 
 lappend_if $use_iris    build_components lib/mesa-21/iris
@@ -61,6 +62,7 @@ set config {
 		<service name="PD"/>
 		<service name="RM"/>
 		<service name="ROM"/>
+		<service name="TRACE"/>
 	</parent-provides>
 	<default caps="100"/>
 	<default-route>
@@ -81,7 +83,7 @@ set config {
 		</route>
 	</start>
 
-	<start name="drivers" caps="2500" managing_system="yes">
+	<start name="drivers" caps="2500" managing_system="yes" priority="-1">
 		<resource name="RAM" quantum="128M"/>
 		<binary name="init"/>
 		<provides> <service name="Platform"/> </provides>
@@ -111,6 +113,12 @@ set config {
 	</start>
 	<start name="pointer">
 		<resource name="RAM" quantum="1M"/>
+	</start>
+	<start name="top" caps="200">
+		<resource name="RAM" quantum="10M"/>
+		<route>
+			<any-service> <parent /> <any-child/> </any-service>
+		</route>
 	</start>
 	<start name="gui_fb" caps="200">
 		<resource name="RAM" quantum="16M"/>
@@ -197,7 +205,7 @@ append config {
 #	</start>}
 
 append_if [expr $use_iris || $use_i965] config {
-	<start name="intel_gpu_drv" caps="2000">
+	<start name="intel_gpu_drv" caps="2000" priority="-1">
 		<resource name="RAM" quantum="40M"/>
 		<provides>
 			<service name="Gpu"/>
@@ -238,6 +246,7 @@ set boot_modules {
 	expat.lib.so glapi-21.lib.so zlib.lib.so
 	core init ld.lib.so timer egl_swrast-21.lib.so
 	libdrm.lib.so
+	top
 }
 
 append_if $use_iris boot_modules {
