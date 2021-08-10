@@ -927,11 +927,11 @@ struct Igd::Device
 
 	void _device_reset_and_init()
 	{
-		_mmio->reset();
+		_mmio->reset(_info.generation);
 		_mmio->clear_errors();
 		_mmio->init();
 		_mmio->enable_intr();
-		_mmio->forcewake_enable();
+		_mmio->forcewake_enable(_info.generation);
 	}
 
 	/**

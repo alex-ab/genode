@@ -698,6 +698,17 @@ class Igd::Mmio : public Genode::Mmio
 		struct ELEM_DESCRIPTOR1 : Register<0x4400, 32> { };
 		struct ELEM_DESCRIPTOR2 : Register<0x4404, 32> { };
 
+		/**
+		 * Forcewake for GEN9 & GEN10, lx 5.13
+		 */
+		struct FORCEWAKE_GT_GEN9     : Register<0x0a188, 32> { };
+		struct FORCEWAKE_MEDIA_GEN9  : Register<0x0a270, 32> { };
+		struct FORCEWAKE_RENDER_GEN9 : Register<0x0a278, 32> { };
+
+		struct FORCEWAKE_GEN9_RENDER_ACK : Register<0x000D84, 32> { };
+		struct FORCEWAKE_GEN9_MEDIA_ACK  : Register<0x000D88, 32> { };
+		struct FORCEWAKE_GEN9_GT_ACK     : Register<0x130044, 32> { };
+
 		/*
 		 * IHD-OS-BDW-Vol 2c-11.15 p. 703
 		 *
@@ -885,7 +896,7 @@ class Igd::Mmio : public Genode::Mmio
 
 		Mmio::Delayer &_delayer;
 
-		void _fw_reset()
+		void _fw_reset_gen8()
 		{
 			using namespace Genode;
 
@@ -940,6 +951,101 @@ class Igd::Mmio : public Genode::Mmio
 				error("could not disable force-wake engine");
 			}
 		}
+
+		void _fw_reset_gen9()
+		{
+			write_post<FORCEWAKE_MEDIA_GEN9>(FORCEWAKE_MT::RESET);
+			write_post<FORCEWAKE_RENDER_GEN9>(FORCEWAKE_MT::RESET);
+			write_post<FORCEWAKE_GT_GEN9>(FORCEWAKE_MT::RESET);
+		}
+
+		/**
+		 * Set forcewake state, i.e., prevent from powering down
+		 */
+		void _fw_enable_media()
+		{
+			using namespace Genode;
+
+			while (read<FORCEWAKE_GEN9_MEDIA_ACK>()) {
+				log(__func__, " ", __LINE__, " wait loop ",
+				    Hex(read<FORCEWAKE_GEN9_MEDIA_ACK>()));
+				_delayer.usleep(1000 * 1000);
+			}
+
+			FORCEWAKE_MEDIA_GEN9::access_t v = (1 << 16) | 1;
+			write<FORCEWAKE_MEDIA_GEN9>(v);
+
+			try {
+				wait_for(Attempts(50), Microseconds(1000), _delayer,
+				         FORCEWAKE_GEN9_MEDIA_ACK::Equal(1));
+			} catch (Polling_timeout) {
+				error("could not enable force-wake engine media");
+			}
+		}
+
+		void _fw_disable_media()
+		{
+			FORCEWAKE_MEDIA_GEN9::access_t v = (1u << 16) | 0;
+			write<FORCEWAKE_MEDIA_GEN9>(v);
+		}
+
+
+		void _fw_enable_render()
+		{
+			using namespace Genode;
+
+			while (read<FORCEWAKE_GEN9_RENDER_ACK>()) {
+				log(__func__, " ", __LINE__, " wait loop ",
+				    Hex(read<FORCEWAKE_GEN9_RENDER_ACK>()));
+				_delayer.usleep(1000 * 1000);
+			}
+
+			FORCEWAKE_RENDER_GEN9::access_t v = (1 << 16) | 1;
+			write<FORCEWAKE_RENDER_GEN9>(v);
+
+			try {
+				wait_for(Attempts(50), Microseconds(1000), _delayer,
+				         FORCEWAKE_GEN9_RENDER_ACK::Equal(1));
+			} catch (Polling_timeout) {
+				/* XXX fall back path, see lx */
+				error("could not enable force-wake engine render");
+			}
+		}
+
+		void _fw_disable_render()
+		{
+			FORCEWAKE_RENDER_GEN9::access_t v = (1u << 16) | 0;
+			write<FORCEWAKE_RENDER_GEN9>(v);
+		}
+
+		void _fw_enable_gt()
+		{
+			using namespace Genode;
+
+			while (read<FORCEWAKE_GEN9_GT_ACK>()) {
+				log(__func__, " ", __LINE__, " wait loop ",
+				    Hex(read<FORCEWAKE_GEN9_GT_ACK>()));
+				_delayer.usleep(1000 * 1000);
+			}
+
+			FORCEWAKE_GT_GEN9::access_t v = (1u << 16) | 1;
+			write<FORCEWAKE_GT_GEN9>(v);
+
+			try {
+				wait_for(Attempts(50), Microseconds(1000), _delayer,
+				         FORCEWAKE_GEN9_GT_ACK::Equal(1));
+			} catch (Polling_timeout) {
+				/* XXX fall back path, see lx */
+				error("could not enable force-wake engine gt");
+			}
+		}
+
+		void _fw_disable_gt()
+		{
+			FORCEWAKE_GT_GEN9::access_t v = (1u << 16) | 0;
+			write<FORCEWAKE_GT_GEN9>(v);
+		}
+
 
 		/**
 		 * Reset interrupts
@@ -1184,7 +1290,7 @@ class Igd::Mmio : public Genode::Mmio
 		/**
 		 * Reset device
 		 */
-		void _reset_device()
+		void _reset_gen8_device()
 		{
 			_fw_enable(FORCEWAKE_ID_RENDER);
 
@@ -1203,6 +1309,34 @@ class Igd::Mmio : public Genode::Mmio
 			}
 
 			_fw_disable(FORCEWAKE_ID_RENDER);
+		}
+
+		/**
+		 * Reset device
+		 */
+		void _reset_gen9_device()
+		{
+			_fw_enable_render();
+			_fw_enable_gt();
+			_fw_enable_media();
+
+			bool res = _reset_engines();
+			if (!res) {
+				Genode::warning("cannot reset device, engines not ready");
+				return;
+			}
+
+			write<GDRST::Graphics_full_soft_reset_ctl>(1);
+			try {
+				wait_for(Attempts(50), Microseconds(10), _delayer,
+				         GDRST::Graphics_full_soft_reset_ctl::Equal(0));
+			} catch (Mmio::Polling_timeout) {
+				Genode::error("resetting device failed");
+			}
+
+			_fw_disable_render();
+			_fw_disable_gt();
+			_fw_disable_media();
 		}
 
 		/**
@@ -1240,18 +1374,84 @@ class Igd::Mmio : public Genode::Mmio
 			(void)read<T>();
 		}
 
-		void forcewake_enable() { _fw_enable(FORCEWAKE_ID_RENDER); }
-		void forcewake_disable() { _fw_disable(FORCEWAKE_ID_RENDER); }
+		void forcewake_gen8_enable() { _fw_enable(FORCEWAKE_ID_RENDER); }
+		void forcewake_gen8_disable() { _fw_disable(FORCEWAKE_ID_RENDER); }
 
-		void reset()
+		void forcewake_gen9_enable()
+		{
+			_fw_enable_render();
+			_fw_enable_gt();
+//			_fw_enable_media();
+		}
+
+		void forcewake_gen9_disable()
+		{
+			_fw_disable_render();
+			_fw_disable_gt();
+//			_fw_disable_media();
+		}
+
+		void forcewake_enable(unsigned const generation)
+		{
+			switch (generation) {
+			case 8:
+				forcewake_gen8_enable();
+				return;
+			case 9:
+				forcewake_gen9_enable();
+				return;
+			default:
+				Genode::error(__func__, " unsupported generation ", generation);
+			}
+		}
+
+		void forcewake_disable(unsigned const generation)
+		{
+			switch (generation) {
+			case 8:
+				forcewake_gen8_disable();
+				return;
+			case 9:
+				forcewake_gen9_disable();
+				return;
+			default:
+				Genode::error(__func__, " unsupported generation ", generation);
+			}
+		}
+
+		void reset(unsigned const generation)
+		{
+			switch (generation) {
+			case 8:
+				reset_gen8();
+				return;
+			case 9:
+				reset_gen9();
+				return;
+			default:
+				Genode::error(__func__, " unsupported generation ", generation);
+			}
+		}
+
+		void reset_gen8()
 		{
 			_intr_reset();
-			_reset_device();
-			_fw_reset();
+			_reset_gen8_device();
+			_fw_reset_gen8();
 			_reset_fences();
 
 			_disable_nde_handshake();
+			_set_page_attributes();
+		}
 
+		void reset_gen9()
+		{
+			_intr_reset();
+			_fw_reset_gen9();
+			_reset_gen9_device();
+			_reset_fences();
+
+			_disable_nde_handshake();
 			_set_page_attributes();
 		}
 
