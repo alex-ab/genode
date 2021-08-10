@@ -630,6 +630,14 @@ struct Igd::Device
 
 			Ring_buffer::Index advance = 0;
 
+			if ((rcs.context->head_offset() != rcs.context->tail_offset() * 2) ||
+			    (rcs.execlist->ring_head() != rcs.execlist->ring_tail()))
+				Genode::error("active gpu =!? ",
+				              rcs.context->head_offset(), "/",
+				              rcs.context->tail_offset() * 2, " vs ",
+				              rcs.execlist->ring_head(), "/",
+				              rcs.execlist->ring_tail());
+
 			bool dc_flush_wa = _device.match(Device_info::Platform::KABYLAKE,
 			                                 Device_info::Stepping::A0,
 			                                 Device_info::Stepping::B0);
