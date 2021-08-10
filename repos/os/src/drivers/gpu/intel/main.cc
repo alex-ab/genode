@@ -528,8 +528,6 @@ struct Igd::Device
 	 ** Vgpu **
 	 **********/
 
-	Constructible<Engine<Rcs_context> > rcs_nop;
-
 	uint32_t _vgpu_avail { 0 };
 
 	struct Vgpu : Genode::Fifo<Vgpu>::Element
@@ -549,7 +547,7 @@ struct Igd::Device
 
 		uint32_t _id_alloc()
 		{
-			static uint32_t id = 2;
+			static uint32_t id = 1;
 
 			uint32_t const v = id++;
 			return v << 8;
@@ -1036,33 +1034,6 @@ struct Igd::Device
 		return result;
 	}
 
-#if 1
-	void _schedule_rcs_nop()
-	{
-		Engine<Rcs_context> &rcs = *rcs_nop;
-
-		rcs.ppgtt_scratch.check_dump(_env);
-
-		_mmio->flush_gfx_tlb();
-
-		mb();
-		rmb();
-		wmb();
-
-		/*
-		 * XXX check if HWSP is shared across contexts and if not when
-		 *     we actually need to write the register
-		 */
-		Mmio::HWS_PGA_RCSUNIT::access_t const addr = rcs.hw_status_page();
-		_mmio->write_post<Igd::Mmio::HWS_PGA_RCSUNIT>(addr);
-
-		mb();
-		rmb();
-		wmb();
-
-		_submit_execlist(rcs);
-	}
-#endif
 	void _schedule_current_vgpu()
 	{
 		Vgpu *gpu = _current_vgpu();
@@ -1300,8 +1271,6 @@ struct Igd::Device
 			Genode::error("unsupported platform ", (int)_info.platform);
 
 		_timer.sigh(_watchdog_timeout_sigh);
-
-		rcs_nop.construct(*this, 0x101, _md_alloc);
 	}
 
 	void _init_eu_total(uint8_t const max_slices,
@@ -1572,8 +1541,6 @@ struct Igd::Device
 		(void)ctx_switch;
 		bool const user_complete = Mmio::GT_0_INTERRUPT_IIR::Cs_mi_user_interrupt::get(v);
 
-		Genode::log("---- ", ctx_switch, " ", user_complete);
-
 		if (v) { _clear_rcs_iir(v); }
 
 		Vgpu *notify_gpu = nullptr;
@@ -1601,11 +1568,6 @@ struct Igd::Device
 			if (_current_vgpu()) {
 				_schedule_current_vgpu();
 			}
-		}
-
-		if (!_active_vgpu && ctx_switch) {
-			Genode::error("not active vgpu and ctx_switch -> schedule nop");
-			_schedule_rcs_nop();
 		}
 
 		return master;
