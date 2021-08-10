@@ -982,6 +982,7 @@ struct Igd::Device
 
 	Genode::Fifo<Vgpu>  _vgpu_list { };
 	Vgpu               *_active_vgpu { nullptr };
+	uint64_t            _elapsed_ms { };
 
 	void _submit_execlist(Engine<Rcs_context> &engine)
 	{
@@ -1089,6 +1090,7 @@ struct Igd::Device
 
 		_active_vgpu = gpu;
 		_timer.trigger_once(WATCHDOG_TIMEOUT);
+		_elapsed_ms  = _timer.elapsed_ms();
 	}
 
 	/**********
@@ -1158,7 +1160,9 @@ struct Igd::Device
 		if (!_active_vgpu) { return; }
 
 		Genode::error("watchdog triggered: engine stuck,"
-		              " vGPU=", _active_vgpu->id());
+		              " vGPU=", _active_vgpu->id(), " elapsed_ms=", _elapsed_ms, "/", _timer.elapsed_ms(),
+		              "  Ring_0_enable   : ", Hex(_mmio->read<Igd::Mmio::RCS_INSTDONE::Ring_0_enable   >()));
+
 		_mmio->dump();
 		_mmio->error_dump();
 		_mmio->fault_dump();
