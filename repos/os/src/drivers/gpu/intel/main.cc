@@ -1008,6 +1008,7 @@ struct Igd::Device
 		_mmio->write<Igd::Mmio::EXECLIST_SUBMITPORT_RSCUNIT>(desc[3]);
 		_mmio->write<Igd::Mmio::EXECLIST_SUBMITPORT_RSCUNIT>(desc[2]);
 		_mmio->write<Igd::Mmio::EXECLIST_SUBMITPORT_RSCUNIT>(desc[1]);
+		asm volatile("sfence":::"memory");
 		_mmio->write<Igd::Mmio::EXECLIST_SUBMITPORT_RSCUNIT>(desc[0]);
 	}
 
@@ -1032,13 +1033,21 @@ struct Igd::Device
 	{
 		Engine<Rcs_context> &rcs = *rcs_nop;
 
+		Execlist &el = *rcs.execlist;
+
+		el.ring_update_head(rcs.context->head_offset());
+
+		Ring_buffer::Index const tail = el.ring_tail();
+
+		el.ring_append(MI_NOOP);
+		el.ring_append(MI_NOOP);
+
+		rcs.context->tail_offset((tail + 2 % (rcs.ring_size())) / 8);
+		Genode::log("--- ", tail, "-", tail + 2, " head=", rcs.context->head_offset());
+
 		rcs.ppgtt_scratch.check_dump(_env);
 
 		_mmio->flush_gfx_tlb();
-
-		mb();
-		rmb();
-		wmb();
 
 		/*
 		 * XXX check if HWSP is shared across contexts and if not when
@@ -1047,13 +1056,10 @@ struct Igd::Device
 		Mmio::HWS_PGA_RCSUNIT::access_t const addr = rcs.hw_status_page();
 		_mmio->write_post<Igd::Mmio::HWS_PGA_RCSUNIT>(addr);
 
-		mb();
-		rmb();
-		wmb();
-
 		_submit_execlist(rcs);
 	}
 #endif
+
 	void _schedule_current_vgpu()
 	{
 		Vgpu *gpu = _current_vgpu();
@@ -1555,6 +1561,7 @@ struct Igd::Device
 		_mmio->disable_master_irq();
 
 		Mmio::GT_0_INTERRUPT_IIR::access_t const v = _mmio->read<Mmio::GT_0_INTERRUPT_IIR>();
+		Mmio::GT_2_INTERRUPT_IIR::access_t const v2= _mmio->read<Mmio::GT_2_INTERRUPT_IIR>();
 
 		bool const ctx_switch    = Mmio::GT_0_INTERRUPT_IIR::Cs_ctx_switch_interrupt::get(v);
 		(void)ctx_switch;
@@ -1577,7 +1584,7 @@ struct Igd::Device
 		_mmio->update_context_status_pointer();
 
 		if (user_complete) {
-			_unschedule_current_vgpu();
+			//_unschedule_current_vgpu();
 			_active_vgpu = nullptr;
 
 			if (notify_gpu) {
@@ -1585,15 +1592,49 @@ struct Igd::Device
 					_vgpu_list.enqueue(*notify_gpu);
 			}
 
-			/* keep the ball rolling...  */
-			if (_current_vgpu()) {
-				_schedule_current_vgpu();
-			}
 		}
 
 		if (!_active_vgpu && ctx_switch) {
-			Genode::error("not active vgpu and ctx_switch -> schedule nop");
-			_schedule_rcs_nop();
+			static unsigned active_rcs_nop = 0;
+
+			Genode::error("not active vgpu and ctx_switch -> schedule nop ",
+			              rcs_nop->context->head_offset(), "/",
+			              rcs_nop->context->tail_offset(), " vs ",
+			              rcs_nop->execlist->ring_head(), "/",
+			              rcs_nop->execlist->ring_tail(),
+			              " v=", Genode::Hex(v),
+			              " v2=", Genode::Hex(v2),
+			              " active_rcs_nop=", active_rcs_nop);
+
+			if (!active_rcs_nop)
+			{
+				_schedule_rcs_nop();
+			}
+
+			active_rcs_nop++;
+
+			if (active_rcs_nop == 2) {
+				if (_current_vgpu()) {
+					Engine<Rcs_context> &rcs = _current_vgpu()->rcs;
+					Genode::error("active gpu =!? ",
+					              rcs.context->head_offset(), "/",
+					              rcs.context->tail_offset(), " vs ",
+					              rcs.execlist->ring_head(), "/",
+					              rcs.execlist->ring_tail());
+
+					if (rcs.execlist->ring_head() == rcs.execlist->ring_tail())
+						_unschedule_current_vgpu();
+
+					/* keep the ball rolling...  */
+					if (_current_vgpu()) {
+						Genode::log("run run");
+						_schedule_current_vgpu();
+					}
+				} else
+					Genode::error("nothing to schedule");
+
+				active_rcs_nop = 0;
+			}
 		}
 
 		return master;
