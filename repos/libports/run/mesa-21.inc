@@ -37,7 +37,6 @@ import_from_depot $imports
 
 set build_components {
 	drivers/gpu/intel
-	drivers/framebuffer/intel
 	lib/mesa-21/softpipe
 	core init timer
 	app/top
@@ -88,7 +87,7 @@ set config {
 		<binary name="init"/>
 		<provides> <service name="Platform"/> </provides>
 		<route>
-			<service name="ROM" label="config"> <parent label="drivers.config"/> </service>
+			<service name="ROM" label="config"> <parent label="drivers_platform.config"/> </service>
 			<service name="Timer">   <child name="timer"/> </service>
 			<service name="Capture"> <child name="nitpicker"/> </service>
 			<service name="Event">   <child name="nitpicker"/> </service>
@@ -205,22 +204,12 @@ append config {
 #	</start>}
 
 append_if [expr $use_iris || $use_i965] config {
-	<start name="intel_gpu_drv" caps="2000" priority="-1">
+	<start name="intel_fb_drv" caps="2000" priority="-1">
+		<binary name="intel_gpu_drv"/>
 		<resource name="RAM" quantum="40M"/>
-		<provides>
-			<service name="Gpu"/>
-			<service name="Platform"/>
-		</provides>
+		<provides> <service name="Gpu"/> </provides>
 		<route>
-			<service name="Platform"> <child name="drivers"/> </service>
 			<any-service> <parent /> <any-child/> </any-service>
-		</route>
-	</start>
-	<start name="intel_fb_drv" caps="1000">
-		<resource name="RAM" quantum="96M"/>
-		<route>
-			<service name="Platform"> <child name="intel_gpu_drv"/> </service>
-			<any-service> <parent/> <any-child /> </any-service>
 		</route>
 	</start>}
 
@@ -251,7 +240,7 @@ set boot_modules {
 
 append_if $use_iris boot_modules {
 	egl_iris-21.lib.so libdrm.lib.so
-	intel_gpu_drv intel_fb_drv
+	intel_gpu_drv
 }
 
 append_if $use_i965 boot_modules {
