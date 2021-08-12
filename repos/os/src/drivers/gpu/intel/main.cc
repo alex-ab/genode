@@ -991,6 +991,7 @@ struct Igd::Device
 
 		_device_reset_and_init();
 
+		_clock_gating();
 
 		_mmio->dump();
 		_mmio->context_status_pointer_dump();
@@ -1022,6 +1023,14 @@ struct Igd::Device
 			Genode::error("unsupported platform ", (int)_info.platform);
 
 		_timer.sigh(_watchdog_timeout_sigh);
+	}
+
+	void _clock_gating()
+	{
+		if (_info.platform == Device_info::Platform::KABYLAKE) {
+			_mmio->kbl_clock_gating();
+		} else
+			Genode::warning("no clock gating");
 	}
 
 	void _init_eu_total(uint8_t const max_slices,
