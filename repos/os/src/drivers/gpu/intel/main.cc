@@ -1238,6 +1238,7 @@ struct Igd::Device
 
 		_mmio->dump();
 		_mmio->context_status_pointer_dump();
+		_mmio->dump_rc();
 
 		/* read out slice, subslice, EUs information depending on platform */
 		if (_info.platform == Device_info::Platform::BROADWELL) {

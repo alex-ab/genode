@@ -1698,6 +1698,27 @@ class Igd::Mmio : public Genode::Mmio
 			}
 		}
 
+		/**************
+		 ** RC* mode **
+		 **************/
+
+		struct RC_WAKE_HYSTERESIS : Register<0xa0b0, 32> {};
+		struct GEN9_PG_ENABLE     : Register<0xa210, 32> {};
+
+		void dump_rc()
+		{
+			Genode::log("a008 RP_FREQ  ", Genode::Hex(read<RP_FREQ_NORMAL>()));
+			Genode::log("a024 RP_CTRL  ", Genode::Hex(read<RP_CTRL>()));
+			Genode::log("a0b0 RC_SLEEP ", Genode::Hex(read<RC_WAKE_HYSTERESIS>()));
+			Genode::log("a090 RC_CTLR0 ", Genode::Hex(read<RC_CTRL0>()));
+			Genode::log("a094 RC_CTRL1 ", Genode::Hex(read<RC_CTRL1>()));
+			/* GPM 0xA000-0xAA84, 0x8000-0x80FC */
+			for (unsigned i = 0xa000; i < 0xa220; i+= 4) {
+				Genode::log(Genode::Hex(i), ":=",
+				            Genode::Hex(*reinterpret_cast<unsigned *>(base() + i)));
+			}
+		}
+
 		/*********************
 		 ** DEBUG interface **
 		 *********************/
