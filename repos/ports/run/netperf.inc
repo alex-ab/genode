@@ -89,6 +89,11 @@ proc unique_byte_per_platform { } {
 				if {[have_spec nova]}      { return 20; }
 			}
 		}
+		if {[have_spec arm_v8a]} {
+			if {[have_board phycore]} {
+				if {[have_spec hw]}        { return 21; }
+			}
+		}
 	}
 	puts "Failed to determine unique byte for target."
 	exit -1
