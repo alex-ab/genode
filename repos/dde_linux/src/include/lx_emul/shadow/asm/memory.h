@@ -46,7 +46,7 @@ extern u64 vabits_actual;
 #define MT_DEVICE_nGnRnE 4
 #define MT_DEVICE_nGnRE  5
 
-#define __va(x) ( lx_emul_trace_and_stop("__va"), (void *)0 )
+#define __va(x) (void *)lx_emul_mem_virt_addr((void *)(x))
 #define __pa(v) lx_emul_mem_dma_addr((void *)(v))
 
 #define page_to_phys(p) __pa((p)->virtual)
@@ -54,7 +54,7 @@ extern u64 vabits_actual;
 
 static inline struct page *virt_to_page(void const *v) { return lx_emul_virt_to_pages(v, 1U); }
 
-#define pfn_to_page(pfn) ( (struct page *)(__va(pfn << PAGE_SHIFT)) )
+#define pfn_to_page(pfn)  ( virt_to_page(__va((pfn) << PAGE_SHIFT)) )
 #define page_to_pfn(page) ( page_to_phys(page) >> PAGE_SHIFT )
 
 #define PCI_IO_START 0
