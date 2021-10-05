@@ -525,6 +525,7 @@ struct Igd::Device
 	 **********/
 
 	uint32_t _vgpu_avail { 0 };
+	uint32_t _vgpu_max   { 0 };
 
 	/* global hardware-status page */
 	Constructible<Ggtt_map_memory>      _hw_status_ctx  { };
@@ -1083,7 +1084,8 @@ struct Igd::Device
 		_ggtt.construct(_mmio, ggtt_base, ggtt_size, gmadr_size, scratch_page, aperture_reserved);
 		_ggtt->dump();
 
-		_vgpu_avail = (gmadr_size - aperture_reserved) / Vgpu::APERTURE_SIZE;
+		_vgpu_max   = (gmadr_size - aperture_reserved) / Vgpu::APERTURE_SIZE;
+		_vgpu_avail = _vgpu_max;
 
 		_device_reset_and_init();
 
@@ -1126,6 +1128,8 @@ struct Igd::Device
 		apply_workarounds(_mmio, _info.generation);
 
 		_resources.timer().sigh(_watchdog_timeout_sigh);
+
+		_mmio.forcewake_disable(_info.generation);
 	}
 
 	void _clock_gating()
@@ -1281,8 +1285,21 @@ struct Igd::Device
 	/**
 	 * Increase/decrease available vGPU count.
 	 */
-	void vgpu_created()  { _vgpu_avail --; }
-	void vgpu_released() { _vgpu_avail ++; }
+	void vgpu_created()
+	{
+		if (_vgpu_avail == _vgpu_max)
+			_mmio.forcewake_enable(_info.generation);
+
+		_vgpu_avail --;
+	}
+
+	void vgpu_released()
+	{
+		_vgpu_avail ++;
+
+		if (_vgpu_avail == _vgpu_max)
+			_mmio.forcewake_disable(_info.generation);
+	}
 
 	/**
 	 * Check if vGPU is currently scheduled

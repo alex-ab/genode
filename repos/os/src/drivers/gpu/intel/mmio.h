@@ -1018,11 +1018,13 @@ class Igd::Mmio : public Genode::Mmio
 		{
 			using namespace Genode;
 
-			while (read<typename REG_ACK::Kernel>()) {
-				log(__func__, " ", __LINE__, " wait ", Hex(read<REG_ACK>()));
-				_delayer.usleep(500 * 1000);
-
-				_fw_enable_wa<REG, REG_ACK>();
+			for (unsigned round = 0; round < 3; round++) {
+				try {
+					wait_for(Attempts(50), Microseconds(1000), _delayer,
+					         typename REG_ACK::Kernel::Equal(0));
+				} catch (Polling_timeout) {
+					_fw_enable_wa<REG, REG_ACK>();
+				}
 			}
 
 			typename REG::access_t v = 0;
@@ -1052,12 +1054,6 @@ class Igd::Mmio : public Genode::Mmio
 			REG::Fallback_kernel_mask::set(v_set, 1);
 			REG::Fallback_kernel     ::set(v_set, 1);
 			write<REG>(v_set);
-
-			_delayer.usleep(100 * 1000);
-
-			log(__func__, " ", __LINE__, " ",
-			    Genode::Hex(read<REG>()), " ",
-			    Genode::Hex(read<REG_ACK>()));
 
 			while (!(read<typename REG_ACK::Fallback_kernel>())) {
 				log(__func__, " ", __LINE__, " wait ", Hex(read<REG_ACK>()));
