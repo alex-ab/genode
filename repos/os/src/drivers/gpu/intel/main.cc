@@ -1287,8 +1287,10 @@ struct Igd::Device
 	 */
 	void vgpu_created()
 	{
-		if (_vgpu_avail == _vgpu_max)
+		if (_vgpu_avail == _vgpu_max) {
+			Genode::warning("enable force wake");
 			_mmio.forcewake_enable(_info.generation);
+		}
 
 		_vgpu_avail --;
 	}
@@ -1297,8 +1299,10 @@ struct Igd::Device
 	{
 		_vgpu_avail ++;
 
-		if (_vgpu_avail == _vgpu_max)
+		if (_vgpu_avail == _vgpu_max) {
+			Genode::warning("disable force wake");
 			_mmio.forcewake_disable(_info.generation);
+		}
 	}
 
 	/**
