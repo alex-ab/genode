@@ -76,6 +76,8 @@ pte_t mk_pte(struct page * page, pgprot_t prot);
 #define HPAGE_SHIFT         PMD_SHIFT
 #define HUGETLB_PAGE_ORDER  (HPAGE_SHIFT - PAGE_SHIFT)
 
+extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __ASM_PGTABLE_H */
