@@ -1,0 +1,22 @@
+<runtime ram="4M" caps="100" binary="vfs_block">
+
+	<provides> <block/> </provides>
+
+	<requires> <file_system writeable="no" label="guest.raw"/> </requires>
+
+	<config>
+
+		<vfs>
+			<fs buffer_size="2M" label="guest.raw" writeable="no"/>
+		</vfs>
+
+		<default-policy file="/guest.raw" writeable="no" block_size="512"/>
+	</config>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="vfs.lib.so"/>
+		<rom label="vfs_block"/>
+	</content>
+
+</runtime>
