@@ -76,7 +76,7 @@ static void add_mcfg(ACPI_TABLE_MCFG const * const mcfg,
 		});
 
 		/* force freeing I/O mem so that platform driver can use it XXX */
-//		AcpiGenodeFreeIOMem(e->Address, 0x1000UL * func_count);
+		AcpiGenodeFreeIOMem(e->Address, 0x1000UL * func_count);
 
 	}, [](Mcfg_sub const * const e) { return sizeof(*e); });
 }

@@ -6,27 +6,12 @@
  */
 
 #include <stdarg.h>
-#include <stdio.h>
-
-#include <libc/component.h>
 
 extern "C"
 void AcpiOsPrintf (const char *fmt, ...)
-{
-	va_list va;
-	va_start(va, fmt);
-
-	Libc::with_libc([&] () {
-		vprintf(fmt, va);
-	});
-
-	va_end(va);
-}
+{ }
 
 extern "C"
 void AcpiOsVprintf (const char *fmt, va_list va)
-{
-	Libc::with_libc([&] () {
-		vprintf(fmt, va);
-	});
-}
+{ }
+
