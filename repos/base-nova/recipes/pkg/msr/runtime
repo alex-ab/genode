@@ -1,0 +1,44 @@
+<runtime ram="6M" caps="200" binary="init">
+
+	<requires>
+		<rom label="platform_info"/>
+		<report/>
+		<timer/>
+	</requires>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="init"/>
+		<rom label="msr"/>
+	</content>
+
+	<config verbose="yes">
+
+		<parent-provides>
+			<service name="ROM"/>
+			<service name="PD"/>
+			<service name="CPU"/>
+			<service name="LOG"/>
+			<service name="Timer"/>
+			<service name="Report"/>
+		</parent-provides>
+
+		<start name="msr" caps="100" ld="no">
+			<resource name="RAM" quantum="2M"/>
+			<!--
+			<config>
+				<cpu x="0" y="0" verbose="false">
+					<hwp_cap high="36" guar="27" effi="9" low="1"/>
+					<hwp_request min="1" max="255" desired="0" epp="128"/>
+					<intel_speed_step epb="0"/>
+					<hwp_coord_feed_cap/>
+				</cpu>
+			</config>
+			-->
+			<route>
+				<service name="ROM" label="platform_info"> <parent label="platform_info"/> </service>
+				<any-service> <parent/> </any-service> </route>
+		</start>
+	</config>
+
+</runtime>
