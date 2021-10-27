@@ -1,0 +1,313 @@
+/*
+ * \author Alexander Boettcher
+ * \date   2021-10-25
+ */
+
+/*
+ * Copyright (C) 2021 Genode Labs GmbH
+ *
+ * This file is part of the Genode OS framework, which is distributed
+ * under the terms of the GNU Affero General Public License version 3.
+ */
+
+#pragma once
+
+#include "nova.h"
+#include "cpuid.h"
+
+namespace Msr {
+	using Genode::uint64_t;
+	using Genode::uint8_t;
+	struct Power;
+}
+
+struct Msr::Power
+{
+	Cpuid cpuid { };
+
+	uint64_t hwp_cap       { };
+	uint64_t hwp_req_pkg   { };
+	uint64_t hwp_req       { };
+	uint64_t epb           { };
+
+	bool valid_hwp_cap     { };
+	bool valid_hwp_req_pkg { };
+	bool valid_hwp_req     { };
+	bool valid_epb         { };
+
+	struct Hwp_cap : Genode::Register<64> {
+		struct Perf_highest   : Bitfield< 0, 8> { };
+		struct Perf_guaranted : Bitfield< 8, 8> { };
+		struct Perf_most_eff  : Bitfield<16, 8> { };
+		struct Perf_lowest    : Bitfield<24, 8> { };
+	};
+
+	struct Hwp_request : Genode::Register<64> {
+		struct Perf_min     : Bitfield< 0, 8> { };
+		struct Perf_max     : Bitfield< 8, 8> { };
+		struct Perf_desired : Bitfield<16, 8> { };
+		struct Perf_epp     : Bitfield<24, 8> {
+			enum { PERFORMANCE = 0, BALANCED = 128, ENERGY = 255 };
+		};
+	};
+
+	struct Epb : Genode::Register<64> {
+		struct Hint : Bitfield<0, 4> {
+			enum { PERFORMANCE = 0, BALANCED = 7, POWER_SAVING = 15 };
+		};
+	};
+
+	enum {
+		IA32_ENERGY_PERF_BIAS = 0x1b0,
+
+		IA32_PM_ENABLE        = 0x770, 
+		IA32_HWP_CAPABILITIES = 0x771, 
+		IA32_HWP_REQUEST_PKG  = 0x772, 
+		IA32_HWP_REQUEST      = 0x774
+	};
+
+	bool hwp_enabled(Nova::Utcb &utcb)
+	{
+		utcb.set_msg_word(1);
+		utcb.msg()[0] = IA32_PM_ENABLE;
+
+		uint8_t res = Nova_msr::msr();
+		if (res != Nova::NOVA_OK)
+			return false;
+
+		auto const success = utcb.msg_words();
+		return (success & 1) && (utcb.msg()[0] & 1);
+	}
+
+	void read_epb(Nova::Utcb &utcb)
+	{
+		utcb.set_msg_word(1);
+		utcb.msg()[0] = IA32_ENERGY_PERF_BIAS;
+
+		uint8_t const res = Nova_msr::msr();
+		auto const success = utcb.msg_words();
+
+		epb       = utcb.msg()[0];
+		valid_epb = (res == Nova::NOVA_OK) && ((success & 1) == 1);
+	}
+
+	bool write_epb(Nova::Utcb &utcb, uint64_t const &value)
+	{
+		uint64_t const write_msr = 1u << 31;
+
+		utcb.set_msg_word(2);
+		utcb.msg()[0] = IA32_ENERGY_PERF_BIAS | write_msr;
+		utcb.msg()[1] = value;
+
+		uint8_t const res = Nova_msr::msr();
+
+		auto    const success = utcb.msg_words();
+		return (res == Nova::NOVA_OK) && ((success & 3) == 3);
+	}
+
+	bool enable_hwp(Nova::Utcb &utcb)
+	{
+		uint64_t const write_msr = 1u << 31;
+
+		utcb.set_msg_word(2);
+		utcb.msg()[0] = IA32_PM_ENABLE | write_msr;
+		utcb.msg()[1] = 1ull /* enable */;
+
+		uint8_t const res     = Nova_msr::msr();
+		auto    const success = utcb.msg_words();
+		return (res == Nova::NOVA_OK) && ((success & 3) == 3);
+	}
+
+	bool write_hwp_request(Nova::Utcb &utcb, uint64_t const &value)
+	{
+		uint64_t const write_msr = 1u << 31;
+
+		utcb.set_msg_word(2);
+		utcb.msg()[0] = IA32_HWP_REQUEST | write_msr;
+		utcb.msg()[1] = value;
+
+		uint8_t const res = Nova_msr::msr();
+
+		auto    const success = utcb.msg_words();
+		return (res == Nova::NOVA_OK) && ((success & 3) == 3);
+	}
+
+	void read_hwp(Nova::Utcb &utcb)
+	{
+		utcb.set_msg_word(3);
+		utcb.msg()[0] = IA32_HWP_CAPABILITIES;
+		utcb.msg()[1] = IA32_HWP_REQUEST_PKG;
+		utcb.msg()[2] = IA32_HWP_REQUEST;
+
+		uint8_t res = Nova_msr::msr();
+
+		if (res != Nova::NOVA_OK) {
+			valid_hwp_cap = valid_hwp_req_pkg = valid_hwp_req = false;
+			return;
+		}
+
+		auto const success = utcb.msg_words();
+
+		hwp_cap     = utcb.msg()[0];
+		hwp_req_pkg = utcb.msg()[1];
+		hwp_req     = utcb.msg()[2];
+
+		valid_hwp_cap     = (res == Nova::NOVA_OK) && (success & (1 << 0));
+		valid_hwp_req_pkg = (res == Nova::NOVA_OK) && (success & (1 << 1));
+		valid_hwp_req     = (res == Nova::NOVA_OK) && (success & (1 << 2));
+	}
+
+	void update(Nova::Utcb &utcb)
+	{
+		if (cpuid.hwp()) {
+			/* do this only once XXX */
+			if (!hwp_enabled(utcb)) {
+				if (!enable_hwp(utcb))
+					Genode::warning("enabling hwp failed 1");
+
+				if (!hwp_enabled(utcb)) {
+					Genode::warning("enabling hwp failed 2");
+				}
+			}
+			/* XXX */
+
+			if (hwp_enabled(utcb))
+				read_hwp(utcb);
+		}
+
+		if (cpuid.hwp_energy_perf_bias())
+			read_epb(utcb);
+	}
+
+	void update(Nova::Utcb &utcb, Genode::Xml_node const &config)
+	{
+		bool const verbose = config.attribute_value("verbose", false);
+
+		config.with_sub_node("intel_speed_step", [&] (Genode::Xml_node const &node) {
+			if (!cpuid.hwp_energy_perf_bias())
+				return;
+
+			unsigned epb_set = node.attribute_value("epb", ~0U);
+
+			if (Epb::Hint::PERFORMANCE <= epb_set &&
+			    epb_set <= Epb::Hint::POWER_SAVING) {
+
+				uint64_t raw_epb = epb;
+				Epb::Hint::set(raw_epb, epb_set);
+				if (write_epb(utcb, raw_epb))
+					read_epb(utcb);
+				else
+					Genode::warning("ebp not updated");
+			} else
+				if (verbose && epb_set != ~0U)
+					Genode::warning("ebp out of range [", 
+					                int(Epb::Hint::PERFORMANCE), "-",
+					                int(Epb::Hint::POWER_SAVING), "]");
+		});
+
+		config.with_sub_node("hwp_request", [&] (Genode::Xml_node const &node) {
+			if (!cpuid.hwp() || !hwp_enabled(utcb) /* XXX save once and don't read again */)
+				return;
+
+			if (!valid_hwp_req)
+				return;
+
+			if (!cpuid.hwp_energy_perf_pref())
+				return;
+
+			using Genode::warning;
+			using Genode::Hex;
+
+			uint8_t const low  = uint8_t(Hwp_cap::Perf_lowest::get(hwp_cap));
+			uint8_t const high = uint8_t(Hwp_cap::Perf_highest::get(hwp_cap));
+
+			uint64_t raw_hwp = hwp_req;
+
+			if (node.has_attribute("min")) {
+				unsigned value = node.attribute_value("min", low);
+				if ((low <= value) && (value <= high))
+					Hwp_request::Perf_min::set(raw_hwp, value);
+				else
+					if (verbose)
+						warning("min - out of range - ", value, " [",
+						        low, "-", high, "]");
+			}
+			if (node.has_attribute("max")) {
+				unsigned value = node.attribute_value("max", high);
+				if ((low <= value) && (value <= high))
+					Hwp_request::Perf_max::set(raw_hwp, value);
+				else
+					if (verbose)
+						warning("max - out of range - ", value, " [",
+						        low, "-", high, "]");
+			}
+			if (node.has_attribute("desired")) {
+				unsigned value = node.attribute_value("desired", 0u /* disable */);
+				if (!value || ((low <= value) && (value <= high)))
+					Hwp_request::Perf_desired::set(raw_hwp, value);
+				else
+					if (verbose)
+						warning("desired - out of range - ", value, " [",
+						        low, "-", high, "]");
+			}
+			if (node.has_attribute("epp")) {
+				unsigned value = node.attribute_value("epp", unsigned(Hwp_request::Perf_epp::BALANCED));
+				if (value <= Hwp_request::Perf_epp::ENERGY)
+					Hwp_request::Perf_epp::set(raw_hwp, value);
+				else
+					if (verbose)
+						warning("epp - out of range - ", value, " [",
+						        low, "-", high, "]");
+			}
+
+			if (raw_hwp != hwp_req) {
+				if (write_hwp_request(utcb, raw_hwp))
+					read_hwp(utcb);
+				else
+					warning("hwp_request failed, ",
+					        Hex(hwp_req), " -> ", Hex(raw_hwp));
+			}
+		});
+	}
+
+	void report(Genode::Reporter::Xml_generator &xml) const
+	{
+		using Genode::String;
+
+		if (valid_hwp_cap) {
+			xml.node("hwp_cap", [&] () {
+				xml.attribute("high", Hwp_cap::Perf_highest::get(hwp_cap));
+				xml.attribute("guar", Hwp_cap::Perf_guaranted::get(hwp_cap));
+				xml.attribute("effi", Hwp_cap::Perf_most_eff::get(hwp_cap));
+				xml.attribute("low",  Hwp_cap::Perf_lowest::get(hwp_cap));
+				xml.attribute("raw",  String<19>(Genode::Hex(hwp_cap)));
+			});
+		}
+
+		if (valid_hwp_req_pkg) {
+			xml.node("hwp_request_package", [&] () {
+				xml.attribute("raw", String<19>(Genode::Hex(hwp_req_pkg)));
+			});
+		}
+
+		if (valid_hwp_req) {
+			xml.node("hwp_request", [&] () {
+				xml.attribute("min", Hwp_request::Perf_min::get(hwp_req));
+				xml.attribute("max", Hwp_request::Perf_max::get(hwp_req));
+				xml.attribute("desired", Hwp_request::Perf_desired::get(hwp_req));
+				xml.attribute("epp", Hwp_request::Perf_epp::get(hwp_req));
+				xml.attribute("raw", String<19>(Genode::Hex(hwp_req)));
+			});
+		}
+
+		if (valid_epb) {
+			xml.node("intel_speed_step", [&] () {
+				xml.attribute("epb", epb);
+			});
+		}
+
+		if (cpuid.hardware_coordination_feedback_cap())
+			xml.node("hwp_coord_feed_cap", [&] () { });
+	}
+};
+

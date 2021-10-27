@@ -1,0 +1,49 @@
+build "core init timer app/msr server/report_rom"
+
+create_boot_directory
+
+install_config {
+	<config prio_levels="2">
+		<parent-provides>
+			<service name="LOG"/>
+			<service name="CPU"/>
+			<service name="ROM"/>
+			<service name="PD"/>
+		</parent-provides>
+
+		<start name="timer" caps="100">
+			<resource name="RAM" quantum="1M"/>
+			<provides><service name="Timer"/></provides>
+			<route> <any-service> <parent/> </any-service> </route>
+		</start>
+
+		<start name="report_rom" caps="100" priority="-1">
+			<resource name="RAM" quantum="1M"/>
+			<provides>
+				<service name="Report"/>
+				<service name="ROM"/>
+			</provides>
+			<config verbose="yes"/>
+			<route> <any-service> <parent/> </any-service> </route>
+		</start>
+
+		<start name="msr" caps="100" ld="yes" priority="-1" managing_system="yes">
+			<resource name="RAM" quantum="2M"/>
+			<route> <any-service> <parent/> <any-child/> </any-service> </route>
+		</start>
+	</config>
+}
+
+build_boot_image "core ld.lib.so init timer msr report_rom"
+
+if {[have_include "power_on/qemu"]} {
+	# in general we want to have at least 2 CPUs
+	set want_cpus 4
+	set want_threads 2
+
+	append qemu_args " -nographic  -smp [expr $want_cpus*$want_threads],"
+	append qemu_args "cores=$want_cpus,threads=$want_threads "
+}
+
+# run the test
+run_genode_until forever
