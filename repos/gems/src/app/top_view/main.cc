@@ -1185,21 +1185,6 @@ struct Subjects
 							return Genode::String<9>(string(percent, rest), " ");
 						});
 
-					detail_view_tool(xml, thread, Genode::String<16>("thread "), 4,
-						[&] (Top::Thread const &e, bool &) {
-							return Genode::String<64>(e.thread_name(), " ");
-						});
-
-					detail_view_tool(xml, thread, Genode::String<16>("prio "), 5,
-						[&] (Top::Thread const &e, bool &) {
-							return Genode::String<4>(e.execution_time().priority);
-						});
-
-					detail_view_tool(xml, thread, Genode::String<16>("quantum "), 6,
-						[&] (Top::Thread const &e, bool &) {
-							return Genode::String<10>(e.execution_time().quantum, "us");
-						});
-
 					xml.node("vbox", [&] () {
 						xml.attribute("name", "track_first");
 
@@ -1222,6 +1207,21 @@ struct Subjects
 							});
 						});
 					});
+
+					detail_view_tool(xml, thread, Genode::String<16>("thread "), 4,
+						[&] (Top::Thread const &e, bool &) {
+							return Genode::String<64>(e.thread_name(), " ");
+						});
+
+					detail_view_tool(xml, thread, Genode::String<16>("prio "), 5,
+						[&] (Top::Thread const &e, bool &) {
+							return Genode::String<4>(e.execution_time().priority);
+						});
+
+					detail_view_tool(xml, thread, Genode::String<16>("quantum "), 6,
+						[&] (Top::Thread const &e, bool &) {
+							return Genode::String<10>(e.execution_time().quantum, "us");
+						});
 
 					if (_show_second_time) {
 						detail_view_tool(xml, thread, Genode::String<16>("load ", sort == SC_TIME ? "ec " : "sc "), 8,
@@ -1705,17 +1705,10 @@ void Subjects::short_view(Genode::Xml_generator &xml, SORT_TIME const)
 				xml.node("vbox", [&] () {
 					xml.attribute("name", Genode::String<16>("v", name));
 
-					Genode::uint64_t total = total_first[loc.xpos()][loc.ypos()];
-					Genode::uint64_t time  = total_idle[loc.xpos()][loc.ypos()];
-
-					unsigned percent = total ? time * 100 / total : 0;
-					unsigned rest    = total ? time * 10000 / total - (percent * 100) : 0;
-
-					percent = 100 - percent;
-					if (rest) {
-						percent -= 1;
-						rest = 100 - rest;
-					}
+					auto total   = total_first[loc.xpos()][loc.ypos()];
+					auto idle    = total_idle [loc.xpos()][loc.ypos()];
+					auto percent = (total && idle <= total)
+					             ? 100 - (idle * 100 / total) : 101;
 
 					xml.node("graph", [&] () {
 						xml.attribute("color", "#ff0000");
