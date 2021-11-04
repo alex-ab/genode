@@ -1992,7 +1992,7 @@ void App::Main::_handle_config()
 	unsigned long const period_trace = _period_trace;
 	_period_trace = _config.xml().attribute_value("trace_ms", _period_view);
 
-	_use_log = _config.xml().attribute_value("log", true);
+	_use_log = _config.xml().attribute_value("log", false);
 
 	bool const store = _config.xml().attribute_value("store", false);
 
@@ -2025,7 +2025,7 @@ void App::Main::_handle_config()
 
 	_subjects.period(_period_trace, _period_view);
 
-	if (_config.xml().attribute_value("report", false)) {
+	if (_config.xml().attribute_value("report", true)) {
 		if (!_reporter.constructed()) {
 			_reporter.construct(_env, "dialog", "dialog", _dialog_size);
 			_reporter->enabled(true);
@@ -2043,7 +2043,7 @@ void App::Main::_handle_config()
 			_reporter.destruct();
 	}
 
-	if (_config.xml().attribute_value("report_config", false)) {
+	if (_config.xml().attribute_value("report_config", true)) {
 		if (!_reporter_config.constructed()) {
 			_reporter_config.construct(_env, "config", "config", 4096);
 			_reporter_config->enabled(true);
