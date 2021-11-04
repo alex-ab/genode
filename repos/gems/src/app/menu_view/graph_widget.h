@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2019 Genode Labs GmbH
+ * Copyright (C) 2019-2021 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
@@ -34,7 +34,6 @@ struct Menu_view::Graph_widget : Widget
 
 	enum { ENTRIES = 20 };
 	uint8_t      _px[ENTRIES];
-	uint8_t      _px_s { 0 };
 	uint8_t      _px_c { 0 };
 
 	uint64_t     _id { 0 };
@@ -71,17 +70,18 @@ struct Menu_view::Graph_widget : Widget
 
 		_text = node.attribute_value("text", Text(""));
 
-		unsigned percent = node.attribute_value("percent", 100u);
-		if (percent > 100) { percent = 100; }
-
 		unsigned w = node.attribute_value("width", 0U);
 		unsigned h = node.attribute_value("height", 0U);
 		uint64_t id = node.attribute_value("id", 0ULL);
 
 		if (!id || (id != _id)) {
-			_px[_px_c] = percent;
+			unsigned percent = node.attribute_value("percent", 101U);
+
+			if (percent > 100)
+				_px[_px_c] = _px[(_px_c + ENTRIES - 1) % ENTRIES];
+			else
+				_px[_px_c] = percent;
 			_px_c = (_px_c + 1) % ENTRIES;
-			if (_px_c == _px_s) _px_s = (_px_s + 1) % ENTRIES;
 
 			_id = id;
 		}
@@ -125,12 +125,12 @@ struct Menu_view::Graph_widget : Widget
 
 		Line_painter line;
 
-		for (uint8_t i = 1; i < ENTRIES; i++) {
-			uint8_t prev = (_px_s + i - 1) % ENTRIES;
-			uint8_t curr = (_px_s + i) % ENTRIES;
-			Point f { at.x() + int(5 + (i - 1) * (geometry().w() - 10) / ENTRIES),
+		for (uint8_t i = ENTRIES - 1; i > 1; i--) {
+			uint8_t prev = (_px_c + i - 1) % ENTRIES;
+			uint8_t curr = (_px_c + i) % ENTRIES;
+			Point f { at.x() + int(5 + (i + 0) * (geometry().w() - 10) / ENTRIES),
 			          at.y() + int(geometry().h() - 5 - (geometry().h() - 10) * _px[prev] / 100) };
-			Point t { at.x() + int(5 + (i + 0) * (geometry().w() - 10) / ENTRIES),
+			Point t { at.x() + int(5 + (i + 1) * (geometry().w() - 10) / ENTRIES),
 			          at.y() + int(geometry().h() - 5 - (geometry().h() - 10) * _px[curr] / 100) };
 
 			line.paint(pixel_surface, f, t, _color_text);
