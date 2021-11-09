@@ -133,6 +133,10 @@ struct Msr::Msr {
 			return;
 		}
 
+		/* XXX get msr cap applied to Nova::SM_MSR */
+		Genode::Pd_session::Managing_system_state state {};
+		env.pd().managing_system(state);
+
 		/* construct the thread objects */
 		for (unsigned y = 0; y < cpus.height(); y++) {
 			for (unsigned x = 0; x < cpus.width(); x++) {

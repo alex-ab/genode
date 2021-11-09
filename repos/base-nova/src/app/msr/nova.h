@@ -31,5 +31,5 @@ namespace Nova_msr {
 		return syscall_2(NOVA_EC_CTRL, op, ec, para, crd);
 	}
 
-	inline uint8_t msr() { return ec_ctrl(EC_MSR); }
+	inline uint8_t msr() { return ec_ctrl(EC_MSR, Nova::SM_MSR); }
 }

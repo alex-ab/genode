@@ -57,5 +57,7 @@ void Component::construct(Genode::Env &env)
 	buf[2*Log_session::MAX_STRING_LEN - 2] = '\0'; /* end of second line */
 	log(Cstring(buf));
 
+	Genode::Pd_session::Managing_system_state state {};
+	env.pd().managing_system(state);
 	log("Test done.");
 }

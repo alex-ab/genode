@@ -27,7 +27,7 @@ install_config {
 			<route> <any-service> <parent/> </any-service> </route>
 		</start>
 
-		<start name="msr" caps="100" ld="no" priority="-1">
+		<start name="msr" caps="100" ld="no" priority="-1" managing_system="yes">
 			<resource name="RAM" quantum="2M"/>
 			<route> <any-service> <parent/> <any-child/> </any-service> </route>
 		</start>
