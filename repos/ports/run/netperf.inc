@@ -141,9 +141,9 @@ create_boot_directory
 
 set packages "
 	[depot_user]/src/[base_src]
-	[depot_user]/pkg/[drivers_nic_pkg]
 	[depot_user]/src/init
 	[depot_user]/src/libc
+	[depot_user]/raw/drivers_nic-phycore
 	[depot_user]/src/posix
 	[depot_user]/src/vfs
 	[depot_user]/src/nic_router
@@ -163,7 +163,7 @@ append_if $use_wifi_driver  packages " [depot_user]/raw/wifi_firmware     "
 
 import_from_depot $packages
 
-set build_components { app/netperf }
+set build_components { app/netperf drivers/platform drivers/nic }
 
 append_if $use_usb_driver build_components " drivers/usb_host "
 append_if $use_usb_driver build_components " drivers/usb_net  "
@@ -432,7 +432,7 @@ append config {
 
 install_config $config
 
-set boot_modules { netserver }
+set boot_modules { netserver platform_drv fec_nic_drv }
 
 append_if $use_usb_driver boot_modules " [usb_host_drv_binary] "
 append_if $use_usb_driver boot_modules " usb_net_drv  "
