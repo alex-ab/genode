@@ -1,0 +1,22 @@
+<runtime ram="8M" caps="100" binary="vdi_block">
+
+	<provides> <block/> </provides>
+	<requires> <file_system writeable="yes" label="genode_ext4.vdi"/> </requires>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="vfs.lib.so"/>
+		<rom label="vfs_import.lib.so"/>
+		<rom label="vdi_block"/>
+		<rom label="genode_ext4.vdi"/>
+	</content>
+
+	<config file="/genode_ext4.vdi" writeable="yes">
+		<vfs>
+			<fs label="genode_ext4.vdi" buffer_size="2M"/>
+			<import overwrite="no">
+				<rom name="genode_ext4.vdi" binary="yes"/>
+			</import>
+		</vfs>
+	</config>
+</runtime>
