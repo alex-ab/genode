@@ -1,0 +1,24 @@
+<runtime ram="16M" caps="200" binary="vfs">
+
+	<provides> <file_system/> </provides>
+
+	<requires>
+		<block/>
+		<rm/>
+	</requires>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="vfs.lib.so"/>
+		<rom label="vfs"/>
+		<rom label="rump.lib.so"/>
+		<rom label="vfs_rump.lib.so"/>
+		<rom label="rump_fs.lib.so"/>
+	</content>
+
+	<config>
+		<vfs> <rump fs="ext2fs" ram="10M"/> </vfs>
+		<default-policy root="/" writeable="yes"/>
+	</config>
+
+</runtime>
