@@ -52,6 +52,17 @@ extern "C" int __attribute__((weak)) getrlimit(int resource, struct rlimit *rlim
 		return 0;
 	}
 
+	/*
+	 * Maximum number of virtual pages resident in RAM.
+	 * Used by some applications, etc gcc, to estimate, build heuristics,
+	 * to manage size of internal heaps.
+	 */
+	if (resource == RLIMIT_RSS) {
+		rlim->rlim_cur = RLIM_INFINITY;
+		rlim->rlim_max = RLIM_INFINITY;
+		return 0;
+	}
+
 	Genode::warning(__func__, " called for unsupported resource ", resource, ", returning 0");
 
 	rlim->rlim_cur = 0;
