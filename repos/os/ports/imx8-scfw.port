@@ -1,0 +1,7 @@
+LICENSE   := unknown
+VERSION   := 1.5
+DOWNLOADS := imx8-scfw.archive
+
+URL(imx8-scfw) := https://depot.genode.org/alex-ab/images/scfw_export_uboot.tar.gz
+SHA(imx8-scfw) := ad642c0b14adaf6b49e6080cd658b764abf3589dd22e1fc1baa65dcfe1daa191
+DIR(imx8-scfw) := src/lib/imx8-scfw
