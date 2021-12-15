@@ -40,6 +40,7 @@
 #include <legacy/lx_emul/impl/timer.h>
 #include <legacy/lx_emul/impl/completion.h>
 #include <legacy/lx_kit/irq.h>
+#include <legacy/lx_kit/backend_alloc.h>
 
 extern "C" { struct page; }
 
@@ -453,6 +454,10 @@ int platform_driver_register(struct platform_driver * drv)
 	return 0;
 }
 
+
+/****************************
+ ** lx_kit/backend_alloc.h **
+ ****************************/
 
 struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
                                     unsigned char name_assign_type,
@@ -1475,4 +1480,16 @@ int try_module_get(struct module *mod)
 	return -1;
 }
 
+}
+
+Genode::Ram_dataspace_capability
+Lx::backend_alloc(Genode::addr_t size, Genode::Cache cache)
+{
+	return platform_connection().alloc_dma_buffer(size, cache);
+}
+
+
+void Lx::backend_free(Genode::Ram_dataspace_capability cap)
+{
+	return platform_connection().free_dma_buffer(cap);
 }
