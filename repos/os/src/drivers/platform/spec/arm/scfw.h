@@ -180,6 +180,12 @@ struct Driver::Scfw
 		power_state(ipc, SC_R_SMMU,   "smmu - ");
 		power_state(ipc, SC_R_ENET_0, "enet0 - ");
 
+#if 0
+		sc_rm_sid_t sid = 0x1; //18;
+		sc_error = sc_rm_set_master_sid(ipc, SC_R_ENET_0, sid);
+		if (sc_error != SC_ERR_NONE)
+			msg_error("sc_rm_set_master_sid ", sc_error);
+#endif
 		{
 			sc_pad_t pad   = SC_P_SCU_GPIO0_05; /* 41 */
 			uint32_t value = 0xd8000021;
