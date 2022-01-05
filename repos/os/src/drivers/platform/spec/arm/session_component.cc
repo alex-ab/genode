@@ -32,12 +32,17 @@ Genode::Heap & Session_component::heap() { return _md_alloc; }
 Driver::Env & Session_component::env() { return _env; }
 
 
-void Session_component::add(Device::Name const & device)
+void Session_component::add(Device::Name const & device, Stream_id const sid)
 {
 	if (has_device(device)) return;
 
+	if (_dma_page_table.cap().valid() && _smmu.constructed()) {
+		Dataspace_client dsc(_dma_page_table.cap());
+		_smmu->enable_translation(sid.sid, dsc.phys_addr());
+	}
+
 	Device_component * new_dc =
-		new (_md_alloc) Device_component(*this, device);
+		new (_md_alloc) Device_component(*this, device, sid);
 
 	Device_list_element * last = nullptr;
 	for (last = _device_list.first(); last; last = last->next()) {
@@ -111,6 +116,9 @@ void Session_component::release_device(Capability<Platform::Device_interface> de
 			return;
 		_env.env.ep().rpc_ep().dissolve(dc);
 		dc->release();
+
+		if (_dma_page_table.cap().valid() && _smmu.constructed())
+			_smmu->disable_translation(dc->sid.sid);
 	});
 }
 
@@ -199,11 +207,12 @@ Session_component::Session_component(Driver::Env       & env,
                                      Label       const & label,
                                      Resources   const & resources,
                                      Diag        const & diag,
-                                     bool        const   info)
+                                     bool        const   info,
+                                     Constructible<Smmu> & smmu)
 : Session_object<Platform::Session>(env.env.ep(), resources, label, diag),
   Session_registry::Element(registry, *this),
   Dynamic_rom_session::Xml_producer("devices"),
-  _env(env), _info(info)
+  _env(env), _info(info), _smmu(smmu)
 {
 	/*
 	 * FIXME: As the ROM session does not propagate Out_of_*

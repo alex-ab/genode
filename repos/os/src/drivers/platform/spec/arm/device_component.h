@@ -24,6 +24,7 @@
 namespace Driver {
 	class Device_component;
 	class Session_component;
+	struct Stream_id { unsigned sid; };
 }
 
 
@@ -32,8 +33,11 @@ class Driver::Device_component : public Rpc_object<Platform::Device_interface,
 {
 	public:
 
+		Stream_id const sid;
+
 		Device_component(Session_component        & session,
-		                 Driver::Device::Name const device);
+		                 Driver::Device::Name const device,
+		                 Stream_id);
 		~Device_component();
 
 		Driver::Device::Name device() const;

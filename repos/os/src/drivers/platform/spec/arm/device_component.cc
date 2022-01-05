@@ -68,8 +68,9 @@ void Driver::Device_component::report(Xml_generator & xml)
 
 
 Device_component::Device_component(Driver::Session_component & session,
-                                   Driver::Device::Name const  device)
-: _session(session), _device(device) { }
+                                   Driver::Device::Name const  device,
+                                   Driver::Stream_id const streamid)
+: sid(streamid), _session(session), _device(device) { }
 
 
 Device_component::~Device_component() { release(); }

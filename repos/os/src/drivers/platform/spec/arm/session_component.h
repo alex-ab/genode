@@ -26,6 +26,7 @@
 #include <device_component.h>
 
 #include <page_table.h>
+#include <smmu.h>
 
 namespace Driver {
 	class Session_component;
@@ -48,13 +49,14 @@ class Driver::Session_component
 		                  Label      const & label,
 		                  Resources  const & resources,
 		                  Diag       const & diag,
-		                  bool       const   info);
+		                  bool       const   info,
+		                  Constructible<Smmu> & smmu);
 		~Session_component();
 
 		Heap         & heap();
 		Driver::Env  & env();
 
-		void     add(Device::Name const &);
+		void     add(Device::Name const &, Stream_id);
 		bool     has_device(Device::Name const &) const;
 		unsigned devices_count() const;
 		void     update_devices_rom();
@@ -103,6 +105,7 @@ class Driver::Session_component
 		Dynamic_rom_session       _rom_session { _env.env.ep(), _env.env.ram(),
 		                                         _env.env.rm(), *this    };
 		bool const                _info;
+		Constructible<Smmu>      &_smmu;
 
 		Attached_ram_dataspace    _dma_page_table { _env.env.ram(),
 		                                            _env.env.rm(), 4096,
