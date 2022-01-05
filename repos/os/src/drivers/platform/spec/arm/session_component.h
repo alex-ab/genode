@@ -25,6 +25,8 @@
 
 #include <device_component.h>
 
+#include <page_table.h>
+
 namespace Driver {
 	class Session_component;
 	class Root;
@@ -101,6 +103,15 @@ class Driver::Session_component
 		Dynamic_rom_session       _rom_session { _env.env.ep(), _env.env.ram(),
 		                                         _env.env.rm(), *this    };
 		bool const                _info;
+
+		Attached_ram_dataspace    _dma_page_table { _env.env.ram(),
+		                                            _env.env.rm(), 4096,
+		                                            Cache::UNCACHED };
+
+		typedef Hw::Level_1_stage_2_translation_table Dma_page_table;
+
+		Dma_page_table                     &_tt       { *_dma_page_table.local_addr<Dma_page_table>() };
+		Driver::Page_table_array<4096, 16>  _tt_array { _env_ram, _env.env.rm() };
 
 		/*
 		 * Noncopyable

@@ -123,7 +123,27 @@ Session_component::alloc_dma_buffer(size_t const size, Cache cache)
 	if (!ram_cap.valid()) return ram_cap;
 
 	try {
-		_buffer_list.insert(new (_md_alloc) Dma_buffer(ram_cap));
+		Dma_buffer * buffer = new (_md_alloc) Dma_buffer(ram_cap);
+
+		try {
+			Dataspace_client dsc(ram_cap);
+
+			static constexpr Hw::Page_flags PAGE_FLAGS
+				{ Hw::RW, Hw::NO_EXEC, Hw::USER, Hw::GLOBAL, Hw::DEVICE,
+				  Genode::UNCACHED
+				};
+
+			_tt.insert_translation(dsc.phys_addr(), dsc.phys_addr(), dsc.size(),
+			                       PAGE_FLAGS,
+//			                       Hw::PAGE_FLAGS_KERN_DATA,
+			                       _tt_array.allocator());
+		} catch (...) {
+			destroy(_md_alloc, buffer);
+			throw;
+		}
+
+		_buffer_list.insert(buffer);
+
 	} catch (Out_of_ram)  {
 		_env_ram.free(ram_cap);
 		throw;
@@ -143,6 +163,12 @@ void Session_component::free_dma_buffer(Ram_dataspace_capability ram_cap)
 	for (Dma_buffer * buf = _buffer_list.first(); buf; buf = buf->next()) {
 
 		if (buf->cap.local_name() != ram_cap.local_name()) continue;
+
+		Dataspace_client dsc(buf->cap);
+		_tt.remove_translation(dsc.phys_addr(), dsc.size(),
+		                       _tt_array.allocator());
+
+		Genode::error("flushing SMMU TLB missing XXX");
 
 		_buffer_list.remove(buf);
 		destroy(_md_alloc, buf);
