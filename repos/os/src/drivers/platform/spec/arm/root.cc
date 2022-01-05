@@ -15,6 +15,32 @@
 
 void Driver::Root::update_policy()
 {
+	_env.config.xml().for_each_sub_node("device", [&] (Xml_node const &node) {
+		Device::Name name = node.attribute_value("name", Device::Name());
+
+		if (name != "smmu")
+			return;
+
+		if (_smmu.constructed())
+			return;
+
+		uint64_t address = 0;
+		size_t   size    = 0;
+
+		node.with_sub_node("io_mem", [&] (Xml_node const &node) {
+			address = node.attribute_value("address", 0ull);
+			size    = node.attribute_value("size", 0ul);
+		});
+
+		node.with_sub_node("irq", [&] (Xml_node const &node) {
+			if (size && node.has_attribute("number")) {
+				_smmu.construct(_env, address, size,
+				                node.attribute_value("number", 0u));
+				log("SMMU enabled");
+			}
+		});
+	});
+
 	_sessions.for_each([&] (Session_component & sc) {
 
 		bool     policy_changed = false;
@@ -81,4 +107,7 @@ void Driver::Root::_upgrade_session(Session_component * sc, const char * args)
 
 Driver::Root::Root(Driver::Env & env)
 : Root_component<Session_component>(env.env.ep(), env.sliced_heap),
-  _env(env) { }
+  _env(env)
+{
+	update_policy();
+}
