@@ -21,7 +21,6 @@
 
 #include <device.h>
 #include <smmu.h>
-#include <scfw.h>
 
 namespace Driver { class Root; }
 
@@ -40,7 +39,6 @@ class Driver::Root : public Root_component<Session_component>
 		void _upgrade_session(Session_component *, const char *) override;
 
 		Driver::Env               & _env;
-		Driver::Scfw                _scfw { _env };
 		Constructible<Driver::Smmu> _smmu { };
 
 		Registry<Session_component> _sessions {};
