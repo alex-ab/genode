@@ -1,0 +1,98 @@
+##
+# Load files needed by the scenario via GRUB and TFTP
+#
+# \param --load-grubnet-base-dir     base directory of TFTP
+# \param --load-grubnet-offset-dir   offset directory within TFTP
+# \param --load-grubnet-absolute     path is absolute, i.e. /base_dir/offset_dir
+#                                    instead of only /offset_dir is used
+# \param --load-grubnet-copy-files   avoid creating links in tftp dir by making
+#                                    copies instead
+#
+# FIXME document setup for DHCP server
+# FIXME document /tftpboot/grub.cfg-01-<mac-addr>
+# FIXME document redirecting grub config
+
+source [genode_dir]/tool/run/grub2.inc
+source [genode_dir]/tool/run/load.inc
+
+##
+# Used by the boot_dir scripts
+#
+proc install_pxe_bootloader_to_run_dir { } {
+	exec cp [genode_dir]/tool/boot/bender [run_dir]/boot/bender
+	exec chmod a+r [run_dir]/boot/bender
+	exec cp [get_grub2_dir]/boot/grub2/grub2_64net.efi [run_dir]/boot/grub2_64net.efi
+	exec chmod a+r [run_dir]/boot/grub2_64net.efi
+}
+
+
+##
+# The files are loaded implicitly via TFTP to the target machine
+#
+proc run_load { } {
+	global load_spawn_id
+	set load_spawn_id -1
+	return true
+}
+
+
+proc load_grubnet_base_dir { } { return [get_cmd_arg --load-grubnet-base-dir ""] }
+
+
+proc load_grubnet_offset_dir { } { return [get_cmd_arg --load-grubnet-offset-dir ""] }
+
+
+proc load_grubnet_use_absolute { } { return [get_cmd_switch --load-grubnet-absolute] }
+
+
+proc load_grubnet_copy_files { } { return [get_cmd_switch --load-grubnet-copy-files] }
+
+
+##
+# Return command used to install files in tftp directory
+#
+proc load_grubnet_inst_cmd { } {
+	if {[load_grubnet_copy_files]} {
+		 return "cp --remove-destination"
+	} else {
+		 return "ln -sf"
+	}
+}
+
+
+##
+# Generate GRUB config file used for loading files via TFTP
+#
+proc generate_grubnet_config { } {
+	set base_dir [load_grubnet_base_dir]
+	set offset_dir [load_grubnet_offset_dir]
+
+	if {[string length $base_dir] > 0 && [string length $offset_dir] > 0} {
+
+		set base ""
+		if {[load_grubnet_use_absolute]} {
+			set base $base_dir
+		}
+
+		if {[load_grubnet_copy_files]} {
+			exec cp -r --dereference "[pwd]/[run_dir]/." $base_dir$offset_dir/.
+		} else {
+			# if the link target exists as directory this leads to bad behavior
+			if {[file exists $base_dir$offset_dir] &&
+			   [string compare [file type $base_dir$offset_dir] "directory"] == 0} {
+
+				puts stderr "Error: grubnet symlink target $base_dir$offset_dir is a directory"
+				exit -1
+			}
+
+			exec ln -nfs "[pwd]" "$base_dir$offset_dir"
+
+			set fh [open "$base_dir$offset_dir/grubnet-00-00-00-00-00-00" "WRONLY CREAT TRUNC"]
+			puts $fh "set prefix=(\$root)$base$offset_dir/[run_dir]"
+			puts $fh "configfile \$prefix/grubnet-00-00-00-00-00-00"
+			close $fh
+		}
+	} else {
+		puts "Warning, TFTP base directory or TFTP offset directory not set."
+	}
+}
