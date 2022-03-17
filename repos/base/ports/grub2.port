@@ -2,8 +2,8 @@ LICENSE   := GPLv3
 VERSION   := git
 DOWNLOADS := g2fg.git
 
-URL(g2fg) := https://github.com/alex-ab/g2fg.git
-REV(g2fg) := a0c3164b6b23afb25119f2be8c3b7490c1dcb9e2
+URL(g2fg) := https://github.com/chelmuth/g2fg.git
+REV(g2fg) := grubnet
 DIR(g2fg) := boot
 
 default: $(DOWNLOADS)
