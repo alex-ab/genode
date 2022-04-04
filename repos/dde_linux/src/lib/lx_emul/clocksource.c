@@ -57,7 +57,7 @@ static u64 dde_cyclecounter_read_counter(const struct cyclecounter * cc)
 }
 
 
-static struct clock_event_device * dde_clock_event_device;
+struct clock_event_device * dde_clock_event_device;
 
 
 void lx_emul_time_init()
