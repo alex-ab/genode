@@ -1,9 +1,23 @@
+/*
+ * \brief  Shadow of drivers/gpu/drm/i915/i915_gem.c
+ * \author Alexander Boettcher
+ * \date   2022-02-03
+ */
+
+/*
+ * Copyright © 2008-2015 Intel Corporation
+ *
+ * Copyright (C) 2022 Genode Labs GmbH
+ *
+ * This file is distributed under the terms of the GNU General Public License
+ * version 2.
+ */
+
 #include <lx_emul.h>
 #include "i915_drv.h"
 
 #include "intel_pm.h"
 
-/* drivers/gpu/drm/i915/i915_gem.c */
 
 int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
 			   unsigned long flags)

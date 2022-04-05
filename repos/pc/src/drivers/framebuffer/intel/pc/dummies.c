@@ -312,29 +312,13 @@ void intel_gt_init_workarounds(struct drm_i915_private * i915)
 
 void sched_set_fifo(struct task_struct * p)
 {
-	printk("sched_set_fifo called, doing nothing\n");
+	lx_emul_trace(__func__);
 }
 
 
 void gen8_gt_irq_handler(struct intel_gt * gt,u32 master_ctl)
 {
 	lx_emul_trace(__func__);
-
-	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
-		printk("%s:%u called\n", __func__, __LINE__);
-	}
-
-	if (master_ctl & (GEN8_GT_VCS0_IRQ | GEN8_GT_VCS1_IRQ)) {
-		printk("%s:%u called\n", __func__, __LINE__);
-	}
-
-	if (master_ctl & GEN8_GT_VECS_IRQ) {
-		printk("%s:%u called\n", __func__, __LINE__);
-	}
-
-	if (master_ctl & (GEN8_GT_PM_IRQ | GEN8_GT_GUC_IRQ)) {
-		printk("%s:%u called\n", __func__, __LINE__);
-	}
 }
 
 
@@ -422,35 +406,9 @@ void i915_perf_sysctl_register(void)
 }
 
 
-static void debug_print_bdf(struct pci_dev *pci_dev)
-{
-	if (!pci_dev || !pci_dev->devfn) {
-		printk(" !pci_dev || !pci_dev->devfn\n");
-		return;
-	}
-
-	if (pci_dev && pci_dev->bus)
-		printk(" %02x:%02x.%d\n", pci_dev->bus->number, PCI_SLOT(pci_dev->devfn), PCI_FUNC(pci_dev->devfn));
-	else
-		printk(" ??:%02x.%d\n", PCI_SLOT(pci_dev->devfn), PCI_FUNC(pci_dev->devfn));
-}
-
-
 int acpi_platform_notify(struct device *dev, enum kobject_action action)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-
-	if (false) {
-		printk("%s:%u %s", __func__, __LINE__,
-		       action == KOBJ_ADD ? " -> acpi_device_notify dev" :
-		       action == KOBJ_REMOVE ? " -> acpi_device_notify_remove dev"
-		                             : " unknown action");
-
-		debug_print_bdf(pci_dev);
-	}
-
 	lx_emul_trace(__func__);
-
 	return 0;
 }
 
@@ -732,7 +690,6 @@ void intel_gt_info_print(const struct intel_gt_info * info,struct drm_printer * 
 int set_pages_uc(struct page * page,int numpages)
 {
 	lx_emul_trace(__func__);
-	printk("%s : called\n", __func__);
 	return 0;
 }
 
@@ -740,7 +697,6 @@ int set_pages_uc(struct page * page,int numpages)
 bool irq_work_queue(struct irq_work * work)
 {
 	lx_emul_trace(__func__);
-	printk("%s : called\n", __func__);
 	return false;
 }
 

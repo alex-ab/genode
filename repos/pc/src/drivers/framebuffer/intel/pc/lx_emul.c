@@ -93,9 +93,7 @@ struct proc_dir_entry { char dummy [512]; };
 struct proc_dir_entry * proc_create_seq_private(const char * name,umode_t mode,struct proc_dir_entry * parent,const struct seq_operations * ops,unsigned int state_size,void * data)
 {
 	static struct proc_dir_entry ret;
-	static unsigned inv_cnt;
 
-	printk("%s called cnt=%u name=%s\n", __func__, ++inv_cnt, name);
 	lx_emul_trace(__func__);
 	return &ret;
 }
