@@ -1143,7 +1143,9 @@ close $fd
 ##
 
 build [ingredients_of_type build]
+build { core kernel/nova }
 
 append boot_modules [build_artifacts]
+append boot_modules { core hypervisor }
 
 build_boot_image $boot_modules
