@@ -971,9 +971,9 @@ close $fd
 ##
 
 build [ingredients_of_type build]
-build { core kernel app/sculpt_manager }
+build { core kernel app/sculpt_manager server/nic_router }
 
 append boot_modules [build_artifacts]
-append boot_modules { core hypervisor sculpt_manager }
+append boot_modules { core hypervisor sculpt_manager nic_router }
 
 build_boot_image $boot_modules
