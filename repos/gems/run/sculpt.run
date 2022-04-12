@@ -1170,7 +1170,9 @@ close $fd
 ##
 
 build [ingredients_of_type build]
+build { core kernel/novae driver/platform }
 
 append boot_modules [build_artifacts]
+append boot_modules { core novae-pc pc_platform }
 
 build_boot_image $boot_modules
