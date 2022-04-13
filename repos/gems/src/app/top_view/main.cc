@@ -711,59 +711,64 @@ struct Subjects
 			return false;
 		}
 
-		bool hover(Genode::String<12> const button,
-		           Genode::String<12> const click,
-		           bool const click_valid,
-		           Genode::Trace::Subject_id const id,
-		           unsigned sub_id,
-		           SORT_TIME &sort_time)
+		struct hover_result { bool report_menu; bool flush_config; };
+
+		hover_result hover(Genode::String<12> const button,
+		                   Genode::String<12> const click,
+		                   bool const click_valid,
+		                   Genode::Trace::Subject_id const id,
+		                   unsigned sub_id,
+		                   SORT_TIME &sort_time)
 		{
 			if (click_valid) {
 
 				if (click == "wheel_up" || click == "wheel_down") {
-					if (_detailed_view.id) return false;
+					if (_detailed_view.id) return { false, false };
 
 					if (_button_cpus.hovered) {
 						_button_cpus.prev = (click == "wheel_up");
 						_button_cpus.next = (click == "wheel_down") && (_button_cpus.current + _button_cpus.max < _button_cpus.last);
 
-						return _button_cpus.advance();
+						return { _button_cpus.advance(), false };
 					}
 
 					if (_button_numbers.hovered) {
 						_button_numbers.prev = (click == "wheel_up");
 						_button_numbers.next = (click == "wheel_down") && (_button_numbers.current + _button_numbers.max < _button_numbers.last);
-						return _button_numbers.advance();
+						return { _button_numbers.advance(), false };
 					}
 
 					if (_sort == COMPONENT && _hovered_subject.id) {
 						_pd_scroll.prev = (click == "wheel_up");
 						_pd_scroll.next = (click == "wheel_down") && (_pd_scroll.current + _config_pds_per_cpu <= _pd_scroll.last);
-						return _pd_scroll.advance();
+						return { _pd_scroll.advance(), false };
 					}
 
-					return false;
+					return { false, false };
 				}
 
 				if (_detailed_view.id)
-					return hover_detailed(sort_time);
+					return { hover_detailed(sort_time), false };
 
-				bool update = false;
+				bool report_update = false;
+				bool flush_config = false;
 
 				if (_button_cpus.hovered) {
-					if (_sort == THREAD)
+					if (_sort == THREAD) {
 						cpu_show(_button_cpu) = !cpu_show(_button_cpu);
+						flush_config = true;
+					}
 					_last_cpu = _button_cpu;
-					update = true;
+					report_update = true;
 				}
 				if (_hovered_subject.id) {
 					_detailed_view = _hovered_subject;
-					update = true;
+					report_update = true;
 				}
 				if (_button_numbers.hovered) {
 					if (_sort == COMPONENT)
 						_config_pds_per_cpu = _button_number;
-					update = true;
+					report_update = true;
 				}
 				if (_button_reset_graph_hovered) {
 					for_each_thread([&] (Top::Thread &thread) {
@@ -779,7 +784,7 @@ struct Subjects
 					_tracked_threads = 0;
 					_trace_top_most = false;
 					_trace_top_no_idle = false;
-					update = true;
+					report_update = true;
 				}
 				if (_button_g_top_all_hovered) {
 					_graph_top_most(_button_top_most) = !_graph_top_most(_button_top_most);
@@ -805,7 +810,7 @@ struct Subjects
 						}
 					}
 
-					update = true;
+					report_update = true;
 				}
 				if (_button_g_top_idle_hovered) {
 					_graph_top_most_no_idle(_button_top_most_no_idle) = !_graph_top_most_no_idle(_button_top_most_no_idle);
@@ -825,50 +830,59 @@ struct Subjects
 						}
 					}
 
-					update = true;
+					report_update = true;
 				}
 				if (_button_setting_hovered) {
 					_button_setting = !_button_setting;
-					update = true;
+					report_update = true;
 				}
 				if (_button_enable_view_hovered) {
 					_enable_view = !_enable_view;
-					update = true;
+					flush_config  = true;
+					report_update = true;
 				}
 				if (_button_thread_hovered) {
+					if (!flush_config)
+						flush_config = _sort != THREAD;
 					_sort = THREAD;
-					update = true;
+					report_update = true;
 				}
 				if (_button_component_hovered) {
+					if (!flush_config)
+						flush_config = _sort != COMPONENT;
 					_sort = COMPONENT;
-					update = true;
+					report_update = true;
 				}
 				if (_button_ec_hovered) {
 					sort_time = EC_TIME;
-					update = true;
+					report_update = true;
 				}
 				if (_button_sc_hovered) {
 					sort_time = SC_TIME;
-					update = true;
+					report_update = true;
 				}
 				if (click == "left" && _button_trace_period.update_inc())
-					update = true;
+					report_update = true;
 				if (click == "right" && _button_trace_period.update_dec())
-					update = true;
+					report_update = true;
 				if (click == "left" && _button_view_period.update_inc())
-					update = true;
+					report_update = true;
 				if (click == "right" && _button_view_period.update_dec())
-					update = true;
-				if (click == "left" && _cpu_number(_button_cpu_num).update_inc())
-					update = true;
-				if (click == "right" && _cpu_number(_button_cpu_num).update_dec())
-					update = true;
+					report_update = true;
+				if (click == "left" && _cpu_number(_button_cpu_num).update_inc()) {
+					report_update = true;
+					flush_config  = true;
+				}
+				if (click == "right" && _cpu_number(_button_cpu_num).update_dec()) {
+					report_update = true;
+					flush_config  = true;
+				}
 
-				update = update || _button_cpus.advance();
-				update = update || _button_numbers.advance();
-				update = update || _pd_scroll.advance();
+				report_update = report_update || _button_cpus.advance();
+				report_update = report_update || _button_numbers.advance();
+				report_update = report_update || _pd_scroll.advance();
 
-				return update;
+				return { report_update, flush_config };
 			}
 
 			if (id.id == PD_SCROLL_DOWN || id.id == PD_SCROLL_UP) {
@@ -908,39 +922,39 @@ struct Subjects
 			_detailed_view_back = false;
 
 			if (button == "")
-				return button_hovered_before;
+				return { button_hovered_before, false };
 
 			if (button == "|||") {
 				_button_setting_hovered = true;
-				return !button_setting_hovered_before;
+				return { !button_setting_hovered_before, false };
 			}
 			if (button == "graph_reset") {
 				_button_reset_graph_hovered = true;
-				return true;
+				return { true, false };
 			}
 			if (button == "top_idle") {
 				_button_g_top_idle_hovered = true;
-				return true;
+				return { true, false };
 			}
 			if (button == "enable_view") {
 				_button_enable_view_hovered = true;
-				return true;
+				return { true, false };
 			}
 			if (button == "threads") {
 				_button_thread_hovered = true;
-				return true;
+				return { true, false };
 			}
 			if (button == "components") {
 				_button_component_hovered = true;
-				return true;
+				return { true, false };
 			}
 			if (button == "ec") {
 				_button_ec_hovered = true;
-				return true;
+				return { true, false };
 			}
 			if (button == "sc") {
 				_button_sc_hovered = true;
-				return true;
+				return { true, false };
 			}
 
 			if (Genode::String<4>(button) == "hub") {
@@ -991,7 +1005,7 @@ struct Subjects
 						}
 					}
 				}
-				return _button_numbers.active();
+				return { _button_numbers.active(), false };
 			} else
 			if (Genode::String<5>(button) == "most") {
 				for_each_online_cpu([&] (Location const &loc) {
@@ -1029,7 +1043,10 @@ struct Subjects
 					}
 				});
 			}
-			return button_hovered_before || _button_cpus.active() || _button_numbers.active();
+			return { button_hovered_before ||
+			         _button_cpus.active() ||
+			         _button_numbers.active(),
+			         false };
 		}
 
 		void top(Genode::Reporter::Xml_generator &, SORT_TIME const, bool const);
@@ -1811,6 +1828,7 @@ struct App::Main
 	bool                   _use_log       { true };
 	bool                   _empty_graph   { true };
 	bool                   _updated_trace { false };
+	bool                   _flush_config  { false };
 	SORT_TIME              _sort          { EC_TIME };
 	Attached_rom_dataspace _config        { _env, "config" };
 	Timer::Connection      _timer         { _env };
@@ -1914,6 +1932,7 @@ void App::Main::_handle_hover()
 		}
 
 		_subjects.period(period_trace, period_view);
+		_flush_config = true;
 	}
 
 	_hover->update();
@@ -1975,7 +1994,10 @@ void App::Main::_handle_hover()
 		sub_id = sub_id % 10;
 	}
 
-	if (_subjects.hover(button, click, click_valid, id, sub_id, _sort))
+	auto res = _subjects.hover(button, click, click_valid, id, sub_id, _sort);
+	if (res.flush_config)
+		_flush_config = true;
+	if (res.report_menu)
 		_generate_report();
 }
 
@@ -2095,7 +2117,10 @@ void App::Main::_handle_view(Duration)
 
 	_updated_trace = false;
 
-	_write_config();
+	if (_flush_config) {
+		_write_config();
+		_flush_config = false;
+	}
 
 	/* show most significant consumers */
 	if (_use_log)
