@@ -5,7 +5,9 @@
 		<file_system label="shared"/>
 		<vm/>
 		<timer/>
+<!--
 		<gpu/>
+-->
 		<gui/>
 		<nic/>
 		<rom label="capslock"/>
@@ -18,8 +20,10 @@
 		<rtc/>
 		<rom label="usb_devices"/>
 		<usb/>
+<!--
 		<audio_out/>
 		<audio_in/>
+-->
 	</requires>
 
 	<config verbose="yes">
@@ -32,15 +36,19 @@
 			<service name="LOG"/>
 			<service name="VM"/>
 			<service name="Gui"/>
+<!--
 			<service name="Gpu"/>
+-->
 			<service name="Timer"/>
 			<service name="Rtc"/>
 			<service name="Report"/>
 			<service name="File_system"/>
 			<service name="Usb"/>
 			<service name="Nic"/>
+<!--
 			<service name="Audio_out"/>
 			<service name="Audio_in"/>
+-->
 		</parent-provides>
 
 		<default-route> <any-service> <parent/> <any-child/> </any-service> </default-route>
