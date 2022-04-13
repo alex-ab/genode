@@ -1,0 +1,16 @@
+<runtime ram="4G" caps="1000" binary="vfs">
+
+	<provides> <file_system/> </provides>
+
+	<config>
+		<vfs> <ram/> </vfs>
+		<default-policy root="/" writeable="yes"/>
+	</config>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="vfs.lib.so"/>
+		<rom label="vfs"/>
+	</content>
+
+</runtime>
