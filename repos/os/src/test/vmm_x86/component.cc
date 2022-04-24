@@ -52,9 +52,14 @@ namespace Vmm {
 		PAUSED  = 0xff
 	};
 
+	static bool config_exit(Vcpu_state &, unsigned /* exit */)
+	{
+		/* ... we may restrict here what we want to get */
+		return false;
+	}
+
 	Vm_connection::Exit_config const exit_config {
-		/* ... */
-	};
+		.config_exit = config_exit };
 
 	static uint32_t rdtscp()
 	{

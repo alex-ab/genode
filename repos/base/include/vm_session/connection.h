@@ -57,7 +57,7 @@ struct Genode::Vm_connection : Connection<Vm_session>, Rpc_client<Vm_session>
 	 */
 	struct Exit_config
 	{
-		/* for example OMIT_FPU_ON_IRQ */
+		bool (*config_exit) (Vcpu_state &, unsigned exit) = nullptr;
 	};
 
 	/**
