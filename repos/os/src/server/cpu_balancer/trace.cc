@@ -117,6 +117,7 @@ Genode::Session_label Cpu::Trace::lookup_my_label()
 		if (count.count == count.limit) {
 			Genode::log("reconstruct trace session, subject_count=", count.count);
 			found_id = Subject_id();
+			label = Session_label("cpu_balancer");
 			_reconstruct();
 			continue;
 		}
