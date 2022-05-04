@@ -18,9 +18,11 @@
 extern "C" {
 #endif
 
-void lx_emul_framebuffer_ready(void * base, unsigned long size,
+void lx_emul_framebuffer_ready(unsigned connector_id, void * base,
+                               unsigned long size,
                                unsigned xres, unsigned yres,
-                               unsigned virtual_width, unsigned virtual_height);
+                               unsigned virtual_width, unsigned virtual_height,
+                               unsigned screen_offsetx, unsigned screen_offsety);
 
 #ifdef __cplusplus
 }

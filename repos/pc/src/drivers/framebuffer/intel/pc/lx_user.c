@@ -38,19 +38,19 @@ static struct drm_fb_helper * i915_fb(void) { return &i915->fbdev->helper; }
  */
 static void preferred_mode(struct drm_display_mode *prefer)
 {
-	struct drm_connector          *connector  = NULL;
-	struct drm_display_mode       *mode       = NULL;
+	struct drm_connector          *connector       = NULL;
+	struct drm_display_mode       *mode            = NULL;
 	struct drm_connector_list_iter conn_iter;
 
 	/* read Genode's config per connector */
 	drm_connector_list_iter_begin(i915_fb()->dev, &conn_iter);
 	drm_client_for_each_connector_iter(connector, &conn_iter) {
-		struct genode_mode conf_mode = { .enabled = 1 };
+		struct genode_mode conf_mode = { .enabled = 1, .mirror = true };
 
 		/* check for connector configuration on Genode side */
 		lx_emul_i915_connector_config(connector->name, &conf_mode);
 
-		if (!conf_mode.enabled)
+		if (!conf_mode.enabled || !conf_mode.mirror)
 			continue;
 
 		if (conf_mode.id) {
@@ -132,14 +132,193 @@ static unsigned get_brightness(struct drm_connector * const connector,
 }
 
 
+static void * framebuffer_map(struct drm_framebuffer *fb, bool zero)
+{
+	struct i915_ggtt_view const view = { .type = I915_GGTT_VIEW_NORMAL };
+	struct i915_vma *vma = NULL;
+	unsigned long out_flags = 0u;
+	void *vaddr = NULL;
+
+	vma = intel_pin_and_fence_fb_obj(fb, false /* phys_cursor */, &view,
+	                                 false /* use_fences */, &out_flags);
+	if (IS_ERR(vma)) {
+		return NULL;
+	}
+
+	vaddr = i915_vma_pin_iomap(vma);
+	if (IS_ERR(vaddr)) {
+		intel_unpin_fb_vma(vma, out_flags);
+		return NULL;
+	}
+
+	if (vaddr && zero)
+		memset_io(vaddr, 0,  vma->node.size);
+
+	return vaddr;
+}
+
+
+static struct drm_framebuffer * allocate_framebuffer(struct drm_device * dev,
+                                                     struct drm_display_mode const * const mode,
+                                                     void **vaddr)
+{
+	struct drm_i915_private    * dev_priv = to_i915(dev);
+	struct drm_mode_fb_cmd2      fb_cmd   = {};
+	struct drm_i915_gem_object * obj      = ERR_PTR(-ENODEV);
+	struct drm_framebuffer     * fb       = NULL;
+
+	unsigned long const pitch = ALIGN(mode->hdisplay * DIV_ROUND_UP(32, 8), 64);
+	unsigned long const size  = roundup(pitch * mode->vdisplay, PAGE_SIZE);
+
+	if (HAS_LMEM(dev_priv)) {
+		obj = i915_gem_object_create_lmem(dev_priv, size,
+		                                  I915_BO_ALLOC_CONTIGUOUS);
+	} else {
+		obj = i915_gem_object_create_stolen(dev_priv, size);
+
+		if (IS_ERR(obj))
+			obj = i915_gem_object_create_shmem(dev_priv, size);
+	}
+
+	if (IS_ERR(obj))
+		return NULL;
+
+	fb_cmd.width        = mode->hdisplay;
+	fb_cmd.height       = mode->vdisplay;
+	fb_cmd.pixel_format = DRM_FORMAT_XRGB8888;
+	fb_cmd.pitches[0]   = pitch;
+
+	fb = intel_framebuffer_create(obj, &fb_cmd);
+	if (IS_ERR(fb)) {
+		i915_gem_object_put(obj);
+		return NULL;
+	}
+
+	*vaddr = framebuffer_map(fb, true);
+	if (!*vaddr) {
+		drm_framebuffer_remove(fb);
+		i915_gem_object_put(obj);
+		return NULL;
+	}
+
+	i915_gem_object_put(obj);
+
+	return fb;
+}
+
+
+static struct drm_framebuffer * probe_framebuffer(struct drm_device * dev,
+                                                  struct drm_framebuffer *fb,
+                                                  struct drm_display_mode const * const mode,
+                                                  void **vaddr)
+{
+	if (fb && (mode->hdisplay > fb->width || mode->vdisplay > fb->height)) {
+		drm_framebuffer_put(fb);
+		fb = NULL;
+	}
+
+	if (!fb)
+		fb = allocate_framebuffer(dev, mode, vaddr);
+	else {
+		*vaddr = framebuffer_map(fb, false);
+	}
+
+	return fb;
+}
+
+
+static struct drm_framebuffer * lookup_framebuffer(struct drm_crtc *crtc,
+                                                   struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_atomic_state *state;
+	struct drm_plane_state  *plane;
+	struct drm_crtc_state   *crtc_state;
+
+	state = drm_atomic_state_alloc(crtc->dev);
+	if (!state)
+		return NULL;
+
+	state->acquire_ctx = ctx;
+
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state)) {
+		drm_atomic_state_put(state);
+		return NULL;
+	}
+
+	plane = drm_atomic_get_plane_state(state, crtc->primary);
+
+	drm_atomic_state_put(state);
+
+	return plane ? plane->fb : NULL;
+}
+
+
+struct drm_framebuffer * fb_of_screen(struct genode_mode  const * const conf_mode,
+                                      struct drm_mode_set const * const set,
+                                      struct fb_info            * const fb_info,
+                                      struct drm_framebuffer    * const fb_mirror,
+                                      struct drm_display_mode const * const mode,
+                                      struct drm_modeset_acquire_ctx * ctx,
+                                      struct drm_connector const * const connector)
+{
+	struct drm_framebuffer *fb         = NULL;
+	void                   *fb_mapped  = NULL;
+	bool const              mirror     = conf_mode->mirror;
+
+	fb = lookup_framebuffer(set->crtc, ctx);
+
+	/* notify genode side about switch from connector specific fb to mirror fb */
+	if (fb && mirror && fb != fb_mirror) {
+		struct fb_info info = {};
+
+		drm_framebuffer_put(fb);
+
+		info.var.bits_per_pixel = 32;
+		info.node = connector->index;
+		register_framebuffer(&info);
+
+		fb = fb_mirror;
+	}
+
+	if (!conf_mode->enabled)
+		return fb;
+
+	if (!mirror && (fb == fb_mirror || !fb))
+		fb = probe_framebuffer(i915_fb()->dev, NULL, mode, &fb_mapped);
+	else
+		fb = probe_framebuffer(i915_fb()->dev, fb, mode, &fb_mapped);
+
+	if (!fb || fb == fb_mirror) {
+		/* keep physical dimension, which may be different from mode-> */
+		*fb_info = *i915_fb()->fbdev;
+	} else {
+		fb_info->var.bits_per_pixel = 32;
+		fb_info->fix.line_length    = ALIGN(mode->hdisplay * DIV_ROUND_UP(32, 8), 64);
+		fb_info->var.xres           = mode->hdisplay;
+		fb_info->var.yres           = mode->vdisplay;
+	}
+
+	fb_info->node             = connector->index;
+	fb_info->screen_base      = fb_mapped;
+	fb_info->var.xoffset      = conf_mode->screen_offsetx;
+	fb_info->var.xres_virtual = mode->hdisplay;
+	fb_info->var.yres_virtual = mode->vdisplay;
+
+	return fb ? fb : fb_mirror;
+}
+
+
 static bool reconfigure(void * data)
 {
-	struct drm_display_mode *mode           = NULL;
-	struct drm_display_mode  mode_preferred = {};
-	struct drm_mode_set     *mode_set       = NULL;
-	struct fb_info           report_fb_info = {};
-	bool                     report_fb      = false;
-	bool                     retry          = false;
+	struct drm_display_mode *mode             = NULL;
+	struct drm_framebuffer  *fb_mirror        = NULL;
+	struct drm_mode_set     *mode_set         = NULL;
+	struct drm_display_mode  mode_preferred   = {};
+	struct fb_info           fb_info_mirror   = {};
+	unsigned                 split_screens    = 0;
+	bool                     report_fb_mirror = false;
+	bool                     retry            = false;
 
 	if (!i915_fb())
 		return retry;
@@ -161,28 +340,23 @@ static bool reconfigure(void * data)
 		sizes.surface_height = sizes.fb_height;
 
 		err = (*i915_fb()->funcs->fb_probe)(i915_fb(), &sizes);
-		/* i915_fb()->fb contains adjusted drm_frambuffer object */
-
-		if (err || !i915_fb()->fbdev)
-			printk("setting up framebuffer failed - error=%d\n", err);
+		/* i915_fb()->fb contains adjusted drm_framebuffer object */
 	}
 
-	if (!i915_fb()->fb)
+	if (!i915_fb()->fbdev)
 		return retry;
 
-	/* data is adjusted if virtual resolution is not same size as physical fb */
-	report_fb_info = *i915_fb()->fbdev;
-	if (mode_preferred.hdisplay && mode_preferred.vdisplay) {
-		report_fb_info.var.xres_virtual = mode_preferred.hdisplay;
-		report_fb_info.var.yres_virtual = mode_preferred.vdisplay;
-	}
+	fb_mirror = i915_fb()->fb;
+	if (!fb_mirror)
+		return retry;
 
 	drm_client_for_each_modeset(mode_set, &(i915_fb()->client)) {
 		struct drm_display_mode *mode_match = NULL;
 		unsigned                 mode_id    = 0;
 		struct drm_connector    *connector  = NULL;
 
-		struct genode_mode conf_mode = { .enabled = 1,
+		struct genode_mode conf_mode = { .enabled    = 1,
+		                                 .mirror     = true,
 		                                 .brightness = INVALID_BRIGHTNESS };
 
 		if (!mode_set->connectors || !*mode_set->connectors)
@@ -237,9 +411,11 @@ static bool reconfigure(void * data)
 		/* apply new mode */
 		mode_id = 0;
 		list_for_each_entry(mode, &connector->modes, head) {
-			struct drm_mode_set set;
-			int                 err      = -1;
-			bool                no_match = false;
+			struct drm_mode_set     set              = {};
+			struct fb_info          fb_info          = {};
+			struct drm_framebuffer *fb_connector     = fb_mirror;
+			int                     err              = -1;
+			bool                    no_match         = !mode_match;
 
 			mode_id ++;
 
@@ -258,13 +434,7 @@ static bool reconfigure(void * data)
 			if (mode_match != mode)
 				continue;
 
-			set.crtc           = mode_set->crtc;
-			set.x              = 0;
-			set.y              = 0;
-			set.mode           = conf_mode.enabled ? mode : NULL;
-			set.connectors     = &connector;
-			set.num_connectors = conf_mode.enabled ? 1 : 0;
-			set.fb             = conf_mode.enabled ? i915_fb()->fb : NULL;
+			set.crtc = mode_set->crtc;
 
 			if (set.crtc->funcs && set.crtc->funcs->set_config &&
 			    drm_drv_uses_atomic_modeset(i915_fb()->dev)) {
@@ -274,6 +444,18 @@ static bool reconfigure(void * data)
 				DRM_MODESET_LOCK_ALL_BEGIN(i915_fb()->dev, ctx,
 				                           DRM_MODESET_ACQUIRE_INTERRUPTIBLE,
 				                           err);
+
+				/* check for mirrored fb or specific one for connector */
+				fb_connector = fb_of_screen(&conf_mode, &set, &fb_info,
+				                            fb_mirror, mode, &ctx, connector);
+
+				set.x              = 0;
+				set.y              = 0;
+				set.mode           = conf_mode.enabled ? mode : NULL;
+				set.connectors     = &connector;
+				set.num_connectors = conf_mode.enabled ? 1 : 0;
+				set.fb             = conf_mode.enabled ? fb_connector : NULL;
+
 				err = set.crtc->funcs->set_config(&set, &ctx);
 
 				if (!err && conf_mode.enabled && conf_mode.brightness <= MAX_BRIGHTNESS)
@@ -284,17 +466,29 @@ static bool reconfigure(void * data)
 				if (err)
 					retry = true;
 				else {
-					report_fb = true;
+					if (conf_mode.mirror && !report_fb_mirror) {
+						fb_info_mirror = fb_info;
+
+						if (mode_preferred.hdisplay && mode_preferred.vdisplay) {
+							fb_info_mirror.var.xres_virtual = mode_preferred.hdisplay;
+							fb_info_mirror.var.yres_virtual = mode_preferred.vdisplay;
+						}
+
+						report_fb_mirror = true;
+					}
 				}
+
+				if (!retry)
+					retry = !!err;
 			}
 
-			printk("%s: %s name='%s' id=%u %ux%u@%u%s",
+			printk("%s: %s name='%s' mode_id=%u%s %ux%u@%u%s",
 			       connector->name ? connector->name : "unnamed",
 			       conf_mode.enabled ? " enable" : "disable",
-			       mode->name ? mode->name : "noname",
-			       mode_id, mode->hdisplay,
-			       mode->vdisplay, drm_mode_vrefresh(mode),
-			       (err || no_match) ? "" : "\n");
+			       mode->name ? mode->name : "noname", mode_id,
+			       conf_mode.mirror ? " mirrored" : " extended",
+			       mode->hdisplay, mode->vdisplay,
+			       drm_mode_vrefresh(mode), (err || no_match) ? "" : "\n");
 
 			if (no_match)
 				printk(" - no mode match: %ux%u\n",
@@ -303,12 +497,39 @@ static bool reconfigure(void * data)
 			if (err)
 				printk(" - failed, error=%d\n", err);
 
+			if (!err && !conf_mode.mirror) {
+				split_screens ++;
+
+				register_framebuffer(&fb_info);
+			}
+
 			break;
 		}
 	}
 
-	if (report_fb)
-		register_framebuffer(&report_fb_info);
+	{
+		/* report disconnected connectors to potentially shrink virtual screen */
+		struct drm_connector_list_iter conn_iter;
+		struct drm_connector *connector = NULL;
+
+		drm_connector_list_iter_begin(i915_fb()->dev, &conn_iter);
+		drm_client_for_each_connector_iter(connector, &conn_iter) {
+			if (connector->status != connector_status_connected) {
+				struct fb_info fb_info = {};
+				fb_info.var.bits_per_pixel = 32;
+				fb_info.node = connector->index;
+				register_framebuffer(&fb_info);
+			}
+		}
+		drm_connector_list_iter_end(&conn_iter);
+	}
+
+	if (report_fb_mirror) {
+		/* ignore configured offsets if no split screens are actually in use */
+		if (split_screens == 0)
+			fb_info_mirror.var.xoffset = 0;
+		register_framebuffer(&fb_info_mirror);
+	}
 
 	return retry;
 }
@@ -410,7 +631,7 @@ void lx_emul_i915_iterate_modes(void * lx_data, void * genode_data)
 			                                 .height = mode->vdisplay,
 			                                 .preferred = mode->type & (DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DEFAULT),
 			                                 .hz = drm_mode_vrefresh(mode),
-			                                 .id = mode_id
+			                                 .id = mode_id,
 			                               };
 
 			static_assert(sizeof(conf_mode.name) == DRM_DISPLAY_MODE_LEN);
