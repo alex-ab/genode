@@ -201,6 +201,7 @@ append config {
 							<inline name="fb_drv.config">
 <config ld_verbose="yes" apply_on_hotplug="} $apply_on_hotplug {">
 	<report connectors="yes"/>
+	<connector name="HDMI-A-1" mirror="false" screen_offsetx="1920"/>
 </config>
 							</inline>
 						</import>
@@ -248,7 +249,7 @@ append_if $use_gpu config {
 append config {
 			<start name="intel_fb_drv" caps="1000">
 				<binary name="pc_intel_fb_drv"/>
-				<resource name="RAM" quantum="90M"/>
+				<resource name="RAM" quantum="128M"/>
 				<route>}
 
 append_if $use_gpu config {
