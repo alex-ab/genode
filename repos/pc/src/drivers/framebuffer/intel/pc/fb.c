@@ -53,9 +53,11 @@ struct fb_info * framebuffer_alloc(size_t size,struct device * dev)
 
 int register_framebuffer(struct fb_info * fb_info)
 {
-	lx_emul_framebuffer_ready(fb_info->screen_base, fb_info->screen_size,
+	lx_emul_framebuffer_ready(fb_info->node,
+	                          fb_info->screen_base, fb_info->screen_size,
 	                          fb_info->var.xres_virtual, fb_info->var.yres_virtual,
 	                          fb_info->fix.line_length /
-	                          (fb_info->var.bits_per_pixel / 8), fb_info->var.yres);
+	                          (fb_info->var.bits_per_pixel / 8), fb_info->var.yres,
+	                          fb_info->var.xoffset, fb_info->var.yoffset);
 	return 0;
 }
