@@ -57,3 +57,18 @@ The exported report has the following format:
 
 The brightness attribute is reported only if the hardware supports it.
 
+
+Configuration - non mirror mode
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The connectors may be configured explicitly to disable mirror mode. For each
+non mirrored connector an extra framebuffer is allocated, which increases
+the RAM consumption of the driver accordingly. The connectors form an virtual
+extended screen by summing up the widths of the specific connectors. The
+screen_offsetx attribute is used to configure the cutout within the virtual
+extended screen to be shown.
+
+! <config>
+!   <connector name="eDP-1"    mirror="no" width="2560" height="1440" screen_offsetx="0"   />
+!   <connector name="HDMI-A-1" mirror="no" width="1920" height="1080" screen_offsetx="2560"/>
+! </config>
