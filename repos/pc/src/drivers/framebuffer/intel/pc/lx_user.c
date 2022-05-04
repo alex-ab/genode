@@ -84,11 +84,11 @@ static inline bool fb_smaller_mode(struct fb_info          const * const info,
 
 
 /*
- * Heuristic to calculate max resolution across all connectors
+ * Heuristic to calculate max resolution across all mirrored connectors
  */
-static void preferred_mode(struct drm_device const * const dev,
-                           struct drm_display_mode * const prefer,
-                           struct drm_display_mode * const min_mode)
+static void preferred_mirror(struct drm_device const * const dev,
+                             struct drm_display_mode * const prefer,
+                             struct drm_display_mode * const min_mode)
 {
 	struct drm_connector          *connector        = NULL;
 	struct drm_display_mode       *mode             = NULL;
@@ -100,7 +100,7 @@ static void preferred_mode(struct drm_device const * const dev,
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_client_for_each_connector_iter(connector, &conn_iter) {
 		struct drm_display_mode smallest  = { .hdisplay = ~0, .vdisplay = ~0 };
-		struct genode_mode      conf_mode = { .enabled = 1 };
+		struct genode_mode      conf_mode = { .enabled = 1, .mirror = true };
 		unsigned                mode_id   = 0;
 
 		/* check for connector configuration on Genode side */
@@ -167,7 +167,7 @@ static void preferred_mode(struct drm_device const * const dev,
 				continue;
 		}
 
-		if (!conf_mode.width || !conf_mode.height)
+		if (!conf_mode.width || !conf_mode.height || !conf_mode.mirror)
 			continue;
 
 		if (conf_larger_mode(&conf_mode, prefer)) {
@@ -188,6 +188,11 @@ static void preferred_mode(struct drm_device const * const dev,
 	/* if too large or nothing configured by Genode's config */
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_client_for_each_connector_iter(connector, &conn_iter) {
+
+		struct genode_mode conf_mode = { .enabled = 1, .mirror = true };
+		/* check for connector configuration on Genode side */
+		lx_emul_i915_connector_config(connector->name, &conf_mode);
+
 		list_for_each_entry(mode, &connector->modes, head) {
 			if (!mode)
 				continue;
@@ -199,6 +204,9 @@ static void preferred_mode(struct drm_device const * const dev,
 				if (mode_larger(mode, &max_enforcement))
 					continue;
 			}
+
+			if (conf_mode.enabled && !conf_mode.mirror)
+				continue;
 
 			if (mode_larger(mode, prefer)) {
 				prefer->hdisplay = mode->hdisplay;
@@ -248,11 +256,211 @@ static unsigned get_brightness(struct drm_connector * const connector,
 	return ret * MAX_BRIGHTNESS / panel->backlight.device->props.max_brightness;
 }
 
-static struct drm_mode_fb_cmd2     dumb_fb  = {};
+
+static struct drm_mode_fb_cmd2  *mirror_fb_cmd;
+
+
+static struct drm_framebuffer * lookup_framebuffer(struct drm_crtc *crtc,
+                                                   struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_atomic_state *state;
+	struct drm_plane_state  *plane;
+	struct drm_crtc_state   *crtc_state;
+
+	state = drm_atomic_state_alloc(crtc->dev);
+	if (!state)
+		return NULL;
+
+	state->acquire_ctx = ctx;
+
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state)) {
+		drm_atomic_state_put(state);
+		return NULL;
+	}
+
+	plane = drm_atomic_get_plane_state(state, crtc->primary);
+
+	drm_atomic_state_put(state);
+
+	return plane ? plane->fb : NULL;
+}
+
+enum { MAX_FBS = 16 };
+
+static struct gem_dumb {
+	struct drm_mode_create_dumb fb_dumb;
+	struct drm_mode_fb_cmd2     fb_cmd;
+	struct i915_vma           * vma;
+	unsigned long               flags;
+} gem_dumb_list [MAX_FBS] = { };
+
+
+static bool _meta_data(struct drm_client_dev  const * const dev,
+                       struct drm_framebuffer const * const fb,
+                       struct drm_mode_create_dumb ** fb_dumb, /* out */
+                       struct drm_mode_fb_cmd2     ** fb_cmd,  /* out */
+                       struct gem_dumb             ** gem_dumb) /* out */
+{
+	struct drm_framebuffer *cmp          = NULL;
+	unsigned          const invalid_slot = ~0U;
+	unsigned                free_slot    = invalid_slot;
+
+	if (!dev)
+		return false;
+
+	for (unsigned i = 0; i < sizeof(gem_dumb_list) / sizeof(gem_dumb_list[0]); i++) {
+		if (!gem_dumb_list[i].fb_cmd.fb_id) {
+			if (free_slot == invalid_slot)
+				free_slot = i;
+			continue;
+		}
+
+		if (!fb)
+			continue;
+
+		cmp = drm_framebuffer_lookup(dev->dev, dev->file, gem_dumb_list[i].fb_cmd.fb_id);
+
+		if (cmp)
+			drm_framebuffer_put(cmp);
+
+		if (cmp == fb) {
+			if (fb_dumb)
+				*fb_dumb = &gem_dumb_list[i].fb_dumb;
+			if (fb_cmd)
+				*fb_cmd = &gem_dumb_list[i].fb_cmd;
+			if (gem_dumb)
+				*gem_dumb = &gem_dumb_list[i];
+			return true;
+		}
+	}
+
+	if (free_slot != invalid_slot) {
+		if (fb_dumb)
+			*fb_dumb = &gem_dumb_list[free_slot].fb_dumb;
+		if (fb_cmd)
+			*fb_cmd = &gem_dumb_list[free_slot].fb_cmd;
+		if (gem_dumb)
+			*gem_dumb = &gem_dumb_list[free_slot];
+	}
+
+	return free_slot != invalid_slot;
+}
+
+
+static bool dumb_meta(struct drm_client_dev  const * const dev,
+                      struct drm_framebuffer const * const fb,
+                      struct drm_mode_create_dumb ** fb_dumb, /* out */
+                      struct drm_mode_fb_cmd2     ** fb_cmd)  /* out */
+{
+	return _meta_data(dev, fb, fb_dumb, fb_cmd, NULL);
+}
+
+
+static bool dumb_gem(struct drm_client_dev  const * const dev,
+                     struct drm_framebuffer const * const fb,
+                     struct gem_dumb             ** gem_dumb) /* out */
+{
+	return _meta_data(dev, fb, NULL, NULL, gem_dumb);
+}
+
+
+static void destroy_fb(struct drm_client_dev       * const dev,
+                       struct drm_mode_create_dumb * const gem_dumb,
+                       struct drm_mode_fb_cmd2     * const dumb_fb)
+{
+	int result = drm_mode_rmfb(dev->dev, dumb_fb->fb_id, dev->file);
+
+	if (result) {
+		drm_err(dev->dev, "%s: failed to remove framebuffer %d\n",
+		        __func__, result);
+	}
+
+	result = drm_mode_destroy_dumb(dev->dev, gem_dumb->handle, dev->file);
+
+	if (result) {
+		drm_err(dev->dev, "%s: failed to destroy framebuffer %d\n",
+		        __func__, result);
+	}
+
+	/* frees the entry in _meta_data allocator */
+	memset(gem_dumb, 0, sizeof(*gem_dumb));
+	memset(dumb_fb,  0, sizeof(*dumb_fb));
+}
+
+
+struct drm_mode_fb_cmd2  fb_of_screen(struct drm_client_dev         * const dev,
+                                      struct genode_mode      const * const conf_mode,
+                                      struct fb_info                * const fb_info,
+                                      struct drm_mode_fb_cmd2 const * const dumb_fb_mirror,
+                                      struct drm_display_mode const * const mode,
+                                      struct drm_framebuffer        *       fb,
+                                      struct drm_connector    const * const connector)
+{
+	int                          err       = -EINVAL;
+	struct drm_mode_create_dumb *gem_dumb  = NULL;
+	struct drm_mode_fb_cmd2     *fb_cmd    = NULL;
+	struct drm_framebuffer      *fb_mirror = drm_framebuffer_lookup(dev->dev,
+	                                                                dev->file,
+	                                                                dumb_fb_mirror->fb_id);
+
+	/* during hotplug the mirrored fb is used for non mirrored connectors temporarily */
+	if (fb && !conf_mode->mirror && fb == fb_mirror) {
+		fb = NULL;
+	}
+
+	if (!dumb_meta(dev, fb, &gem_dumb, &fb_cmd) || !gem_dumb || !fb_cmd) {
+		struct drm_mode_fb_cmd2 invalid = { };
+		printk("could not create dumb buffer\n");
+		return invalid;
+	}
+
+	/* notify genode side about switch from connector specific fb to mirror fb */
+	if (fb && conf_mode->mirror && fb != fb_mirror) {
+		struct fb_info info = {};
+
+		info.var.bits_per_pixel = 32;
+		info.node               = connector->index;
+
+		register_framebuffer(&info);
+
+		destroy_fb(dev, gem_dumb, fb_cmd);
+	}
+
+	if (fb_mirror)
+		drm_framebuffer_put(fb_mirror);
+
+	fb_info->node        = connector->index;
+	fb_info->var.xoffset = conf_mode->screen_offsetx;
+
+	if (!conf_mode->enabled) {
+		struct drm_mode_fb_cmd2 invalid = { };
+		return invalid;
+	}
+
+	if (conf_mode->mirror)
+		return *dumb_fb_mirror;
+
+	err = check_resize_fb(dev, gem_dumb, fb_cmd,
+	                      mode->hdisplay, mode->vdisplay);
+
+	if (err) {
+		printk("setting up framebuffer of %ux%u failed - error=%d\n",
+		       mode->hdisplay, mode->vdisplay, err);
+		return *dumb_fb_mirror;
+	}
+
+	fb_info->var.xres         = mode->hdisplay;
+	fb_info->var.yres         = mode->vdisplay;
+	fb_info->var.xres_virtual = mode->hdisplay;
+	fb_info->var.yres_virtual = mode->vdisplay;
+
+	return *fb_cmd;
+}
 
 static bool reconfigure(struct drm_client_dev * const dev)
 {
-	static struct drm_mode_create_dumb gem_dumb = {};
+	static struct drm_mode_create_dumb *gem_mirror = NULL;
 
 	struct drm_display_mode  mode_preferred = {};
 	struct drm_display_mode  mode_minimum   = {};
@@ -263,20 +471,26 @@ static bool reconfigure(struct drm_client_dev * const dev)
 	struct fb_info           report_fb_info = {};
 	bool                     report_fb      = false;
 	bool                     retry          = false;
+	unsigned                 split_screens  = 0;
 
-	if (!dev || !dev->dev)
+	if (!gem_mirror) {
+		/* request storage for gem_mirror and mirror_fb_cmd */
+		dumb_meta(dev, NULL, &gem_mirror, &mirror_fb_cmd);
+	}
+
+	if (!dev || !dev->dev || !gem_mirror || !mirror_fb_cmd)
 		return false;
 
-	preferred_mode(dev->dev, &mode_preferred, &mode_minimum);
+	preferred_mirror(dev->dev, &mode_preferred, &mode_minimum);
 
 	if (!mode_minimum.hdisplay || !mode_minimum.vdisplay) {
 		/* no valid modes on any connector on early boot */
-		if (!dumb_fb.fb_id)
+		if (!mirror_fb_cmd->fb_id)
 			return false;
 
 		/* valid connectors but all are disabled by config */
-		mode_minimum.hdisplay = dumb_fb.width;
-		mode_minimum.vdisplay = dumb_fb.height;
+		mode_minimum.hdisplay = mirror_fb_cmd->width;
+		mode_minimum.vdisplay = mirror_fb_cmd->height;
 		mode_preferred        = mode_minimum;
 	}
 
@@ -287,8 +501,8 @@ static bool reconfigure(struct drm_client_dev * const dev)
 
 	{
 		int const err = check_resize_fb(dev,
-		                                &gem_dumb,
-		                                &dumb_fb,
+		                                gem_mirror,
+		                                mirror_fb_cmd,
 		                                framebuffer.hdisplay,
 		                                framebuffer.vdisplay);
 
@@ -301,7 +515,7 @@ static bool reconfigure(struct drm_client_dev * const dev)
 	}
 
 	/* without fb handle created by check_resize_fb we can't proceed */
-	if (!dumb_fb.fb_id)
+	if (!mirror_fb_cmd->fb_id)
 		return retry;
 
 	/* prepare fb info for register_framebuffer() evaluated by Genode side */
@@ -315,7 +529,7 @@ static bool reconfigure(struct drm_client_dev * const dev)
 		unsigned                 mode_id    = 0;
 		struct drm_connector    *connector  = NULL;
 
-		struct genode_mode conf_mode = { };
+		struct genode_mode conf_mode = { .mirror = true };
 
 		if (!mode_set->connectors || !*mode_set->connectors)
 			continue;
@@ -373,13 +587,29 @@ static bool reconfigure(struct drm_client_dev * const dev)
 		/* apply new mode */
 		mode_id = 0;
 		list_for_each_entry(mode, &connector->modes, head) {
-			int  err      = -1;
-			bool no_match = false;
+			struct fb_info          fb_info  = report_fb_info;
+			int                     err      = -1;
+			bool                    no_match = false;
+			struct drm_mode_fb_cmd2 fb_cmd   = *mirror_fb_cmd;
 
 			mode_id ++;
 
 			if (!mode)
 				continue;
+
+			/* use first mode for non mirrored connector in case of no match */
+			if (!mode_match && !conf_mode.mirror) {
+
+				struct drm_display_mode max = { .hdisplay = conf_mode.max_width,
+				                                .vdisplay = conf_mode.max_height };
+
+				if (conf_mode.max_width && conf_mode.max_height) {
+					if (conf_larger_mode(&conf_mode, &max))
+						continue;
+				}
+
+				mode_match = mode;
+			}
 
 			/* no matching mode ? */
 			if (!mode_match) {
@@ -398,18 +628,30 @@ static bool reconfigure(struct drm_client_dev * const dev)
 			if (mode_match != mode)
 				continue;
 
+			{
+				struct drm_modeset_acquire_ctx ctx; 
+				struct drm_framebuffer *fb = NULL;
+
+				DRM_MODESET_LOCK_ALL_BEGIN(dev->dev, ctx,
+				                           DRM_MODESET_ACQUIRE_INTERRUPTIBLE,
+				                           err);
+
+				fb = lookup_framebuffer(mode_set->crtc, &ctx);
+
+				DRM_MODESET_LOCK_ALL_END(dev->dev, ctx, err);
+
+				/* check for mirrored fb or specific one for connector */
+				fb_cmd = fb_of_screen(dev, &conf_mode, &fb_info, mirror_fb_cmd,
+				                      mode, fb, connector);
+			}
+
 			/* convert kernel internal mode to user mode expectecd via ioctl */
 			drm_mode_convert_to_umode(&user_mode, mode);
 
 			/* assign fb & connector to crtc with specified mode */
 			err = user_attach_fb_to_crtc(dev, connector, mode_set->crtc,
-			                             &user_mode, dumb_fb.fb_id,
+			                             &user_mode, fb_cmd.fb_id,
 			                             conf_mode.enabled);
-
-			if (err)
-				retry = true;
-			else
-				report_fb = true;
 
 			/* set brightness */
 			if (!err && conf_mode.enabled && conf_mode.brightness <= MAX_BRIGHTNESS) {
@@ -419,13 +661,23 @@ static bool reconfigure(struct drm_client_dev * const dev)
 				drm_modeset_unlock(&dev->dev->mode_config.connection_mutex);
 			}
 
+			if (!retry)
+				retry = !!err;
+
+			if (!err && conf_mode.mirror && !report_fb) {
+				report_fb = true;
+				/* use fb_info of first mirrored screen */
+				report_fb_info = fb_info;
+			}
+
 			/* diagnostics */
-			printk("%10s: %s name='%9s' id=%u%s mode=%4ux%4u@%u%s fb=%4ux%4u%s",
+			printk("%10s: %s name='%9s' id=%u%s%s mode=%4ux%4u@%u%s fb=%4ux%4u%s",
 			       connector->name ? connector->name : "unnamed",
 			       conf_mode.enabled ? " enable" : "disable",
 			       mode->name ? mode->name : "noname",
-			       mode_id, mode_id < 10 ? " " : "", mode->hdisplay,
-			       mode->vdisplay, drm_mode_vrefresh(mode),
+			       mode_id, mode_id < 10 ? " " : "",
+			       conf_mode.mirror ? " mirrored" : " extended",
+			       mode->hdisplay, mode->vdisplay, drm_mode_vrefresh(mode),
 			       drm_mode_vrefresh(mode) < 100 ? " ": "",
 			       framebuffer.hdisplay, framebuffer.vdisplay,
 			       (err || no_match) ? "" : "\n");
@@ -437,12 +689,41 @@ static bool reconfigure(struct drm_client_dev * const dev)
 			if (err)
 				printk(" - failed, error=%d\n", err);
 
+			if (!err && !conf_mode.mirror) {
+				split_screens ++;
+
+				user_register_fb(dev, &fb_info, &fb_cmd);
+			}
+
 			break;
 		}
 	}
 
-	if (report_fb)
-		user_register_fb(dev, &report_fb_info, &dumb_fb);
+	{
+		/* report disconnected connectors to potentially shrink virtual screen */
+		struct drm_connector_list_iter  conn_iter;
+		struct drm_connector           *connector = NULL;
+
+		drm_connector_list_iter_begin(dev->dev, &conn_iter);
+		drm_client_for_each_connector_iter(connector, &conn_iter) {
+			if (connector->status != connector_status_connected) {
+				struct fb_info fb_info = {};
+				fb_info.var.bits_per_pixel = 32;
+				fb_info.node = connector->index;
+				register_framebuffer(&fb_info);
+			}
+		}
+		drm_connector_list_iter_end(&conn_iter);
+	}
+
+	/* mirrored fb reporting */
+	if (report_fb) {
+		/* ignore configured offsets if no split screens are actually in use */
+		if (split_screens == 0)
+			report_fb_info.var.xoffset = 0;
+
+		user_register_fb(dev, &report_fb_info, mirror_fb_cmd);
+	}
 
 	return retry;
 }
@@ -565,12 +846,12 @@ void i915_switcheroo_unregister(struct drm_i915_private *i915)
 
 static int fb_client_hotplug(struct drm_client_dev *client)
 {
-	struct drm_mode_set    *modeset = NULL;
-	struct drm_framebuffer *fb      = NULL;
-	int    result                   = -EINVAL;
+	struct drm_mode_set    *modeset   = NULL;
+	struct drm_framebuffer *fb_mirror = NULL;
+	int    result                     = -EINVAL;
 
-	if (dumb_fb.fb_id)
-		fb = drm_framebuffer_lookup(client->dev, client->file, dumb_fb.fb_id);
+	if (mirror_fb_cmd && mirror_fb_cmd->fb_id)
+		fb_mirror = drm_framebuffer_lookup(client->dev, client->file, mirror_fb_cmd->fb_id);
 
 	/*
 	 * Triggers set up of display pipelines for connectors and
@@ -587,15 +868,70 @@ static int fb_client_hotplug(struct drm_client_dev *client)
 	 * (Re-)assign framebuffer to modeset (lost due to modeset_probe) and
 	 * commit the change.
 	 */
-	if (fb) {
+	if (fb_mirror) {
+		struct drm_framebuffer * free_fbs[MAX_FBS] = { };
+		struct drm_modeset_acquire_ctx ctx;
+		unsigned i = 0;
+
+		DRM_MODESET_LOCK_ALL_BEGIN(client->dev, ctx,
+		                           DRM_MODESET_ACQUIRE_INTERRUPTIBLE,
+		                           result);
+
 		mutex_lock(&client->modeset_mutex);
 		drm_client_for_each_modeset(modeset, client) {
-			if (!modeset || !modeset->num_connectors)
+			struct drm_connector   *connector  = NULL;
+			struct drm_framebuffer *fb         = NULL;
+
+			if (!modeset)
 				continue;
 
-			modeset->fb = fb;
+			if (modeset->crtc)
+				fb = lookup_framebuffer(modeset->crtc, &ctx);
+
+			if (!modeset->num_connectors || !modeset->connectors || !*modeset->connectors) {
+
+				struct drm_mode_fb_cmd2     *fb_cmd  = NULL;
+				struct drm_mode_create_dumb *fb_dumb = NULL;
+
+				if (!fb || fb == fb_mirror)
+					continue;
+
+				if (!dumb_meta(client, fb, &fb_dumb, &fb_cmd) || !fb_dumb || !fb_cmd)
+					continue;
+
+				if (i >= MAX_FBS) {
+					printk("leaking framebuffer memory\n");
+					continue;
+				}
+
+				free_fbs[i++] = fb;
+
+				continue;
+			}
+
+			/* set connector */
+			connector = *modeset->connectors;
+
+			modeset->fb = fb ? fb : fb_mirror;
 		}
 		mutex_unlock(&client->modeset_mutex);
+
+		DRM_MODESET_LOCK_ALL_END(client->dev, ctx, result);
+
+		for (i = 0; i < sizeof(free_fbs) / sizeof(free_fbs[0]); i++) {
+			struct drm_mode_fb_cmd2     *fb_cmd  = NULL;
+			struct drm_mode_create_dumb *fb_dumb = NULL;
+
+			if (!free_fbs[i])
+				continue;
+
+			if (!dumb_meta(client, free_fbs[i], &fb_dumb, &fb_cmd) || !fb_dumb || !fb_cmd)
+				continue;
+
+			destroy_fb(client, fb_dumb, fb_cmd);
+
+			free_fbs[i] = NULL;
+		}
 
 		/* triggers disablement of encoders attached to disconnected ports */
 		result = drm_client_modeset_commit(client);
@@ -609,8 +945,8 @@ static int fb_client_hotplug(struct drm_client_dev *client)
 	/* notify Genode side */
 	lx_emul_i915_hotplug_connector(client);
 
-	if (fb)
-		drm_framebuffer_put(fb);
+	if (fb_mirror)
+		drm_framebuffer_put(fb_mirror);
 
 	return result;
 }
@@ -697,9 +1033,8 @@ static int user_register_fb(struct drm_client_dev   const * const dev,
 
 	int                        result   = -EINVAL;
 	struct i915_gtt_view const view     = { .type = I915_GTT_VIEW_NORMAL };
-	static struct i915_vma    *vma      = NULL;
-	static unsigned long       flags    = 0;
 	void   __iomem            *vaddr    = NULL;
+	struct gem_dumb           *gem_dumb = NULL;
 	struct drm_i915_private   *dev_priv = to_i915(dev->dev);
 	struct drm_framebuffer    *fb       = drm_framebuffer_lookup(dev->dev,
 	                                                             dev->file,
@@ -710,43 +1045,55 @@ static int user_register_fb(struct drm_client_dev   const * const dev,
 		return -ENODEV;
 	}
 
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-
-	if (vma) {
-		intel_unpin_fb_vma(vma, flags);
-
-		vma   = NULL;
-		flags = 0;
+	if (!dumb_gem(dev, fb, &gem_dumb) || !gem_dumb) {
+		printk("%s:%u error looking up fb and vma\n", __func__, __LINE__);
+		return -ENODEV;
 	}
+
+	if (gem_dumb->vma) {
+		intel_unpin_fb_vma(gem_dumb->vma, gem_dumb->flags);
+
+		gem_dumb->vma   = NULL;
+		gem_dumb->flags = 0;
+	}
+
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	/* Pin the GGTT vma for our access via info->screen_base.
 	 * This also validates that any existing fb inherited from the
 	 * BIOS is suitable for own access.
 	 */
-	vma = intel_pin_and_fence_fb_obj(fb, false /* phys_cursor */,
-	                                 &view, false /* use fences */,
-	                                 &flags);
+	gem_dumb->vma = intel_pin_and_fence_fb_obj(fb, false /* phys_cursor */,
+	                                           &view, false /* use fences */,
+	                                           &gem_dumb->flags);
 
-	if (IS_ERR(vma)) {
+	if (IS_ERR(gem_dumb->vma)) {
 		intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
-		result = PTR_ERR(vma);
-			printk("%s:%u error setting vma %d\n", __func__, __LINE__, result);
+		result = PTR_ERR(gem_dumb->vma);
+
+		printk("%s:%u error setting vma %d\n", __func__, __LINE__, result);
+
+		gem_dumb->vma = NULL;
 		return result;
 	}
 
-	vaddr = i915_vma_pin_iomap(vma);
+	vaddr = i915_vma_pin_iomap(gem_dumb->vma);
 	if (IS_ERR(vaddr)) {
 		intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 		result = PTR_ERR(vaddr);
 		printk("%s:%u error pin iomap %d\n", __func__, __LINE__, result);
+
+		intel_unpin_fb_vma(gem_dumb->vma, gem_dumb->flags);
+		gem_dumb->vma = NULL;
+
 		return result;
 	}
 
 	/* fill framebuffer info for register_framebuffer */
 	info->screen_base        = vaddr;
-	info->screen_size        = vma->size;
+	info->screen_size        = gem_dumb->vma->size;
 	info->fix.line_length    = fb->pitches[0];
 	info->var.bits_per_pixel = drm_format_info_bpp(fb->format, 0);
 
@@ -777,20 +1124,7 @@ static int check_resize_fb(struct drm_client_dev       * const dev,
 	if (gem_dumb->width && gem_dumb->height &&
 	    (gem_dumb->width < width || gem_dumb->height < height)) {
 
-		result = drm_mode_rmfb(dev->dev, dumb_fb->fb_id, dev->file);
-		if (result) {
-			drm_err(dev->dev, "%s: failed to remove framebufer %d\n",
-			        __func__, result);
-		}
-
-		result = drm_mode_destroy_dumb(dev->dev, gem_dumb->handle, dev->file);
-		if (result) {
-			drm_err(dev->dev, "%s: failed to destroy framebuffer %d\n",
-			        __func__, result);
-		}
-
-		memset(gem_dumb, 0, sizeof(*gem_dumb));
-		memset(dumb_fb,  0, sizeof(*dumb_fb));
+		destroy_fb(dev, gem_dumb, dumb_fb);
 	}
 
 	/* allocate dumb framebuffer, on success a GEM object handle is returned */
