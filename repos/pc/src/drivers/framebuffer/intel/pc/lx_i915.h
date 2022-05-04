@@ -26,6 +26,8 @@ struct genode_mode {
 	unsigned enabled;
 	unsigned preferred;
 	unsigned id;
+	unsigned screen_offsetx;
+	char mirror;
 	char name[32];
 };
 
