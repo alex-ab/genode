@@ -546,7 +546,7 @@ static int vmmr0_pgm_allocate_handy_pages(PVMR0 pvmr0)
 
 		GMMPAGEDESC &page = vm.pgm.s.aHandyPages[i];
 
-		Vmm_addr const page_addr { vmm_addr.value + i*PAGE_SIZE };
+		Vmm_addr const page_addr { vmm_addr.value + (i - start_idx) * PAGE_SIZE };
 		Page_id  const page_id = sup_drv->gmm().page_id(page_addr);
 
 		page.HCPhysGCPhys = page_addr.value;
