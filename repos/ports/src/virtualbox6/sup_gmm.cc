@@ -153,9 +153,6 @@ Sup::Gmm::Vmm_addr Sup::Gmm::alloc_from_reservation(Pages pages)
 }
 
 
-#include <os/backtrace.h>
-
-
 void Sup::Gmm::free(Vmm_addr addr, Pages pages)
 {
 	Data const *found = nullptr;
@@ -166,23 +163,14 @@ void Sup::Gmm::free(Vmm_addr addr, Pages pages)
 		}
 	}
 
-	if (found) {
-		log(__func__, ": "
-		   , " pages=",    (void *)pages.value
-		   , " vmm_addr=", (void *)addr.value
-		   , "  ", found->func, " ", found->first_byte, " ", found->last_byte
-		   );
-		backtrace();
-	} else {
+	if (found)
+		_alloc.free((void *)(addr.value - _map.base.value), 1);
+	else
 		log(__func__, ": "
 		   , " pages=",    (void *)pages.value
 		   , " vmm_addr=", (void *)addr.value
 		   , " NO MATCH"
 		   );
-		backtrace();
-	}
-
-	_alloc.free((void *)(addr.value - _map.base.value), 1);
 }
 
 

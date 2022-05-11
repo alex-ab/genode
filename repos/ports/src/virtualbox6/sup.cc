@@ -335,11 +335,6 @@ static int vmmr0_gmm_free_pages(GMMFREEPAGESREQ &request)
 
 		Vmm_addr const vmm_addr = sup_drv->gmm().vmm_addr(page_id);
 
-		log(__func__, ":"
-		   , " page_id=",  (void *)page_id.value
-		   , " vmm_addr=", (void *)vmm_addr.value
-		   );
-
 		sup_drv->gmm().free(vmm_addr, one_page);
 	}
 
