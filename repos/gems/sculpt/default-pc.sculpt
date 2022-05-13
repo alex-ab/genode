@@ -3,6 +3,8 @@ drivers: pc
 system:  pc
 gpu_drv: intel
 
+build: drivers/framebuffer/intel app/sculpt_manager app/driver_manager
+
 # supplemental depot content added to the system image
 import: pkg/drivers_managed-pc pkg/wifi src/ipxe_nic_drv
 
