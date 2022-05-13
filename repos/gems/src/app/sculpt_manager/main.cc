@@ -1138,7 +1138,7 @@ struct Sculpt::Main : Input_event_handler,
 	Panel_dialog _panel_dialog { *this };
 
 	Menu_view _panel_menu_view { _env, _child_states, _panel_dialog, "panel_view",
-	                             Ram_quota{4*1024*1024}, Cap_quota{150},
+	                             Ram_quota{5*1024*1024}, Cap_quota{150},
 	                             "panel_dialog", "panel_view_hover", *this };
 
 	Settings_dialog _settings_dialog { _settings };

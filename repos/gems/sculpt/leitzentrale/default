@@ -44,7 +44,7 @@
 				<inline>
 					<start name="fader">
 						<binary name="gui_fader"/>
-						<resource name="RAM" quantum="50M"/>
+						<resource name="RAM" quantum="70M"/>
 						<resource name="CPU" quantum="20"/>
 						<provides> <service name="Gui"/> </provides>
 						<config initial_fade_in_steps="100" fade_in_steps="20" alpha="210"/>
@@ -59,7 +59,7 @@
 				<inline>
 					<start name="fader">
 						<binary name="gui_fader"/>
-						<resource name="RAM" quantum="50M"/>
+						<resource name="RAM" quantum="70M"/>
 						<resource name="CPU" quantum="20"/>
 						<provides> <service name="Gui"/> </provides>
 						<config fade_out_steps="30" alpha="0"/>
@@ -73,7 +73,7 @@
 		</if>
 		<inline>
 			<start name="gui_fb">
-				<resource name="RAM" quantum="18M"/>
+				<resource name="RAM" quantum="34M"/>
 				<resource name="CPU" quantum="20"/>
 				<provides> <service name="Framebuffer"/> <service name="Input"/> </provides>
 				<config/>
@@ -84,7 +84,7 @@
 			</start>
 
 			<start name="nitpicker" caps="200">
-				<resource name="RAM" quantum="14M"/>
+				<resource name="RAM" quantum="30M"/>
 				<resource name="CPU" quantum="40"/>
 				<provides>
 					<service name="Gui"/> <service name="Capture"/> <service name="Event"/>
@@ -172,7 +172,7 @@
 
 			<start name="decorator" caps="350">
 				<binary name="themed_decorator"/>
-				<resource name="RAM" quantum="12M"/>
+				<resource name="RAM" quantum="14M"/>
 				<resource name="CPU" quantum="20"/>
 				<config>
 					<libc/>
