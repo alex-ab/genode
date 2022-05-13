@@ -73,7 +73,7 @@
 		</if>
 		<inline>
 			<start name="gui_fb">
-				<resource name="RAM" quantum="18M"/>
+				<resource name="RAM" quantum="34M"/>
 				<resource name="CPU" quantum="20"/>
 				<provides> <service name="Framebuffer"/> <service name="Input"/> </provides>
 				<config/>
@@ -84,7 +84,7 @@
 			</start>
 
 			<start name="nitpicker" caps="200">
-				<resource name="RAM" quantum="14M"/>
+				<resource name="RAM" quantum="30M"/>
 				<resource name="CPU" quantum="40"/>
 				<provides>
 					<service name="Gui"/> <service name="Capture"/> <service name="Event"/>
