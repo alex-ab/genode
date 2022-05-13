@@ -60,6 +60,7 @@ struct Nova_vcpu : Rpc_client<Vm_session::Native_vcpu>, Noncopyable
 		void                   *_ep_handler    { nullptr };
 		void                   *_dispatching   { nullptr };
 		bool                    _block         { true };
+		bool                    _use_guest_fpu { false };
 
 		Vcpu_state              _vcpu_state __attribute__((aligned(0x10))) { };
 
@@ -108,100 +109,41 @@ struct Nova_vcpu : Rpc_client<Vm_session::Native_vcpu>, Noncopyable
 
 		Nova::Mtd _portal_mtd(unsigned exit, Exit_config const &config)
 		{
+			/* TODO define and implement omissions */
+			(void)exit;
+			(void)config;
+
 			Genode::addr_t mtd = 0;
-			Vcpu_state     state {};
 
-			if (!config.config_exit || !config.config_exit(state, exit)) {
-				return Nova::Mtd(Nova::Mtd::ALL | Nova::Mtd::FPU); }
+			mtd |= Nova::Mtd::ACDB;
+			mtd |= Nova::Mtd::EBSD;
+			mtd |= Nova::Mtd::EFL;
+			mtd |= Nova::Mtd::ESP;
+			mtd |= Nova::Mtd::EIP;
+			mtd |= Nova::Mtd::DR;
+			mtd |= Nova::Mtd::R8_R15;
+			mtd |= Nova::Mtd::CR;
+			mtd |= Nova::Mtd::CSSS;
+			mtd |= Nova::Mtd::ESDS;
+			mtd |= Nova::Mtd::FSGS;
+			mtd |= Nova::Mtd::TR;
+			mtd |= Nova::Mtd::LDTR;
+			mtd |= Nova::Mtd::GDTR;
+			mtd |= Nova::Mtd::IDTR;
+			mtd |= Nova::Mtd::SYS;
+			mtd |= Nova::Mtd::CTRL;
+			mtd |= Nova::Mtd::INJ;
+			mtd |= Nova::Mtd::STA;
+			mtd |= Nova::Mtd::TSC;
+			mtd |= Nova::Mtd::TSC_AUX;
+			mtd |= Nova::Mtd::EFER;
+			mtd |= Nova::Mtd::PDPTE;
+			mtd |= Nova::Mtd::SYSCALL_SWAPGS;
+			mtd |= Nova::Mtd::TPR;
+			mtd |= Nova::Mtd::QUAL;
 
-			if (state.ax.charged() || state.cx.charged() ||
-			    state.dx.charged() || state.bx.charged())
-				mtd |= Nova::Mtd::ACDB;
-
-			if (state.bp.charged() || state.di.charged() || state.si.charged())
-				mtd |= Nova::Mtd::EBSD;
-
-			if (state.flags.charged())
-				mtd |= Nova::Mtd::EFL;
-
-			if (state.sp.charged())
-				mtd |= Nova::Mtd::ESP;
-
-			if (state.ip.charged())
-				mtd |= Nova::Mtd::EIP;
-
-			if (state.dr7.charged())
-				mtd |= Nova::Mtd::DR;
-
-			if (state.r8.charged()  || state.r9.charged() || state.r10.charged() ||
-			    state.r11.charged() || state.r12.charged() || state.r13.charged() ||
-			    state.r14.charged() || state.r15.charged())
-				mtd |= Nova::Mtd::R8_R15;
-
-			if (state.cr0.charged() || state.cr2.charged() || state.cr3.charged() ||
-			    state.cr4.charged())
-				mtd |= Nova::Mtd::CR;
-
-			if (state.cs.charged() || state.ss.charged())
-				mtd |= Nova::Mtd::CSSS;
-
-			if (state.es.charged() || state.ds.charged())
-				mtd |= Nova::Mtd::ESDS;
-
-			if (state.fs.charged() || state.gs.charged())
-				mtd |= Nova::Mtd::FSGS;
-
-			if (state.tr.charged())
-				mtd |= Nova::Mtd::TR;
-
-			if (state.ldtr.charged())
-				mtd |= Nova::Mtd::LDTR;
-
-			if (state.gdtr.charged())
-				mtd |= Nova::Mtd::GDTR;
-
-			if (state.idtr.charged())
-				mtd |= Nova::Mtd::IDTR;
-
-			if (state.sysenter_cs.charged() || state.sysenter_sp.charged() ||
-			    state.sysenter_ip.charged())
-				mtd |= Nova::Mtd::SYS;
-
-			if (state.ctrl_primary.charged() || state.ctrl_secondary.charged())
-				mtd |= Nova::Mtd::CTRL;
-
-			if (state.inj_info.charged() || state.inj_error.charged())
-				mtd |= Nova::Mtd::INJ;
-
-			if (state.intr_state.charged() || state.actv_state.charged())
-				mtd |= Nova::Mtd::STA;
-
-			if (state.tsc.charged() || state.tsc_offset.charged())
-				mtd |= Nova::Mtd::TSC;
-
-			if (state.tsc_aux.charged())
-				mtd |= Nova::Mtd::TSC_AUX;
-
-			if (state.efer.charged())
-				mtd |= Nova::Mtd::EFER;
-
-			if (state.pdpte_0.charged() || state.pdpte_1.charged() ||
-			    state.pdpte_2.charged() || state.pdpte_3.charged())
-				mtd |= Nova::Mtd::PDPTE;
-
-			if (state.star.charged() || state.lstar.charged() ||
-			    state.cstar.charged() || state.fmask.charged() ||
-			    state.kernel_gs_base.charged())
-				mtd |= Nova::Mtd::SYSCALL_SWAPGS;
-
-			if (state.tpr.charged() || state.tpr_threshold.charged())
-				mtd |= Nova::Mtd::TPR;
-
-			if (state.qual_primary.charged() || state.qual_secondary.charged())
-				mtd |= Nova::Mtd::QUAL;
-
-			if (state.fpu.charged())
-				mtd |= Nova::Mtd::FPU;
+			_use_guest_fpu = true;
+			mtd |= Nova::Mtd::FPU;
 
 			return Nova::Mtd(mtd);
 		}
