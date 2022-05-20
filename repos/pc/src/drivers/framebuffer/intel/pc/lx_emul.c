@@ -99,16 +99,13 @@ struct proc_dir_entry * proc_create_seq_private(const char * name,umode_t mode,s
 }
 
 
-extern unsigned int __drm_debug;
-
 void si_meminfo(struct sysinfo * val)
 {
 	/* 4M, ttm actually use only half - more or configurable XXX ? */
 	unsigned const ram_pages = 1024;
 
-	__drm_debug = 0xff;
-
 	/* used by drivers/gpu/drm/ttm/ttm_device.c */
+
 	lx_emul_trace(__func__);
 
 	val->totalram  = ram_pages;
