@@ -271,7 +271,9 @@ void lx_emul_i915_report_connector(void * lx_data, void * genode_xml,
 	});
 
 	/* re-read config on connector change */
+/*
 	Genode::Signal_transmitter(driver(Lx_kit::env().env).config_handler).submit();
+*/
 }
 
 
