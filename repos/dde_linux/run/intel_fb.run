@@ -59,7 +59,7 @@ append config {
 	<start name="report_rom" priority="0">
 		<resource name="RAM" quantum="2M"/>
 		<provides> <service name="Report" /> <service name="ROM" /> </provides>
-		<config verbose="yes"/>
+		<config verbose="no"/>
 	</start>
 
 	<start name="init_dynamic" caps="10000">
