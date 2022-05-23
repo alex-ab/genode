@@ -10,12 +10,14 @@ if {
 set build_components {
 	core init timer
 	drivers/ps2
+	drivers/framebuffer/intel/pc
 	server/dynamic_rom
 	server/event_filter
 	server/report_rom
 	server/event_dump
 	app/acpica
 	app/acpi_event
+	test/framebuffer
 }
 
 set use_acpica_as_acpi_drv 0
@@ -27,6 +29,11 @@ if {!$use_acpica_as_acpi_drv} {
 	# override default platform driver policy
 	proc platform_drv_policy {} {
 		return {
+				<policy label_prefix="intel_fb_drv">
+					<pci class="VGA"/>
+					<pci bus="0" device="0" function="0"/>
+					<pci class="ISABRIDGE"/>
+				</policy>
 				<policy label_prefix="ps2_drv"> <device name="PS2"/> </policy>
 				<policy label_prefix="acpica"> <pci class="ALL"/> </policy>}
 	}
@@ -72,8 +79,8 @@ set config {
 		</start>}
 
 append_if [expr !$use_acpica_as_acpi_drv] config {
-		<start name="acpica" caps="150">
-			<resource name="RAM" quantum="5M"/>
+		<start name="acpica" caps="250">
+			<resource name="RAM" quantum="16M"/>
 			<config ld_verbose="yes" reset="no" poweroff="no" report="yes" acpi_ready="yes">
 			</config>
 			<route>
@@ -201,6 +208,23 @@ append config {
 append_platform_drv_config
 
 append config {
+		<start name="intel_fb_drv" caps="1000">
+			<binary name="pc_intel_fb_drv"/>
+			<resource name="RAM" quantum="60M"/>
+			<config ld_verbose="yes">
+				<report connectors="yes"/>
+			</config>
+			<route>
+				<service name="Report"> <child name="acpi_state"/> </service>
+				<any-service> <parent/> <any-child /> </any-service>
+			</route>
+		</start>
+
+		<start name="test-framebuffer">
+			<resource name="RAM" quantum="10M"/>
+			<provides> <service name="Capture"/> </provides>
+			<config/>
+		</start>
 </config>
 }
 
@@ -217,6 +241,8 @@ set boot_modules {
 	acpica
 	acpi_event
 	event_dump
+	pc_intel_fb_drv
+	test-framebuffer
 }
 
 append_platform_drv_boot_modules
@@ -225,4 +251,4 @@ build_boot_image $boot_modules
 
 append qemu_args "-nographic "
 
-run_genode_until {\[init -\> acpi.*SCI IRQ:.*\n} 30
+run_genode_until forever
