@@ -261,6 +261,9 @@ append config {
 				<report connectors="yes"/>
 			</config>
 			<route>
+				<service name="ROM" label="intel_opregion">
+					<child name="acpi_report_rom"/>
+				</service>
 				<service name="Report"> <child name="reports"/> </service>
 				<any-service> <parent/> <any-child /> </any-service>
 			</route>
