@@ -445,8 +445,7 @@ void AcpiOsUnmapMemory (void * ptr, ACPI_SIZE size)
 	FAIL()
 }
 
-extern "C" void AcpiGenodeFreeIOMem(ACPI_PHYSICAL_ADDRESS const phys, ACPI_SIZE const size);
-extern "C" void AcpiGenodeFreeIOMem(ACPI_PHYSICAL_ADDRESS const phys, ACPI_SIZE const size)
+void AcpiGenodeFreeIOMem(ACPI_PHYSICAL_ADDRESS const phys, ACPI_SIZE const size)
 {
 	Acpica::Io_mem::force_free_overlap(phys, size);
 }
