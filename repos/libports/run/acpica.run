@@ -9,6 +9,7 @@ if {
 
 set build_components {
 	core init timer
+	drivers/usb_host
 	drivers/ps2
 	drivers/framebuffer/intel/pc
 	server/dynamic_rom
@@ -34,6 +35,7 @@ if {!$use_acpica_as_acpi_drv} {
 					<pci bus="0" device="0" function="0"/>
 					<pci class="ISABRIDGE"/>
 				</policy>
+				<policy label_prefix="usb_drv">  <pci class="USB"/> </policy>
 				<policy label_prefix="ps2_drv"> <device name="PS2"/> </policy>
 				<policy label_prefix="acpica"> <pci class="ALL"/> </policy>}
 	}
@@ -208,6 +210,20 @@ append config {
 append_platform_drv_config
 
 append config {
+		<start name="usb_drv" caps="150">
+			<binary name="} [usb_host_drv_binary] {"/>
+			<resource name="RAM" quantum="12M"/>
+			<provides> <service name="Usb"/> </provides>
+			<config bios_handoff="yes">
+				<report devices="yes"/>
+				<policy label_prefix="usb_hid_drv" class="0x3"/>
+			</config>
+			<route>
+				<service name="Report"> <child name="acpi_state"/> </service>
+				<any-service> <parent/> <any-child/> </any-service>
+			</route>
+		</start>
+
 		<start name="intel_fb_drv" caps="1000">
 			<binary name="pc_intel_fb_drv"/>
 			<resource name="RAM" quantum="60M"/>
@@ -244,6 +260,8 @@ set boot_modules {
 	pc_intel_fb_drv
 	test-framebuffer
 }
+
+append boot_modules " [usb_host_drv_binary] "
 
 append_platform_drv_boot_modules
 
