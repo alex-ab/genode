@@ -252,6 +252,8 @@ install_config {
 			<policy label="nit_focus -> hover" report="nitpicker -> hover"/>
 			<policy label="slides_gui_fb_config -> slides"
 			        report="global_keys_handler -> slides"/>
+			<policy label="drivers -> acpi_ready"
+			        report="acpica -> acpi_ready"/>
 		</config>
 	</start>
 
@@ -363,12 +365,26 @@ install_config {
 		</route>
 	</start>
 
+	<start name="acpica" caps="250">
+		<resource name="RAM" quantum="16M"/>
+		<config reset="no" poweroff="no" report="yes" acpi_ready="yes"/>
+		<route>
+			<service name="Report" label="acpi_ready">
+				<child name="report_rom"/> </service>
+			<service name="Report">
+				<child name="fs_report"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
 	<start name="drivers" caps="4600" priority="-1" managing_system="yes">
 		<resource name="RAM" quantum="200M"/>
 		<resource name="CPU" quantum="10"/>
 		<binary name="init"/>
 		<route>
 			} [log_route] {
+			<service name="ROM" label="acpi_ready">
+				<child name="report_rom"/> </service>
 			<service name="ROM" label="config">
 				<child name="config_fs_rom" label="drivers"/> </service>
 			<service name="ROM" label_last="capslock">
@@ -398,6 +414,7 @@ install_config {
 			<service name="Block"/>
 			<service name="Usb"/>
 			<service name="Platform"/>
+			<service name="Acpi"/>
 			<service name="Gpu"/>
 		</provides>
 	</start>
@@ -919,7 +936,9 @@ close $fd
 ##
 
 build [ingredients_of_type build]
+build app/acpica
 
 append boot_modules [build_artifacts]
+append boot_modules " acpica"
 
 build_boot_image $boot_modules
