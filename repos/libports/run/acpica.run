@@ -214,7 +214,7 @@ append config {
 			<binary name="} [usb_host_drv_binary] {"/>
 			<resource name="RAM" quantum="12M"/>
 			<provides> <service name="Usb"/> </provides>
-			<config bios_handoff="yes">
+			<config bios_handoff="no">
 				<report devices="yes"/>
 				<policy label_prefix="usb_hid_drv" class="0x3"/>
 			</config>
