@@ -7,6 +7,20 @@ if {
 	exit 0
 }
 
+create_boot_directory
+
+import_from_depot \
+	[depot_user]/src/nitpicker \
+	[depot_user]/src/vfs \
+	[depot_user]/src/vfs_import \
+	[depot_user]/src/vfs_ttf \
+	[depot_user]/src/terminal \
+	[depot_user]/src/terminal_log \
+	[depot_user]/src/file_terminal \
+	[depot_user]/src/libc \
+	[depot_user]/src/log_core \
+	[depot_user]/raw/ttf-bitstream-vera-minimal
+
 set build_components {
 	core init timer
 	drivers/usb_host
@@ -18,7 +32,12 @@ set build_components {
 	server/event_dump
 	app/acpica
 	app/acpi_event
+	app/nano3d
 	test/framebuffer
+}
+
+if {[have_spec nova]} {
+	proc kernel_output { } { return "novga serial logmem" }
 }
 
 set use_acpica_as_acpi_drv 0
@@ -56,8 +75,6 @@ if {!$use_acpica_as_acpi_drv} {
 append_platform_drv_build_components
 
 build $build_components
-
-create_boot_directory
 
 set config {
 	<config>
@@ -112,9 +129,22 @@ append config {
 			<route>
 				<any-service> <parent/> </any-service>
 			</route>
-		</start>}
+		</start>
 
-append config {
+		<start name="reports">
+			<binary name="report_rom"/>
+			<resource name="RAM" quantum="2M"/>
+			<provides>
+				<service name="ROM" />
+				<service name="Report" />
+			</provides>
+			<config verbose="no">
+			</config>
+			<route>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
 		<start name="dynamic_rom">
 			<resource name="RAM" quantum="4M"/>
 			<provides><service name="ROM"/></provides>
@@ -152,7 +182,7 @@ append config {
 				<policy label="acpi" input="acpi"/>
 			</config>
 			<route>
-				<service name="Event"> <child name="event_dump" /> </service>
+				<service name="Event"> <child name="nitpicker" /> </service>
 				<any-service> <parent/> </any-service>
 			</route>
 		</start>}
@@ -219,7 +249,7 @@ append config {
 				<policy label_prefix="usb_hid_drv" class="0x3"/>
 			</config>
 			<route>
-				<service name="Report"> <child name="acpi_state"/> </service>
+				<service name="Report"> <child name="reports"/> </service>
 				<any-service> <parent/> <any-child/> </any-service>
 			</route>
 		</start>
@@ -227,24 +257,204 @@ append config {
 		<start name="intel_fb_drv" caps="1000">
 			<binary name="pc_intel_fb_drv"/>
 			<resource name="RAM" quantum="60M"/>
-			<config ld_verbose="yes">
+			<config ld_verbose="no">
 				<report connectors="yes"/>
 			</config>
 			<route>
-				<service name="Report"> <child name="acpi_state"/> </service>
+				<service name="Report"> <child name="reports"/> </service>
 				<any-service> <parent/> <any-child /> </any-service>
 			</route>
 		</start>
 
+<!--
 		<start name="test-framebuffer">
 			<resource name="RAM" quantum="10M"/>
 			<provides> <service name="Capture"/> </provides>
 			<config/>
 		</start>
+-->
+
+<!--
+		<start name="report_fs">
+			<binary name="vfs"/>
+			<resource name="RAM" quantum="16M"/>
+			<provides> <service name="File_system"/> </provides>
+			<config>
+				<vfs>
+					<ram/>
+					<import>
+						<inline name="log">### start ###</inline>
+					</import>
+				</vfs>
+				<policy label="log_terminal -> "  root="/" writeable="yes"/>
+			</config>
+		</start>
+
+		<start name="log_terminal">
+			<binary name="file_terminal"/>
+			<resource name="RAM" quantum="2M"/>
+			<provides> <service name="Terminal"/> </provides>
+			<config>
+			<default-policy filename="log" />
+				<vfs> <dir name="dev"> <log/> </dir> <fs/> </vfs>
+				<libc stdout="/dev/log"/>
+			</config>
+			<route>
+				<service name="File_system"> <child name="report_fs"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+-->
+
+		<start name="log_core">
+			<binary name="log_core"/>
+			<resource name="RAM" quantum="1M"/>
+			<config period_ms="2000"/>
+			<route>
+				<service name="ROM" label="log"> <parent label="core_log"/> </service>
+				<service name="Timer">           <child name="timer"/>      </service>
+				<service name="LOG" label="log"> <child name="log"/>      </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+		<start name="log_kernel">
+			<binary name="log_core"/>
+			<resource name="RAM" quantum="1M"/>
+			<config period_ms="2000"/>
+			<route>
+				<service name="ROM" label="log"> <parent label="kernel_log"/> </service>
+				<service name="Timer">           <child name="timer"/>        </service>
+				<service name="LOG" label="log"> <child name="log"/>        </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+		<start name="log">
+			<binary name="terminal_log"/>
+			<resource name="RAM" quantum="1M"/>
+			<provides> <service name="LOG"/> </provides>
+			<config/>
+			<route>
+				<service name="Terminal"> <child name="log_terminal"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+		<start name="log_terminal">
+			<binary name="terminal"/>
+			<resource name="RAM" quantum="32M"/>
+			<provides> <service name="Terminal"/> </provides>
+			<config>
+				<initial width="400"/>
+				<palette>
+					<color index="0" value="#2f3953"/>
+					<color index="8" value="#2f3953"/>
+				</palette>
+				<vfs>
+					<rom name="VeraMono.ttf"/>
+					<dir name="fonts">
+						<dir name="monospace">
+							<ttf name="regular" path="/VeraMono.ttf" size_px="14"/>
+						</dir>
+					</dir>
+				</vfs>
+			</config>
+			<route>
+				<service name="Timer">  <child name="timer"/></service>
+				<service name="Gui"> <child name="nitpicker"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+		<start name="nitpicker" caps="120">
+			<resource name="RAM" quantum="8M"/>
+			<provides>
+				<service name="Gui"/> <service name="Capture"/> <service name="Event"/>
+			</provides>
+			<config focus="rom">
+				<capture/> <event/>
+				<domain name="pointer" layer="1" content="client" label="no" origin="pointer" />
+				<domain name="default" layer="2" content="client" label="no"
+				                                 width="1480" height="1070"
+				                                  xpos="10"    ypos="10"/>
+				<domain name="nano3d"  layer="2" width="400" height="400"
+				                                  xpos="1710"  ypos="400"/>
+
+				<policy label_prefix="pointer"      domain="pointer"/>
+				<policy label_prefix="nano3d"       domain="nano3d"/>
+				<policy label_prefix="log_terminal" domain="default"/>
+			</config>
+			<route>
+				<service name="Timer">  <child name="timer"/></service>
+				<service name="Report"> <child name="gui_report_rom"/></service>
+				<any-service><parent/></any-service>
+			</route>
+		</start>
+
+		<start name="pointer">
+			<resource name="RAM" quantum="2M"/>
+			<provides> <service name="Report"/> </provides>
+			<config shapes="yes" verbose="no"/>
+			<route>
+				<service name="Gui"> <child name="nitpicker"/>  </service>
+				<service name="ROM" label="hover"> <child name="gui_report_rom"/> </service>
+				<service name="ROM" label="xray"> <child name="gui_report_rom"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
+		</start>
+
+		<start name="gui_report_rom">
+			<binary name="report_rom"/>
+			<resource name="RAM" quantum="1M"/>
+			<provides> <service name="Report"/> <service name="ROM"/> </provides>
+			<config>
+				<policy label="pointer -> hover" report="nitpicker -> hover"/>
+				<policy label="pointer -> xray"  report="nitpicker -> xray"/>
+			</config>
+		</start>
+
+		<start name="dynamic_rom">
+			<resource name="RAM" quantum="4M"/>
+			<provides><service name="ROM"/></provides>
+			<config verbose="no">
+				<rom name="nano3d.config">
+					<inline description="initial state">
+						<config painter="textures"/>
+					</inline>
+					<sleep milliseconds="4000" />
+					<inline description="RGBA shading">
+						<config painter="shaded"/>
+					</inline>
+					<sleep milliseconds="4000" />
+					<inline description="switch to cube">
+						<config painter="shaded" shape="cube" />
+					</inline>
+					<sleep milliseconds="4000" />
+					<inline description="texturing">
+						<config painter="textured" shape="cube" />
+					</inline>
+					<sleep milliseconds="4000" />
+				</rom>
+			</config>
+		</start>
+
+		<start name="nano3d">
+			<resource name="RAM" quantum="8M"/>
+			<route>
+				<service name="ROM" label="config">
+					<child name="dynamic_rom" label="nano3d.config"/> </service>
+				<any-service> <parent/> <any-child/> </any-service>
+			</route>
+		</start>
 </config>
 }
 
 install_config $config
+
+set fd [open [run_dir]/genode/focus w]
+puts $fd "<focus label=\"log_terminal -> \" domain=\"default\"/>"
+close $fd
 
 set boot_modules {
 	core init
@@ -259,6 +469,7 @@ set boot_modules {
 	event_dump
 	pc_intel_fb_drv
 	test-framebuffer
+	nano3d
 }
 
 append boot_modules " [usb_host_drv_binary] "
