@@ -19,6 +19,9 @@ set build_components {
 	app/acpica
 	app/acpi_event
 	test/framebuffer
+	server/vfs
+	server/fs_rom
+	lib/vfs/import
 }
 
 set use_acpica_as_acpi_drv 0
@@ -108,6 +111,7 @@ append config {
 				<policy label="acpi_event -> acpi_fixed"   report="acpica -> acpi_fixed"/>
 				<policy label="acpi_event -> acpi_lid"     report="acpica -> acpi_lid"/>
 				<policy label="acpi_event -> acpi_hid"     report="acpica -> acpi_hid"/>
+				<policy label="intel_fb_controller -> connectors" report="intel_fb_drv -> connectors"/>
 			</config>
 			<route>
 				<any-service> <parent/> </any-service>
@@ -227,14 +231,13 @@ append config {
 		<start name="intel_fb_drv" caps="1000">
 			<binary name="pc_intel_fb_drv"/>
 			<resource name="RAM" quantum="60M"/>
-			<config ld_verbose="yes">
-				<report connectors="yes"/>
-			</config>
 			<route>
 				<service name="ROM" label="intel_opregion">
 					<child name="acpi_report_rom"/>
 				</service>
 				<service name="Report"> <child name="acpi_state"/> </service>
+				<service name="ROM" label="config">
+					<child name="config_rom" label="fb_drv.config"/> </service>
 				<any-service> <parent/> <any-child /> </any-service>
 			</route>
 		</start>
@@ -244,6 +247,49 @@ append config {
 			<provides> <service name="Capture"/> </provides>
 			<config/>
 		</start>
+
+		<start name="intel_fb_controller">
+			<resource name="RAM" quantum="1M"/>
+			<config artifical_update_ms="0"> <!-- off -->
+				<vfs> <fs/> </vfs>
+			</config>
+			<route>
+				<service name="File_system">            <child name="config_fs"/> </service>
+				<service name="ROM" label="connectors"> <child name="acpi_state"/> </service>
+				<any-service> <parent/> <any-child/> </any-service>
+			</route>
+		</start>
+
+		<start name="config_fs">
+			<binary name="vfs"/>
+			<resource name="RAM" quantum="8M"/>
+			<provides> <service name="File_system"/> </provides>
+			<config>
+				<vfs>
+					<ram/>
+					<import>
+						<inline name="fb_drv.config">
+<config ld_verbose="yes">
+	<report connectors="yes"/>
+</config>
+						</inline>
+					</import>
+				</vfs>
+				<policy label_prefix="config_rom" root="/"/>
+				<policy label_prefix="intel_fb_controller" root="/" writeable="yes"/>
+			</config>
+		</start>
+
+		<start name="config_rom">
+			<binary name="fs_rom"/>
+			<resource name="RAM" quantum="4M"/>
+			<provides><service name="ROM"/></provides>
+			<route>
+				<service name="File_system"> <child name="config_fs" /> </service>
+				<any-service> <parent/> <any-child/> </any-service>
+			</route>
+		</start>
+
 </config>
 }
 
@@ -262,6 +308,7 @@ set boot_modules {
 	event_dump
 	pc_intel_fb_drv
 	test-framebuffer
+	fs_rom vfs vfs.lib.so vfs_import.lib.so intel_fb_controller
 }
 
 append boot_modules " [usb_host_drv_binary] "
