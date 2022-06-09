@@ -14,3 +14,5 @@ launcher: vm_fs shared_fs usb_devices_rom
 # selection of accepted depot-package providers
 depot: genodelabs cnuke alex-ab mstein nfeske cproc chelmuth jschlatow
 depot: ssumpf skalk
+
+build: drivers/usb_host/pc
