@@ -15,4 +15,4 @@ launcher: vm_fs shared_fs usb_devices_rom
 depot: genodelabs cnuke alex-ab mstein nfeske cproc chelmuth jschlatow
 depot: ssumpf skalk
 
-build: drivers/usb_host/pc
+build: drivers/usb_host/pc drivers/gpu/intel
