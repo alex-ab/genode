@@ -644,6 +644,7 @@ handle_transfer_request(struct genode_usb_request_transfer * req,
 		if (!err)
 			return NO_ERROR;
 
+		usb_unanchor_urb(urb);
 		usb_free_urb(urb);
 	}
 
