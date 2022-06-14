@@ -348,8 +348,6 @@ class Platform::Device_component : public  Rpc_object<Platform::Device>,
 			if (!pci_cap.read<Pci_express::Capabilities::Reset>())
 				return;
 
-			log(_device_config, " reset function");
-
 			pci_cap.write<Pci_express::Control::Reset>(1);
 
 			try {
@@ -384,7 +382,6 @@ class Platform::Device_component : public  Rpc_object<Platform::Device>,
 			 * Actually, at this point we don't know about the capabilities of
 			 * the actual driver.
 			 */
-			log(_device_config, " power off");
 
 			/*
 			 * "When placing a function into D3, the operating system software"
@@ -418,10 +415,6 @@ class Platform::Device_component : public  Rpc_object<Platform::Device>,
 
 			/* since it was off before, it got used by powering it on */
 			_device_used = true;
-
-			log(_device_config, " power on",
-			    pci_cap.read<Pci_power::Control::No_soft_reset>() ? ", no_soft_reset" : "",
-			    pci_cap.read<Pci_power::Capabilities::Specific_init>() ? ", specific_init_required" : "");
 
 			/* power on */
 			pci_cap.write<Pci_power::Control::D0_3>(0);
