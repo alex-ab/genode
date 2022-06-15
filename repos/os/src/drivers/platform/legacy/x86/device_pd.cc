@@ -75,6 +75,9 @@ void Platform::Device_pd::attach_dma_mem(Dataspace_capability ds_cap,
 		      Hex(dma_addr), "+", Hex(size), " " "failed page=", Hex(page));
 		return;
 	}
+
+	log(_label, ": attachment of DMA memory @ ",
+	    Hex(dma_addr), "+", Hex(size), " " "page=", Hex(page));
 }
 
 void Platform::Device_pd::assign_pci(Io_mem_dataspace_capability const io_mem_cap,
