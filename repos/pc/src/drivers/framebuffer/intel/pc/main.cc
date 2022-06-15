@@ -66,6 +66,9 @@ struct Framebuffer::Driver
 		Capture::Area size      { };
 		Capture::Area size_phys { };
 		unsigned      offset_x  { };
+
+		Constructible<Capture::Connection>         capture { };
+		Constructible<Capture::Connection::Screen> captured_screen { };
 	};
 
 	Connector::Space ids { };
@@ -74,97 +77,32 @@ struct Framebuffer::Driver
 	{
 		private:
 
-			Capture::Area                              _size_all { };
-
-			Constructible<Capture::Connection>         _capture { };
-			Constructible<Capture::Connection::Screen> _captured_screen { };
-
 			/*
 			 * Non_copyable
 			 */
 			Fb(const Fb&);
 			Fb & operator=(const Fb&);
 
-			unsigned max_height(Connector::Space const &ids) const
-			{
-				unsigned height = 0;
-
-				ids.for_each<Connector>([&](auto &connector) {
-					if (connector.size.h() > height)
-						height = connector.size.h();
-				});
-
-				return height;
-			}
-
-			struct Blit
-			{
-				typedef Genode::Surface_base::Point Point;
-				typedef Genode::Surface_base::Rect  Rect;
-
-
-				template <typename PT>
-				static inline void paint(Genode::Surface<PT>       &surface,
-				                         Genode::Texture<PT> const &texture,
-				                         Point               const  offset_in_texture)
-				{
-					Rect const texture_clip = Rect(offset_in_texture + surface.clip().p1(),
-					                               surface.clip().area());
-					Rect const surface_clip = surface.clip();
-
-					int const src_w = texture.size().w();
-					int const dst_w = surface.size().w();
-
-					/* calculate offset of first texture pixel to copy */
-					unsigned long const tex_start_offset = texture_clip.y1() * src_w
-					                                     + texture_clip.x1();
-
-					/* start address of source pixels */
-					PT const * const src = texture.pixel() + tex_start_offset;
-
-					/* start address of destination pixels */
-					PT * const dst = surface.addr() + surface_clip.y1() * dst_w
-					               + surface_clip.x1();
-
-					blit(src, (unsigned)(src_w*sizeof(PT)),
-					     dst, (unsigned)(dst_w*sizeof(PT)),
-					     (unsigned)(surface_clip.w()*sizeof(PT)), surface_clip.h());
-
-					surface.flush_pixels(surface_clip);
-				}
-			};
-
 		public:
 
 			void paint(Connector::Space &ids)
 			{
-				using Pixel = Capture::Pixel;
-				using Affected_rects = Capture::Session::Affected_rects;
+				ids.for_each<Connector>([&](auto &connector) {
+					if (!connector.capture.constructed() ||
+					    !connector.captured_screen.constructed())
+						return;
 
-				_captured_screen->with_texture([&] (Texture<Pixel> const &texture) {
+					using Pixel = Capture::Pixel;
 
-					Affected_rects const affected = _capture->capture_at(Capture::Point(0, 0));
+					connector.captured_screen->with_texture([&] (Texture<Pixel> const &texture) {
 
-					affected.for_each_rect([&] (Capture::Rect const rect) {
+						auto const affected = connector.capture->capture_at(Capture::Point(connector.offset_x, 0));
+						affected.for_each_rect([&] (Capture::Rect const rect) {
 
-						ids.for_each<Connector>([&](auto &connector) {
-
-							Capture::Point point(connector.offset_x, 0);
-
-//							log("paint ", connector.id_element.id().value);
-
-							using Pixel = Capture::Pixel;
 							Surface<Pixel> surface((Pixel*)connector.base,
 							                       connector.size_phys);
-
-							if (rect.x2() >= point.x()) {
-								surface.clip(Capture::Rect(Point(0, 0),
-								                           Area(unsigned(rect.x2() - point.x() + 1),
-								                                unsigned(rect.y2() - point.y() + 1))));
-								Blit::paint(surface, texture, point);
-							}
-
-//							point = point + Capture::Point(connector.size.w(), 0);
+							surface.clip(rect);
+							Blit_painter::paint(surface, texture, Capture::Point(0, 0));
 						});
 					});
 				});
@@ -172,22 +110,7 @@ struct Framebuffer::Driver
 
 			Fb() { }
 
-			bool constructed() { return _captured_screen.constructed(); }
-
-			Capture::Area size() const { return _size_all; }
-
-			void reconstruct(Env & env)
-			{
-				_captured_screen.destruct();
-				_capture.destruct();
-
-				if (_size_all.valid()) {
-					_capture.construct(env);
-					_captured_screen.construct(*_capture, env.rm(), _size_all);
-				}
-			}
-
-			bool setup(Connector &id, Connector::Space const &ids,
+			bool setup(Connector &id, Env &env,
 			           addr_t const base, unsigned const offset_x,
 			           Capture::Area &size, Capture::Area &size_phys)
 			{
@@ -197,18 +120,18 @@ struct Framebuffer::Driver
 				            (offset_x  == id.offset_x);
 
 				if (!same) {
-					/* reduce size by previous values */
-					_size_all = Area(_size_all.w() - id.size.w(),
-					                 _size_all.h());
-
 					id.base      = base;
 					id.size      = size;
 					id.size_phys = size_phys;
 					id.offset_x  = offset_x;
 
-					/* adjust size to new values */
-					_size_all = Area(_size_all.w() + id.size.w(),
-					                 max_height(ids));
+					if (id.size.valid()) {
+						id.capture.construct(env);
+						id.captured_screen.construct(*id.capture, env.rm(), id.size);
+					} else {
+						id.captured_screen.destruct();
+						id.capture.destruct();
+					}
 				}
 
 				return same;
@@ -223,7 +146,7 @@ struct Framebuffer::Driver
 
 	void handle_timer()
 	{
-		if (fb.constructed()) { fb.paint(ids); }
+		fb.paint(ids);
 	}
 
 	Driver(Env &env) : env(env)
@@ -372,10 +295,10 @@ extern "C" void lx_emul_framebuffer_ready(unsigned connector_id,
 		try {
 			drv.ids.apply<Id>(id, [&](Id &id) {
 
-				Capture::Area area(xres, yres);
+				Capture::Area area(xres + screen_offsetx, yres);
 				Capture::Area area_phys(phys_width, phys_height);
 
-				bool const same = fb.setup(id, drv.ids, (Genode::addr_t)base,
+				bool const same = fb.setup(id, env, (Genode::addr_t)base,
 				                           screen_offsetx, area, area_phys);
 
 				if (same)
@@ -385,18 +308,16 @@ extern "C" void lx_emul_framebuffer_ready(unsigned connector_id,
 				if (base && (area != area_phys))
 					Genode::memset(base, 0, area_phys.count() * 4);
 
-				log("framebuffer ", fb.size(),
+				Genode::log("framebuffer ",
 				    " - connector id=", id.id_element.id().value,
 				    ", virtual=", xres, "x", yres,
 				    " offset=", screen_offsetx, "x", screen_offsety,
 				    ", physical=", phys_width, "x", phys_height);
-
-				fb.reconstruct(env);
 			});
 			break;
 		} catch (Id::Space::Unknown_id) {
 			/* ignore unused connector - don't need a object for it */
-			if (!base)
+			if (!base || allocated)
 				break;
 
 			if (!allocated) {
