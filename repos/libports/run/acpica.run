@@ -19,6 +19,7 @@ import_from_depot \
 	[depot_user]/src/file_terminal \
 	[depot_user]/src/libc \
 	[depot_user]/src/log_core \
+	[depot_user]/src/usb_hid_drv \
 	[depot_user]/raw/ttf-bitstream-vera-minimal
 
 set build_components {
@@ -139,6 +140,7 @@ append config {
 				<service name="Report" />
 			</provides>
 			<config verbose="no">
+				<policy label="usb_hid_drv -> report" report="usb_drv -> devices"/>
 			</config>
 			<route>
 				<any-service> <parent/> </any-service>
@@ -176,10 +178,12 @@ append config {
 					<merge>
 						<input name="ps2"/>
 						<input name="acpi"/>
+						<input name="usb"/>
 					</merge>
 				</output>
 				<policy label="ps2"  input="ps2"/>
 				<policy label="acpi" input="acpi"/>
+				<policy label="usb"  input="usb"/>
 			</config>
 			<route>
 				<service name="Event"> <child name="nitpicker" /> </service>
@@ -253,6 +257,18 @@ append config {
 				<any-service> <parent/> <any-child/> </any-service>
 			</route>
 		</start>
+
+	<start name="usb_hid_drv" caps="140">
+		<resource name="RAM" quantum="11M"/>
+		<config use_report="yes"/>
+		<route>
+			<service name="ROM" label="report"> <child name="reports"/> </service>
+			<service name="Event"> <child name="event_filter" label="usb"/> </service>
+			<service name="Usb">   <child name="usb_drv"/> </service>
+			<service name="Timer"> <child name="timer"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
 
 		<start name="intel_fb_drv" caps="1000">
 			<binary name="pc_intel_fb_drv"/>
