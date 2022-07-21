@@ -38,7 +38,7 @@ class Platform::Irq_allocator
 		 * We partition the IRQ space (128 GSIs) into 40 legacy IRQs and 64 MSIs (and
 		 * hope the partitions will never overlap on any bizarre platform.)
 		 */
-		enum { LEGACY = 40, MSI = 64, LEGACY_ARRAY = 64 };
+		enum { LEGACY = 50, MSI = 64, LEGACY_ARRAY = 64 };
 
 		Bit_array<LEGACY_ARRAY> _legacy { };
 		Bit_allocator<MSI>      _msi    { };
