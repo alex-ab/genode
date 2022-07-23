@@ -190,11 +190,15 @@ class Pci_driver : public Bsd::Bus_driver
 				uint8_t bus, dev, func;
 				device.bus_address(&bus, &dev, &func);
 
+				using namespace Genode;
 				if ((device.device_id() == PCI_PRODUCT_INTEL_CORE4G_HDA_2) ||
+				    ((device.device_id() == PCI_PRODUCT_ATI_VEGA10_HDA_1) &&
+				     (device.vendor_id() == PCI_VENDOR_ATI)) ||
 				    (device.vendor_id() == PCI_VENDOR_INTEL &&
 				     bus == 0 && dev == 3 && func == 0)) {
-					Genode::warning("ignore ", (unsigned)bus, ":", (unsigned)dev, ":",
-					                (unsigned)func, ", not supported HDMI/DP HDA device");
+					warning("ignore ", Hex(uint8_t(bus), Hex::Prefix::OMIT_PREFIX, Hex::Pad::PAD),
+						":", Hex(uint8_t(dev), Hex::Prefix::OMIT_PREFIX, Hex::Pad::PAD), ":",
+					        (unsigned)func, ", not supported HDMI/DP HDA device");
 					continue;
 				}
 
