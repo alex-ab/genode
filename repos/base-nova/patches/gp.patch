@@ -1,0 +1,37 @@
+--- src/kernel/nova/src/syscall.cpp
++++ src/kernel/nova/src/syscall.cpp
+@@ -106,11 +106,22 @@ void Ec::send_msg()
+     if (EXPECT_FALSE (current->cpu != ec->xcpu))
+         die ("PT wrong CPU");
+ 
+-    if (EXPECT_TRUE (!ec->cont)) {
++    if (r->dst_portal == 13 || EXPECT_TRUE (!ec->cont)) {
+         current->cont = C;
+-        current->set_partner (ec);
++
++        if (r->dst_portal != 13)
++            current->set_partner (ec);
++
++        if (r->dst_portal == 13)
++            ec->regs.set_sp (ec->regs.rsp);
++
+         current->regs.mtd = pt->mtd.val;
+         ec->cont = recv_kern;
++
++        if (r->dst_portal == 13)
++            trace(0, " fault ip=%lx -> gp handler ip=%lx sp=%lx",
++                  ec->regs.rip, pt->ip, ec->regs.ARG_SP);
++
+         ec->regs.set_pt (pt->id);
+         ec->regs.set_ip (pt->ip);
+         ec->make_current();
+--- src/kernel/nova/src/ec.cpp
++++ src/kernel/nova/src/ec.cpp
+@@ -309,6 +309,7 @@ void Ec::ret_user_sysexit()
+ 
+     if (current->regs.ARG_IP >= USER_ADDR) {
+         current->regs.dst_portal = 13;
++        trace (0, "GP due to ARG_IP >= USER_ADDR %lx\n", current->regs.ARG_IP);
+         send_msg<Ec::ret_user_sysexit>();
+     }
+ 

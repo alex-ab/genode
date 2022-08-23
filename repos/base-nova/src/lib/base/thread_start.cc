@@ -135,6 +135,20 @@ void Thread::_deinit_platform_thread()
 }
 
 
+#include <nova_native_pd/client.h>
+#include <os/backtrace.h>
+
+static void gp_backtrace()
+{
+	Genode::error(__func__);
+	Genode::backtrace();
+	Genode::error(__func__, " done");
+	while (true) {
+		nova_die();
+	}
+}
+
+
 void Thread::start()
 {
 	if (native_thread().ec_sel < Native_thread::INVALID_INDEX - 1)
@@ -190,4 +204,21 @@ void Thread::start()
 	if (global)
 		/* request creation of SC to let thread run*/
 		cpu_thread.resume();
+
+	/* can't create handler attached to global thread XXX */
+	if (global)
+		return;
+
+	/* revoke GP fault handler and setup our own for EP threads */
+	Nova::revoke(Nova::Obj_crd(native_thread().exc_pt_sel + 13, 0));
+
+	Nova_native_pd_client native_pd { env_deprecated()->pd_session()->native_pd() };
+	Native_capability thread_cap = Capability_space::import(native_thread().ec_sel);
+
+	/* manually define selector used for RPC result */
+	Thread::myself()->native_thread().client_rcv_sel = native_thread().exc_pt_sel + 13;
+	/* create gp fault portal */
+	native_pd.alloc_rpc_cap(thread_cap, (addr_t)gp_backtrace, ~0UL);
+	/* reset to automatic selector allocation */
+	Thread::myself()->native_thread().reset_client_rcv_sel();
 }
