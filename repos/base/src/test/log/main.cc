@@ -15,6 +15,7 @@
 #include <base/component.h>
 #include <base/log.h>
 #include <log_session/connection.h>
+#include <os/backtrace.h>
 
 
 void Component::construct(Genode::Env &env)
@@ -56,6 +57,14 @@ void Component::construct(Genode::Env &env)
 	buf[2*Log_session::MAX_STRING_LEN - 3] = '6';  /* last visible before flushed */
 	buf[2*Log_session::MAX_STRING_LEN - 2] = '\0'; /* end of second line */
 	log(Cstring(buf));
+
+	backtrace();
+
+	warning("causing GP sp=", &hex);
+
+	addr_t gp_fault = 1UL << 47;
+	*((char *)gp_fault) = 0;
+	error("unreached .oO");
 
 	log("Test done.");
 }
