@@ -3,7 +3,7 @@ proc binary_name_core_a    { } { return "core-nova.a" }
 proc binary_name_timer     { } { return "nova_timer_drv" }
 
 proc kernel_files { } { return hypervisor }
-proc kernel_output { } { return "novga serial" }
+proc kernel_output { } { return " serial spinner" }
 
 proc run_boot_string { } {
 	return "\nHypervisor NOVA "
@@ -123,7 +123,7 @@ proc run_boot_dir {binaries} {
 
 		# choose best graphic mode
 		# uncomment line to get vga console working in hypervisor
-		puts $fh "set gfxpayload=auto"
+		# puts $fh "set gfxpayload=auto"
 
 		if {[have_include image/uefi]} {
 			puts $fh "insmod gfxterm"
@@ -134,8 +134,8 @@ proc run_boot_dir {binaries} {
 		}
 
 		# set this to get text console instead of graphical console
-		# puts $fh "terminal_input console"
-		# puts $fh "terminal_output console"
+		puts $fh "terminal_input console"
+		puts $fh "terminal_output console"
 
 		puts $fh "menuentry 'Genode on NOVA' {"
 		puts $fh " insmod multiboot2"
