@@ -165,6 +165,7 @@ static int endpoint_descriptor(genode_usb_bus_num_t bus,
 	struct usb_device * udev = find_usb_device(bus, dev);
 	struct usb_interface * iface;
 	struct usb_host_endpoint * ep;
+	unsigned long buf_check, desc_check;
 
 	if (!udev)
 		return -1;
@@ -176,6 +177,14 @@ static int endpoint_descriptor(genode_usb_bus_num_t bus,
 	ep = &iface->altsetting[setting].endpoint[endp];
 	if (!ep)
 		return -3;
+
+	buf_check  = (unsigned long)(buf);
+	desc_check = (unsigned long)(&ep->desc);
+
+	if (buf_check >= (1ul << 47) || desc_check >= (1ul << 47)) {
+		printk("pointer will cause GP %p %p\n", buf, &ep->desc);
+		lx_emul_backtrace();
+	}
 
 	memcpy(buf, &ep->desc,
 	       min(sizeof(struct usb_endpoint_descriptor), size));
