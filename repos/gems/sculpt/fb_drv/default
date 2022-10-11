@@ -1,5 +1,6 @@
 <config width="1024" height="768">
 	<report connectors="yes"/>
-	<!-- <connector name="eDP-1" width="1920" height="1080" enabled="true" brightness="75"/> -->
-	<!-- <connector name="HDMI-A-1" width="1024" height="768" hz="75" enabled="true"/> -->
+	<connector name="eDP-1" width="2560" height="1440" brightness="75"/>
+	<connector name="HDMI-A-1" mode_id="1" mirror="no" screen_offsetx="2560"/>
+	<connector name="DP-5"     mode_id="1" mirror="no" screen_offsetx="2560"/>
 </config>
