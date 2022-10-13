@@ -266,10 +266,10 @@
 
 			<start name="log_terminal">
 				<binary name="terminal"/>
-				<resource name="RAM" quantum="8M"/>
+				<resource name="RAM" quantum="12M"/>
 				<provides> <service name="Terminal"/> </provides>
 				<config>
-					<initial width="400"/>
+					<initial width="100"/>
 					<palette>
 						<color index="0" value="#2f3953"/>
 						<color index="8" value="#2f3953"/>

@@ -1299,8 +1299,6 @@ void Sculpt::Main::_handle_window_layout()
 	_decorator_margins.update();
 	Decorator_margins const margins(_decorator_margins.xml());
 
-	unsigned const log_min_w = 400;
-
 	typedef String<128> Label;
 	Label const
 		inspect_label          ("runtime -> leitzentrale -> inspect"),
@@ -1335,6 +1333,9 @@ void Sculpt::Main::_handle_window_layout()
 
 	/* area reserved for the panel */
 	Rect const panel(Point(0, 0), Area(mode.area.w(), panel_height));
+
+	/* log area - at least 400p , max 30% of the available width */
+	unsigned const log_min_w = max (400u, mode.area.w() * 30 / 100);
 
 	/* available space on the right of the menu */
 	Rect avail(Point(0, panel.h()),
