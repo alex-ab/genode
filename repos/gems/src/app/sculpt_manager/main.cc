@@ -1340,17 +1340,12 @@ void Sculpt::Main::_handle_window_layout()
 	Rect avail(Point(0, panel.h()),
 	           Point(mode.area.w() - 1, mode.area.h() - 1));
 
-	Point const log_offset = _log_visible
-	                       ? Point(0, 0)
-	                       : Point(log_min_w + margins.left + margins.right, 0);
-
-	Point const log_p1(avail.x2() - log_min_w - margins.right + 1 + log_offset.x(),
-	                   avail.y1() + margins.top);
-	Point const log_p2(mode.area.w() - margins.right  - 1 + log_offset.x(),
-	                   mode.area.h() - margins.bottom - 1);
+	Point const log_p1(avail.x1() + margins.left, avail.y1() + margins.top);
+	Point const log_p2(avail.x1() + log_min_w, mode.area.h() - margins.bottom - 1);
 
 	/* position of the inspect window */
-	Point const inspect_p1(avail.x1() + margins.left, avail.y1() + margins.top);
+	Point const inspect_p1((_log_visible ? log_p2.x() : avail.x1()) + margins.right + 1,
+	                       avail.y1() + margins.top);
 	Point const inspect_p2(avail.x2() - margins.right - 1,
 	                       avail.y2() - margins.bottom - 1);
 
@@ -1382,9 +1377,6 @@ void Sculpt::Main::_handle_window_layout()
 		_with_window(window_list, panel_view_label, [&] (Xml_node win) {
 			gen_window(win, panel); });
 
-		_with_window(window_list, Label("log"), [&] (Xml_node win) {
-			gen_window(win, Rect(log_p1, log_p2)); });
-
 		_with_window(window_list, settings_view_label, [&] (Xml_node win) {
 			Area  const size = win_size(win);
 			Point const pos  = _settings_visible
@@ -1395,10 +1387,14 @@ void Sculpt::Main::_handle_window_layout()
 				gen_window(win, Rect(pos, size));
 		});
 
+		if (_log_visible)
+			_with_window(window_list, Label("log"), [&] (Xml_node win) {
+				gen_window(win, Rect(log_p1, log_p2)); });
+
 		_with_window(window_list, network_view_label, [&] (Xml_node win) {
 			Area  const size = win_size(win);
 			Point const pos  = _network_visible
-			                 ? Point(log_p1.x() - size.w(), avail.y1())
+			                 ? Point(mode.area.w() - size.w(), avail.y1())
 			                 : Point(mode.area.w(), avail.y1());
 			gen_window(win, Rect(pos, size));
 		});

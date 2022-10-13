@@ -21,10 +21,18 @@ void Panel_dialog::generate(Xml_generator &xml) const
 	xml.node("frame", [&] () {
 		xml.attribute("style", "unimportant");
 
-		if (_state.settings_available()) {
-			gen_named_node(xml, "float", "left", [&] () {
-				xml.attribute("west",  true);
-				xml.node("hbox", [&] () {
+		gen_named_node(xml, "float", "left", [&] () {
+			xml.attribute("west",  true);
+			xml.node("hbox", [&] () {
+				xml.node("button", [&] () {
+					_item.gen_button_attr(xml, "log");
+					if (_state.log_visible())
+						xml.attribute("selected", true);
+					xml.node("label", [&] () {
+						xml.attribute("text", "Log");
+					});
+				});
+				if (_state.settings_available()) {
 					xml.node("button", [&] () {
 						_item.gen_button_attr(xml, "settings");
 						if (_state.settings_visible())
@@ -33,9 +41,9 @@ void Panel_dialog::generate(Xml_generator &xml) const
 							xml.attribute("text", "Settings");
 						});
 					});
-				});
+				}
 			});
-		}
+		});
 
 		gen_named_node(xml, "float", "center", [&] () {
 			xml.node("hbox", [&] () {
@@ -72,14 +80,6 @@ void Panel_dialog::generate(Xml_generator &xml) const
 						xml.attribute("selected", true);
 					xml.node("label", [&] () {
 						xml.attribute("text", "Network");
-					});
-				});
-				xml.node("button", [&] () {
-					_item.gen_button_attr(xml, "log");
-					if (_state.log_visible())
-						xml.attribute("selected", true);
-					xml.node("label", [&] () {
-						xml.attribute("text", "Log");
 					});
 				});
 			});
