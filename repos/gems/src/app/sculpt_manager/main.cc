@@ -1893,8 +1893,6 @@ void Sculpt::Main::_update_window_layout(Xml_node const &decorator_margins,
 
 	Decorator_margins const margins { decorator_margins };
 
-	unsigned const log_min_w = 400;
-
 	using Label = String<128>;
 	Label const
 		inspect_label          ("runtime -> leitzentrale -> inspect"),
@@ -1925,6 +1923,9 @@ void Sculpt::Main::_update_window_layout(Xml_node const &decorator_margins,
 
 	/* area reserved for the panel */
 	Rect const panel = Rect(Point(0, 0), Area(_screen_size.w, panel_height));
+
+	/* log area - at least 400p , max 30% of the available width */
+	unsigned const log_min_w = max (400u, _screen_size.w * 30 / 100);
 
 	/* available space on the right of the menu */
 	Rect avail = Rect::compound(Point(0, panel.h()),
