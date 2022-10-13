@@ -30,6 +30,8 @@ void Panel_dialog::view(Scope<> &s) const
 
 				if (_state.settings_available())
 					s.widget(_settings_button, _state.settings_visible());
+
+				s.widget(_log_button, _state.log_visible());
 			});
 		});
 
@@ -50,7 +52,6 @@ void Panel_dialog::view(Scope<> &s) const
 			s.attribute("east", true);
 			s.sub_scope<Hbox>([&] (Scope<Frame, Float, Hbox> &s) {
 				s.widget(_network_button, _state.network_visible());
-				s.widget(_log_button,     _state.log_visible());
 			});
 		});
 	});
