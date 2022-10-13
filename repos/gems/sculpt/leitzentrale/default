@@ -278,7 +278,7 @@
 						<rom name="VeraMono.ttf"/>
 						<dir name="fonts">
 							<dir name="monospace">
-								<ttf name="regular" path="/VeraMono.ttf" size_px="10"/>
+								<ttf name="regular" path="/VeraMono.ttf" size_px="16"/>
 							</dir>
 						</dir>
 					</vfs>
