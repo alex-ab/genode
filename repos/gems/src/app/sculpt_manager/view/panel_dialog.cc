@@ -24,7 +24,15 @@ void Panel_dialog::generate(Xml_generator &xml) const
 		gen_named_node(xml, "float", "left", [&] () {
 			xml.attribute("west",  true);
 			xml.node("hbox", [&] () {
-				if (_state.system_available()) {
+				xml.node("button", [&] () {
+					_item.gen_button_attr(xml, "log");
+					if (_state.log_visible())
+						xml.attribute("selected", true);
+					xml.node("label", [&] () {
+						xml.attribute("text", "Log");
+					});
+				});
+				if (_state.settings_available()) {
 					xml.node("button", [&] () {
 						_item.gen_button_attr(xml, "system");
 						if (_state.system_visible())
@@ -82,14 +90,6 @@ void Panel_dialog::generate(Xml_generator &xml) const
 						xml.attribute("selected", true);
 					xml.node("label", [&] () {
 						xml.attribute("text", "Network");
-					});
-				});
-				xml.node("button", [&] () {
-					_item.gen_button_attr(xml, "log");
-					if (_state.log_visible())
-						xml.attribute("selected", true);
-					xml.node("label", [&] () {
-						xml.attribute("text", "Log");
 					});
 				});
 			});
