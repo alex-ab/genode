@@ -239,7 +239,7 @@ void Sculpt::Storage_device::gen_part_block_start_content(Generator &g) const
 	g.node("config", [&] {
 		g.node("report", [&] { g.attribute("partitions", "yes"); });
 
-		for (unsigned i = 1; i < 10; i++) {
+		for (unsigned i = 1; i < 33; i++) {
 			g.node("policy", [&] {
 				g.attribute("label",     i);
 				g.attribute("partition", i);
