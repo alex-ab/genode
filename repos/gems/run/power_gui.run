@@ -1,0 +1,203 @@
+create_boot_directory
+
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/pkg/[drivers_interactive_pkg] \
+                  [depot_user]/pkg/fonts_fs \
+                  [depot_user]/src/init \
+                  [depot_user]/src/nitpicker \
+                  [depot_user]/src/dynamic_rom \
+                  [depot_user]/src/menu_view_ab \
+                  [depot_user]/src/libc \
+                  [depot_user]/src/libpng \
+                  [depot_user]/src/zlib
+
+set build_components { app/power_gui app/menu_view_ab }
+append boot_modules { power_gui menu_view_ab }
+
+build $build_components
+
+append config {
+<config prio_levels="2">
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+		<service name="TRACE"/>
+	</parent-provides>
+
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+
+	<default caps="100"/>
+
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="drivers" caps="1500" managing_system="yes">
+		<resource name="RAM" quantum="64M"/>
+		<binary name="init"/>
+		<route>
+			<service name="ROM" label="config"> <parent label="drivers.config"/> </service>
+			<service name="Timer"> <child name="timer"/> </service>
+			<service name="Capture"> <child name="nitpicker"/> </service>
+			<service name="Event">   <child name="nitpicker"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+	<start name="nitpicker">
+		<resource name="RAM" quantum="4M"/>
+		<provides>
+			<service name="Gui"/> <service name="Capture"/> <service name="Event"/>
+		</provides>
+		<config>
+			<capture/> <event/>
+			<background color="#123456"/>
+			<domain name="pointer" layer="1" content="client" label="no" origin="pointer" />
+			<domain name="default" layer="3" content="client" label="no" hover="always" focus="click" />
+
+			<policy label_prefix="pointer" domain="pointer"/>
+			<default-policy domain="default"/>
+		</config>
+	</start>
+
+	<start name="pointer">
+		<resource name="RAM" quantum="1M"/>
+		<route>
+			<service name="Gui"> <child name="nitpicker" /> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="report_rom">
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Report"/> <service name="ROM"/> </provides>
+		<config verbose="no">
+			<policy label="menu_view -> dialog" report="power_gui -> dialog"/>
+			<policy label="power_gui -> hover" report="menu_view -> hover"/>
+		</config>
+	</start>
+
+	<start name="fonts_fs" caps="300">
+		<resource name="RAM" quantum="8M"/>
+		<binary name="vfs"/>
+		<route>
+			<service name="ROM" label="config"> <parent label="fonts_fs.config"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+		<provides> <service name="File_system"/> </provides>
+	</start>
+
+	<start name="menu_view" caps="200">
+		<binary name="menu_view_ab"/>
+		<resource name="RAM" quantum="8M"/>
+		<config xpos="200" ypos="100">
+			<report hover="yes"/>
+			<libc stderr="/dev/log"/>
+			<vfs>
+				<tar name="menu_view_styles.tar" />
+				<dir name="dev"> <log/> </dir>
+				<dir name="fonts"> <fs label="fonts"/> </dir>
+			</vfs>
+		</config>
+		<route>
+			<service name="ROM" label="dialog"> <child name="report_rom" /> </service>
+			<service name="Report" label="hover"> <child name="report_rom"/> </service>
+			<service name="File_system" label="fonts"> <child name="fonts_fs"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+
+	<start name="dynamic_rom">
+		<resource name="RAM" quantum="4M"/>
+		<provides> <service name="ROM"/> </provides>
+		<config verbose="yes">
+			<rom name="info">
+				<inline description="1">
+					<info>
+						<cpu x="0" y="0" freq_khz="973791" temp_c="58">
+							<hwp_cap high="36" guar="27" effi="9" low="1" raw="0x1091b24"/>
+							<hwp_request min="1" max="255" desired="5" epp="128" raw="0x8000ff01"/>
+							<intel_speed_step epb="0"/>
+							<hwp_coord_feed_cap/>
+						</cpu>
+						<cpu x="0" y="1" freq_khz="1973791" temp_c="64">
+							<hwp_cap high="36" guar="27" effi="9" low="1" raw="0x1091b24"/>
+							<hwp_request min="1" max="255" desired="5" epp="128" raw="0x8000ff01"/>
+							<intel_speed_step epb="0"/>
+							<hwp_coord_feed_cap/>
+						</cpu>
+						<cpu x="2" y="0" freq_khz="3234912" verbose="yes">
+							<pstate rw_command="0" ro_limit_cur="0" ro_max_value="2" ro_status="0u"/>
+						</cpu>
+					</info>
+				</inline>
+				<sleep milliseconds="4000" />
+				<inline description="2">
+					<info>
+						<cpu x="0" y="0" freq_khz="273891" temp_c="48">
+							<hwp_cap high="36" guar="27" effi="9" low="1" raw="0x1091b24"/>
+							<hwp_request min="1" max="255" desired="5" epp="128" raw="0x8000ff01"/>
+							<intel_speed_step epb="0"/>
+							<hwp_coord_feed_cap/>
+						</cpu>
+						<cpu x="0" y="1" freq_khz="2973791" temp_c="74">
+							<hwp_cap high="36" guar="27" effi="9" low="1" raw="0x1091b24"/>
+							<hwp_request min="1" max="255" desired="5" epp="128" raw="0x8000ff01"/>
+							<intel_speed_step epb="0"/>
+							<hwp_coord_feed_cap/>
+						</cpu>
+						<cpu x="2" y="0" freq_khz="3234912" verbose="yes">
+							<pstate rw_command="0" ro_limit_cur="0" ro_max_value="2" ro_status="0u"/>
+						</cpu>
+					</info>
+				</inline>
+				<sleep milliseconds="4000" />
+				<inline description="3">
+					<info>
+						<cpu x="0" y="0" freq_khz="173991" temp_c="28">
+							<hwp_cap high="36" guar="27" effi="9" low="1" raw="0x1091b24"/>
+							<hwp_request min="1" max="255" desired="5" epp="128" raw="0x8000ff01"/>
+							<intel_speed_step epb="0"/>
+							<hwp_coord_feed_cap/>
+						</cpu>
+						<cpu x="0" y="1" freq_khz="3973791" temp_c="94">
+							<hwp_cap high="36" guar="27" effi="9" low="1" raw="0x1091b24"/>
+							<hwp_request min="1" max="255" desired="5" epp="128" raw="0x8000ff01"/>
+							<intel_speed_step epb="0"/>
+							<hwp_coord_feed_cap/>
+						</cpu>
+						<cpu x="2" y="0" freq_khz="3234912" verbose="yes">
+							<pstate rw_command="0" ro_limit_cur="0" ro_max_value="2" ro_status="1u"/>
+						</cpu>
+					</info>
+				</inline>
+				<sleep milliseconds="4000" />
+			</rom>
+		</config>
+	</start>
+
+	<start name="power_gui">
+		<resource name="RAM" quantum="2M"/>
+		<route>
+			<service name="ROM" label="info">  <child name="dynamic_rom" /> </service>
+			<service name="ROM" label="hover"> <child name="report_rom" /> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+</config>
+}
+
+install_config $config
+
+build_boot_image $boot_modules
+
+run_genode_until forever
