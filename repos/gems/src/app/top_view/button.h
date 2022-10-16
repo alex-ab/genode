@@ -29,7 +29,7 @@ struct Button_state
 	: first(f), last(l), current((c == ~0U) ? f : c)
 	{ }
 
-	bool active() { return hovered || prev || next; }
+	bool active() const { return hovered || prev || next; }
 	void reset() { hovered = prev = next = false; }
 
 	bool advance()
@@ -76,6 +76,35 @@ struct Button_hub
 			_button[i].current = INITIAL;
 		}
 	}
+
+	unsigned min(unsigned digit = 0) const
+	{
+		if (digit >= DIGITS)
+			digit = 0;
+		return _button[digit].first;
+	}
+
+	unsigned max(unsigned digit = 0) const
+	{
+		if (digit >= DIGITS)
+			digit = 0;
+		return _button[digit].last;
+	}
+
+	void set_min_max(unsigned min, unsigned max, unsigned digit = 0)
+	{
+		if (digit >= DIGITS || min > max)
+			return;
+
+		_button[digit].first = min;
+		_button[digit].last  = max;
+
+		if (_button[digit].current < min)
+			_button[digit].current = min;
+		if (_button[digit].current > max)
+			_button[digit].current = max;
+	}
+
 	bool update_inc()
 	{
 		bool update = false;
@@ -131,4 +160,13 @@ struct Button_hub
 	template <typename FUNC>
 	void for_each(FUNC const &fn) {
 		for (unsigned i = DIGITS; i > 0; i--) { fn(_button[i - 1], i - 1); } }
+
+	bool any_active() const
+	{
+		for (unsigned i = 0; i < DIGITS; i++)
+			if (_button[i].active())
+				return true;
+
+		return false;
+	}
 };
