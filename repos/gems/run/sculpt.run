@@ -364,8 +364,8 @@ install_config {
 		</route>
 	</start>
 
-	<start name="drivers" caps="4600" priority="-1" managing_system="yes">
-		<resource name="RAM" quantum="200M"/>
+	<start name="drivers" caps="6000" priority="-1" managing_system="yes">
+		<resource name="RAM" quantum="384M"/>
 		<binary name="init"/>
 		<route>
 			} [log_route] {

@@ -26,6 +26,7 @@
 #include <log_session/log_session.h>
 #include <usb_session/usb_session.h>
 #include <platform_session/platform_session.h>
+#include <event_session/event_session.h>
 
 namespace Driver_manager {
 	using namespace Genode;
@@ -38,6 +39,7 @@ namespace Driver_manager {
 	struct Boot_fb_driver;
 	struct Ahci_driver;
 	struct Nvme_driver;
+	struct Ps2_driver;
 
 	struct Priority { int value; };
 
@@ -246,10 +248,26 @@ struct Driver_manager::Boot_fb_driver : Device_driver
 
 struct Driver_manager::Ahci_driver : Device_driver
 {
+	using Device_name = Genode::String<8>;
+
+	Device_name         _device_name { };
+	Device_driver::Name _driver_name { };
+
+	Attached_rom_dataspace _ports;
+
+	Ahci_driver(Env &env, Device_name name)
+	:
+		_device_name { name },
+		_driver_name { "ahci_drv-", _device_name },
+		_ports       { env, Genode::String<64>(_driver_name, " -> ports").string() }
+	{ }
+
+	Device_name const &name() const { return _device_name; }
+
 	void generate_start_node(Xml_generator &xml) const override
 	{
 		xml.node("start", [&] () {
-			_gen_common_start_node_content(xml, "ahci_drv", "ahci_drv",
+			_gen_common_start_node_content(xml, _driver_name, "ahci_drv",
 			                               Ram_quota{10*1024*1024}, Cap_quota{100},
 			                               Priority{-1}, Version{0});
 			_gen_provides_node<Block::Session>(xml);
@@ -257,7 +275,7 @@ struct Driver_manager::Ahci_driver : Device_driver
 				xml.node("report", [&] () { xml.attribute("ports", "yes"); });
 				for (unsigned i = 0; i < 6; i++) {
 					xml.node("policy", [&] () {
-						xml.attribute("label_suffix", String<64>("ahci-", i));
+						xml.attribute("label_suffix", String<64>("ahci-", _device_name, "-", i));
 						xml.attribute("device", i);
 						xml.attribute("writeable", "yes");
 					});
@@ -267,7 +285,7 @@ struct Driver_manager::Ahci_driver : Device_driver
 			xml.node("route", [&] () {
 				xml.node("service", [&] () {
 					xml.attribute("name", "Report");
-					xml.node("parent", [&] () { xml.attribute("label", "ahci_ports"); });
+					xml.node("parent", [&] () { });
 				});
 				_gen_default_parent_route(xml);
 			});
@@ -281,9 +299,9 @@ struct Driver_manager::Ahci_driver : Device_driver
 	{
 		for (unsigned i = 0; i < 6; i++) {
 			xml.node("policy", [&] () {
-				xml.attribute("label_suffix", String<64>("ahci-", i));
+				xml.attribute("label_suffix", String<64>("ahci-", _device_name, "-", i));
 				xml.node("child", [&] () {
-					xml.attribute("name", "ahci_drv"); });
+					xml.attribute("name", _driver_name); });
 			});
 		}
 
@@ -291,7 +309,7 @@ struct Driver_manager::Ahci_driver : Device_driver
 			xml.node("policy", [&] () {
 				xml.attribute("label_suffix", " default");
 				xml.node("child", [&] () {
-					xml.attribute("name", "ahci_drv");
+					xml.attribute("name", _driver_name);
 					xml.attribute("label", default_label);
 				});
 			});
@@ -302,17 +320,32 @@ struct Driver_manager::Ahci_driver : Device_driver
 
 struct Driver_manager::Nvme_driver : Device_driver
 {
+	using Device_name = Genode::String<8>;
+	Device_name         _device_name { };
+	Device_driver::Name _driver_name { };
+
+	Attached_rom_dataspace _ns;
+
+	Nvme_driver(Env &env, Device_name name)
+	:
+		_device_name { name },
+		_driver_name { "nvme_drv-", _device_name },
+		_ns          { env, Genode::String<64>(_driver_name, " -> controller").string() }
+	{ }
+
+	Device_name const &name() const { return _device_name; }
+
 	void generate_start_node(Xml_generator &xml) const override
 	{
 		xml.node("start", [&] () {
-			_gen_common_start_node_content(xml, "nvme_drv", "nvme_drv",
+			_gen_common_start_node_content(xml, _driver_name, "nvme_drv",
 			                               Ram_quota{8*1024*1024}, Cap_quota{100},
 			                               Priority{-1}, Version{0});
 			_gen_provides_node<Block::Session>(xml);
 			xml.node("config", [&] () {
 				xml.node("report", [&] () { xml.attribute("namespaces", "yes"); });
 				xml.node("policy", [&] () {
-					xml.attribute("label_suffix", String<64>("nvme-0"));
+					xml.attribute("label_suffix", String<64>("nvme-", _device_name, "-", 1));
 					xml.attribute("namespace", 1);
 					xml.attribute("writeable", "yes");
 				});
@@ -320,7 +353,7 @@ struct Driver_manager::Nvme_driver : Device_driver
 			xml.node("route", [&] () {
 				xml.node("service", [&] () {
 					xml.attribute("name", "Report");
-					xml.node("parent", [&] () { xml.attribute("label", "nvme_ns"); });
+					xml.node("parent", [&] () { });
 				});
 				_gen_default_parent_route(xml);
 			});
@@ -333,20 +366,56 @@ struct Driver_manager::Nvme_driver : Device_driver
 	                                   Default_label const &default_label) const
 	{
 		xml.node("policy", [&] () {
-			xml.attribute("label_suffix", String<64>("nvme-0"));
+			xml.attribute("label_suffix", String<64>("nvme-", _device_name, "-", 1));
 			xml.node("child", [&] () {
-				xml.attribute("name", "nvme_drv"); });
+				xml.attribute("name", _driver_name); });
 		});
 
 		if (default_label.valid()) {
 			xml.node("policy", [&] () {
 				xml.attribute("label_suffix", " default");
 				xml.node("child", [&] () {
-					xml.attribute("name", "nvme_drv");
+					xml.attribute("name", _driver_name);
 					xml.attribute("label", default_label);
 				});
 			});
 		}
+	}
+};
+
+
+struct Driver_manager::Ps2_driver : Device_driver
+{
+	void generate_start_node(Xml_generator &xml) const override
+	{
+		xml.node("start", [&] () {
+			_gen_common_start_node_content(xml, "ps2_drv", "ps2_drv",
+			                               Ram_quota{1*1024*1024}, Cap_quota{100},
+			                               Priority{0}, Version{0});
+			xml.node("config", [&] () {
+				xml.attribute("capslock_led", "rom");
+				xml.attribute("numlock_led",  "rom");
+				xml.attribute("system",        true);
+			});
+			xml.node("route", [&] () {
+				xml.node("service", [&] () {
+					xml.attribute("name", "ROM");
+					xml.attribute("label", "capslock");
+					xml.node("parent", [&] () { xml.attribute("label", "ps2_drv -> capslock"); });
+				});
+				xml.node("service", [&] () {
+					xml.attribute("name", "ROM");
+					xml.attribute("label", "numlock");
+					xml.node("parent", [&] () { xml.attribute("label", "ps2_drv -> numlock"); });
+				});
+				xml.node("service", [&] () {
+					xml.attribute("name", "ROM");
+					xml.attribute("label", "system");
+					xml.node("parent", [&] () { xml.attribute("label", "ps2_drv -> system"); });
+				});
+				_gen_default_parent_route(xml);
+			});
+		});
 	}
 };
 
@@ -358,20 +427,24 @@ struct Driver_manager::Main : private Block_devices_generator
 	Attached_rom_dataspace _platform      { _env, "platform_info" };
 	Attached_rom_dataspace _usb_devices   { _env, "usb_devices"   };
 	Attached_rom_dataspace _usb_policy    { _env, "usb_policy"    };
-	Attached_rom_dataspace _devices       { _env, "devices"   };
-	Attached_rom_dataspace _ahci_ports    { _env, "ahci_ports"    };
-	Attached_rom_dataspace _nvme_ns       { _env, "nvme_ns"       };
+	Attached_rom_dataspace _devices       { _env, "devices"       };
 	Attached_rom_dataspace _dynamic_state { _env, "dynamic_state" };
 
-	Reporter _init_config    { _env, "config", "init.config" };
-	Reporter _usb_drv_config { _env, "config", "usb_drv.config" };
-	Reporter _block_devices  { _env, "block_devices" };
+	Reporter _platform_config  { _env, "config", "platform_drv.config" };
+	Reporter _init_config      { _env, "config", "init.config", 32u << 10 };
+	Reporter _usb_drv_config   { _env, "config", "usb_drv.config" };
+	Reporter _block_report_rom { _env, "config", "block_report_rom.config" };
+	Reporter _block_devices    { _env, "block_devices", "block_devices", 32u << 10 };
 
 	Constructible<Intel_fb_driver> _intel_fb_driver { };
 	Constructible<Vesa_fb_driver>  _vesa_fb_driver  { };
 	Constructible<Boot_fb_driver>  _boot_fb_driver  { };
-	Constructible<Ahci_driver>     _ahci_driver     { };
-	Constructible<Nvme_driver>     _nvme_driver     { };
+	Constructible<Ps2_driver>      _ps2_driver      { };
+
+	/* arbitrarily support 4 storage controllers of each NVMe and AHCI */
+	enum { MAX_CTLS = 4, };
+	Constructible<Ahci_driver> _ahci_driver[MAX_CTLS] { };
+	Constructible<Nvme_driver> _nvme_driver[MAX_CTLS] { };
 
 	bool _use_ohci { true };
 
@@ -417,9 +490,11 @@ struct Driver_manager::Main : private Block_devices_generator
 		xml.node("service", [&] () { xml.attribute("name", name); });
 	};
 
-	void _generate_init_config    (Reporter &) const;
-	void _generate_usb_drv_config (Reporter &, Xml_node, Xml_node) const;
-	void _generate_block_devices  (Reporter &) const;
+	void _generate_platform_config         (Reporter &) const;
+	void _generate_init_config             (Reporter &) const;
+	void _generate_usb_drv_config          (Reporter &, Xml_node, Xml_node) const;
+	void _generate_block_report_rom_config (Reporter &) const;
+	void _generate_block_devices           (Reporter &) const;
 
 	Ahci_driver::Default_label _default_block_device() const;
 
@@ -430,21 +505,23 @@ struct Driver_manager::Main : private Block_devices_generator
 
 	Main(Env &env) : _env(env)
 	{
+		_platform_config.enabled(true);
+		_generate_platform_config(_platform_config);
+
+		_block_report_rom.enabled(true);
+		_generate_block_report_rom_config(_block_report_rom);
+
 		_init_config.enabled(true);
 		_usb_drv_config.enabled(true);
 		_block_devices.enabled(true);
 
 		_devices      .sigh(_devices_update_handler);
 		_usb_policy   .sigh(_usb_policy_update_handler);
-		_ahci_ports   .sigh(_ahci_ports_update_handler);
-		_nvme_ns      .sigh(_nvme_ns_update_handler);
 		_dynamic_state.sigh(_dynamic_state_handler);
 
 		_generate_init_config(_init_config);
 
 		_handle_devices_update();
-		_handle_ahci_ports_update();
-		_handle_nvme_ns_update();
 	}
 };
 
@@ -457,14 +534,28 @@ void Driver_manager::Main::_handle_devices_update()
 	if (!_devices.valid())
 		return;
 
+	/* for now always update the platform_drv config... */
+	_generate_platform_config(_platform_config);
+
+	/* and always generate the block report rom config beforehand */
+	_generate_block_report_rom_config(_block_report_rom);
+
 	bool has_vga            = false;
 	bool has_intel_graphics = false;
-	bool has_ahci           = false;
-	bool has_nvme           = false;
+	bool has_ps2            = false;
 
 	Boot_fb_driver::Mode const boot_fb_mode = _boot_fb_mode();
 
 	_devices.xml().for_each_sub_node([&] (Xml_node device) {
+
+		using Device_name  = Genode::String<8>;
+		Device_name const device_name = device.attribute_value("name", Device_name());
+		if (!device_name.valid())
+			return;
+
+		if (device_name == "ps2")
+			has_ps2 = true;
+
 		device.with_optional_sub_node("pci-config", [&] (Xml_node pci) {
 
 			uint16_t const vendor_id  = (uint16_t)pci.attribute_value("vendor_id",  0U);
@@ -484,14 +575,43 @@ void Driver_manager::Main::_handle_devices_update()
 			if (vendor_id == VENDOR_INTEL && class_code == CLASS_VGA)
 				has_intel_graphics = true;
 
-			if (vendor_id == VENDOR_INTEL && class_code == CLASS_AHCI)
-				has_ahci = true;
-
 			if (vendor_id == VENDOR_VBOX)
 				_use_ohci = false;
 
-			if (class_code == CLASS_NVME)
-				has_nvme = true;
+			if (vendor_id == VENDOR_INTEL && class_code == CLASS_AHCI) {
+				bool already_constructed = false;
+				for (auto & driver : _ahci_driver)
+					if (driver.constructed() && driver->name() == device_name)
+						already_constructed = true;
+
+				if (!already_constructed)
+					for (auto & driver : _ahci_driver) {
+						if (driver.constructed()) continue;
+
+						driver.construct(_env, device_name);
+						driver->_ports.sigh(_ahci_ports_update_handler);
+						_generate_init_config(_init_config);
+						break;
+					}
+			}
+
+			if (class_code == CLASS_NVME) {
+				bool already_constructed = false;
+				for (auto & driver : _nvme_driver)
+					if (driver.constructed() && driver->name() == device_name)
+						already_constructed = true;
+
+				if (!already_constructed)
+					for (auto & driver : _nvme_driver) {
+						if (driver.constructed()) continue;
+
+						driver.construct(_env, device_name);
+						driver->_ns.sigh(_nvme_ns_update_handler);
+						_generate_init_config(_init_config);
+						break;
+					}
+			}
+
 		});
 	});
 
@@ -517,13 +637,8 @@ void Driver_manager::Main::_handle_devices_update()
 		_generate_init_config(_init_config);
 	}
 
-	if (!_ahci_driver.constructed() && has_ahci) {
-		_ahci_driver.construct();
-		_generate_init_config(_init_config);
-	}
-
-	if (!_nvme_driver.constructed() && has_nvme) {
-		_nvme_driver.construct();
+	if (!_ps2_driver.constructed() && has_ps2) {
+		_ps2_driver.construct();
 		_generate_init_config(_init_config);
 	}
 
@@ -540,7 +655,10 @@ void Driver_manager::Main::_handle_devices_update()
 
 void Driver_manager::Main::_handle_ahci_ports_update()
 {
-	_ahci_ports.update();
+	for (auto & driver : _ahci_driver)
+		if (driver.constructed())
+			driver->_ports.update();
+
 	_generate_block_devices(_block_devices);
 
 	/* update service forwarding rules */
@@ -550,7 +668,10 @@ void Driver_manager::Main::_handle_ahci_ports_update()
 
 void Driver_manager::Main::_handle_nvme_ns_update()
 {
-	_nvme_ns.update();
+	for (auto & driver : _nvme_driver)
+		if (driver.constructed())
+			driver->_ns.update();
+
 	_generate_block_devices(_block_devices);
 
 	/* update service forwarding rules */
@@ -567,8 +688,162 @@ void Driver_manager::Main::_handle_usb_devices_update()
 }
 
 
+void Driver_manager::Main::_generate_block_report_rom_config(Reporter &block_report_rom_config) const
+{
+	try {
+	Reporter::Xml_generator xml(block_report_rom_config, [&] () {
+		xml.attribute("verbose", "yes");
+
+		if (_devices.valid()) _devices.xml().for_each_sub_node([&] (Xml_node device) {
+			device.with_optional_sub_node("pci-config", [&] (Xml_node pci) {
+
+				uint16_t const class_code = (uint16_t)(pci.attribute_value("class", 0U) >> 8);
+
+				enum {
+					CLASS_AHCI   = 0x106U,
+					CLASS_NVME   = 0x108U,
+				};
+
+				if (class_code != CLASS_AHCI && class_code != CLASS_NVME)
+					return;
+
+				using Device_name = Genode::String<8>;
+				using Label       = Genode::String<64>;
+				using Report      = Genode::String<64>;
+
+				Device_name const device_name {
+					device.attribute_value("name", Device_name()) };
+
+				if (class_code == CLASS_AHCI) {
+					Report const report {
+						"dynamic -> ahci_drv-", device_name, " -> ports" };
+					Label const label {
+						"driver_manager -> ahci_drv-", device_name, " -> ports"};
+					xml.node("policy", [&] () {
+						xml.attribute("label", label);
+						xml.attribute("report", report);
+					});
+				}
+
+				if (class_code == CLASS_NVME) {
+					Report const report {
+						"dynamic -> nvme_drv-", device_name, " -> controller" };
+					Label const label {
+						"driver_manager -> nvme_drv-", device_name, " -> controller" };
+					xml.node("policy", [&] () {
+						xml.attribute("label", label);
+						xml.attribute("report", report);
+					});
+				}
+			});
+		});
+	});
+	} catch (Xml_generator::Buffer_exceeded) {
+		warning("could not generate block report rom config");
+	}
+}
+
+
+void Driver_manager::Main::_generate_platform_config(Reporter &platform_config) const
+{
+	try{
+	Reporter::Xml_generator xml(platform_config, [&] () {
+		xml.node("report", [&] () {
+			xml.attribute("devices", true);
+		});
+
+		/* dynamic driver policies */
+		if (_devices.valid()) _devices.xml().for_each_sub_node([&] (Xml_node device) {
+			device.with_optional_sub_node("pci-config", [&] (Xml_node pci) {
+
+				uint16_t const class_code = (uint16_t)(pci.attribute_value("class", 0U) >> 8);
+
+				enum {
+					CLASS_AHCI   = 0x106U,
+					CLASS_NVME   = 0x108U,
+				};
+
+				if (class_code != CLASS_AHCI && class_code != CLASS_NVME)
+					return;
+
+				using Device_name  = Genode::String<8>;
+				using Driver_label = Genode::String<32>;
+
+				Device_name const device_name {
+					device.attribute_value("name", Device_name()) };
+
+				if (class_code == CLASS_AHCI) {
+					Driver_label const driver_label {
+						"dynamic -> ahci_drv-", device_name };
+					xml.node("policy", [&] () {
+						xml.attribute("label_prefix", driver_label);
+						xml.node("device", [&] () { xml.attribute("name", device_name); });
+					});
+				}
+
+				if (class_code == CLASS_NVME) {
+					Driver_label const driver_label {
+						"dynamic -> nvme_drv-", device_name };
+					xml.node("policy", [&] () {
+						xml.attribute("label_prefix", driver_label);
+						xml.node("device", [&] () { xml.attribute("name", device_name); });
+					});
+				}
+			});
+		});
+
+		xml.node("policy", [&] () {
+			xml.attribute("label_prefix", "dynamic -> ps2_drv");
+			xml.node("device", [&] () { xml.attribute("name", "ps2"); });
+		});
+
+		/* catch-all driver policies */
+		xml.node("policy", [&] () {
+			xml.attribute("label_prefix", "usb_drv");
+			xml.attribute("info", true);
+			xml.node("pci", [&] () { xml.attribute("class", "USB"); });
+		});
+		xml.node("policy", [&] () {
+			xml.attribute("label_prefix", "dynamic -> vesa_fb_drv");
+			xml.attribute("info", true);
+			xml.node("pci", [&] () { xml.attribute("class", "VGA"); });
+		});
+		xml.node("policy", [&] () {
+			xml.attribute("label_prefix", "dynamic -> intel_gpu_drv");
+			xml.attribute("info", true);
+			xml.node("pci", [&] () { xml.attribute("class", "VGA"); });
+			xml.node("pci", [&] () { xml.attribute("class", "ISABRIDGE"); });
+		});
+		xml.node("policy", [&] () {
+			xml.attribute("label_suffix", "-> wifi");
+			xml.attribute("msix", false);
+			xml.attribute("info", true);
+			xml.node("pci", [&] () { xml.attribute("class", "WIFI"); });
+		});
+		xml.node("policy", [&] () {
+			xml.attribute("label_suffix", "-> nic");
+			xml.node("pci", [&] () { xml.attribute("class", "ETHERNET"); });
+		});
+		xml.node("policy", [&] () {
+			xml.attribute("label_suffix", "-> audio");
+			xml.node("pci", [&] () { xml.attribute("class", "AUDIO"); });
+			xml.node("pci", [&] () { xml.attribute("class", "HDAUDIO"); });
+		});
+
+		/* acpica policy */
+		xml.node("policy", [&] () {
+			xml.attribute("label", "acpica");
+		});
+	});
+	} catch (Xml_generator::Buffer_exceeded) {
+		warning("could not platform driver config");
+	}
+}
+
+
 void Driver_manager::Main::_generate_init_config(Reporter &init_config) const
 {
+	try {
 	Reporter::Xml_generator xml(init_config, [&] () {
 
 		xml.attribute("verbose", false);
@@ -594,6 +869,7 @@ void Driver_manager::Main::_generate_init_config(Reporter &init_config) const
 			_gen_parent_service_xml(xml, Report::Session::service_name());
 			_gen_parent_service_xml(xml, Usb::Session::service_name());
 			_gen_parent_service_xml(xml, Capture::Session::service_name());
+			_gen_parent_service_xml(xml, Event::Session::service_name());
 		});
 
 
@@ -606,55 +882,79 @@ void Driver_manager::Main::_generate_init_config(Reporter &init_config) const
 		if (_boot_fb_driver.constructed())
 			_boot_fb_driver->generate_start_node(xml);
 
-		if (_ahci_driver.constructed())
-			_ahci_driver->generate_start_node(xml);
+		if (_ps2_driver.constructed())
+			_ps2_driver->generate_start_node(xml);
 
-		if (_nvme_driver.constructed())
-			_nvme_driver->generate_start_node(xml);
+		auto ahci_constructed = [&] () {
+			bool result = false;
+			for (auto const & driver : _ahci_driver)
+				if (driver.constructed()) {
+					driver->generate_start_node(xml);
+					result = true;
+				}
+			return result;
+		};
+
+		auto ports_avail = [&] () {
+			bool result = false;
+			for (auto const & driver : _ahci_driver)
+				if (driver.constructed() && driver->_ports.xml().has_sub_node("port"))
+					result = true;
+			return result;
+		};
+
+		auto nvme_constructed = [&] () {
+			bool result = false;
+			for (auto const & driver : _nvme_driver)
+				if (driver.constructed()) {
+					driver->generate_start_node(xml);
+					result = true;
+				}
+			return result;
+		};
+
+		auto ns_avail = [&] () {
+			bool result = false;
+			for (auto const & driver : _nvme_driver)
+				if (driver.constructed() && driver->_ns.xml().has_sub_node("namespace"))
+					result = true;
+			return result;
+		};
 
 		/* block-service forwarding rules */
-		bool const ahci = _ahci_driver.constructed() && _ahci_ports.xml().has_sub_node("port");
-		bool const nvme = _nvme_driver.constructed() && _nvme_ns.xml().has_sub_node("namespace");
+		bool const ahci = ahci_constructed() && ports_avail();
+		bool const nvme = nvme_constructed() && ns_avail();
 
 		if (!ahci && !nvme) return;
 
-		bool const ahci_and_nvme = ahci && nvme;
 		xml.node("service", [&] () {
 			xml.attribute("name", Block::Session::service_name());
 				if (ahci)
-					_ahci_driver->gen_service_forwarding_policy(xml,
-						ahci_and_nvme ? Ahci_driver::Default_label() : _default_block_device());
+					for (auto const &driver : _ahci_driver)
+						if (driver.constructed())
+							driver->gen_service_forwarding_policy(xml, Ahci_driver::Default_label());
 				if (nvme)
-					_nvme_driver->gen_service_forwarding_policy(xml,
-						ahci_and_nvme ? Nvme_driver::Default_label() : "nvme-0");
+					for (auto const &driver : _nvme_driver)
+						if (driver.constructed())
+							driver->gen_service_forwarding_policy(xml, Nvme_driver::Default_label());
 		});
 	});
+	} catch (Xml_generator::Buffer_exceeded) {
+		warning("could not generate init config");
+	}
 }
 
 
 Driver_manager::Ahci_driver::Default_label
 Driver_manager::Main::_default_block_device() const
 {
-	unsigned num_devices = 0;
-
-	Ahci_driver::Default_label result;
-
-	_ahci_ports.xml().for_each_sub_node([&] (Xml_node ahci_port) {
-
-		/* count devices */
-		num_devices++;
-
-		unsigned long const num = ahci_port.attribute_value("num", 0UL);
-		result = Ahci_driver::Default_label("ahci-", num);
-	});
-
-	/* if there is more than one device, we don't return a default device */
-	return (num_devices == 1) ? result : Ahci_driver::Default_label();
+	return Ahci_driver::Default_label();
 }
 
 
 void Driver_manager::Main::_generate_block_devices(Reporter &block_devices) const
 {
+	try {
 	Reporter::Xml_generator xml(block_devices, [&] () {
 
 		/* mention default block device in 'default' attribute */
@@ -662,49 +962,60 @@ void Driver_manager::Main::_generate_block_devices(Reporter &block_devices) cons
 		if (default_label.valid())
 			xml.attribute("default", default_label);
 
-		_ahci_ports.xml().for_each_sub_node([&] (Xml_node ahci_port) {
+		for (auto const & driver : _ahci_driver) {
+			if (!driver.constructed()) continue;
 
-			xml.node("device", [&] () {
+			driver->_ports.xml().for_each_sub_node([&] (Xml_node ahci_port) {
 
-				unsigned long const
-					num         = ahci_port.attribute_value("num",         0UL),
-					block_count = ahci_port.attribute_value("block_count", 0UL),
-					block_size  = ahci_port.attribute_value("block_size",  0UL);
+				xml.node("device", [&] () {
 
-				typedef String<80> Model;
-				Model const model = ahci_port.attribute_value("model", Model());
+					unsigned long const
+						num         = ahci_port.attribute_value("num",         0UL),
+						block_count = ahci_port.attribute_value("block_count", 0UL),
+						block_size  = ahci_port.attribute_value("block_size",  0UL);
 
-				xml.attribute("label",       String<64>("ahci-", num));
-				xml.attribute("block_count", block_count);
-				xml.attribute("block_size",  block_size);
-				xml.attribute("model",       model);
-			});
-		});
+					typedef String<80> Model;
+					Model const model = ahci_port.attribute_value("model", Model());
 
-		/* for now just report the first name space */
-		if (_nvme_ns.xml().has_sub_node("namespace")) {
-
-			Xml_node nvme_ctrl = _nvme_ns.xml();
-			Xml_node nvme_ns   = _nvme_ns.xml().sub_node("namespace");
-			xml.node("device", [&] () {
-
-				unsigned long const
-					block_count = nvme_ns.attribute_value("block_count", 0UL),
-					block_size  = nvme_ns.attribute_value("block_size",  0UL);
-
-				typedef String<40+1> Model;
-				Model const model = nvme_ctrl.attribute_value("model", Model());
-				typedef String<20+1> Serial;
-				Serial const serial = nvme_ctrl.attribute_value("serial", Serial());
-
-				xml.attribute("label",       String<16>("nvme-0"));
-				xml.attribute("block_count", block_count);
-				xml.attribute("block_size",  block_size);
-				xml.attribute("model",       model);
-				xml.attribute("serial",      serial);
+					xml.attribute("label",       String<64>("ahci-", driver->name(), "-", num));
+					xml.attribute("block_count", block_count);
+					xml.attribute("block_size",  block_size);
+					xml.attribute("model",       model);
+				});
 			});
 		}
+
+		/* for now just report the first name space */
+		for (auto const & driver : _nvme_driver) {
+			if (!driver.constructed()) continue;
+
+			if (driver->_ns.xml().has_sub_node("namespace")) {
+
+				Xml_node nvme_ctrl = driver->_ns.xml();
+				Xml_node nvme_ns   = driver->_ns.xml().sub_node("namespace");
+				xml.node("device", [&] () {
+
+					unsigned long const
+						block_count = nvme_ns.attribute_value("block_count", 0UL),
+						block_size  = nvme_ns.attribute_value("block_size",  0UL);
+
+					typedef String<40+1> Model;
+					Model const model = nvme_ctrl.attribute_value("model", Model());
+					typedef String<20+1> Serial;
+					Serial const serial = nvme_ctrl.attribute_value("serial", Serial());
+
+					xml.attribute("label",       String<16>("nvme-", driver->name(), "-", 1));
+					xml.attribute("block_count", block_count);
+					xml.attribute("block_size",  block_size);
+					xml.attribute("model",       model);
+					xml.attribute("serial",      serial);
+				});
+			}
+		}
 	});
+	} catch (Xml_generator::Buffer_exceeded) {
+		warning("could not generate block devices");
+	}
 }
 
 

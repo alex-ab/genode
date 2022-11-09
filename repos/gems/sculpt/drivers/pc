@@ -41,20 +41,20 @@
 		<config verbose="no">
 			<policy label="pci_decode -> system"            report="acpi_drv -> acpi"/>
 			<policy label="platform_drv -> acpi"            report="acpi_drv -> acpi"/>
+			<policy label="platform_drv -> config"          report="driver_manager -> platform_drv.config"/>
 			<policy label="rom_filter -> pci_devices"       report="pci_decode -> devices"/>
 			<policy label="usb_drv -> config"               report="driver_manager -> usb_drv.config"/>
 			<policy label="dynamic -> config"               report="driver_manager -> init.config"/>
 			<policy label="driver_manager -> devices"       report="platform_drv -> devices"/>
 			<policy label="driver_manager -> usb_devices"   report="usb_drv -> devices"/>
 			<policy label="driver_manager -> dynamic_state" report="dynamic -> state"/>
-			<policy label="driver_manager -> ahci_ports"    report="dynamic -> ahci_ports"/>
-			<policy label="driver_manager -> nvme_ns"       report="dynamic -> nvme_ns"/>
 			<policy label="rom_reporter -> acpi"            report="acpi_drv -> acpi"/>
 			<policy label="rom_reporter -> devices"         report="platform_drv -> devices"/>
 			<policy label="rom_reporter -> pci_devices"     report="pci_decode -> devices"/>
 			<policy label="rom_reporter -> usb_devices"     report="usb_drv -> devices"/>
 			<policy label="rom_reporter -> dynamic_state"   report="dynamic -> state"/>
 			<policy label="usb_hid_drv -> report"           report="usb_drv -> devices"/>
+			<policy label="block_report_rom -> config"      report="driver_manager -> block_report_rom.config"/>
 			<policy label="dynamic -> intel_fb_drv -> intel_opregion"  report="acpi_drv -> intel_opregion"/>
 		</config>
 	</start>
@@ -140,6 +140,7 @@
 		<resource name="RAM" quantum="4M"/>
 		<provides> <service name="Platform"/> </provides>
 		<route>
+			<service name="ROM" label="config"> <child name="report_rom"/> </service>
 			<service name="ROM" label="system">  <parent label="system"/> </service>
 			<service name="ROM" label="devices"> <child name="rom_filter"/> </service>
 			<service name="ROM" label="acpi">    <child name="report_rom"/> </service>
@@ -153,22 +154,6 @@
 			<service name="LOG">     <parent/> </service>
 			<service name="Timer">   <parent/> </service>
 		</route>
-		<config>
-			<report devices="yes"/>
-			<policy label_prefix="ps2_drv"> <device name="ps2"/> </policy>
-			<policy label_prefix="dynamic -> vesa_fb_drv"> <pci class="VGA"/>   </policy>
-			<policy label_prefix="dynamic -> ahci_drv">    <pci class="AHCI"/>  </policy>
-			<policy label_prefix="dynamic -> nvme_drv" info="yes"> <pci class="NVME"/>  </policy>
-			<policy label_prefix="usb_drv" info="yes">     <pci class="USB"/>   </policy>
-			<policy label_prefix="dynamic -> intel_gpu_drv" info="yes">
-				<pci class="VGA"/>
-				<pci class="ISABRIDGE"/>
-			</policy>
-			<policy label_suffix="-> wifi" msix="false" info="yes"> <pci class="WIFI"/> </policy>
-			<policy label_suffix="-> nic">   <pci class="ETHERNET"/> </policy>
-			<policy label_suffix="-> audio"> <pci class="AUDIO"/> <pci class="HDAUDIO"/> </policy>
-			<policy label="acpica"> </policy>
-		</config>
 	</start>
 
 	<start name="usb_drv" caps="200">
@@ -208,23 +193,6 @@
 		</route>
 	</start>
 
-	<start name="ps2_drv">
-		<resource name="RAM" quantum="1M"/>
-		<config capslock_led="rom" numlock_led="rom" system="yes"/>
-		<route>
-			<service name="Platform"> <child name="platform_drv"/> </service>
-			<service name="Event"> <child name="event_filter" label="ps2"/> </service>
-			<service name="ROM" label="capslock"> <parent label="capslock"/> </service>
-			<service name="ROM" label="numlock">  <parent label="numlock"/>  </service>
-			<service name="ROM" label="system">   <parent label="system"/>   </service>
-			<service name="ROM">   <parent/> </service>
-			<service name="PD">    <parent/> </service>
-			<service name="CPU">   <parent/> </service>
-			<service name="LOG">   <parent/> </service>
-			<service name="Timer"> <parent/> </service>
-		</route>
-	</start>
-
 	<!-- toggle key mappings depending on the numlock state -->
 	<start name="numlock_remap_rom">
 		<binary name="rom_filter"/>
@@ -253,16 +221,31 @@
 		</route>
 	</start>
 
+	<start name="block_report_rom">
+		<binary name="report_rom"/>
+		<resource name="RAM" quantum="2M"/>
+		<provides> <service name="Report"/> <service name="ROM"/> </provides>
+		<route>
+			<service name="ROM" label="config"> <child name="report_rom"/> </service>
+			<service name="ROM">   <parent/> </service>
+			<service name="PD">    <parent/> </service>
+			<service name="CPU">   <parent/> </service>
+			<service name="LOG">   <parent/> </service>
+		</route>
+	</start>
+
 	<start name="driver_manager">
 		<resource name="RAM" quantum="1M"/>
 		<route>
+			<service name="Report" label="platform_drv.config"> <child name="report_rom"/> </service>
 			<service name="Report" label="init.config"> <child name="report_rom"/> </service>
 			<service name="Report" label="usb_drv.config"> <child name="report_rom"/> </service>
+			<service name="Report" label="block_report_rom.config"> <child name="report_rom"/> </service>
 			<service name="Report" label="block_devices"> <parent label="block_devices"/> </service>
 			<service name="ROM" label="usb_devices">   <child name="report_rom"/> </service>
 			<service name="ROM" label="devices">       <child name="report_rom"/> </service>
-			<service name="ROM" label="ahci_ports">    <child name="report_rom"/> </service>
-			<service name="ROM" label="nvme_ns">       <child name="report_rom"/> </service>
+			<service name="ROM" label_suffix="-> ports">   <child name="block_report_rom"/> </service>
+			<service name="ROM" label_suffix="-> controller"> <child name="block_report_rom"/> </service>
 			<service name="ROM" label="dynamic_state"> <child name="report_rom"/> </service>
 			<service name="LOG"> <parent/> </service>
 			<service name="PD">  <parent/> </service>
@@ -271,7 +254,7 @@
 		</route>
 	</start>
 
-	<start name="dynamic" caps="2600">
+	<start name="dynamic" caps="4000">
 		<binary name="init"/>
 		<resource name="RAM" quantum="1G"/>
 		<provides>
@@ -281,8 +264,13 @@
 		</provides>
 		<route>
 			<service name="Platform"> <child name="platform_drv"/> </service>
-			<service name="Report" label="ahci_ports"> <child name="report_rom"/> </service>
-			<service name="Report" label="nvme_ns"> <child name="report_rom"/> </service>
+			<service name="Event" label="ps2_drv -> ">        <child name="event_filter" label="ps2"/> </service>
+			<service name="ROM"   label="ps2_drv -> capslock"> <parent label="capslock"/> </service>
+			<service name="ROM"   label="ps2_drv -> numlock">  <parent label="numlock"/>  </service>
+			<service name="ROM"   label="ps2_drv -> system">   <parent label="system"/>   </service>
+			<service name="Report" label_suffix="-> ports">   <child name="block_report_rom"/> </service>
+			<service name="Report" label_suffix="-> nvme_ns"> <child name="block_report_rom"/> </service>
+			<service name="Report" label_suffix="-> controller"> <child name="block_report_rom"/> </service>
 			<service name="Report" label="state"> <child name="report_rom"/> </service>
 			<service name="Report"> <parent/> </service>
 			<service name="Usb"> <child name="usb_drv"/> </service>
