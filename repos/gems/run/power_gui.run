@@ -196,6 +196,12 @@ append config {
 </config>
 }
 
+set fb_cfg_fd [open "bin/fb_drv.config" w]
+puts $fb_cfg_fd { <config width="1280" height="1024"/> }
+close $fb_cfg_fd
+
+append boot_modules { fb_drv.config }
+
 install_config $config
 
 build_boot_image $boot_modules

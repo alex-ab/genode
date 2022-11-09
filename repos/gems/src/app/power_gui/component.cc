@@ -50,9 +50,10 @@ class Power
 		Reporter                _dialog          { _env, "dialog" };
 		Reporter                _msr_config      { _env, "config" };
 
-		State                   _setting_cpu     { };
-		State                   _setting_hovered { };
-		bool                    _apply_hovered   { false };
+		State                   _setting_cpu       { };
+		State                   _setting_hovered   { };
+		bool                    _apply_hovered     { false };
+		bool                    _apply_all_hovered { false };
 
 		/* ranges are set by read out hardware features */
 		Button_hub<1, 0, 10, 0>    _amd_pstate { };
@@ -68,11 +69,16 @@ class Power
 		/* PERFORMANCE = 0, BALANCED = 128, ENERGY = 255 */
 		Button_hub<1, 0, 255, 128> _intel_hwp_epp { };
 
-		void _generate_msr_config();
+		void _generate_msr_config(bool = false);
+		void _generate_msr_cpu(Reporter::Xml_generator &, unsigned, unsigned);
 		void _info_update();
 		void _hover_update();
-		void _per_cpu(Reporter::Xml_generator &, Xml_node &);
-		void _settings_view(Reporter::Xml_generator &, Xml_node &);
+		void _cpu_name(Reporter::Xml_generator &, Xml_node &);
+		void _cpu_temp(Reporter::Xml_generator &, Xml_node &);
+		void _cpu_freq(Reporter::Xml_generator &, Xml_node &);
+		void _cpu_setting(Reporter::Xml_generator &, Xml_node &);
+		void _settings_view(Reporter::Xml_generator &, Xml_node &,
+		                    String<12> const &);
 
 		template <typename T>
 		void hub(Genode::Xml_generator &xml, T &hub, char const *name)
@@ -115,16 +121,19 @@ void Power::_hover_update()
 
 	Genode::Xml_node const hover = _hover.xml();
 
+	/* settings and apply button */
 	typedef Genode::String<20> Button;
 	Button button = query_attribute<Button>(hover, "dialog", "frame",
-	                                        "vbox", "hbox", "button", "name");
-	if (button == "") /* intel hwp, epb, epp & AMD pstate */
+	                                        "hbox", "vbox", "hbox", "button", "name");
+	if (button == "") /* intel hwp, epb, epp & AMD pstate buttons */
 		button = query_attribute<Button>(hover, "dialog", "frame",
 	                                     "vbox", "vbox", "hbox", "button", "name");
 
+#if 0
 	if (button == "") /* apply button */
 		button = query_attribute<Button>(hover, "dialog", "frame",
-		                                 "vbox", "vbox", "button", "name");
+		                                 "hbox", "vbox", "button", "name");
+#endif
 
 	bool click_valid = false;
 	Button click = query_attribute<Button>(hover, "button", "left");
@@ -157,8 +166,8 @@ void Power::_hover_update()
 		refresh = true;
 	}
 
-	if (click_valid && _apply_hovered) {
-		_generate_msr_config();
+	if (click_valid && (_apply_hovered || _apply_all_hovered)) {
+		_generate_msr_config(_apply_all_hovered);
 		_setting_cpu.invalidate();
 		refresh = true;
 	}
@@ -219,15 +228,16 @@ void Power::_hover_update()
 		return;
 	}
 
-	auto const before_hovered = _setting_hovered;
-	auto const before_cpu     = _setting_cpu;
-	auto const before_pstate  = _amd_pstate.any_active();
-	auto const before_epb     = _intel_epb.any_active();
-	auto const before_hwp_min = _intel_hwp_min.any_active();
-	auto const before_hwp_max = _intel_hwp_max.any_active();
-	auto const before_hwp_des = _intel_hwp_des.any_active();
-	auto const before_hwp_epp = _intel_hwp_epp.any_active();
-	auto const before_apply   = _apply_hovered;
+	auto const before_hovered   = _setting_hovered;
+	auto const before_cpu       = _setting_cpu;
+	auto const before_pstate    = _amd_pstate.any_active();
+	auto const before_epb       = _intel_epb.any_active();
+	auto const before_hwp_min   = _intel_hwp_min.any_active();
+	auto const before_hwp_max   = _intel_hwp_max.any_active();
+	auto const before_hwp_des   = _intel_hwp_des.any_active();
+	auto const before_hwp_epp   = _intel_hwp_epp.any_active();
+	auto const before_apply     = _apply_hovered;
+	auto const before_all_apply = _apply_all_hovered;
 
 	bool const any = button != "";
 
@@ -239,11 +249,12 @@ void Power::_hover_update()
 	bool const hovered_hwp_des = any && (String<12>(button) == "hub-hwp_des");
 	bool const hovered_hwp_epp = any && (String<12>(button) == "hub-hwp_epp");
 
-	_apply_hovered = any && (button == "apply");
+	_apply_hovered     = any && (button == "apply");
+	_apply_all_hovered = any && (button == "applyall");
 
 	if (hovered_setting) {
 		_setting_hovered.value = query_attribute<unsigned>(hover, "dialog", "frame",
-		                                                   "vbox", "hbox", "name");
+		                                                   "hbox", "vbox", "hbox", "name");
 	} else if (_setting_hovered.valid())
 		_setting_hovered.invalidate();
 
@@ -271,15 +282,16 @@ void Power::_hover_update()
 		state.hovered = hovered_hwp_epp;
 	});
 
-	if ((before_hovered != _setting_hovered) ||
-	    (before_cpu     != _setting_cpu)     ||
-	    (before_pstate  != hovered_pstate)  ||
-	    (before_epb     != hovered_epb) ||
-	    (before_hwp_min != hovered_hwp_min) ||
-	    (before_hwp_max != hovered_hwp_max) ||
-	    (before_hwp_des != hovered_hwp_des) ||
-	    (before_hwp_epp != hovered_hwp_epp) ||
-	    (before_apply   != _apply_hovered))
+	if ((before_hovered   != _setting_hovered) ||
+	    (before_cpu       != _setting_cpu)     ||
+	    (before_pstate    != hovered_pstate)   ||
+	    (before_epb       != hovered_epb)      ||
+	    (before_hwp_min   != hovered_hwp_min)  ||
+	    (before_hwp_max   != hovered_hwp_max)  ||
+	    (before_hwp_des   != hovered_hwp_des)  ||
+	    (before_hwp_epp   != hovered_hwp_epp)  ||
+	    (before_apply     != _apply_hovered)   ||
+	    (before_all_apply != _apply_all_hovered))
 		refresh = true;
 
 	if (refresh)
@@ -296,9 +308,50 @@ void Power::_info_update ()
 
 	Reporter::Xml_generator xml(_dialog, [&] () {
 		xml.node("frame", [&] {
-			xml.node("vbox", [&] {
+			xml.node("hbox", [&] {
+				xml.node("vbox", [&] {
+					xml.attribute("name", 1);
+
+					_info.xml().for_each_sub_node("cpu", [&](Genode::Xml_node &cpu) {
+						_cpu_name(xml, cpu);
+					});
+				});
+
+				xml.node("vbox", [&] {
+					xml.attribute("name", 2);
+					_info.xml().for_each_sub_node("cpu", [&](Genode::Xml_node &cpu) {
+						_cpu_temp(xml, cpu);
+					});
+				});
+
+				xml.node("vbox", [&] {
+					xml.attribute("name", 3);
+					_info.xml().for_each_sub_node("cpu", [&](Genode::Xml_node &cpu) {
+						_cpu_freq(xml, cpu);
+					});
+				});
+
+				xml.node("vbox", [&] {
+					xml.attribute("name", 4);
+					_info.xml().for_each_sub_node("cpu", [&](Genode::Xml_node &cpu) {
+						_cpu_setting(xml, cpu);
+					});
+				});
+
 				_info.xml().for_each_sub_node("cpu", [&](Genode::Xml_node &cpu) {
-					_per_cpu(xml, cpu);
+					auto const affinity_x = cpu.attribute_value("x", 0U);
+					auto const affinity_y = cpu.attribute_value("y", 0U);
+					auto const cpu_id     = affinity_x * CPU_MUL + affinity_y;
+
+					if (cpu_id != _setting_cpu.value)
+						return;
+
+					xml.node("vbox", [&] {
+						xml.attribute("name", 5);
+
+						auto const name = String<12>("CPU ", affinity_x, "x", affinity_y);
+						_settings_view(xml, cpu, name);
+					});
 				});
 			});
 		});
@@ -306,51 +359,66 @@ void Power::_info_update ()
 }
 
 
-void Power::_generate_msr_config()
+void Power::_generate_msr_cpu(Reporter::Xml_generator &xml,
+                              unsigned affinity_x, unsigned affinity_y)
 {
-	if (!_setting_cpu.valid())
-		return;
+	xml.node("cpu", [&] {
+		xml.attribute("x", affinity_x);
+		xml.attribute("y", affinity_y);
 
-	auto const affinity_x = _setting_cpu.value / CPU_MUL;
-	auto const affinity_y = _setting_cpu.value % CPU_MUL;
+		xml.node("pstate", [&] {
+			xml.attribute("rw_command", _amd_pstate.value());
+		});
 
-	Reporter::Xml_generator xml(_msr_config, [&] () {
-		xml.attribute("verbose", false);
+		xml.node("hwp_request", [&] {
+			xml.attribute("min",     _intel_hwp_min.value());
+			xml.attribute("max",     _intel_hwp_max.value());
+			xml.attribute("desired", _intel_hwp_des.value());
+			xml.attribute("epp",     _intel_hwp_epp.value());
+		});
 
-		xml.node("cpu", [&] {
-			xml.attribute("x", affinity_x);
-			xml.attribute("y", affinity_y);
-
-			xml.node("pstate", [&] {
-				xml.attribute("rw_command", _amd_pstate.value());
-			});
-
-			xml.node("hwp_request", [&] {
-				xml.attribute("min",     _intel_hwp_min.value());
-				xml.attribute("max",     _intel_hwp_max.value());
-				xml.attribute("desired", _intel_hwp_des.value());
-				xml.attribute("epp",     _intel_hwp_epp.value());
-			});
-
-			xml.node("intel_speed_step", [&] {
-				xml.attribute("epb", _intel_epb.value());
-			});
+		xml.node("intel_speed_step", [&] {
+			xml.attribute("epb", _intel_epb.value());
 		});
 	});
 }
 
 
-void Power::_per_cpu(Reporter::Xml_generator &xml, Xml_node &cpu)
+void Power::_generate_msr_config(bool all_cpus)
+{
+	if (!_setting_cpu.valid())
+		return;
+
+	Reporter::Xml_generator xml(_msr_config, [&] () {
+		xml.attribute("verbose", false);
+
+		if (all_cpus) {
+			_info.xml().for_each_sub_node("cpu", [&](Genode::Xml_node &cpu) {
+
+				auto const affinity_x = cpu.attribute_value("x", 0U);
+				auto const affinity_y = cpu.attribute_value("y", 0U);
+
+				_generate_msr_cpu(xml, affinity_x, affinity_y);
+			});
+		} else {
+			auto const affinity_x = _setting_cpu.value / CPU_MUL;
+			auto const affinity_y = _setting_cpu.value % CPU_MUL;
+
+			_generate_msr_cpu(xml, affinity_x, affinity_y);
+		}
+	});
+}
+
+
+void Power::_cpu_name(Reporter::Xml_generator &xml, Xml_node &cpu)
 {
 	auto const affinity_x = cpu.attribute_value("x", 0U);
 	auto const affinity_y = cpu.attribute_value("y", 0U);
-	auto const freq_khz   = cpu.attribute_value("freq_khz", 0ULL);
-	auto const temp_c     = cpu.attribute_value("temp_c", 0U);
 
 	auto const cpu_id     = affinity_x * CPU_MUL + affinity_y;
 
 	xml.node("hbox", [&] {
-		auto const name = String<12>("CPU ", affinity_x, "x", affinity_y);
+		auto const name = String<12>("CPU ", affinity_x, "x", affinity_y, " |");
 
 		xml.attribute("name", cpu_id);
 
@@ -358,18 +426,60 @@ void Power::_per_cpu(Reporter::Xml_generator &xml, Xml_node &cpu)
 			xml.attribute("name", 1);
 			xml.attribute("text", name);
 		});
+	});
+}
+
+
+void Power::_cpu_temp(Reporter::Xml_generator &xml, Xml_node &cpu)
+{
+	auto const affinity_x = cpu.attribute_value("x", 0U);
+	auto const affinity_y = cpu.attribute_value("y", 0U);
+	auto const temp_c     = cpu.attribute_value("temp_c", 0U);
+
+	auto const cpu_id     = affinity_x * CPU_MUL + affinity_y;
+
+	xml.node("hbox", [&] {
+		xml.attribute("name", cpu_id);
 
 		xml.node("label", [&] {
-			xml.attribute("name", 2);
-			xml.attribute("text", String<12>(" - ", temp_c, " °C - "));
+			xml.attribute("name", cpu_id);
+			xml.attribute("align", "right");
+			xml.attribute("text", String<12>(" ", temp_c, " °C |"));
 		});
+	});
+}
+
+
+void Power::_cpu_freq(Reporter::Xml_generator &xml, Xml_node &cpu)
+{
+	auto const affinity_x = cpu.attribute_value("x", 0U);
+	auto const affinity_y = cpu.attribute_value("y", 0U);
+	auto const freq_khz   = cpu.attribute_value("freq_khz", 0ULL);
+
+	auto const cpu_id     = affinity_x * CPU_MUL + affinity_y;
+
+	xml.node("hbox", [&] {
+		xml.attribute("name", cpu_id);
 
 		xml.node("label", [&] {
-			xml.attribute("name", 3);
-			xml.attribute("text", String<16>(freq_khz / 1000, ".",
+			xml.attribute("name", cpu_id);
+			xml.attribute("align", "right");
+			xml.attribute("text", String<16>(" ", freq_khz / 1000, ".",
 			                                 (freq_khz % 1000) / 10, " MHz"));
 		});
+	});
+}
 
+
+void Power::_cpu_setting(Reporter::Xml_generator &xml, Xml_node &cpu)
+{
+	auto const affinity_x = cpu.attribute_value("x", 0U);
+	auto const affinity_y = cpu.attribute_value("y", 0U);
+
+	auto const cpu_id     = affinity_x * CPU_MUL + affinity_y;
+
+	xml.node("hbox", [&] {
+		xml.attribute("name", cpu_id);
 		xml.node("button", [&] () {
 			xml.attribute("name", "settings");
 			xml.node("label", [&] () {
@@ -380,17 +490,11 @@ void Power::_per_cpu(Reporter::Xml_generator &xml, Xml_node &cpu)
 				xml.attribute("hovered", true);
 		});
 	});
-
-	if (cpu_id != _setting_cpu.value)
-		return;
-
-	xml.node("vbox", [&] {
-		_settings_view(xml, cpu);
-	});
 }
 
 
-void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu)
+void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu,
+                           String<12> const &cpuid)
 {
 	xml.attribute("name", "settings");
 
@@ -425,18 +529,17 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu)
 			xml.node("hbox", [&] () {
 				xml.attribute("name", "epb");
 
-				auto text = String<64>("Intel speed step: [", _intel_epb.min(),
+				auto text = String<64>(" Intel speed step: [", _intel_epb.min(),
 				                       "-", _intel_epb.max(), "] current=", epb);
 				xml.node("label", [&] () {
+					xml.attribute("align", "left");
 					xml.attribute("text", text);
 				});
 
 				hub(xml, _intel_epb, "epb");
-			});
 
-			xml.node("hbox", [&] () {
-				xml.attribute("name", "epbhints");
 				xml.node("label", [&] () {
+					xml.attribute("name", "epbhints");
 					xml.attribute("text", "PERFORMANCE = 0, BALANCED = 7, POWER_SAVING = 15");
 				});
 			});
@@ -454,10 +557,11 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu)
 			xml.node("hbox", [&] () {
 				xml.attribute("name", "hwpcap");
 
-				auto text = String<64>("Intel HWP features: [", hwp_low, "-",
+				auto text = String<72>(" Intel HWP features: [", hwp_low, "-",
 				                       hwp_high, "] efficient=", effi,
-				                       " guaranty=", guar);
+				                       " guaranty=", guar, " desired=0 (AUTO)");
 				xml.node("label", [&] () {
+					xml.attribute("align", "left");
 					xml.attribute("text", text);
 				});
 			});
@@ -476,7 +580,8 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu)
 			{
 				_intel_hwp_min.set_min_max(hwp_low, hwp_high);
 				_intel_hwp_max.set_min_max(hwp_low, hwp_high);
-				_intel_hwp_des.set_min_max(hwp_low, hwp_high);
+				/* 0 means auto - XXX better way ... */
+				_intel_hwp_des.set_min_max(0, hwp_high);
 
 				/* read out features sometimes are not within hw range .oO */
 				if (hwp_low <= min && min <= hwp_high)
@@ -493,20 +598,29 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu)
 				xml.attribute("name", "hwpreq");
 
 				xml.node("label", [&] () {
+					xml.attribute("align", "left");
+					xml.attribute("name", 1);
+					xml.attribute("text", String<72>(" Intel HWP current: [", min, "-", max, "] desired=", des));
+				});
+
+				xml.node("label", [&] () {
+					xml.attribute("align", "right");
 					xml.attribute("name", 2);
-					xml.attribute("text", String<16>("HWP min: ", min));
+					xml.attribute("text", String<16>(" min:"));
 				});
 				hub(xml, _intel_hwp_min, "hwp_min");
 
 				xml.node("label", [&] () {
+					xml.attribute("align", "right");
 					xml.attribute("name", 3);
-					xml.attribute("text", String<16>("max: ", max));
+					xml.attribute("text", String<16>(" max:"));
 				});
 				hub(xml, _intel_hwp_max, "hwp_max");
 
 				xml.node("label", [&] () {
+					xml.attribute("align", "right");
 					xml.attribute("name", 4);
-					xml.attribute("text", String<16>("desired: ", des));
+					xml.attribute("text", String<16>(" desired:"));
 				});
 				hub(xml, _intel_hwp_des, "hwp_des");
 			});
@@ -514,18 +628,17 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu)
 			xml.node("hbox", [&] () {
 				xml.attribute("name", "hwpepp");
 
-				auto text = String<64>("Intel EPP: [", _intel_hwp_epp.min(),
+				auto text = String<64>(" Intel EPP: [", _intel_hwp_epp.min(),
 				                       "-", _intel_hwp_epp.max(), "] current=", epp);
 				xml.node("label", [&] () {
+					xml.attribute("align", "left");
 					xml.attribute("text", text);
 				});
 
 				hub(xml, _intel_hwp_epp, "hwp_epp");
-			});
 
-			xml.node("hbox", [&] () {
-				xml.attribute("name", "hwpepphints");
 				xml.node("label", [&] () {
+					xml.attribute("name", "hwpepphints");
 					xml.attribute("text", "PERFORMANCE = 0, BALANCED = 128, ENERGY = 255");
 				});
 			});
@@ -537,9 +650,10 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu)
 			xml.node("hbox", [&] () {
 				xml.attribute("name", "hwpcoord");
 
-				auto text = String<64>("Intel HWP coordination feedback "
+				auto text = String<64>(" Intel HWP coordination feedback "
 				                       "available but not supported.");
 				xml.node("label", [&] () {
+					xml.attribute("align", "left");
 					xml.attribute("text", text);
 				});
 			});
@@ -548,14 +662,30 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu)
 		}
 	});
 
-	xml.node("button", [&] () {
-		xml.attribute("name", "apply");
+	xml.node("hbox", [&] () {
 		xml.node("label", [&] () {
-			xml.attribute("text", "apply");
+			xml.attribute("text", cpuid);
 		});
 
-		if (_apply_hovered)
-			xml.attribute("hovered", true);
+		xml.node("button", [&] () {
+			xml.attribute("name", "apply");
+			xml.node("label", [&] () {
+				xml.attribute("text", "apply");
+			});
+
+			if (_apply_hovered)
+				xml.attribute("hovered", true);
+		});
+
+		xml.node("button", [&] () {
+			xml.attribute("name", "applyall");
+			xml.node("label", [&] () {
+				xml.attribute("text", "apply to all CPUs");
+			});
+
+			if (_apply_all_hovered)
+				xml.attribute("hovered", true);
+		});
 	});
 }
 
