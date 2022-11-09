@@ -7,3 +7,4 @@ capture_session
 timer_session
 platform_session
 gpu_session
+event_session
