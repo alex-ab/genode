@@ -47,8 +47,8 @@ class Power
 		Attached_rom_dataspace  _hover     { _env, "hover" };
 		Signal_handler<Power>   _hover_sig { _env.ep(), *this, &Power::_hover_update};
 
-		Reporter                _dialog          { _env, "dialog" };
-		Reporter                _msr_config      { _env, "config" };
+		Reporter                _dialog          { _env, "dialog", "dialog", 0x8000 };
+		Reporter                _msr_config      { _env, "config", "config", 0x8000 };
 
 		State                   _setting_cpu       { };
 		State                   _setting_hovered   { };
