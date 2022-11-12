@@ -144,8 +144,6 @@ void Power::_hover_update()
 		button = query_attribute<Button>(hover, "dialog", "frame",
 	                                     "vbox", "vbox", "hbox", "button", "name");
 
-	Genode::error("button '", button, "'");
-
 	bool click_valid = false;
 	Button click = query_attribute<Button>(hover, "button", "left");
 	if (click == "yes") {
