@@ -654,7 +654,7 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu,
 		if (node.type() == "hwp_request") {
 			unsigned min = node.attribute_value("min"     , 1);
 			unsigned max = node.attribute_value("max"     , 1);
-			unsigned des = node.attribute_value("desired" , 1);
+			unsigned des = node.attribute_value("desired" , 0);
 			unsigned epp = node.attribute_value("epp"     , 1);
 
 			if (hwp_low && hwp_high && (_intel_hwp_min.min() < hwp_low ||
@@ -670,7 +670,7 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu,
 					_intel_hwp_min.set(min);
 				if (hwp_low <= max && max <= hwp_high)
 					_intel_hwp_max.set(max);
-				if (hwp_low <= des && des <= hwp_high)
+				if (des <= hwp_high)
 					_intel_hwp_des.set(des);
 
 				_intel_hwp_epp.set(epp);
