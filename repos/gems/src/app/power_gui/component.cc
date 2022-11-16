@@ -553,10 +553,12 @@ void Power::_cpu_setting(Reporter::Xml_generator &xml, Xml_node &cpu)
 void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu,
                            String<12> const &cpuid)
 {
-	xml.attribute("name", "settings");
+	static bool initial_setting = true;
 
 	unsigned hwp_high = 0;
 	unsigned hwp_low  = 0;
+
+	xml.attribute("name", "settings");
 
 	cpu.for_each_sub_node([&](Genode::Xml_node &node) {
 
@@ -570,9 +572,15 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu,
 			xml.node("hbox", [&] () {
 				xml.attribute("name", "pstate");
 
+				auto text = String<64>("Hardware Performance-State: max-min [",
+				                       min, "-", max, "] current=", cur);
 				xml.node("label", [&] () {
-					xml.attribute("text", String<32>("Hardware Performance-State: max-min [", min, "-", max, "] current=", cur));
+					xml.attribute("align", "left");
+					xml.attribute("text", text);
 				});
+
+				if (initial_setting)
+					_amd_pstate.set(cur);
 
 				hub(xml, _amd_pstate, "pstate");
 			});
@@ -592,6 +600,9 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu,
 					xml.attribute("align", "left");
 					xml.attribute("text", text);
 				});
+
+				if (initial_setting)
+					_intel_epb.set(epb);
 
 				hub(xml, _intel_epb, "epb");
 
@@ -657,8 +668,7 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu,
 			unsigned des = node.attribute_value("desired" , 0);
 			unsigned epp = node.attribute_value("epp"     , 1);
 
-			if (hwp_low && hwp_high && (_intel_hwp_min.min() < hwp_low ||
-			                            _intel_hwp_min.max() > hwp_high))
+			if (hwp_low && hwp_high && initial_setting)
 			{
 				_intel_hwp_min.set_min_max(hwp_low, hwp_high);
 				_intel_hwp_max.set_min_max(hwp_low, hwp_high);
@@ -716,6 +726,9 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu,
 					xml.attribute("align", "left");
 					xml.attribute("text", text);
 				});
+
+				if (initial_setting)
+					_intel_hwp_epp.set(epp);
 
 				hub(xml, _intel_hwp_epp, "hwp_epp");
 
@@ -798,6 +811,9 @@ void Power::_settings_view(Reporter::Xml_generator &xml, Xml_node &cpu,
 				xml.attribute("selected", true);
 		});
 	});
+
+	if (initial_setting)
+		initial_setting = false;
 }
 
 void Component::construct(Genode::Env &env) { static Power state(env); }
