@@ -81,12 +81,13 @@ class Power
 		void _generate_msr_cpu(Reporter::Xml_generator &, unsigned, unsigned);
 		void _info_update();
 		void _hover_update();
-		void _cpu_name(Reporter::Xml_generator &, Xml_node &);
 		void _cpu_temp(Reporter::Xml_generator &, Xml_node &);
 		void _cpu_freq(Reporter::Xml_generator &, Xml_node &);
 		void _cpu_setting(Reporter::Xml_generator &, Xml_node &);
 		void _settings_view(Reporter::Xml_generator &, Xml_node &,
 		                    String<12> const &);
+
+		unsigned _cpu_name(Reporter::Xml_generator &, Xml_node &, unsigned);
 
 		template <typename T>
 		void hub(Genode::Xml_generator &xml, T &hub, char const *name)
@@ -377,8 +378,10 @@ void Power::_info_update ()
 				xml.node("vbox", [&] {
 					xml.attribute("name", 1);
 
+					unsigned loc_x_last = ~0U;
+
 					_info.xml().for_each_sub_node("cpu", [&](Genode::Xml_node &cpu) {
-						_cpu_name(xml, cpu);
+						loc_x_last = _cpu_name(xml, cpu, loc_x_last);
 					});
 				});
 
@@ -474,21 +477,27 @@ void Power::_generate_msr_config(bool all_cpus)
 }
 
 
-void Power::_cpu_name(Reporter::Xml_generator &xml, Xml_node &cpu)
+unsigned Power::_cpu_name(Reporter::Xml_generator &xml, Xml_node &cpu,
+                          unsigned last_x)
 {
 	auto const affinity_x = cpu.attribute_value("x", 0U);
 	auto const affinity_y = cpu.attribute_value("y", 0U);
+	bool const same_x     = affinity_x == last_x;
 
 	xml.node("hbox", [&] {
-		auto const name = String<12>("CPU ", affinity_x, "x", affinity_y, " |");
+		auto const name = String<12>(same_x ? "" : "CPU ", affinity_x, "x",
+		                             affinity_y, " |");
 
 		xml.attribute("name", cpu_id(cpu));
 
 		xml.node("label", [&] {
 			xml.attribute("name", 1);
+			xml.attribute("align", "right");
 			xml.attribute("text", name);
 		});
 	});
+
+	return affinity_x;
 }
 
 
