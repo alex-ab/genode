@@ -186,9 +186,9 @@ struct Msr::Msr {
 		    ", TSC ", freq_khz, " kHz");
 
 		/* construct the thread objects */
-		for (unsigned y = 0; y < cpus.height(); y++) {
-			for (unsigned x = 0; x < cpus.width(); x++) {
-				unsigned const i = x + y * cpus.width();
+		for (unsigned x = 0; x < cpus.width(); x++) {
+			for (unsigned y = 0; y < cpus.height(); y++) {
+				unsigned const i = y + x * cpus.height();
 				threads[i] = new (heap) Core_thread(env, Affinity::Location(x, y),
 				                                    freq_khz, intel, amd);
 
@@ -267,7 +267,7 @@ struct Msr::Msr {
 				return;
 			unsigned const xpos  = node.attribute_value("x", 0u);
 			unsigned const ypos  = node.attribute_value("y", 0u);
-			unsigned const index = xpos + ypos * cpus.width();
+			unsigned const index = ypos + xpos * cpus.height();
 			if (index >= cpus.total())
 				return;
 
