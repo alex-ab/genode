@@ -797,8 +797,8 @@ Platform::Platform()
 				                          cpu->p_core() ? " P" : "");
 
 			log(" remap (", location.xpos(), "x", location.ypos(),") -> ",
-			    kernel_cpu_id, " - ", text, ") ",
-			    boot_cpu() == kernel_cpu_id ? "boot cpu" : "");
+			    kernel_cpu_id, " - ", text,
+			    boot_cpu() == kernel_cpu_id ? " boot cpu" : "");
 		});
 	}
 
