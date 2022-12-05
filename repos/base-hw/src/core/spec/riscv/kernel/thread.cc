@@ -89,6 +89,9 @@ void Thread::exception(Cpu & cpu)
 }
 
 
+void Thread::_call_suspend() { }
+
+
 void Thread::_call_cache_coherent_region() { }
 
 

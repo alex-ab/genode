@@ -32,6 +32,9 @@ void Kernel::Thread::Tlb_invalidation::execute()
 };
 
 
+void Kernel::Thread::_call_suspend() { }
+
+
 void Kernel::Thread::_call_cache_coherent_region() { }
 
 

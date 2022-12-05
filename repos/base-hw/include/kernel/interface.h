@@ -46,6 +46,7 @@ namespace Kernel {
 	constexpr Call_arg call_id_time()                     { return 21; }
 	constexpr Call_arg call_id_run_vm()                   { return 22; }
 	constexpr Call_arg call_id_pause_vm()                 { return 23; }
+	constexpr Call_arg call_id_suspend()                  { return 24; }
 
 
 	/*****************************************************************
@@ -430,6 +431,16 @@ namespace Kernel {
 	inline void pause_vm(capid_t const cap)
 	{
 		call(call_id_pause_vm(), cap);
+	}
+
+
+	/**
+	 * Suspend hardware
+	 */
+	inline bool suspend(Genode::uint8_t const sleep_typ_a,
+	                    Genode::uint8_t const sleep_typ_b)
+	{
+		return bool(call(call_id_suspend(), sleep_typ_a, sleep_typ_b));
 	}
 }
 
