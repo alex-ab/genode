@@ -18,6 +18,10 @@
 #include <kernel/thread.h>
 #include <kernel/pd.h>
 
+#include <hw/spec/x86_64/acpi.h>
+#include <platform_pd.h>
+
+#include <kernel/main.h>
 
 void Kernel::Thread::Tlb_invalidation::execute()
 {
@@ -32,7 +36,94 @@ void Kernel::Thread::Tlb_invalidation::execute()
 };
 
 
-void Kernel::Thread::_call_suspend() { }
+void Kernel::Thread::Flush_and_stop_cpu::execute()
+{
+	--cpus_left;
+
+	/* adhere to ACPI specification */
+	asm volatile ("wbinvd" : : : "memory");
+
+	/* unlock the kernel, so that other CPUs can handle IPI */
+	Kernel::main_unlock_kernel();
+
+	while (true) {
+		asm volatile ("hlt");
+	}
+}
+
+
+void Kernel::Thread::_call_suspend()
+{
+	using Genode::uint8_t;
+	using Genode::Platform;
+
+	Hw::Acpi_generic * acpi_fadt_table { };
+	unsigned           cpu_count       { };
+
+	Platform::apply_with_boot_info([&](auto const &boot_info) {
+		auto table = boot_info.plat_info.acpi_fadt;
+		if (table)
+			acpi_fadt_table = reinterpret_cast<Hw::Acpi_generic *>(Platform::mmio_to_virt(table));
+
+		cpu_count = boot_info.cpus;
+	});
+
+	if (!acpi_fadt_table || !cpu_count) {
+		user_arg_0(0 /* fail */);
+		return;
+	}
+
+	if (_stop_cpu.constructed()) {
+		if (_stop_cpu->cpus_left) {
+			Genode::raw("kernel: resume still ongoing");
+			user_arg_0(0 /* fail */);
+			return;
+		}
+
+		/* remove & destruct Flush_and_stop_cpu object */
+		_stop_cpu.destruct();
+		user_arg_0(1 /* success */);
+
+		return;
+	}
+
+	_stop_cpu.construct(_cpu_pool.work_list(), cpu_count);
+
+	if (cpu_count > 1) {
+		/* trigger IPIs to all beside current CPU */
+		_cpu_pool.for_each_cpu([&] (Cpu &cpu) {
+
+			if (cpu.id() == Cpu::executing_id())
+				return;
+
+			cpu.trigger_ip_interrupt();
+		});
+	}
+
+	/* unlock the kernel, so that other CPUs can handle IPI */
+	Kernel::main_unlock_kernel();
+
+	/* wait until all are asleep */
+	while (_stop_cpu->cpus_left > 1) { asm volatile ("pause":::"memory"); }
+
+	_stop_cpu->cpus_left = 0;
+
+	/* all CPUS are stopped, trigger ACPI suspend */
+	Hw::Acpi_fadt fadt(acpi_fadt_table);
+
+	uint8_t sleep_typ_a = uint8_t(user_arg_1());
+	uint8_t sleep_typ_b = uint8_t(user_arg_2());
+
+	/* adhere to ACPI specification */
+	asm volatile ("wbinvd" : : : "memory");
+
+	fadt.suspend(sleep_typ_a, sleep_typ_b);
+
+	Genode::raw("kernel: unexpected resume");
+
+	/* unsupported resume case */
+	user_arg_0(0 /* fail */);
+}
 
 
 void Kernel::Thread::_call_cache_coherent_region() { }

@@ -43,6 +43,7 @@ class Kernel::Main
 		friend void main_initialize_and_handle_kernel_entry();
 		friend time_t main_read_idle_thread_execution_time(unsigned cpu_idx);
 		friend void main_print_char(char c);
+		friend void main_unlock_kernel();
 
 		enum { SERIAL_BAUD_RATE = 115200 };
 
@@ -244,6 +245,12 @@ void Kernel::main_print_char(char c)
 Kernel::time_t Kernel::main_read_idle_thread_execution_time(unsigned cpu_idx)
 {
 	return Main::_instance->_cpu_pool.cpu(cpu_idx).idle_thread().execution_time();
+}
+
+
+void Kernel::main_unlock_kernel()
+{
+	Main::_instance->_data_lock.unlock();
 }
 
 

@@ -28,6 +28,8 @@ namespace Kernel {
 	time_t main_read_idle_thread_execution_time(unsigned cpu_idx);
 
 	void main_print_char(char c);
+
+	void main_unlock_kernel();
 }
 
 #endif /* _KERNEL__MAIN_H_ */
