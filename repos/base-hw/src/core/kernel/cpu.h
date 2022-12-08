@@ -186,6 +186,8 @@ class Kernel::Cpu : public Genode::Cpu, private Irq::Pool, private Timeout
 		 * Return CPU's idle thread object
 		 */
 		Kernel::Thread &idle_thread() { return _idle; }
+
+		void reinit_cpu() { _arch_init(); }
 };
 
 
@@ -212,6 +214,12 @@ class Kernel::Cpu_pool
 		                         Irq::Pool                          &user_irq_pool,
 		                         Pd                                 &core_pd,
 		                         Board::Global_interrupt_controller &global_irq_ctrl);
+
+		/**
+		 * Return whether CPU object is valid and is constructed.
+		 */
+		bool cpu_valid(unsigned const id) const {
+			return id < _nr_of_cpus && _cpus[id].constructed(); }
 
 		/**
 		 * Return object of CPU 'id'
