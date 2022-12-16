@@ -115,8 +115,33 @@ class Kernel::Thread : private Kernel::Object, public Cpu_job, private Timeout
 			void execute() override;
 		};
 
+		/**
+		 * Flush and stop CPU, e.g. before suspending or powering off the CPU
+		 */
+		struct Flush_and_stop_cpu : Inter_processor_work
+		{
+			Inter_processor_work_list &global_work_list;
+			unsigned                   cpus_left;
+
+			Flush_and_stop_cpu(Inter_processor_work_list &global_work_list,
+			                   unsigned cpus)
+			: global_work_list(global_work_list), cpus_left(cpus)
+			{
+				global_work_list.insert(&_le);
+			}
+
+			~Flush_and_stop_cpu() { global_work_list.remove(&_le); }
+
+			/************************************
+			 ** Inter_processor_work interface **
+			 ************************************/
+
+			void execute() override;
+		};
+
 		friend void Tlb_invalidation::execute();
 		friend void Destroy::execute();
+		friend void Flush_and_stop_cpu::execute();
 
 	protected:
 
@@ -155,8 +180,9 @@ class Kernel::Thread : private Kernel::Object, public Cpu_job, private Timeout
 		bool                               _cancel_next_await_signal { false };
 		Type const                         _type;
 
-		Genode::Constructible<Tlb_invalidation> _tlb_invalidation {};
-		Genode::Constructible<Destroy>          _destroy {};
+		Genode::Constructible<Tlb_invalidation>   _tlb_invalidation {};
+		Genode::Constructible<Destroy>            _destroy {};
+		Genode::Constructible<Flush_and_stop_cpu> _stop_cpu {};
 
 		/**
 		 * Notice that another thread yielded the CPU to this thread
