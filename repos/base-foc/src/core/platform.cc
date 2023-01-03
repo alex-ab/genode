@@ -34,6 +34,7 @@
 #include <platform_thread.h>
 #include <platform_pd.h>
 #include <util.h>
+#include <cpu_thread_component.h>
 
 /* Fiasco.OC includes */
 #include <foc/syscall.h>
@@ -578,6 +579,8 @@ Platform::Platform()
 		                                                       cpus.width(), 1),
 		                                    "idle");
 	}
+
+	Genode::error("---- ", sizeof(Cpu_thread_component), " ", sizeof(Platform_thread));
 }
 
 

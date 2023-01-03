@@ -25,6 +25,7 @@
 #include <base/internal/capability_space_tpl.h>
 #include <base/internal/globals.h>
 #include <base/internal/pistachio.h>
+#include <cpu_thread_component.h>
 
 /* core includes */
 #include <boot_modules.h>
@@ -641,6 +642,8 @@ Platform::Platform()
 				[&] () {
 					xml.node("kernel", [&] () {
 						xml.attribute("name", "pistachio"); }); }); });
+
+	Genode::error("---- ", sizeof(Cpu_thread_component), " ", sizeof(Platform_thread));
 }
 
 

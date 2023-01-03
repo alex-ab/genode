@@ -35,6 +35,7 @@
 #include <base/internal/stack_area.h>
 #include <base/internal/native_utcb.h>
 #include <base/internal/globals.h>
+#include <cpu_thread_component.h>
 
 /* NOVA includes */
 #include <nova/syscalls.h>
@@ -914,6 +915,8 @@ Platform::Platform()
 		                                    (unsigned)(sc_idle_base + kernel_cpu_id),
 		                                    "killed");
 	});
+
+	Genode::error("---- ", sizeof(Cpu_thread_component), " ", sizeof(Platform_thread));
 
 	/* add exception handler EC for core and EC root thread to trace sources */
 	struct Core_trace_source : public  Trace::Source::Info_accessor,

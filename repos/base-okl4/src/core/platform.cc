@@ -32,6 +32,7 @@
 #include <platform_thread.h>
 #include <platform_pd.h>
 #include <map_local.h>
+#include <cpu_thread_component.h>
 
 using namespace Genode;
 
@@ -248,6 +249,8 @@ Platform::Platform()
 			[&] (Range_allocator::Alloc_error) { }
 		);
 	}
+
+	Genode::error("---- ", sizeof(Cpu_thread_component), " ", sizeof(Platform_thread));
 }
 
 

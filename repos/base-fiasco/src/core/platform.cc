@@ -24,6 +24,7 @@
 #include <base/internal/stack_area.h>
 #include <base/internal/capability_space_tpl.h>
 #include <base/internal/globals.h>
+#include <cpu_thread_component.h>
 
 /* core includes */
 #include <core_log.h>
@@ -481,6 +482,8 @@ Platform::Platform()
 				[&] () {
 					xml.node("kernel", [&] () {
 						xml.attribute("name", "fiasco"); }); }); });
+
+	Genode::error("---- ", sizeof(Cpu_thread_component), " ", sizeof(Platform_thread));
 }
 
 

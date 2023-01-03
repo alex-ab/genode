@@ -36,6 +36,7 @@
 /* base includes */
 #include <base/log.h>
 #include <trace/source_registry.h>
+#include <cpu_thread_component.h>
 
 using namespace Genode;
 
@@ -294,6 +295,7 @@ Platform::Platform()
 	}
 
 	log(_rom_fs);
+	Genode::error("---- ", sizeof(Cpu_thread_component), " ", sizeof(Platform_thread));
 }
 
 

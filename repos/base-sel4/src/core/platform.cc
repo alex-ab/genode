@@ -26,6 +26,7 @@
 #include <cnode.h>
 #include <untyped_memory.h>
 #include <thread_sel4.h>
+#include <cpu_thread_component.h>
 
 /* base-internal includes */
 #include <base/internal/globals.h>
@@ -657,6 +658,8 @@ Platform::Platform()
 	_init_rom_modules();
 
 	platform_in_construction = nullptr;
+
+	Genode::error("---- ", sizeof(Cpu_thread_component), " ", sizeof(Platform_thread));
 }
 
 
