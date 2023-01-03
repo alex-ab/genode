@@ -1,0 +1,22 @@
+sizeof() of Cpu_thread_component and Platform_thread
+
+-- 32bit --
+
+nova      x86_32:   820   72
+okl4      x86_32:   916   52
+pistachio x86_32:   920   56 
+fiasco    x86_32:   940   76 
+fiasco.oc x86_32:  1016  112
+sel4      x86_32:  1084  216
+
+hw        arm_v7a: 1568  848
+
+
+-- 64bit --
+
+nova      x86_64:  1360   96
+fiasco.oc x86_64:  1576  168
+sel4      x86_64:  1600  248
+hw        x86_64:  2776 1610
+
+hw        arm_v8a: 2872 1712
