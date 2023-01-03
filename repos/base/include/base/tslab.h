@@ -22,6 +22,10 @@ namespace Genode { template <typename, size_t> struct Tslab; }
 template <typename T, Genode::size_t BLOCK_SIZE>
 struct Genode::Tslab : Slab
 {
+
+	/* check if reasonable amount of entries fits one block */
+	static_assert(sizeof(T)*8 <= BLOCK_SIZE);
+
 	Tslab(Allocator *backing_store, void *initial_sb = 0)
 	: Slab(sizeof(T), BLOCK_SIZE, initial_sb, backing_store)
 	{ }
