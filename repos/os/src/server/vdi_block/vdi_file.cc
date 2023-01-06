@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2020 Genode Labs GmbH
+ * Copyright (C) 2020-2023 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU General Public License version 2.
@@ -139,6 +139,9 @@ void Vdi::File::_execute_alloc_block()
 		if (!_vdi_file->fs().queue_sync(_vdi_file))
 			return;
 		_state_fs.state = Write::ALLOC_BLOCK_SYNC_QUEUED;
+
+		/* trigger queued sync to be processed */
+		_vfs_env.io().commit();
 	}
 
 	if (_state_fs.state == Write::ALLOC_BLOCK_SYNC_QUEUED) {

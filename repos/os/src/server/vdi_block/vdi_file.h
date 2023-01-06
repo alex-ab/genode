@@ -1,11 +1,12 @@
 /*
  * \brief  VDI file as a Block session
  * \author Josef Soentgen
+ * \author Alexander Boettcher
  * \date   2018-11-01
  */
 
 /*
- * Copyright (C) 2018 Genode Labs GmbH
+ * Copyright (C) 2018-2023 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU General Public License version 2.
@@ -395,12 +396,14 @@ class Vdi::File: Vfs::Read_ready_response_handler, Vfs::Env::User
 		void _write(char * const base, Vfs::file_size const base_size,
 		            Genode::uint64_t const fs_offset)
 		{
+			auto const written_state_on_enter = _state_fs.written;
+
 			do {
 				if (_state_fs.written > _state_fs.max ||
 				    _state_fs.written > base_size) {
 					Genode::error("size errors");
 					_state_fs.state = Write::ERROR;
-					return;
+					break;
 				}
 
 				auto rest = Genode::min(base_size - _state_fs.written,
@@ -414,18 +417,25 @@ class Vdi::File: Vfs::Read_ready_response_handler, Vfs::Env::User
 				                                       written);
 
 				if (res == Vfs::File_io_service::WRITE_ERR_WOULD_BLOCK) {
+					if (written != 0)
+						Genode::warning("WOULD_ERR_WOULD_BLOCK but written is not 0 -> ", written);
 					/* will be resumed later, keep state on WRITE */
-					return;
+					break;
 				}
 
 				if (res != Vfs::File_io_service::WRITE_OK) {
 					_state_fs.state = Write::ERROR;
 					Genode::error(".... write error");
-					return;
+					break;
 				}
 
 				_state_fs.written += written;
 			} while (_state_fs.written < _state_fs.max);
+
+			if (_state_fs.written != written_state_on_enter) {
+				/* trigger queued write operations to be processed */
+				_vfs_env.io().commit();
+			}
 		}
 
 		void _read(char * dst, Vfs::file_size const dst_size)
@@ -444,6 +454,9 @@ class Vdi::File: Vfs::Read_ready_response_handler, Vfs::Env::User
 				}
 
 				_state_fs_read.state = Read::CHECK;
+
+				/* trigger queued read to be processed */
+				_vfs_env.io().commit();
 			}
 
 			if (_state_fs_read.state == Read::CHECK) {
@@ -508,6 +521,9 @@ class Vdi::File: Vfs::Read_ready_response_handler, Vfs::Env::User
 				if (!_vdi_file->fs().queue_sync(_vdi_file))
 					return Response::RETRY;
 				_state_fs_sync.state = Sync::SYNC_QUEUED;
+
+				/* trigger queued sync to be processed */
+				_vfs_env.io().commit();
 
 				[[fallthrough]];
 
