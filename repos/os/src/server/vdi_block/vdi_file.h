@@ -73,16 +73,19 @@ struct Vdi::Meta_data
 		block_size(block_size), sector_size(sector_size)
 	{ }
 
-	template <typename T>
-	bool alloc_block(uint64_t const bid, T const &fn)
+	template <typename T, typename E>
+	bool alloc_block(uint64_t const bid, T const &fn, E const &err)
 	{
-		if (bid >= max_blocks)
+		if (bid >= max_blocks) {
+			err();
 			return false;
+		}
 
 		uint64_t const offset = uint64_t(data_offset) +
 		                        uint64_t(allocated_blocks) *
 		                        uint64_t(block_size);
-		fn(offset);
+		if (!fn(offset))
+			return false;
 
 		table[bid].value = allocated_blocks;
 		allocated_blocks++;
@@ -175,7 +178,7 @@ static Genode::Xml_node vfs_config(Genode::Xml_node const &config)
 	}
 }
 
-class Vdi::File: public Vfs::Io_response_handler
+class Vdi::File: Vfs::Read_ready_response_handler, Vfs::Env::User
 {
 	private:
 
@@ -183,16 +186,18 @@ class Vdi::File: public Vfs::Io_response_handler
 		using Sync_result  = Vfs::File_io_service::Sync_result;
 		using Write_result = Vfs::File_io_service::Write_result;
 
-		/****************************************
-		 ** Vfs::Io_response_handler interface **
-		 ****************************************/
-
+		/**
+		 * Vfs::Read_ready_response_handler interface
+		 */
 		void read_ready_response() override
 		{
 			Genode::error(__LINE__, " unimplemented");
 		}
 
-		void io_progress_response() override
+		/**
+		 * Vfs::Env::User interface
+		 */
+		void wakeup_vfs_user() override
 		{
 #if 0
 			Genode::log("io response write=", (int)_state_fs.state,
@@ -403,20 +408,19 @@ class Vdi::File: public Vfs::Io_response_handler
 				char * dst = base + _state_fs.written;
 				Vfs::file_size written = 0;
 
-				try {
-					_vdi_file->seek(fs_offset + _state_fs.written);
-					Write_result res = _vdi_file->fs().write(_vdi_file,
-					                                         dst,
-					                                         rest,
-					                                         written);
-					if (res != Vfs::File_io_service::WRITE_OK)
-					{
-						_state_fs.state = Write::ERROR;
-						Genode::error(".... write error");
-						return;
-					}
-				} catch (Vfs::File_io_service::Insufficient_buffer) {
+				_vdi_file->seek(fs_offset + _state_fs.written);
+
+				auto const res = _vdi_file->fs().write(_vdi_file, dst, rest,
+				                                       written);
+
+				if (res == Vfs::File_io_service::WRITE_ERR_WOULD_BLOCK) {
 					/* will be resumed later, keep state on WRITE */
+					return;
+				}
+
+				if (res != Vfs::File_io_service::WRITE_OK) {
+					_state_fs.state = Write::ERROR;
+					Genode::error(".... write error");
 					return;
 				}
 
@@ -540,7 +544,7 @@ class Vdi::File: public Vfs::Io_response_handler
 		File(Genode::Env &env, Genode::Xml_node config)
 		:
 			_env(env),
-			_vfs_env(_env, _heap, vfs_config(config))
+			_vfs_env(_env, _heap, vfs_config(config), *this)
 		{
 			bool const writeable = config.attribute_value("writeable", false);
 

@@ -84,40 +84,42 @@ void Vdi::File::_execute_alloc_block()
 	uint64_t const bid = sector_to_block(_state_fs.block_nr);
 
 	if (_state_fs.state == ALLOC_BLOCK) {
+		bool const allocated = _md->alloc_block(bid, [&](uint64_t const offset) {
+			do {
+				Vfs::file_size written = 0;
 
-		try {
-			bool const ok = _md->alloc_block(bid, [&](uint64_t const offset) {
-				do {
-					Vfs::file_size written = 0;
+				_vdi_file->seek(offset + _state_fs.written);
+				Write_result res = _vdi_file->fs().write(_vdi_file,
+				                                         _zero_addr,
+				                                         Genode::min(_md->block_size - _state_fs.written, _zero_size),
+				                                         written);
+				if (res == Vfs::File_io_service::WRITE_ERR_WOULD_BLOCK) {
+					if (written != 0)
+						Genode::warning("WOULD_ERR_WOULD_BLOCK but written is not 0 -> ", written);
+					/* will be resumed later, keep state */
+					return false;
+				}
 
-					_vdi_file->seek(offset + _state_fs.written);
-					Write_result res = _vdi_file->fs().write(_vdi_file,
-					                                         _zero_addr,
-					                                         Genode::min(_md->block_size - _state_fs.written, _zero_size),
-					                                         written);
-					if (res != Vfs::File_io_service::WRITE_OK) {
-						_state_fs.state = Write::ALLOC_BLOCK_ERROR;
-						Genode::error(__func__, " state: ", written, " ",
-						              _zero_size, " ", (int)res);
-						return;
-					}
+				if (res != Vfs::File_io_service::WRITE_OK) {
+					_state_fs.state = Write::ALLOC_BLOCK_ERROR;
+					Genode::error(__func__, " state: ", written, " ",
+					              _zero_size, " ", (int)res);
+					return false;
+				}
 
-					_state_fs.written += written;
-				} while (_state_fs.written < _md->block_size);
-			});
+				_state_fs.written += written;
+			} while (_state_fs.written < _md->block_size);
 
-			if (!ok) {
-				Genode::error(__func__, " new block allocation failed");
-				_state_fs.state = Write::ALLOC_BLOCK_ERROR;
-				return;
-			}
+			return true;
+		}, [&]() {
+			Genode::error(__func__, " new block allocation failed");
+			_state_fs.state = Write::ALLOC_BLOCK_ERROR;
+		});
 
-			_state_fs.state = Write::SYNC_HEADER;
-
-		} catch (Vfs::File_io_service::Insufficient_buffer) {
-			/* will be resumed later, keep state */
+		if (!allocated)
 			return;
-		}
+
+		_state_fs.state = Write::SYNC_HEADER;
 	}
 
 	if (_state_fs.state == Write::SYNC_HEADER   ||
