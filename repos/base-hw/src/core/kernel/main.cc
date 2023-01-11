@@ -146,6 +146,8 @@ void Kernel::main_initialize_and_handle_kernel_entry()
 
 				Main::_instance->_serial.construct(Genode::Platform::mmio_to_virt(Board::UART_BASE),
 				                                   Board::UART_CLOCK, Main::SERIAL_BAUD_RATE);
+
+				Main::_instance->_global_irq_ctrl.init();
 			}
 
 			nr_of_initialized_cpus ++;
