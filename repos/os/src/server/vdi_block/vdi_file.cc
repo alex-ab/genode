@@ -84,6 +84,8 @@ void Vdi::File::_execute_alloc_block()
 	uint64_t const bid = sector_to_block(_state_fs.block_nr);
 
 	if (_state_fs.state == ALLOC_BLOCK) {
+		auto const written_state_on_enter = _state_fs.written;
+
 		bool const allocated = _md->alloc_block(bid, [&](uint64_t const offset) {
 			do {
 				Vfs::file_size written = 0;
@@ -115,6 +117,11 @@ void Vdi::File::_execute_alloc_block()
 			Genode::error(__func__, " new block allocation failed");
 			_state_fs.state = Write::ALLOC_BLOCK_ERROR;
 		});
+
+		if (_state_fs.written != written_state_on_enter) {
+			/* trigger queued write operations to be processed */
+			_vfs_env.io().commit();
+		}
 
 		if (!allocated)
 			return;
