@@ -55,9 +55,7 @@ class Kernel::Main
 		Genode::Core_platform_pd                _core_platform_pd    { _addr_space_id_alloc };
 		Genode::Constructible<Core_main_thread> _core_main_thread    { };
 		Board::Global_interrupt_controller      _global_irq_ctrl     { };
-		Board::Serial                           _serial              { Genode::Platform::mmio_to_virt(Board::UART_BASE),
-		                                                               Board::UART_CLOCK,
-		                                                               SERIAL_BAUD_RATE };
+		Genode::Constructible<Board::Serial>    _serial              { };
 
 		void _handle_kernel_entry();
 
@@ -75,7 +73,10 @@ Kernel::Main *Kernel::Main::_instance;
 Kernel::Main::Main(unsigned nr_of_cpus)
 :
 	_cpu_pool { nr_of_cpus }
-{ }
+{
+	_serial.construct(Genode::Platform::mmio_to_virt(Board::UART_BASE),
+	                  Board::UART_CLOCK, SERIAL_BAUD_RATE);
+}
 
 
 void Kernel::Main::_handle_kernel_entry()
@@ -142,6 +143,9 @@ void Kernel::main_initialize_and_handle_kernel_entry()
 			if (kernel_initialized) {
 				nr_of_initialized_cpus = 0;
 				kernel_initialized     = false;
+
+				Main::_instance->_serial.construct(Genode::Platform::mmio_to_virt(Board::UART_BASE),
+				                                   Board::UART_CLOCK, Main::SERIAL_BAUD_RATE);
 			}
 
 			nr_of_initialized_cpus ++;
@@ -231,7 +235,7 @@ Genode::Platform_pd &Kernel::Main::core_platform_pd()
 
 void Kernel::main_print_char(char c)
 {
-	Main::_instance->_serial.put_char(c);
+	Main::_instance->_serial->put_char(c);
 }
 
 
