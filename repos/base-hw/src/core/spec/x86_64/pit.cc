@@ -69,6 +69,11 @@ void Board::Timer::init()
 	write<Tmr_lvt::Mask>(0);
 	write<Tmr_lvt::Timer_mode>(0);
 
+	if (divider) {
+		write<Divide_configuration::Divide_value>((uint8_t)divider);
+		return;
+	}
+
 	/* calibrate LAPIC frequency to fullfill our requirements */
 	for (Divide_configuration::access_t div = Divide_configuration::Divide_value::MAX;
 	     div && ticks_per_ms < TIMER_MIN_TICKS_PER_MS; div--)
@@ -81,6 +86,7 @@ void Board::Timer::init()
 
 		/* Calculate timer frequency */
 		ticks_per_ms = pit_calc_timer_freq();
+		divider      = div;
 	}
 
 	/**
