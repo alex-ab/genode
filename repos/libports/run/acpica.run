@@ -230,11 +230,11 @@ set config {
 						<system state="normal"/>
 					</inline>
 					<sleep milliseconds="5000" />
-<!--
 					<inline description="set system state to 'reset'">
 						<system state="reset"/>
 					</inline>
 					<sleep milliseconds="5000" />
+<!--
 					<inline description="set system state to 'poweroff'">
 						<system state="poweroff"/>
 					</inline>
@@ -263,6 +263,8 @@ set boot_modules {
 build_boot_image $boot_modules
 
 append qemu_args "-nographic "
+
+run_genode_until forever
 
 if {![have_include "power_on/qemu"]} {
 	run_genode_until forever
