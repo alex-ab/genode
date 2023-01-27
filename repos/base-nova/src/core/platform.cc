@@ -647,10 +647,12 @@ Platform::Platform()
 
 	_init_rom_modules();
 
-	auto export_pages_as_rom_module = [&] (auto rom_name, size_t pages, auto content_fn)
+	auto export_pages_as_rom_module = [&] (auto rom_name, size_t pages, auto content_fn, Genode::Range_allocator::Range range = { .start = 0, .end = ~0ULL })
 	{
+		Genode::error("export ", rom_name);
+
 		size_t const bytes = pages << get_page_size_log2();
-		ram_alloc().alloc_aligned(bytes, get_page_size_log2()).with_result(
+		ram_alloc().alloc_aligned(bytes, get_page_size_log2(), range).with_result(
 
 			[&] (void *phys_ptr) {
 
@@ -668,6 +670,8 @@ Platform::Platform()
 
 				_rom_fs.insert(new (core_mem_alloc())
 				               Rom_module(phys_addr, bytes, rom_name));
+
+				Genode::warning(rom_name, " ", Genode::Hex(phys_addr));
 
 				/* leave the ROM backing store mapped within core */
 			},
@@ -765,8 +769,9 @@ Platform::Platform()
 
 	export_pages_as_rom_module("core_log", 4,
 		[&] (char * const ptr, size_t const size) {
-			init_core_log( Core_log_range { (addr_t)ptr, size } );
-	});
+			init_core_log( Core_log_range { (addr_t)ptr, size } ); },
+		Genode::Range_allocator::Range { 0x14000, 0x14000 + 4 * 4096 - 1}
+	);
 
 	/* export hypervisor log memory */
 	if (hyp_log && hyp_log_size)
