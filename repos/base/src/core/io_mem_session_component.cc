@@ -53,6 +53,9 @@ Io_mem_session_component::_prepare_io_mem(const char      *args,
 		return Dataspace_attr();
 	}
 
+	if (req_base == 0xb0000000)
+		Genode::error(__func__, " ", this, " ", args);
+
 	/* request local mapping */
 	addr_t local_addr = _map_local(base, size);
 
@@ -69,6 +72,8 @@ Io_mem_session_component::Io_mem_session_component(Range_allocator &io_mem_alloc
 	_ds(_prepare_io_mem(args, ram_alloc)),
 	_ds_ep(ds_ep)
 {
+//	Genode::error(__func__, " ", this, " ", args);
+
 	if (!_ds.valid()) {
 		error("Local MMIO mapping failed!");
 
@@ -82,6 +87,9 @@ Io_mem_session_component::Io_mem_session_component(Range_allocator &io_mem_alloc
 
 Io_mem_session_component::~Io_mem_session_component()
 {
+	if (_ds.req_base == 0xb0000000)
+		Genode::error(__func__, " ", this);
+
 	/* dissolve IO_MEM dataspace from service entry point */
 	_ds_ep.dissolve(&_ds);
 

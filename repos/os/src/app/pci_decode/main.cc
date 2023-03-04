@@ -398,7 +398,9 @@ void Main::sys_rom_update()
 	pci_reporter.generate([&] (Xml_generator & generator)
 	{
 		parse_acpi_device_info(xml, generator);
+		Genode::error("parse again !");
 		parse_pci_config_spaces(xml, generator);
+		Genode::error("parse again ! done");
 	});
 }
 
