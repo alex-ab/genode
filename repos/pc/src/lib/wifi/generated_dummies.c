@@ -116,14 +116,6 @@ u64 __sock_gen_cookie(struct sock * sk)
 }
 
 
-#include <linux/srcu.h>
-
-void __srcu_read_unlock(struct srcu_struct * ssp,int idx)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 #include <linux/vmalloc.h>
 
 void * __vmalloc_node_range(unsigned long size,unsigned long align,unsigned long start,unsigned long end,gfp_t gfp_mask,pgprot_t prot,unsigned long vm_flags,int node,const void * caller)

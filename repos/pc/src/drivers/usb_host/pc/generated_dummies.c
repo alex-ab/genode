@@ -52,14 +52,6 @@ void __put_task_struct(struct task_struct * tsk)
 }
 
 
-#include <linux/srcu.h>
-
-void __srcu_read_unlock(struct srcu_struct * ssp,int idx)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 #include <linux/fs.h>
 
 void __unregister_chrdev(unsigned int major,unsigned int baseminor,unsigned int count,const char * name)

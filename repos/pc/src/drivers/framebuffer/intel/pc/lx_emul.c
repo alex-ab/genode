@@ -77,6 +77,14 @@ pgprot_t pgprot_writecombine(pgprot_t prot)
 }
 
 
+pgprot_t vm_get_page_prot(unsigned long vm_flags)
+{
+	pgprot_t dummy = { };
+	lx_emul_trace(__func__);
+	return dummy;
+}
+
+
 /*
  * shmem handling as done by Josef etnaviv
  */
@@ -181,6 +189,9 @@ static void _free_file(struct file *file)
 
 void fput(struct file *file)
 {
+	if (!file)
+		return;
+
 	if (atomic_long_sub_and_test(1, &file->f_count)) {
 		_free_file(file);
 	}
@@ -200,6 +211,21 @@ struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
 
 	p = private_data->pages;
 	return (p + index);
+}
+
+
+struct file *anon_inode_getfile(const char *name,
+                                const struct file_operations *fops,
+                                void *priv, int flags)
+{
+	struct file * file = kzalloc(sizeof(struct file), 0);
+
+	if (!file)
+		return (struct file*)ERR_PTR(-ENOMEM);
+
+	atomic_long_set(&file->f_count, 1);
+
+	return file;
 }
 
 
@@ -373,3 +399,22 @@ void * kmem_cache_alloc_lru(struct kmem_cache * cachep,struct list_lru * lru,gfp
 
 
 unsigned long __FIXADDR_TOP = 0xfffff000;
+
+
+#include <linux/uaccess.h>
+
+unsigned long _copy_from_user(void * to, const void __user * from,
+                              unsigned long n)
+{
+	memcpy(to, from, n);
+	return 0;
+}
+
+
+#include <linux/uaccess.h>
+
+unsigned long _copy_to_user(void __user * to, const void * from, unsigned long n)
+{
+	memcpy(to, from, n);
+	return 0;
+}

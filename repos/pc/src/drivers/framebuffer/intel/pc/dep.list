@@ -223,6 +223,7 @@ drivers/gpu/drm/i915/i915_iosf_mbi.h
 drivers/gpu/drm/i915/i915_irq.h
 drivers/gpu/drm/i915/i915_memcpy.h
 drivers/gpu/drm/i915/i915_mitigations.h
+drivers/gpu/drm/i915/i915_mm.h
 drivers/gpu/drm/i915/i915_params.h
 drivers/gpu/drm/i915/i915_pci.h
 drivers/gpu/drm/i915/i915_perf.h
@@ -247,6 +248,7 @@ drivers/gpu/drm/i915/i915_sysfs.h
 drivers/gpu/drm/i915/i915_tasklet.h
 drivers/gpu/drm/i915/i915_trace.h
 drivers/gpu/drm/i915/i915_ttm_buddy_manager.h
+drivers/gpu/drm/i915/i915_user_extensions.h
 drivers/gpu/drm/i915/i915_utils.h
 drivers/gpu/drm/i915/i915_vgpu.h
 drivers/gpu/drm/i915/i915_vma.h
