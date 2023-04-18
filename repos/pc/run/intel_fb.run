@@ -34,6 +34,9 @@ set build_components {
 	server/vfs
 	server/fs_rom
 	lib/vfs_import
+	server/nitpicker
+	app/pointer
+	drivers/ps2
 }
 
 
@@ -129,13 +132,16 @@ append config {
 			<service name="Timer"> <child name="timer"/> </service>
 		</route>
 		<config>
-			<policy label_prefix="intel_fb_drv" info="yes">
+			<policy label_prefix="inte_dynamic -> intel_fb_drv -> " info="yes">
 				<pci class="VGA"/>
 				<pci class="ISABRIDGE"/>
 			</policy>
-			<policy label_prefix="intel_gpu_drv" info="yes">
+			<policy label_prefix="init_dynamic -> intel_gpu_drv -> " info="yes">
 				<pci class="VGA"/>
 				<pci class="ISABRIDGE"/>
+			</policy>
+			<policy label="init_dynamic -> ps2_drv -> ">
+				<device name="ps2"/>
 			</policy>
 		</config>
 	</start>
@@ -150,7 +156,7 @@ append config {
 		<resource name="RAM" quantum="1000M"/>
 		<route>
 			<service name="Report"> <child name="report_rom"/> </service>
-			<service name="Platform"> <child name="platform_drv" label="intel_fb_drv"/> </service>
+			<service name="Platform"> <child name="platform_drv"/> </service>
 			<service name="ROM" label="intel_fb_drv -> intel_opregion">
 				<child name="report_rom" label="intel_fb_drv -> intel_opregion"/>
 			</service>
@@ -276,11 +282,51 @@ append_if $use_fb_controller {
 			</start>}
 
 append config {
+			<start name="ps2_drv" caps="80">
+				<resource name="RAM" quantum="1280K"/>
+				<config/>
+				<route>
+					<service name="Event">    <child name="nitpicker" label="ps2"/> </service>
+					<service name="ROM">      <parent/> </service>
+					<service name="PD">       <parent/> </service>
+					<service name="CPU">      <parent/> </service>
+					<service name="LOG">      <parent/> </service>
+					<service name="Timer">    <parent/> </service>
+					<service name="Platform"> <parent/> </service>
+				</route>
+			</start>
+
+			<start name="nitpicker">
+				<resource name="RAM" quantum="4M"/>
+				<provides>
+					<service name="Gui"/> <service name="Capture"/> <service name="Event"/>
+				</provides>
+				<config>
+					<capture/> <event/>
+
+					<domain name="pointer" layer="1" content="client" label="no" origin="pointer" />
+					<domain name="default" layer="2" content="client" label="no" hover="always"/>
+
+					<policy label_prefix="pointer" domain="pointer"/>
+					<default-policy domain="default"/>
+				</config>
+			</start>
+
+			<start name="pointer">
+				<resource name="RAM" quantum="1M"/>
+				<route>
+					<service name="Gui"> <child name="nitpicker"/> </service>
+					<any-service> <parent/> <any-child/> </any-service>
+				</route>
+			</start>
+
+<!--
 			<start name="test-framebuffer" priority="-1">
 				<resource name="RAM" quantum="10M"/>
 				<provides> <service name="Capture"/> </provides>
 				<config/>
 			</start>
+-->
 		</config>
 	</start>
 </config>}
@@ -296,6 +342,7 @@ set boot_modules {
 	core ld.lib.so init timer pc_intel_fb_drv intel_fb_controller
 	test-framebuffer report_rom fs_rom vfs vfs.lib.so vfs_import.lib.so
 	platform_drv acpi_drv pci_decode
+	nitpicker pointer ps2_drv
 }
 
 append_if $use_gpu boot_modules { intel_gpu_drv }
