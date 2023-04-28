@@ -525,6 +525,7 @@ include/linux/perf_event.h
 include/linux/perf_regs.h
 include/linux/personality.h
 include/linux/pfn.h
+include/linux/pfn_t.h
 include/linux/phy.h
 include/linux/pid.h
 include/linux/pid_namespace.h

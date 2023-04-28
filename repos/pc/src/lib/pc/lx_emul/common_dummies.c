@@ -359,11 +359,18 @@ bool pat_enabled(void)
 }
 
 
-struct srcu_struct;
-extern int __srcu_read_lock(struct srcu_struct * ssp);
 int __srcu_read_lock(struct srcu_struct * ssp)
 {
-	lx_emul_trace_and_stop(__func__);
+	static int value = 0;
+
+	lx_emul_trace(__func__);
+	return ++value;
+}
+
+
+void __srcu_read_unlock(struct srcu_struct * ssp, int idx)
+{
+	lx_emul_trace(__func__);
 }
 
 

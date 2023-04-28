@@ -161,6 +161,7 @@ drivers/gpu/drm/i915/gem/i915_gem_create.c
 drivers/gpu/drm/i915/gem/i915_gem_domain.c
 drivers/gpu/drm/i915/gem/i915_gem_internal.c
 drivers/gpu/drm/i915/gem/i915_gem_lmem.c
+drivers/gpu/drm/i915/gem/i915_gem_mman.c
 drivers/gpu/drm/i915/gem/i915_gem_object.c
 drivers/gpu/drm/i915/gem/i915_gem_pages.c
 drivers/gpu/drm/i915/gem/i915_gem_region.c
@@ -184,6 +185,7 @@ drivers/gpu/drm/i915/i915_getparam.c
 drivers/gpu/drm/i915/i915_irq.c
 drivers/gpu/drm/i915/i915_memcpy.c
 drivers/gpu/drm/i915/i915_mitigations.c
+drivers/gpu/drm/i915/i915_mm.c
 drivers/gpu/drm/i915/i915_module.c
 drivers/gpu/drm/i915/i915_params.c
 drivers/gpu/drm/i915/i915_pci.c

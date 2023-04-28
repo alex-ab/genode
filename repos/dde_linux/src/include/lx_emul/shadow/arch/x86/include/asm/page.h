@@ -61,6 +61,10 @@ typedef struct page *pgtable_t;
 #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
 #define pfn_to_kaddr(pfn) __va((pfn) << PAGE_SHIFT)
 
+#include <asm/pgtable_types.h>
+
+static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot) { pte_t p = { }; return p; }
+
 static inline struct page *virt_to_page(void const *v) { return lx_emul_virt_to_pages(v, 1U); }
 #define page_to_virt(p) ((p)->virtual)
 

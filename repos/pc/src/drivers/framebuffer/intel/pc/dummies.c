@@ -367,12 +367,6 @@ void intel_gt_info_print(const struct intel_gt_info * info,struct drm_printer * 
 }
 
 
-void i915_gem_object_release_mmap_offset(struct drm_i915_gem_object * obj)
-{
-	lx_emul_trace(__func__);
-}
-
-
 #include <asm/smp.h>
 
 struct smp_ops smp_ops = { };

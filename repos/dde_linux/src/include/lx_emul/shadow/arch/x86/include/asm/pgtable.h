@@ -51,6 +51,20 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 #define ZERO_PAGE(vaddr) ((void)(vaddr),virt_to_page(empty_zero_page))
 
+
+static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+                              pte_t *ptep, pte_t pte)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
 #ifdef CONFIG_X86_64
 static inline int p4d_none(p4d_t p4d)
 {

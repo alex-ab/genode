@@ -13,6 +13,7 @@
 
 #include <linux/fb.h> /* struct fb_info */
 #include <linux/sched/task.h>
+#include <linux/shmem_fs.h>
 
 #include <drm/drm_client.h>
 #include <drm_crtc_internal.h>
@@ -20,7 +21,6 @@
 #include "i915_drv.h"
 #include "display/intel_backlight.h"
 #include "display/intel_display_types.h"
-#include "display/intel_fb_pin.h"
 
 #include "lx_emul.h"
 
@@ -625,61 +625,72 @@ static int user_register_fb(struct drm_client_dev   const * const dev,
                             struct fb_info                * const info,
                             struct drm_mode_fb_cmd2 const * const dumb_fb)
 {
-	intel_wakeref_t wakeref;
+	struct drm_mode_map_dumb data_mmap = { .handle = dumb_fb->handles[0] };
+	struct vm_area_struct    vma       = { };
+	int                      result    = -EINVAL;
+	struct file              mmap_file = {
+		.private_data = dev->file,
+		.f_op         = dev->dev->driver->fops,
+	};
+	struct drm_framebuffer * const fb = drm_framebuffer_lookup(dev->dev,
+	                                                           dev->file,
+	                                                           dumb_fb->fb_id);
+	struct drm_gem_object * const gem = drm_gem_object_lookup(dev->file,
+	                                                          data_mmap.handle);
 
-	int                        result   = -EINVAL;
-	struct i915_gtt_view const view     = { .type = I915_GTT_VIEW_NORMAL };
-	unsigned long              flags    = 0;
-	struct i915_vma           *vma      = NULL;
-	void   __iomem            *vaddr    = NULL;
-	struct drm_i915_private   *dev_priv = to_i915(dev->dev);
-	struct drm_framebuffer    *fb       = drm_framebuffer_lookup(dev->dev,
-	                                                             dev->file,
-	                                                             dumb_fb->fb_id);
-
-	if (!info || !fb) {
+	if (!info || !fb || !gem || !gem->filp) {
 		printk("%s:%u error setting up info and fb\n", __func__, __LINE__);
-		return -ENODEV;
+		return -EINVAL;
 	}
 
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-
-	/* Pin the GGTT vma for our access via info->screen_base.
-	 * This also validates that any existing fb inherited from the
-	 * BIOS is suitable for own access.
-	 */
-	vma = intel_pin_and_fence_fb_obj(fb, false /* phys_cursor */,
-	                                 &view, false /* use fences */,
-	                                 &flags);
-
-	if (IS_ERR(vma)) {
-		intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-
-		result = PTR_ERR(vma);
-			printk("%s:%u error setting vma %d\n", __func__, __LINE__, result);
+	/* prepare dumb buffer to be mappable -> data_mmap.offset will be set */
+	result = drm_mode_mmap_dumb_ioctl(dev->dev, &data_mmap, dev->file);
+	if (result) {
+		printk("%s: failed to add fb %d\n", __func__, result);
 		return result;
 	}
 
-	vaddr = i915_vma_pin_iomap(vma);
-	if (IS_ERR(vaddr)) {
-		intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+	/* used by driver->mmap called by call_mmap */
+	vma.vm_start = 0,
+	vma.vm_end   = dumb_fb->pitches[0] * dumb_fb->height,
+	/* reverse of drm_vma_node_offset_addr */
+	vma.vm_pgoff = data_mmap.offset >> PAGE_SHIFT,
 
-		result = PTR_ERR(vaddr);
-		printk("%s:%u error pin iomap %d\n", __func__, __LINE__, result);
+	/* "map" dumb buffer */
+	result = call_mmap(&mmap_file, &vma);
+	if (result) {
+		printk("%s: failed to add fb %d\n", __func__, result);
 		return result;
 	}
 
-	/* fill framebuffer info for register_framebuffer */
-	info->screen_base        = vaddr;
-	info->screen_size        = vma->size;
-	info->fix.line_length    = fb->pitches[0];
-	info->var.bits_per_pixel = drm_format_info_bpp(fb->format, 0);
+	/* lookup framebuffer address and register on Genode C++ side */
+	{
+		struct inode         *inode = gem->filp->f_inode;
+		struct address_space *as    = inode ? inode->i_mapping : NULL;
+		struct page          *page  = NULL;
 
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+		if (!as)
+			return -EINVAL;
 
-	register_framebuffer(info);
+		page = shmem_read_mapping_page_gfp(as, 0 /* index */, 0 /* gfp_t */);
+		if (!page)
+			return -EINVAL;
 
-	return 0;
+		/* fill framebuffer info for register_framebuffer */
+		info->screen_base        = page_to_virt(page);
+		info->screen_size        = vma.vm_end - vma.vm_start;
+		info->fix.line_length    = fb->pitches[0];
+		info->var.bits_per_pixel = drm_format_info_bpp(fb->format, 0);
+
+		if (!info->screen_base || !info->screen_size)
+			return -EINVAL;
+
+		register_framebuffer(info);
+
+		return 0;
+	}
+
+	return result;
 }
 
 

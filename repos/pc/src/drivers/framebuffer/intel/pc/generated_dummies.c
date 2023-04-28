@@ -91,14 +91,6 @@ void __show_mem(unsigned int filter,nodemask_t * nodemask,int max_zone_idx)
 }
 
 
-#include <linux/srcu.h>
-
-void __srcu_read_unlock(struct srcu_struct * ssp,int idx)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 #include <linux/fs.h>
 
 void __unregister_chrdev(unsigned int major,unsigned int baseminor,unsigned int count,const char * name)
@@ -793,13 +785,6 @@ void i915_gem_driver_unregister(struct drm_i915_private * i915)
 }
 
 
-extern int i915_gem_dumb_mmap_offset(struct drm_file * file,struct drm_device * dev,u32 handle,u64 * offset);
-int i915_gem_dumb_mmap_offset(struct drm_file * file,struct drm_device * dev,u32 handle,u64 * offset)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 extern struct intel_context * i915_gem_engines_iter_next(struct i915_gem_engines_iter * it);
 struct intel_context * i915_gem_engines_iter_next(struct i915_gem_engines_iter * it)
 {
@@ -856,34 +841,6 @@ int i915_gem_madvise_ioctl(struct drm_device * dev,void * data,struct drm_file *
 }
 
 
-extern int i915_gem_mmap(struct file * filp,struct vm_area_struct * vma);
-int i915_gem_mmap(struct file * filp,struct vm_area_struct * vma)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-extern int i915_gem_mmap_gtt_version(void);
-int i915_gem_mmap_gtt_version(void)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-extern int i915_gem_mmap_ioctl(struct drm_device * dev,void * data,struct drm_file * file);
-int i915_gem_mmap_ioctl(struct drm_device * dev,void * data,struct drm_file * file)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-extern int i915_gem_mmap_offset_ioctl(struct drm_device * dev,void * data,struct drm_file * file);
-int i915_gem_mmap_offset_ioctl(struct drm_device * dev,void * data,struct drm_file * file)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 extern int i915_gem_object_attach_phys(struct drm_i915_gem_object * obj,int align);
 int i915_gem_object_attach_phys(struct drm_i915_gem_object * obj,int align)
 {
@@ -914,13 +871,6 @@ void i915_gem_object_put_pages_phys(struct drm_i915_gem_object * obj,struct sg_t
 
 extern int i915_gem_object_pwrite_phys(struct drm_i915_gem_object * obj,const struct drm_i915_gem_pwrite * args);
 int i915_gem_object_pwrite_phys(struct drm_i915_gem_object * obj,const struct drm_i915_gem_pwrite * args)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-extern void i915_gem_object_release_mmap_gtt(struct drm_i915_gem_object * obj);
-void i915_gem_object_release_mmap_gtt(struct drm_i915_gem_object * obj)
 {
 	lx_emul_trace_and_stop(__func__);
 }
@@ -2088,3 +2038,72 @@ void wake_q_add_safe(struct wake_q_head * head,struct task_struct * task)
 	lx_emul_trace_and_stop(__func__);
 }
 
+
+#include <i915/gt/intel_reset.h>
+
+int intel_gt_reset_trylock(struct intel_gt *gt, int *srcu)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <i915/gt/intel_reset.h>
+
+void intel_gt_reset_unlock(struct intel_gt *gt, int tag)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/mm.h>
+
+int apply_to_page_range(struct mm_struct *mm, unsigned long address,
+                        unsigned long size, pte_fn_t fn, void *data)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/mm.h>
+
+void zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
+                  unsigned long size)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/mm.h>
+
+struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/mm.h>
+
+unsigned long do_mmap(struct file *file, unsigned long addr,
+                      unsigned long len, unsigned long prot, unsigned long flags,
+                      unsigned long pgoff, unsigned long *populate, struct list_head *uf)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/mm.h>
+
+int __mm_populate(unsigned long addr, unsigned long len,
+                  int ignore_errors)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <i915/i915_gem_evict.h>
+
+int i915_gem_evict_vm(struct i915_address_space *vm, struct i915_gem_ww_ctx *ww,
+                      struct drm_i915_gem_object **busy_bo)
+{
+	lx_emul_trace_and_stop(__func__);
+}
