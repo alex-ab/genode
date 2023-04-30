@@ -677,6 +677,42 @@ Core::Platform::Platform()
 				        rom_name, " as ROM module"); });
 	};
 
+	auto export_core_log_at_specific_address = [&] (auto rom_name, addr_t const at = 0, size_t pages, auto content_fn)
+	{
+		size_t const bytes   = pages << get_page_size_log2();
+		bool         success = false;
+
+		ram_alloc().alloc_addr(bytes, at). with_result(
+
+			[&] (void *phys_ptr) {
+
+				addr_t const phys_addr = reinterpret_cast<addr_t>(phys_ptr);
+				char * const core_local_ptr = (char *)_map_pages(phys_addr, pages);
+
+				if (!core_local_ptr) {
+					warning("failed to export ", rom_name, " as ROM module");
+					ram_alloc().free(phys_ptr, bytes);
+					return;
+				}
+
+				memset(core_local_ptr, 0, bytes);
+				content_fn(core_local_ptr, bytes);
+
+				new (core_mem_alloc())
+					Rom_module(_rom_fs, rom_name, phys_addr, bytes);
+
+				/* leave the ROM backing store mapped within core */
+				success = true;
+			},
+
+			[&] (Range_allocator::Alloc_error) {
+				warning("failed to allocate physical memory for exporting ",
+				        rom_name, " as ROM module at ",  Hex(at));
+			});
+
+		return success;
+	};
+
 	export_pages_as_rom_module("platform_info", 1 + (MAX_SUPPORTED_CPUS / 32),
 		[&] (char * const ptr, size_t const size) {
 			Xml_generator xml(ptr, size, "platform_info", [&] ()
@@ -763,10 +799,16 @@ Core::Platform::Platform()
 		}
 	);
 
-	export_pages_as_rom_module("core_log", 4,
-		[&] (char * const ptr, size_t const size) {
-			init_core_log( Core_log_range { (addr_t)ptr, size } );
-	});
+	auto const preferred_pages = 4ul;
+
+	if (!export_core_log_at_specific_address("core_log", hyp_log + hyp_log_size, preferred_pages,
+			[&] (char * const ptr, size_t const size) {
+				init_core_log( Core_log_range { (addr_t)ptr, size } ); })) {
+		export_pages_as_rom_module("core_log", preferred_pages,
+			[&] (char * const ptr, size_t const size) {
+				init_core_log( Core_log_range { (addr_t)ptr, size } );
+		});
+	}
 
 	/* export hypervisor log memory */
 	if (hyp_log && hyp_log_size)
