@@ -1,0 +1,98 @@
+--- a/include/cmdline.hpp
++++ b/include/cmdline.hpp
+@@ -50,6 +50,8 @@ class Cmdline
+         static bool logmem;
+         static bool fpu_lazy;
+ 
++        static uint64 logmem_prefer_address;
++
+         INIT
+         static void init (char const *);
+ };
+--- a/src/cmdline.cpp
++++ b/src/cmdline.cpp
+@@ -36,6 +36,8 @@ bool Cmdline::novpid;
+ bool Cmdline::logmem;
+ bool Cmdline::fpu_lazy;
+ 
++uint64 Cmdline::logmem_prefer_address;
++
+ struct Cmdline::param_map Cmdline::map[] INITDATA =
+ {
+     { "iommu",      &Cmdline::iommu     },
+@@ -76,9 +78,46 @@ void Cmdline::init (char const * line)
+     char const *arg;
+     unsigned len;
+ 
+-    while ((arg = get_arg (&line, len)))
++    while ((arg = get_arg (&line, len))) {
+         for (unsigned i = 0; i < sizeof map / sizeof *map; i++) {
+             if (strmatch (map[i].arg, arg, len))
+                 *map[i].ptr = true;
+         }
++
++        unsigned const logmem_start_size = 9;
++        if (strmatch ("logmem=0x", arg, logmem_start_size)) {
++            unsigned    i = logmem_start_size;
++            while (i < len && i < logmem_start_size + 16) {
++                uint64 num = 0;
++                switch (arg[i]) {
++                case '0'...'9':
++                    num = arg[i] - '0';
++                    break;
++                case 'a'...'f':
++                    num = arg[i] - 'a' + 10;
++                    break;
++                case 'A'...'F':
++                    num = arg[i] - 'A' + 10;
++                    break;
++                default:
++                    num = 16;
++                    break;
++                }
++
++                if (num > 15)
++                    break;
++
++                logmem_prefer_address |= num << ((15 - (i - logmem_start_size)) * 4);
++                i += 1;
++            }
++
++            if (i <= logmem_start_size + 16)
++                logmem_prefer_address = logmem_prefer_address >> ((logmem_start_size + 16 - i) * 4);
++
++            logmem_prefer_address &= ~0xfffull;
++
++            if (logmem_prefer_address)
++                Cmdline::logmem = true;
++        }
++    }
+ }
+--- a/src/hip.cpp
++++ b/src/hip.cpp
+@@ -189,6 +189,25 @@ void Hip::add_mem (Hip_mem *&mem, T const *map)
+     mem->type = map->type;
+     mem->aux  = 0;
+ 
++    if (Cmdline::logmem && Cmdline::logmem_prefer_address &&
++        mem->addr <= Cmdline::logmem_prefer_address &&
++        Cmdline::logmem_prefer_address + PAGE_SIZE <= mem->addr + mem->size) {
++
++        PAGE_L = static_cast<mword>(Cmdline::logmem_prefer_address);
++
++        auto const size = Cmdline::logmem_prefer_address - mem->addr;
++
++        if (size) {
++            mem->size = size;
++            mem ++;
++        }
++
++        mem->addr = map->addr + size + PAGE_SIZE;
++        mem->size = map->len  - size - PAGE_SIZE;
++        mem->type = map->type;
++        mem->aux  = 0;
++    }
++
+     if (Cmdline::logmem && !PAGE_L &&
+         mem->size >= 2 * PAGE_SIZE &&
+         mem->addr + mem->size < ~0U)
