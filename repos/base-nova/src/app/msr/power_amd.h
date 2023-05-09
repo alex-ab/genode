@@ -86,7 +86,7 @@ struct Msr::Power_amd
 
 	void update(Nova::Utcb &);
 	void update(Nova::Utcb &, Genode::Xml_node const &);
-	void report(Genode::Reporter::Xml_generator &) const;
+	void report(Genode::Xml_generator &) const;
 };
 
 void Msr::Power_amd::update(Nova::Utcb &utcb)
@@ -95,7 +95,7 @@ void Msr::Power_amd::update(Nova::Utcb &utcb)
 		read_pstate(utcb);
 }
 
-void Msr::Power_amd::report(Genode::Reporter::Xml_generator &xml) const
+void Msr::Power_amd::report(Genode::Xml_generator &xml) const
 {
 	if (cpuid.pstate_support()) {
 		xml.node("pstate", [&] () {

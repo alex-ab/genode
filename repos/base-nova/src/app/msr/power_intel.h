@@ -54,6 +54,13 @@ struct Msr::Power_intel
 		struct Perf_epp     : Bitfield<24, 8> {
 			enum { PERFORMANCE = 0, BALANCED = 128, ENERGY = 255 };
 		};
+		struct Activity_wnd  : Bitfield<32,10> { };
+		struct Pkg_ctrl      : Bitfield<42, 1> { };
+		struct Act_wnd_valid : Bitfield<59, 1> { };
+		struct Epp_valid     : Bitfield<60, 1> { };
+		struct Desired_valid : Bitfield<61, 1> { };
+		struct Max_valid     : Bitfield<62, 1> { };
+		struct Min_valid     : Bitfield<63, 1> { };
 	};
 
 	struct Epb : Genode::Register<64> {
@@ -69,12 +76,29 @@ struct Msr::Power_intel
 		IA32_HWP_CAPABILITIES = 0x771, 
 		IA32_HWP_REQUEST_PKG  = 0x772, 
 		IA32_HWP_REQUEST      = 0x774
+
+		/*
+		 * Intel Speed Step - chapter 14.1
+		 *
+		 * - IA32_PERF_CTL = 0x199
+		 *
+		 * gets disabled, as soon as Intel HWP is enabled
+		 * - see 14.4.2 Enabling HWP
+		 */
+
+		/*
+		 * Intel spec
+		 * - IA32_POWER_CTL = 0x1fc -> http://biosbits.org
+		 *
+		 * C1E Enable (R/W)
+		 * When set to ‘1’, will enable the CPU to switch to the
+		 * Minimum Enhanced Intel SpeedStep Technology
+		 * operating point when all execution cores enter MWAIT.
+		 */
+
 /* check spec XXX
-        IA32_POWER_CTL          = 0x1fc,
         IA32_ENERGY_PERF_BIAS   = 0x1b0,
-        MSR_PM_ENABLE           = 0x770,
         MSR_HWP_INTERRUPT       = 0x773,
-        MSR_HWP_REQUEST         = 0x774,
 */
 	};
 
@@ -119,7 +143,7 @@ struct Msr::Power_intel
 	{
 		utcb.set_msg_word(2);
 		utcb.msg()[0] = IA32_PM_ENABLE | write_msr;
-		utcb.msg()[1] = 1ull /* enable */;
+		utcb.msg()[1] = 1ull;
 
 		uint8_t const res     = Nova_msr::msr();
 		auto    const success = utcb.msg_words();
@@ -179,7 +203,7 @@ struct Msr::Power_intel
 			read_epb(utcb);
 	}
 
-	void update(Nova::Utcb &utcb, Genode::Xml_node const &config)
+	void update(Nova::Utcb &utcb, Genode::Xml_node const &config, Genode::Affinity::Location const &cpu)
 	{
 		bool const verbose = config.attribute_value("verbose", false);
 
@@ -215,11 +239,11 @@ struct Msr::Power_intel
 			bool on = node.attribute_value("enable", false);
 
 			if (on && !enabled_hwp) {
-				bool ok =  enable_hwp(utcb);
-				Genode::log("enabling HWP ", ok ? " succeeded" : " failed");
+				bool ok = enable_hwp(utcb);
+				Genode::log(cpu, " enabling HWP ", ok ? " succeeded" : " failed");
 			} else
 			if (!on && enabled_hwp)
-				Genode::warning("disabling HWP not supported - implement me");
+				Genode::log(cpu, " disabling HWP not supported - see Intel spec");
 
 			enabled_hwp = hwp_enabled(utcb);
 		});
@@ -289,7 +313,7 @@ struct Msr::Power_intel
 		});
 	}
 
-	void report(Genode::Reporter::Xml_generator &xml) const
+	void report(Genode::Xml_generator &xml) const
 	{
 		using Genode::String;
 

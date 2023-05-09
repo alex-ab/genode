@@ -155,7 +155,7 @@ struct Msr::Monitoring
 		return mperf_aperf(utcb, mperf, aperf);
 	}
 
-	void report(Genode::Reporter::Xml_generator &xml, unsigned const tcc) const
+	void report(Genode::Xml_generator &xml, unsigned const tcc) const
 	{
 		if (freq_khz_valid)
 			xml.attribute("freq_khz", freq_khz);

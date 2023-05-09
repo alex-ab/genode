@@ -93,7 +93,7 @@ struct Core_thread : Thread, Msr::Monitoring
 			if (power_intel.constructed()) {
 				power_intel->update(utcb);
 				if (config_node)
-					power_intel->update(utcb, *config_node);
+					power_intel->update(utcb, *config_node, location);
 			}
 
 			if (power_amd.constructed()) {
@@ -123,10 +123,12 @@ struct Msr::Msr {
 	Heap                heap     { env.ram(), env.rm() };
 	Timer::Connection   timer    { env };
 	Signal_handler<Msr> handler  { env.ep(), *this, &Msr::handle_timeout };
-	Reporter            reporter { env, "info", "info", 2 * 4096 };
+	Expanding_reporter  reporter { env, "info", "info" };
 
 	Affinity::Space     cpus     { env.cpu().affinity_space() };
 	Core_thread **      threads  { new (heap) Core_thread*[cpus.total()] };
+
+	Microseconds        timer_rate { 5000 * 1000 };
 
 	Attached_rom_dataspace config { env, "config" };
 
@@ -203,12 +205,10 @@ struct Msr::Msr {
 		}
 
 		timer.sigh(handler);
-		timer.trigger_periodic(5000 * 1000 /* us */);
+		timer.trigger_periodic(timer_rate.value);
 
 		config.sigh(signal_config);
 		handle_config();
-
-		reporter.enabled(true);
 	}
 
 	void handle_timeout()
@@ -221,7 +221,10 @@ struct Msr::Msr {
 			threads[i]->done.block();
 		}
 
-		Reporter::Xml_generator xml(reporter, [&] () {
+		reporter.generate([&] (Xml_generator &xml) {
+
+			xml.attribute("update_rate_us", timer_rate.value);
+
 			/* XXX per package value handling
 			 * target temperature is identical over a package
 			 */
@@ -261,12 +264,25 @@ struct Msr::Msr {
 		if (!config.valid())
 			return;
 
+		if (config.xml().has_attribute("update_rate_us")) {
+			auto const new_rate = config.xml().attribute_value("update_rate_us",
+			                                                   timer_rate.value);
+
+			if ((new_rate != timer_rate.value) && (new_rate >= Microseconds(100'000).value)) {
+				timer_rate.value = new_rate;
+				timer.trigger_periodic(timer_rate.value);
+			}
+		}
+
 		config.xml().for_each_sub_node("cpu", [&](Xml_node const &node) {
+
 			if (!node.has_attribute("x") || !node.has_attribute("y"))
 				return;
+
 			unsigned const xpos  = node.attribute_value("x", 0u);
 			unsigned const ypos  = node.attribute_value("y", 0u);
 			unsigned const index = ypos + xpos * cpus.height();
+
 			if (index >= cpus.total())
 				return;
 

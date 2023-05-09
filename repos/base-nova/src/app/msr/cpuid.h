@@ -67,40 +67,6 @@ struct Msr::Cpuid
 		}
 	}
 
-	enum class Vendor {
-		INTEL,
-		UNKNOWN,
-	};
-
-	enum { VENDOR_STRING_LENGTH = 12 };
-
-	Vendor vendor() const
-	{
-		char intel[VENDOR_STRING_LENGTH] { 'G', 'e', 'n', 'u', 'i', 'n', 'e',
-		                                   'I', 'n', 't', 'e', 'l' };
-        unsigned idx { 0 };
-
-        for (unsigned shift = 0; shift <= 24; shift += 8, idx++) {
-            char str = static_cast<char>(ebx[0] >> shift);
-            if (intel[idx] != str)
-                return Vendor::UNKNOWN;
-        }
-
-        for (unsigned shift = 0; shift <= 24; shift += 8, idx++) {
-            char str = static_cast<char>(edx[0] >> shift);
-            if (intel[idx] != str)
-                return Vendor::UNKNOWN;
-        }
-
-        for (unsigned shift = 0; shift <= 24; shift += 8, idx++) {
-            char str = static_cast<char>(ecx[0] >> shift);
-            if (intel[idx] != str)
-               return Vendor::UNKNOWN;
-        }
-
-        return Vendor::INTEL;
-    }
-
     using Family_id = unsigned;
     enum { FAMILY_ID_UNKNOWN = ~static_cast<unsigned>(0) };
 
