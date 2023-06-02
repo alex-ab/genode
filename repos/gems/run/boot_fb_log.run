@@ -1,0 +1,225 @@
+create_boot_directory
+
+if {[have_spec nova]} {
+	proc kernel_output { } { return "novga serial logmem" }
+}
+
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/src/init \
+                  [depot_user]/pkg/drivers_interactive-pc \
+                  [depot_user]/src/nitpicker \
+                  [depot_user]/pkg/themed_wm \
+                  [depot_user]/pkg/terminal \
+                  [depot_user]/src/terminal_log \
+                  [depot_user]/src/nano3d \
+                  [depot_user]/src/log_core
+
+build { drivers/framebuffer/boot }
+
+proc priority_timer    { } { return {priority="0"} }
+proc priority_base     { } { return {priority="-1"} }
+proc priority_gui      { } { return {priority="-1"} }
+proc priority_wm       { } { return {priority="-2"} }
+proc priority_log      { } { return {priority="-2"} }
+proc priority_app      { } { return {priority="-2"} }
+
+
+proc log_output { } {
+
+	set return_log ""
+
+	append return_log {
+	<start name="log_core" caps="100" } [priority_log] {>
+		<resource name="RAM" quantum="10M"/>
+		<config period_ms="2000"/>
+		<route>
+			<service name="ROM" unscoped_label="log_core"> <parent/> </service>
+			<service name="ROM" unscoped_label="ld.lib.so"> <parent/> </service>
+			<service name="ROM" label="log"> <parent label="core_log"/> </service>
+			<service name="Timer"> <child name="timer"/> </service>
+			<service name="LOG" label="log"> <child name="terminal_log"/> </service>
+			<service name="PD"> <parent/> </service>
+			<service name="CPU"> <parent/> </service>
+			<service name="LOG"> <parent/> </service>
+		</route>
+	</start>
+
+	<start name="terminal_log" caps="100" } [priority_log] {>
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="LOG"/> </provides>
+		<config/>
+		<route>
+			<service name="Terminal"> <child name="terminal"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+	<start name="terminal" caps="110" } [priority_log] {>
+		<resource name="RAM" quantum="6M"/>
+		<provides><service name="Terminal"/></provides>
+		<config>
+			<initial width="1200" height="780"/>
+			<palette>
+				<color index="0" value="#2f3953"/>
+				<color index="8" value="#2f3953"/>
+			</palette>
+			<vfs>
+				<rom name="VeraMono.ttf"/>
+				<dir name="fonts">
+					<dir name="monospace">
+						<ttf name="regular" path="/VeraMono.ttf" size_px="10"/>
+					</dir>
+				</dir>
+			</vfs>
+		</config>
+		<route>
+<!--
+			<service name="ROM" label="config"> <parent label="terminal.config"/> </service>
+-->
+			<service name="Gui"> <child name="wm"/> </service>
+			<any-service> <parent/> <any-child/></any-service>
+		</route>
+	</start>
+	}
+
+	append_if [have_spec nova] return_log {
+	<start name="log_kernel" caps="100" } [priority_log] {>
+		<binary name="log_core"/>
+		<resource name="RAM" quantum="10M"/>
+		<config period_ms="2000"/>
+		<route>
+			<service name="ROM" unscoped_label="log_core"> <parent/> </service>
+			<service name="ROM" unscoped_label="ld.lib.so"> <parent/> </service>
+			<service name="ROM" label="log"> <parent label="kernel_log"/> </service>
+			<service name="Timer"> <child name="timer"/> </service>
+			<service name="PD"> <parent/> </service>
+			<service name="CPU"> <parent/> </service>
+			<service name="LOG"> <parent/> </service>
+		</route>
+	</start>
+	}
+
+	return $return_log
+}
+
+
+proc gui_config { } {
+	set return_gui ""
+
+	append return_gui {
+
+	<start name="nitpicker" caps="120" } [priority_gui] {>
+		<resource name="RAM" quantum="8M"/>
+		<provides>
+			<service name="Gui"/> <service name="Capture"/> <service name="Event"/>
+		</provides>
+		<config>
+			<capture/> <event/>
+			<report focus="yes" hover="yes" />
+			<domain name="pointer" layer="1" content="client" label="no" origin="pointer" />
+			<domain name="panel"   layer="2" content="client" label="no" focus="none" />
+			<domain name=""        layer="3" content="client" label="no" focus="click" hover="always"/>
+
+			<policy label_prefix="pointer"    domain="pointer"/>
+
+			<default-policy domain=""/>
+		</config>
+		<route>
+			<service name="Timer">  <child name="timer"/></service>
+			<service name="Report"> <child name="gui_reports"/></service>
+			<any-service><parent/><any-child/></any-service>
+		</route>
+	</start>
+
+	<start name="pointer" caps="100" } [priority_gui] {>
+		<resource name="RAM" quantum="2M"/>
+		<provides> <service name="Report"/> </provides>
+		<config shapes="yes" verbose="no"/>
+		<route>
+			<service name="Gui"> <child name="nitpicker"/>  </service>
+			<service name="ROM" label="hover"> <child name="gui_reports"/> </service>
+			<service name="ROM" label="xray"> <child name="gui_reports"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+	<start name="gui_reports" caps="100" } [priority_gui] {>
+		<binary name="report_rom"/>
+		<resource name="RAM" quantum="1M"/>
+		<provides> <service name="Report"/> <service name="ROM"/> </provides>
+		<config>
+			<policy label="pointer -> hover" report="nitpicker -> hover"/>
+			<policy label="pointer -> xray"  report="nitpicker -> xray"/>
+		</config>
+	</start>
+
+	<start name="wm" caps="1000" } [priority_wm] {>
+		<resource name="RAM" quantum="32M"/>
+		<binary name="init"/>
+		<provides>
+			<service name="Gui"/> <service name="Report"/> <service name="ROM"/>
+		</provides>
+		<route>
+			<service name="ROM"    label="config"> <parent label="wm.config"/> </service>
+			<service name="Report" label_last="shape">  <child name="pointer"/> </service>
+			<service name="Gui"> <child name="nitpicker"/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>
+	}
+
+	return $return_gui
+}
+
+
+set config ""
+append config {
+
+<config prio_levels="4">
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+	<default caps="100"/>
+
+	<start name="timer" } [priority_timer] {>
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="fb_drv" caps="300" } [priority_base] {>
+		<binary name="boot_fb_drv"/>
+		<resource name="RAM" quantum="64M"/>
+		<config/>
+	</start>
+
+	} [ gui_config]  {
+	} [ log_output]  {
+
+	<start name="nano3d" caps="100" } [priority_app] {>
+		<resource name="RAM" quantum="8M"/>
+		<config/>
+		<route>
+			<service name="Gui">   <child name="wm"/>    </service>
+			<service name="Timer"> <child name="timer"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+</config>
+}
+
+install_config $config
+
+build_boot_image [build_artifacts]
+
+run_genode_until forever
