@@ -1,0 +1,68 @@
+assert_spec x86
+
+create_boot_directory
+
+if {![have_include "image/disk"] && ![have_include image/uefi]} {
+	puts "unsupported image type"
+	exit 0
+}
+
+if {[have_include "image/disk"]} {
+	install_disk_bootloader_to_run_dir
+}
+
+if {[have_include "image/iso"]} {
+	install_iso_bootloader_to_run_dir
+}
+
+if {[have_include image/uefi]} {
+	install_uefi_bootloader_to_run_dir
+}
+
+set scenarios { intel_fb vesa_fb boot_fb boot_fb_simple boot_fb_log }
+
+#
+# Generate GRUB2 config file
+#
+set fh [create_header_grub2_config]
+
+foreach script $scenarios {
+	if {[catch {exec cp -r [run_dir]/../$script/boot [run_dir]/boot/$script}]} {
+		puts "Run scenario '$script' is not present. Please run it before\
+		     invoking this run script."
+		exit 1
+	}
+	puts $fh "menuentry '$script' {"
+	puts $fh "	configfile /boot/$script/grub/grub.cfg"
+	puts $fh "}"
+
+	set grub_cfg [run_dir]/boot/$script/grub/grub.cfg
+
+	exec mv $grub_cfg tmp.cfg
+	exec cat tmp.cfg | sed -e "s,/boot/,/boot/$script/,g" -e "s,timeout=0,timeout=5," > $grub_cfg
+}
+
+close $fh
+
+remove_genode_dir
+
+#
+# Make grub2 visible on boot
+#
+exec mv [run_dir]/boot/grub/grub.cfg tmp.cfg
+exec cat tmp.cfg | sed "s,timeout=0,timeout=-1," > [run_dir]/boot/grub/grub.cfg
+exec rm tmp.cfg
+
+# sneak a nice font if available, which however is larger then default one
+if {[file exists /boot/grub/unicode.pf2]} {
+	exec cp /boot/grub/unicode.pf2 [run_dir]/boot/font.pf2
+}
+
+#
+# Build image
+#
+run_image
+
+if {[have_include "power_on/qemu"]} {
+	run_genode_until forever
+}
