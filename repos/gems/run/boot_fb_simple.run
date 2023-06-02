@@ -1,0 +1,42 @@
+create_boot_directory
+
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/src/init
+
+build { test/framebuffer driver/framebuffer/boot }
+
+install_config {
+<config prio_levels="4">
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+
+	<start name="timer" caps="100" ram="2M">
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="fb_drv" caps="200" ram="64M">
+		<binary name="boot_fb"/>
+		<config/>
+	</start>
+
+	<start name="test-framebuffer" ram="32M" caps="100" priority="-1">
+		<provides> <service name="Capture"/> </provides>
+		<config/>
+	</start>
+
+</config>}
+
+build_boot_image [build_artifacts]
+
+run_genode_until forever

@@ -1,0 +1,54 @@
+create_boot_directory
+
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/pkg/[drivers_interactive_pkg] \
+                  [depot_user]/src/init
+
+build { server/event_dump test/framebuffer }
+
+install_config {
+<config prio_levels="4">
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+
+	<start name="timer" caps="100" ram="2M">
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="drivers" ram="128M" caps="2500" managing_system="yes" priority="-1">
+		<binary name="init"/>
+		<route>
+			<service name="ROM" label="config"> <parent label="drivers.config"/> </service>
+			<service name="Timer">   <child name="timer"/> </service>
+			<service name="Capture"> <child name="test-framebuffer"/> </service>
+			<service name="Event">   <child name="event_dump"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+	<start name="event_dump" ram="1M" caps="100" priority="-1">
+		<provides> <service name="Event"/> </provides>
+		<config/>
+	</start>
+
+	<start name="test-framebuffer" ram="32M" caps="100" priority="-1">
+		<provides> <service name="Capture"/> </provides>
+		<config/>
+	</start>
+
+</config>}
+
+build_boot_image [build_artifacts]
+
+run_genode_until forever
