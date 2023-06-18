@@ -131,7 +131,6 @@ proc run_boot_dir {binaries} {
 			puts $fh " module2 /boot/micro.code micro.code"
 		}
 		puts $fh " module2 /boot/hypervisor hypervisor iommu novpid [kernel_output]"
-		puts $fh "# module2 /boot/hypervisor hypervisor iommu novpid [kernel_output] logmem=0x... reset"
 		puts $fh " module2 /boot/image.elf.gz image.elf"
 		puts $fh "}"
 		close $fh
