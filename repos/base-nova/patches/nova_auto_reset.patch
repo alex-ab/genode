@@ -1,0 +1,49 @@
+--- src/kernel/nova/include/cmdline.hpp
++++ src/kernel/nova/include/cmdline.hpp
+@@ -38,6 +38,7 @@ class Cmdline
+         static char const *get_arg (char const **, unsigned &);
+ 
+     public:
++        static bool reset;
+         static bool iommu;
+         static bool keyb;
+         static bool serial;
+--- src/kernel/nova/src/cmdline.cpp
++++ src/kernel/nova/src/cmdline.cpp
+@@ -24,6 +24,7 @@
+ #include "string.hpp"
+ #include "pd.hpp"
+ 
++bool Cmdline::reset;
+ bool Cmdline::iommu;
+ bool Cmdline::keyb;
+ bool Cmdline::serial;
+@@ -49,6 +52,7 @@ struct Cmdline::param_map Cmdline::map[] INITDATA =
+     { "novpid",     &Cmdline::novpid    },
+     { "logmem",     &Cmdline::logmem    },
+     { "fpu_lazy",   &Cmdline::fpu_lazy  },
++    { "reset",      &Cmdline::reset     },
+ };
+ 
+ char const *Cmdline::get_arg (char const **line, unsigned &len)
+--- src/kernel/nova/src/ec.cpp
++++ src/kernel/nova/src/ec.cpp
+@@ -31,6 +31,7 @@
+ #include "vtlb.hpp"
+ #include "sm.hpp"
+ #include "pt.hpp"
++#include "acpi.hpp"
+ 
+ Ec *Ec::current, *Ec::fpowner, *Ec::ec_idle;
+ Sm *Ec::auth_suspend;
+@@ -499,6 +500,10 @@ void Ec::root_invoke()
+         Cpu::hazard &= ~HZD_FPU;
+     }
+ 
++    if (Cmdline::reset) {
++        Acpi::reset();
++    }
++
+     ret_user_sysexit();
+ }
+ 
