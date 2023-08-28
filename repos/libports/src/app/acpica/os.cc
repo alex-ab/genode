@@ -359,12 +359,12 @@ void Acpica::Main::init_acpica(bool const use_gpe)
 			error("AcpiUpdateAllGpes failed, status=", status);
 			return;
 		}
+	}
 
-		status = AcpiEnableAllRuntimeGpes();
-		if (status != AE_OK) {
-			error("AcpiEnableAllRuntimeGpes failed, status=", status);
-			return;
-		}
+	status = AcpiEnableAllRuntimeGpes();
+	if (status != AE_OK) {
+		error("AcpiEnableAllRuntimeGpes failed, status=", status);
+		return;
 	}
 
 	Fixed * acpi_fixed = new (heap) Fixed(report);
