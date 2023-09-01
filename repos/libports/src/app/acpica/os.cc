@@ -340,13 +340,6 @@ void Acpica::Main::init_acpica()
 		return;
 	}
 
-	/* set APIC mode */
-	status = init_pic_mode();
-	if (status != AE_OK) {
-		error("Setting PIC mode failed, status=", status);
-		return;
-	}
-
 	/* Embedded controller */
 	status = AcpiGetDevices(ACPI_STRING("PNP0C09"), Ec::detect, this, nullptr);
 	if (status != AE_OK) {
