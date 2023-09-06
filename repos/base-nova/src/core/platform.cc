@@ -297,6 +297,19 @@ static Affinity::Space setup_affinity_space(Hip const &hip)
 	return Affinity::Space(cpus, 1);
 }
 
+
+template <typename FN> void for_each_mem_desc(Hip const &hip, FN const &fn)
+{
+	addr_t const mem_desc_base = ((addr_t)&hip + hip.mem_desc_offset);
+	size_t const num_mem_desc  = (hip.hip_length - hip.mem_desc_offset) /
+	                             hip.mem_desc_size;
+	auto mem_desc = reinterpret_cast<Hip::Mem_desc *>(mem_desc_base);
+
+	for (unsigned i = 0; i < num_mem_desc; i++, mem_desc++) {
+		fn(*mem_desc);
+	}
+}
+
 /**************
  ** Platform **
  **************/
@@ -769,7 +782,7 @@ Platform::Platform()
 		}
 	);
 
-	export_pages_as_rom_module("core_log", 4,
+	export_pages_as_rom_module("core_log", 16,
 		[&] (char * const ptr, size_t const size) {
 			init_core_log( Core_log_range { (addr_t)ptr, size } );
 	});
@@ -778,6 +791,29 @@ Platform::Platform()
 	if (hyp_log && hyp_log_size)
 		new (core_mem_alloc())
 			Rom_module(_rom_fs, "kernel_log", hyp_log, hyp_log_size);
+
+	log(" ");
+	for_each_mem_desc(hip, [](auto &mem) {
+		log("memory region ", (int)mem.type, " ",
+			Hex_range<addr_t>((addr_t)mem.addr, (size_t)mem.size),
+			" (",
+			mem.type == Hip::Mem_desc::AVAILABLE_MEMORY ? " RAM" :
+			mem.type == Hip::Mem_desc::ACPI_RSDT ? "ACPI_RSDT" :
+			mem.type == Hip::Mem_desc::ACPI_XSDT ? "ACPI_XSDT" :
+			mem.type == Hip::Mem_desc::FRAMEBUFFER ? "FRAMEBUFFER" :
+			mem.type == Hip::Mem_desc::EFI_SYSTEM_TABLE ? "EFI SYSTEM TABLE" :
+			mem.type == Hip::Mem_desc::ACPI_RECLAIM_MEMORY ? "ACPI Reclaim " :
+			mem.type == Hip::Mem_desc::ACPI_NVS_MEMORY ? "ACPI NVS" :
+			mem.type == Hip::Mem_desc::HYPERVISOR_LOG ? "hyp log" :
+			mem.type == Hip::Mem_desc::MULTIBOOT_MODULE ? "multiboot module " :
+			mem.type == Hip::Mem_desc::MICROHYPERVISOR ? "microhypervisor" :
+			mem.type == Hip::Mem_desc::RESERVED_MEMORY ? "reserverd memory" :
+			"unknown", ")");
+	});
+
+	log(" ");
+	log("io mem ", _io_mem_alloc);
+	log("ram mem ", _core_mem_alloc.phys_alloc());
 
 	if (verbose_boot_info) {
 		if (hip.has_feature_iommu())
@@ -817,7 +853,7 @@ Platform::Platform()
 	_irq_alloc.add_range(0, hip.sel_gsi);
 	_gsi_base_sel = (hip.mem_desc_offset - hip.cpu_desc_offset) / hip.cpu_desc_size;
 
-	log(_rom_fs);
+//	log(_rom_fs);
 
 	log(Number_of_bytes(kernel_memory), " kernel memory"); log("");
 
