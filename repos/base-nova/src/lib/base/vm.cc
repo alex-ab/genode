@@ -556,6 +556,7 @@ void Nova_vcpu::_write_nova_state(Nova::Utcb &utcb)
  */
 void Nova_vcpu::_handle_exit(Nova::Utcb &utcb)
 {
+#if 0
 	 if (utcb.exit_reason == VM_EXIT_RECALL) {
 		/*
 		 * A recall exit is only requested from an asynchronous Signal to the
@@ -567,6 +568,7 @@ void Nova_vcpu::_handle_exit(Nova::Utcb &utcb)
 		utcb.items = 0;
 		return;
 	}
+#endif
 
 	_read_nova_state(utcb);
 
