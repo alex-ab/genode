@@ -69,7 +69,7 @@ struct Nova_vcpu : Rpc_client<Vm_session::Native_vcpu>, Noncopyable
 
 		Vcpu_state              _vcpu_state __attribute__((aligned(0x10))) { };
 
-		inline void _read_nova_state(Nova::Utcb &);
+		inline void _read_nova_state(Nova::Utcb &, unsigned);
 
 		inline void _write_nova_state(Nova::Utcb &);
 
@@ -96,7 +96,7 @@ struct Nova_vcpu : Rpc_client<Vm_session::Native_vcpu>, Noncopyable
 			uint32_t value()       const { return _value; }
 		};
 
-		void _handle_exit(Nova::Utcb &);
+		void _handle_exit(Nova::Utcb &, unsigned);
 
 		__attribute__((regparm(1))) static void _exit_entry(addr_t badge);
 
@@ -227,7 +227,7 @@ struct Nova_vcpu : Rpc_client<Vm_session::Native_vcpu>, Noncopyable
 };
 
 
-void Nova_vcpu::_read_nova_state(Nova::Utcb &utcb)
+void Nova_vcpu::_read_nova_state(Nova::Utcb &utcb, unsigned exit_reason)
 {
 	typedef Genode::Vcpu_state::Segment Segment;
 	typedef Genode::Vcpu_state::Range Range;
@@ -395,6 +395,12 @@ void Nova_vcpu::_read_nova_state(Nova::Utcb &utcb)
 		_vcpu_state.tpr.charge(utcb.read_tpr());
 		_vcpu_state.tpr_threshold.charge(utcb.read_tpr_threshold());
 	}
+
+	auto const mtd = utcb.mtd;
+
+	if (exit_reason != _vcpu_state.exit_reason)
+		error(__func__, " exit reason differs ", Hex(exit_reason),
+		                "!=", Hex(_vcpu_state.exit_reason), " ", Hex(mtd));
 }
 
 
@@ -615,7 +621,7 @@ void Nova_vcpu::_write_nova_state(Nova::Utcb &utcb)
  * Do not touch the UTCB before _read_nova_state() and after
  * _write_nova_state(), particularly not by logging diagnostics.
  */
-void Nova_vcpu::_handle_exit(Nova::Utcb &utcb)
+void Nova_vcpu::_handle_exit(Nova::Utcb &utcb, unsigned exit_reason)
 {
 #if 0
 	 if (utcb.exit_reason == VM_EXIT_RECALL) {
@@ -631,7 +637,7 @@ void Nova_vcpu::_handle_exit(Nova::Utcb &utcb)
 	}
 #endif
 
-	_read_nova_state(utcb);
+	_read_nova_state(utcb, exit_reason);
 
 	try {
 		_dispatching = Thread::myself();
@@ -655,6 +661,9 @@ void Nova_vcpu::with_state(Call_with_state &cw)
 	Nova::Utcb &utcb = *reinterpret_cast<Nova::Utcb *>(myself->utcb());
 
 	if (remote) {
+		error("vCPU borg ", _dispatching, " ", myself);
+		sleep_forever();
+
 		if (Thread::myself() != _ep_handler) {
 			error("vCPU state requested outside of vcpu_handler EP");
 			sleep_forever();
@@ -670,7 +679,7 @@ void Nova_vcpu::with_state(Call_with_state &cw)
 			sleep_forever();
 		};
 
-		_read_nova_state(utcb);
+		_read_nova_state(utcb, 0xbad);
 	}
 
 	_resume = cw.call_with_state(_vcpu_state);
@@ -717,12 +726,13 @@ void Nova_vcpu::_exit_entry(addr_t badge)
 	Thread     &myself = *Thread::myself();
 	Nova::Utcb &utcb   = *reinterpret_cast<Nova::Utcb *>(myself.utcb());
 
+	auto const exit_reason { Badge(badge).exit_reason() };
 	Vcpu_space::Id const vcpu_id { Badge(badge).vcpu_id() };
 
 	try {
 		_vcpu_space().apply<Nova_vcpu>(vcpu_id, [&] (Nova_vcpu &vcpu)
 		{
-			vcpu._handle_exit(utcb);
+			vcpu._handle_exit(utcb, exit_reason);
 
 			vcpu._last_resume = vcpu._resume;
 			if (vcpu._resume) {
