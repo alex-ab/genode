@@ -14,6 +14,7 @@ if {![file exists bin/sculpt-ahci.raw]} {
 }
 append qemu_args " -device ahci,id=ahci "
 append qemu_args " -drive id=hdd,file=$disk_image,format=raw,if=none -device ide-hd,drive=hdd,bus=ahci.1 "
+append qemu_args " -smp 4,cores=2,threads=2 "
 
 append_if [have_include image/iso] qemu_args " -boot d "
 
