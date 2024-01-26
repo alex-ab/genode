@@ -1,0 +1,7 @@
+<launcher priority="-2" pkg="vdi_block">
+	<route>
+		<service name="File_system">
+			<child name="nvme-fs" prepend_resource="/vm/debian"/>
+		</service>
+	</route>
+</launcher>

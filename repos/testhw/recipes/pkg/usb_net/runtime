@@ -1,0 +1,13 @@
+<runtime ram="20M" caps="300" binary="usb_net_drv">
+
+	<requires> <nic/> </requires>
+	<requires> <usb/> </requires>
+
+	<config/>
+
+	<content>
+		<rom label="ld.lib.so"/>
+		<rom label="usb_net_drv"/>
+	</content>
+
+</runtime>
