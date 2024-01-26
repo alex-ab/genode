@@ -1,0 +1,5 @@
+<launcher priority="-2" pkg="vdi_block">
+	<route>
+		<service name="File_system"> <child name="fs_debian"/> </service>
+	</route>
+</launcher>

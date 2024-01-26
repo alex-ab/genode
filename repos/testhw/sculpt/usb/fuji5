@@ -1,0 +1,18 @@
+<config bios_handoff="no">
+
+	<!-- available devices are listed at /report/runtime/usb/devices -->
+
+	<!-- example for a hypothetical development VM -->
+	<policy label_suffix="vbox -> ">
+		<device/>
+	</policy>
+
+	<policy label_suffix="usb_net -> ">
+		<device vendor_id="0xbda" product_id="0x8156"/>
+	</policy>
+
+	<policy label_prefix="seoul_debian_cpu ->">
+		<device vendor_id="0x1b1c" product_id="0x1a09"/> <!-- red USB stick -->
+	</policy>
+
+</config>

@@ -1,0 +1,16 @@
+	<launcher priority="0" name="top_view_config" pkg="top_view_config">
+		<route>
+			<service name="Gui">
+				<child name="wm"/>
+			</service>
+			<service name="TRACE">
+				<parent label="global"/>
+			</service>
+			<service name="File_system" label="fonts">
+				<child name="fonts_fs"/>
+			</service>
+			<service name="File_system" label="recall">
+				<child name="recall_fs"/>
+			</service>
+		</route>
+	</launcher>

@@ -1,0 +1,65 @@
+<launcher priority="-2" pkg="vbox6">
+	<affinity xpos="1" ypos="0" width="1" height="2"/>
+	<route>
+		<service name="File_system" label="vm">
+			<child name="fs_win10"/>
+		</service>
+
+		<service name="ROM" label_last="virtualbox6">
+			<parent/>
+		</service>
+		<service name="ROM" label_last="libc.lib.so">
+			<parent/>
+		</service>
+<!--
+-->
+		<service name="File_system" label="shared">
+			<child name="shared_fs"/>
+		</service>
+		<service name="Gui">
+			<child name="wm"/>
+		</service>
+		<service name="Nic">
+			<child name="nic_router"/>
+		</service>
+		<service name="ROM" label="capslock">
+			<parent label="capslock"/>
+		</service>
+		<service name="ROM" label="platform_info">
+			<parent label="platform_info"/>
+		</service>
+		<service name="Report" label_last="shape">
+			<child name="wm"/>
+		</service>
+		<service name="Report" label="clipboard">
+			<child name="wm"/>
+		</service>
+		<service name="ROM" label="clipboard">
+			<child name="wm"/>
+		</service>
+		<service name="VM">
+			<parent/>
+		</service>
+		<service name="RM">
+			<parent/>
+		</service>
+		<service name="Rtc">
+			<child name="system_clock-pc"/>
+		</service>
+		<service name="Record">
+			<child name="black_hole"/>
+		</service>
+		<service name="Play">
+			<child name="black_hole"/>
+		</service>
+		<service name="Usb">
+			<child name="usb"/>
+		</service>
+		<service name="Gpu">
+			<child name="black_hole"/>>
+		</service>
+		<service name="ROM" label="mesa_gpu.lib.so">
+			<child name="mesa_gpu-cpu"/>
+		</service>
+	</route>
+</launcher>

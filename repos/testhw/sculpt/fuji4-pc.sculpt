@@ -1,0 +1,50 @@
+# mandatory config (if not changed 'default' is used)
+#clipboard:     default
+deploy:        fuji4
+drivers:       default
+#fb_drv:        default
+#leitzentrale:  default
+#nitpicker:     default
+#numlock_remap: default
+ram_fs:        all_ram
+#system:        pc
+usb:           fuji4
+manager:       use_ram_fs
+
+# optional config (managed by sculpt if not specified)
+# nic_router:   fuji4
+gpu_drv:      intel
+#fonts:
+#event_filter:
+#wifi:
+#runtime:
+
+import: pkg/sculpt_drivers-pc
+import: src/pc_nic src/ipxe_nic
+#import: pkg/usb_net src/usb_net
+
+# src/pc_nic pkg/glmark2 pkg/acpica
+#import: pkg/usb_webcam pkg/test-capture pkg/top_view pkg/cpu_burner
+#import: pkg/vbox5-nova-capture
+
+# selection of accepted depot-package providers
+depot: genodelabs alex-ab
+
+launcher: msr_gui
+launcher: top_view_config
+
+launcher: shared_fs
+
+launcher: fs_ubuntu vbox6_ubuntu_fuji4
+launcher: fs_debian vbox6_debian_gpu
+launcher: fs_win10  vbox6_win10_gpu
+
+#launcher: usb_net
+
+build: kernel
+build: virtualbox6
+build: driver/nic
+build: app/sculpt_manager
+#build: driver/usb_net
+#build: lib/qemu-usb lib/libyuv
+#build: virtualbox5/nova

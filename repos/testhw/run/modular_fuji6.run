@@ -1,0 +1,9 @@
+set ::env(SCULPT) fuji6
+set ::env(LOG)    core
+
+source ${genode_dir}/repos/gems/run/sculpt.run
+
+append qemu_args " -m 4096 "
+append qemu_args " -accel kvm -cpu host"
+
+run_genode_until forever

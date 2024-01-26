@@ -1,0 +1,9 @@
+<launcher priority="-2" pkg="usb_net">
+	<route>
+		<service name="ROM" label_last="usb_net_drv">
+			<parent/>
+		</service>
+		<service name="Usb">    <parent/>                  </service>
+		<service name="Uplink"> <child name="nic_router"/> </service>
+	</route>
+</launcher>
