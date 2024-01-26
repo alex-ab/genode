@@ -1,0 +1,14 @@
+<config>
+	<vfs>
+		<ram/>
+		<import>
+			<dir name="depot"> <tar name="depot.tar"/> </dir>
+		</import>
+<!--
+		<import>
+			<dir name="vm"> <dir name="fuji4"> <tar name="fuji4.tar"/> </dir> </dir>
+		</import>
+-->
+	</vfs>
+	<default-policy root="/" writeable="yes"/>
+</config>

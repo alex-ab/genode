@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<VirtualBox xmlns="http://www.virtualbox.org/" version="1.18-genode">
+  <Machine uuid="{37ab43a5-38d8-4491-93f5-5b0b077f5c32}" name="FUJI4" OSType="Ubuntu_64" snapshotFolder="Snapshots">
+    <MediaRegistry>
+      <HardDisks>
+        <HardDisk uuid="{b47a4afb-c8d7-44fe-8c21-db99a6297969}" location="/fuji4.vmdk" format="VMDK" type="Normal"/>
+      </HardDisks>
+    </MediaRegistry>
+    <Hardware>
+      <CPU count="2">
+        <PAE enabled="true"/>
+        <LongMode enabled="true"/>
+        <HardwareVirtExLargePages enabled="false"/>
+      </CPU>
+      <Memory RAMSize="4096"/>
+      <HID Pointing="PS2Mouse"/>
+      <!-- normal operation -->
+      <Display VRAMSize="20" monitorCount="1" controller="VBoxSVGA"/>
+      <!-- 3D Linux
+      <Display controller="VMSVGA" VRAMSize="256" accelerate3D="true"/>
+      -->
+      <!-- 3D Windows
+      <Display VRAMSize="128" monitorCount="1" controller="VBoxSVGA" accelerate3D="true"/>
+      -->
+      <RemoteDisplay enabled="false"/>
+      <Paravirt provider="KVM"/>
+      <BIOS>
+        <IOAPIC enabled="true"/>
+      </BIOS>
+      <USB>
+        <Controllers>
+          <Controller name="OHCI" type="OHCI"/>
+        </Controllers>
+      </USB>
+      <Network>
+        <Adapter slot="0" enabled="true" MACAddress="0800271D7901" cable="true" type="82540EM">
+          <BridgedInterface/>
+        </Adapter>
+      </Network>
+      <AudioAdapter controller="HDA" driver="OSS" enabled="false" enabledIn="false" enabledOut="false"/>
+      <RTC localOrUTC="UTC"/>
+      <SharedFolders>
+        <SharedFolder name="shared" hostPath="/shared" writable="true" autoMount="true"/>
+      </SharedFolders>
+      <Clipboard mode="Bidirectional"/>
+    </Hardware>
+    <StorageControllers>
+      <StorageController name="SATA" type="AHCI" PortCount="4" useHostIOCache="true" Bootable="true" IDE0MasterEmulationPort="0" IDE0SlaveEmulationPort="1" IDE1MasterEmulationPort="2" IDE1SlaveEmulationPort="3">
+        <AttachedDevice type="HardDisk" port="0" device="0">
+          <Image uuid="{b47a4afb-c8d7-44fe-8c21-db99a6297969}"/>
+        </AttachedDevice>
+      </StorageController>
+    </StorageControllers>
+  </Machine>
+</VirtualBox>
