@@ -179,7 +179,7 @@ struct Pci_driver
 	void _irq_handle()
 	{
 		if (_irq_handler) _irq_handler(_irq_data);
-		_irq.ack();
+//		_irq.ack();
 	}
 
 	Pci_driver(Genode::Env &env) : _env(env)
