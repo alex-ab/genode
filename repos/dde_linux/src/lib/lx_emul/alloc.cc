@@ -17,10 +17,42 @@
 #include <lx_emul/page_virt.h>
 #include <lx_kit/env.h>
 
+#include "simple_cache.h"
+
+
+static Simple_cache<true, 10'000> & cache()
+{
+	static Simple_cache<true, 10'000> alloc { };
+	return alloc;
+}
+
+
+static bool simple_cache_enabled(bool enable = false)
+{
+	static bool enabled = false;
+	if (enable) enabled = enable;
+	return enabled;
+}
+
+
+extern "C" void lx_emul_enable_simple_cache(void)
+{
+	Genode::log("simple alloc cache enabled");
+	simple_cache_enabled(true);
+}
+
+
 extern "C" void * lx_emul_mem_alloc_aligned(unsigned long size, unsigned long align)
 {
+	if (simple_cache_enabled()) {
+		void * const ptr_cached = cache().alloc(size, align);
+		if (ptr_cached)
+			return ptr_cached;
+	}
+
 	void * const ptr = Lx_kit::env().memory.alloc(size, align);
 	lx_emul_forget_pages(ptr, size);
+
 	return ptr;
 };
 
@@ -60,11 +92,26 @@ extern "C" void lx_emul_mem_free(const void * ptr)
 {
 	if (!ptr)
 		return;
-	if (Lx_kit::env().memory.free(ptr))
-		return;
-	if (Lx_kit::env().uncached_memory.free(ptr))
-		return;
-	Genode::error(__func__, " called with invalid ptr ", ptr);
+
+	auto const fn_free = [&](const void * data_ptr) {
+		if (Lx_kit::env().memory.free(data_ptr))
+			return true;
+
+		if (Lx_kit::env().uncached_memory.free(data_ptr))
+			return true;
+
+		return false;
+	};
+
+	if (simple_cache_enabled()) {
+		auto const size = Lx_kit::env().memory.size(ptr);
+
+		if (size && cache().free(ptr, size, fn_free))
+			return;
+	}
+
+	if (!fn_free(ptr))
+		Genode::error(__func__, " called with invalid ptr ", ptr);
 };
 
 
