@@ -25,6 +25,7 @@ namespace Pc {
 	struct Main;
 }
 
+extern "C" void lx_emul_enable_simple_cache();
 
 extern task_struct *user_task_struct_ptr;
 
@@ -73,6 +74,8 @@ struct Pc::Main
 		/* subscribe to config updates and import initial config */
 		_config.sigh(_config_handler);
 		_handle_config();
+
+		lx_emul_enable_simple_cache();
 
 		lx_emul_start_kernel(nullptr);
 	}
