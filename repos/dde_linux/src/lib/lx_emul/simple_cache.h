@@ -20,6 +20,8 @@ class Simple_cache
 {
 	private:
 
+		#define SIMPLE_MEM_STATISTICS_TRACKING 1
+
 		enum { TYPED_CACHES = 32, BUCKET_COUNT = 16 };
 
 		typedef unsigned long uint64;
@@ -30,6 +32,12 @@ class Simple_cache
 			void * ptr [BUCKET_COUNT];
 			Access last;
 			uint64 bucket_size;
+
+			#if SIMPLE_MEM_STATISTICS_TRACKING
+			/* statistics, not required for operation */
+			uint64 avail;
+			uint64 hits;
+			#endif
 
 			void for_one_used_entry(auto const align, auto const &fn)
 			{
@@ -65,6 +73,11 @@ class Simple_cache
 		Bucket bucket_typed [TYPED_CACHES] { };
 
 		Access invocations { };
+
+		#if SIMPLE_MEM_STATISTICS_TRACKING
+		/* statistics about not supported _free_ calls */
+		Access ignored [8192] { };
+		#endif
 
 		void loop_buckets(auto const size, auto const &fn)
 		{
@@ -108,6 +121,10 @@ class Simple_cache
 
 				Genode::memset(ptr, 0, size);
 
+				#if SIMPLE_MEM_STATISTICS_TRACKING
+				bucket.avail --;
+				bucket.hits ++;
+				#endif
 			});
 
 			return ptr;
@@ -119,6 +136,9 @@ class Simple_cache
 
 				data_ptr = (void *)ptr;
 
+				#if SIMPLE_MEM_STATISTICS_TRACKING
+				bucket.avail ++;
+				#endif
 			});
 		}
 
@@ -149,8 +169,14 @@ class Simple_cache
 					fn_free(data_ptr);
 					data_ptr = nullptr;
 
+					#if SIMPLE_MEM_STATISTICS_TRACKING
+					bucket.avail --;
+					#endif
 				}
 
+				#if SIMPLE_MEM_STATISTICS_TRACKING
+				bucket.hits        = 0;
+				#endif
 			});
 		}
 
@@ -161,6 +187,9 @@ class Simple_cache
 			void * ptr = nullptr;
 
 			invocations.count ++;
+
+			if (invocations.count % 200'000 == 0)
+				dump_stats();
 
 			if (!size)
 				return ptr;
@@ -209,5 +238,52 @@ class Simple_cache
 			});
 
 			return freed;
+		}
+
+		void dump_stats(bool reset = true)
+		{
+			#if SIMPLE_MEM_STATISTICS_TRACKING
+			unsigned i = 0;
+			bool first_uncached = true;
+
+			for (auto &entry : ignored) {
+				if (entry.count) {
+					if (first_uncached) {
+						first_uncached = false;
+						Genode::log("ignored :");
+					}
+
+					Genode::log(i <   10 ? " " : "",
+					            i <  100 ? " " : "",
+					            i < 1000 ? " " : "",
+					            " ", i, " ", entry.count);
+				}
+
+				i ++;
+
+				if (reset)
+					entry.count = 0;
+			}
+
+			Genode::log("cached :");
+
+			for (auto &bucket : bucket_typed) {
+				auto const  data_size = bucket.bucket_size;
+
+				if (data_size)
+					Genode::log(data_size <   10 ? " " : "",
+					            data_size <  100 ? " " : "",
+					            data_size < 1000 ? " " : "",
+					            " ", data_size,
+					            " avail=", bucket.avail,
+					            " hits=", bucket.hits);
+
+				if (reset) {
+					bucket.hits        = 0;
+				}
+			}
+			#else
+			(void)reset;
+			#endif
 		}
 };
