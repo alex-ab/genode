@@ -157,9 +157,14 @@ handle_control_request(genode_usb_request_handle_t handle,
 	/* check for set device configuration request */
 	if (ctrl_request == USB_REQ_SET_CONFIGURATION &&
 	    ctrl_request_type == USB_RECIP_DEVICE) {
+		printk("%s:%u ctrl_value=%x act_config=%px\n",
+		       __func__, __LINE__, ctrl_value, udev->actconfig);
 		if (!(udev->actconfig &&
-		      udev->actconfig->desc.bConfigurationValue == ctrl_value))
+		      udev->actconfig->desc.bConfigurationValue == ctrl_value)) {
+			printk("%s:%u\n", __func__, __LINE__);
 			ret = usb_set_configuration(udev, ctrl_value);
+			printk("%s:%u ret=%d\n", __func__, __LINE__, ret);
+		}
 		send_msg = false;
 	}
 
