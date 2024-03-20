@@ -7,8 +7,6 @@ endif
 
 LX_GEN_DIR := $(LIB_CACHE_DIR)/pc_linux_generated
 
-include $(call select_from_repositories,lib/import/import-lx_emul_common.inc)
-
 #
 # Align memory allocations to 16 byte (because we allow FPU use in drivers)
 #
@@ -64,3 +62,5 @@ SRC_C   += lx_emul/shadow/drivers/acpi/glue.c
 SRC_C   += lx_emul/shadow/drivers/acpi/property.c
 SRC_C   += lx_emul/shadow/drivers/acpi/scan.c
 SRC_C   += lx_emul/shadow/drivers/acpi/utils.c
+
+include $(call select_from_repositories,lib/import/import-lx_emul_common.inc)
