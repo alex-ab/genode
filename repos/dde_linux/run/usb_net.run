@@ -17,7 +17,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/vfs_lwip \
                   [depot_user]/src/init
 
-build { test/lwip/http_srv }
+build { test/lwip/http_srv drivers/usb_host app/top }
 
 install_config {
 <config>
@@ -30,6 +30,7 @@ install_config {
 		<service name="RM"/>
 		<service name="CPU"/>
 		<service name="LOG"/>
+		<service name="TRACE"/>
 	</parent-provides>
 	<default-route>
 		<any-service> <parent/> <any-child/> </any-service>
@@ -39,6 +40,14 @@ install_config {
 	<start name="timer">
 		<resource name="RAM" quantum="1M"/>
 		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="top">
+		<resource name="RAM" quantum="4M"/>
+		<route>
+			<service name="TRACE"> <parent label=""/> </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
 	</start>
 
 	<start name="usb_drv" caps="1500" managing_system="yes">
@@ -116,7 +125,8 @@ append_if [have_board rpi] config {
 		<device vendor_id="0x0424" product_id="0xec00"/> </policy>}
 append_if [have_spec x86] config {
 	<policy label_prefix="usb_net_drv">
-		<device vendor_id="0x0b95" product_id="0x1790"/> </policy> }
+		<device vendor_id="0x0bda" product_id="0x8156"/> </policy> }
+#		<device vendor_id="0x0b95" product_id="0x1790"/> </policy> }
 append config {</config>}
 set fd [open [run_dir]/genode/usb_host_drv.config w]
 puts $fd $config
