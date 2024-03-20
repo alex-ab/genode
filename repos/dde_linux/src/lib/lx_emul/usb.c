@@ -535,17 +535,20 @@ static void interface_string(genode_buffer_t string, void * data)
 static void add_interface_callback(struct genode_usb_configuration * cfg,
                                    unsigned idx, void * data)
 {
-	struct usb_host_config *ucfg = (struct usb_host_config*) data;
-	struct usb_interface * iface = ucfg->interface[idx];
+	struct usb_host_config     *ucfg        = (struct usb_host_config*) data;
+	struct usb_interface_cache *iface_cache = ucfg->intf_cache[idx];
+	struct usb_interface       *iface       = ucfg->interface[idx];
 	unsigned i;
-	for (i = 0; i < iface->num_altsetting; i++) {
+
+	for (i = 0; i < iface_cache->num_altsetting; i++) {
 		struct genode_usb_interface_descriptor *desc =
 			(struct genode_usb_interface_descriptor*)
-				&iface->altsetting[i].desc;
-		bool set = &iface->altsetting[i] == iface->cur_altsetting;
+				&iface_cache->altsetting[i].desc;
+		bool set = iface ? &iface->altsetting[i] == iface->cur_altsetting
+		                 : false;
 		genode_usb_device_add_interface(cfg, interface_string, *desc,
 		                                add_endpoint_callback,
-		                                &iface->altsetting[i], set);
+		                                &iface_cache->altsetting[i], set);
 	}
 }
 
