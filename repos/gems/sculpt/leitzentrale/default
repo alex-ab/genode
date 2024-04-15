@@ -45,7 +45,7 @@
 				<inline>
 					<start name="fader" priority="-1">
 						<binary name="gui_fader"/>
-						<resource name="RAM" quantum="100M"/>
+						<resource name="RAM" quantum="140M"/>
 						<resource name="CPU" quantum="20"/>
 						<provides> <service name="Gui"/> </provides>
 						<config initial_fade_in_steps="100" fade_in_steps="20" alpha="210"/>
@@ -60,7 +60,7 @@
 				<inline>
 					<start name="fader" priority="-1">
 						<binary name="gui_fader"/>
-						<resource name="RAM" quantum="50M"/>
+						<resource name="RAM" quantum="90M"/>
 						<resource name="CPU" quantum="20"/>
 						<provides> <service name="Gui"/> </provides>
 						<config fade_out_steps="30" alpha="0"/>
@@ -74,7 +74,7 @@
 		</if>
 		<inline>
 			<start name="gui_fb" priority="-1">
-				<resource name="RAM" quantum="33M"/>
+				<resource name="RAM" quantum="50M"/>
 				<resource name="CPU" quantum="20"/>
 				<provides> <service name="Framebuffer"/> <service name="Input"/> </provides>
 				<config/>
@@ -266,7 +266,7 @@
 
 			<start name="log_terminal" priority="-1">
 				<binary name="terminal"/>
-				<resource name="RAM" quantum="12M"/>
+				<resource name="RAM" quantum="18M"/>
 				<provides> <service name="Terminal"/> </provides>
 				<config>
 					<initial width="100"/>
