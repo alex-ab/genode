@@ -134,6 +134,9 @@ void lx_emul_time_update_jiffies(void)
 }
 
 
+extern void update_wall_time(void);
+
+
 void lx_emul_time_update_jiffies_cpu_relax()
 {
 	/* based upon tick_do_update_jiffies64 in kernel/time/tick-sched.c */
@@ -155,6 +158,8 @@ void lx_emul_time_update_jiffies_cpu_relax()
 		jiffies_64 += ticks;
 
 		tick_next_period = ktime_add_ns(tick_next_period, incr * ticks);
+
+		update_wall_time();
 	}
 }
 
