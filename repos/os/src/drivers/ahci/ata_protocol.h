@@ -227,9 +227,13 @@ class Ata::Protocol : public Ahci::Protocol, Noncopyable
 			table.fis.identify_device();
 			port.execute(0, mmio);
 
-			mmio.wait_for_any(port.delayer, Port::Is::Dss::Equal(1),
-			                                Port::Is::Pss::Equal(1),
-			                                Port::Is::Dhrs::Equal(1));
+			try {
+				mmio.wait_for_any(port.delayer, Port::Is::Dss::Equal(1),
+				                                Port::Is::Pss::Equal(1),
+				                                Port::Is::Dhrs::Equal(1));
+			} catch (...) {
+				Genode::error("ata protorcol Polling_timeout ?");
+			}
 
 			_identity.construct(*port.device_info);
 			serial.construct(*_identity);

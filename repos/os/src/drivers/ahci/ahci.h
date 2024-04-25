@@ -911,9 +911,17 @@ struct Ahci::Port : private Port_base
 
 			stop(mmio);
 
-			mmio.wait_for(delayer, Cmd::Cr::Equal(0));
+			try {
+				mmio.wait_for(delayer, Cmd::Cr::Equal(0));
+			} catch (Polling_timeout) {
+				Genode::error("reinit cr Polling_timeout");
+			}
 
-			init(mmio);
+			try {
+				init(mmio);
+			} catch (Polling_timeout) {
+				Genode::error("reinit init Polling_timeout");
+			}
 
 			/*
 			 * Init protocol and determine actual number of command slots of device
@@ -1115,8 +1123,13 @@ struct Ahci::Port : private Port_base
 		 *  Set fis receive base, clear Fre (FIS receive) before and wait for FR
 		 *  (FIS receive running) to clear
 		 */
-		mmio.write<Cmd::Fre>(0);
-		mmio.wait_for(delayer, Cmd::Fr::Equal(0));
+		try {
+			mmio.write<Cmd::Fre>(0);
+			mmio.wait_for(delayer, Cmd::Fr::Equal(0));
+		} catch (Polling_timeout) {
+			Genode::error(__func__, " ");
+		}
+
 		fis_rcv_base(phys + 1024, mmio);
 
 		/* command table */
