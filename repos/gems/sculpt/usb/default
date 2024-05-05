@@ -14,4 +14,8 @@
 		<device vendor_id="0x5986" product_id="0x706"/>  <!-- x260 webcam -->
 	</policy>
 
+	<policy label_prefix="usb_hid -> ">
+		<device class="3"/>
+	</policy>
+
 </config>
