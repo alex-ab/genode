@@ -83,10 +83,12 @@ struct Sculpt::Usb_driver : private Noncopyable
 			xml.node("report", [&] {
 				xml.attribute("devices", "yes"); });
 
+#if 0
 			xml.node("policy", [&] {
 				xml.attribute("label_prefix", "usb_hid");
 				xml.node("device", [&] {
 					xml.attribute("class", CLASS_HID); }); });
+#endif
 
 			/* copy user-provided rules */
 			config.for_each_sub_node("policy", [&] (Xml_node const &policy) {
