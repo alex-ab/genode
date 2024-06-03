@@ -39,6 +39,11 @@ class Format_command
 		 */
 		int decode_decimal(const char *str, int *consumed)
 		{
+			if (str[*consumed] == '*') {
+				(*consumed) ++;
+				return -1;
+			}
+
 			int res = 0;
 			while (1) {
 				char c = str[*consumed];
@@ -182,6 +187,13 @@ void Console::vprintf(const char *format, va_list list)
 		Format_command cmd(format);
 
 		/* read numeric argument from va_list */
+
+		if (cmd.padding == -1)
+			cmd.padding = va_arg(list, int);
+
+		if (cmd.precision == -1)
+			cmd.precision = va_arg(list, int);
+
 		long long numeric_arg = 0;
 		if (cmd.numeric()) {
 			switch (cmd.length) {
