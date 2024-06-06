@@ -69,6 +69,14 @@ namespace Driver {
 				Config::Command::Io_space_enable::set(cmd, 1);
 			});
 
+			/* enable i/o space for bridges when I/O base/limit are defined */
+			if (_config.bridge() && (_cfg.io_base_limit || _cfg.io_base_limit_upper))
+				Config::Command::Io_space_enable::set(cmd, 1);
+
+			/* enable memory space for bridges when I/O mem limit is defined */
+			if (_config.bridge() && _cfg.memory_limit)
+				Config::Command::Memory_space_enable::set(cmd, 1);
+
 			_config.write<Config::Command>(cmd);
 		}
 
