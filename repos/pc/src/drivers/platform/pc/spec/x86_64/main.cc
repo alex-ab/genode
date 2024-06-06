@@ -14,6 +14,8 @@
 #include <base/component.h>
 
 #include <common.h>
+#include <pci.h>
+#include <pci_helper.h>
 #include <intel/io_mmu.h>
 
 namespace Driver { struct Main; };
@@ -37,9 +39,9 @@ struct Driver::Main
 	void _suspend(String<8>);
 	void _reset();
 	void _system_update();
+	void _resume_bridges();
 
-	Main(Genode::Env & e)
-	: _env(e)
+	Main(Genode::Env & e) : _env(e)
 	{
 		_config_rom.sigh(_config_handler);
 		_acpi_rom  .sigh(_system_handler);
@@ -111,6 +113,9 @@ void Driver::Main::_system_update()
 		_common.io_mmu_devices().for_each([&] (Driver::Io_mmu & io_mmu) {
 			io_mmu.resume();
 		});
+
+		_resume_bridges();
+
 		/* report independent of result */
 		_common.report_resume();
 	}
@@ -165,6 +170,44 @@ void Driver::Main::_suspend(String<8> suspend_mode)
 			log("resumed from ", suspend_mode);
 	}, [&] {
 		warning(suspend_mode, " not supported");
+	});
+}
+
+
+void Driver::Main::_resume_bridges()
+{
+	_common.devices().for_each([&](Device & device) {
+		device.for_pci_config([&](Device::Pci_config const & pc) {
+
+			if (!pc.bridge)
+				return;
+
+			try {
+				{
+					Config_helper config(_env, device, pc);
+					Config_type1  bridge(config._config.range());
+
+					using C1 = Config_type1;
+
+					bridge.write<C1::Io_base_limit>(pc.io_base_limit);
+					bridge.write<C1::Memory_base>  (pc.memory_base);
+					bridge.write<C1::Memory_limit> (pc.memory_limit);
+
+					bridge.write<C1::Prefetchable_memory_base>       (pc.prefetch_memory_base);
+					bridge.write<C1::Prefetchable_memory_base_upper> (pc.prefetch_memory_base_upper);
+					bridge.write<C1::Prefetchable_memory_limit_upper>(pc.prefetch_memory_limit_upper);
+					bridge.write<C1::Io_base_limit_upper>            (pc.io_base_limit_upper);
+					bridge.write<C1::Expansion_rom_base_addr>        (pc.expansion_rom_base);
+					bridge.write<C1::Bridge_control>                 (pc.bridge_control);
+				}
+
+				Driver::pci_enable(_env, device);
+
+			} catch (Genode::Service_denied) {
+				Bdf bdf(pc.bus_num, pc.dev_num, pc.func_num);
+				error("resuming bridge ", bdf, " failed");
+			}
+		});
 	});
 }
 
