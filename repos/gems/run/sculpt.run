@@ -1133,7 +1133,7 @@ close $fd
 ##
 
 build [ingredients_of_type build]
-build { core kernel/nova server/nic_router drivers/ahci }
+build { core kernel/nova server/nic_router drivers/ahci drivers/platform app/pci_decode }
 
 append boot_modules [build_artifacts]
 append boot_modules { core hypervisor nic_router ahci_drv }
