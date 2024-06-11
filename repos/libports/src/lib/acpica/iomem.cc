@@ -433,10 +433,31 @@ void * AcpiOsMapMemory (ACPI_PHYSICAL_ADDRESS phys, ACPI_SIZE size)
 		return 0UL;
 	});
 
+#if 0
+	Genode::error("map ", Genode::Hex(phys), " -> ", Genode::Hex(virt), "+", Genode::Hex(size));
+
+	if (virt && size >= 8)
+		Genode::error("xxx readddddinng ", Genode::Hex(*reinterpret_cast<unsigned long long *>(virt)));
+#endif
+
 	if (virt)
 		return reinterpret_cast<void *>(virt);
 
 	virt= Acpica::Io_mem::insert(phys, size);
+
+#if 0
+	Genode::error("map mmio ", Genode::Hex(phys), " -> ", Genode::Hex(virt), "+", Genode::Hex(size));
+#endif
+
+#if 0
+	if (virt && size >= 4 && size <= 0x1000 &&
+	    (phys >= 0xf0000000 || (0x721ba000 <= phys && phys <= 0x721bc000)))
+	{
+		for (unsigned i = 0; i < size; i += 4)
+			Genode::error(i, " read ", Genode::Hex(*reinterpret_cast<unsigned *>(virt + i + (phys & 0xfffU))));
+		}
+#endif
+
 	if (virt)
 		return reinterpret_cast<void *>(virt + (phys & 0xfffU));
 
@@ -447,6 +468,10 @@ void AcpiOsUnmapMemory (void * ptr, ACPI_SIZE size)
 {
 	if (ptr == &faked_rsdp)
 		return;
+
+#if 0
+	Genode::error("unmap ", ptr, "+", Genode::Hex(size));
+#endif
 
 	Genode::uint8_t const * virt = reinterpret_cast<Genode::uint8_t *>(ptr);
 

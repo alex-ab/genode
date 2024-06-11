@@ -292,6 +292,7 @@ struct Acpica::Main
 #include "lid.h"
 #include "sb.h"
 #include "ec.h"
+#include "pci_bridge.h"
 #include "fujitsu.h"
 
 ACPI_STATUS init_pic_mode()
@@ -318,8 +319,17 @@ void Acpica::Main::init_acpica(bool const use_gpe)
 
 	/* enable debugging: */
 	if (false) {
-		AcpiDbgLevel |= ACPI_LV_IO | ACPI_LV_INTERRUPTS | ACPI_LV_INIT_NAMES;
-		AcpiDbgLayer |= ACPI_TABLES;
+		AcpiDbgLevel |= ACPI_LV_IO | ACPI_LV_INTERRUPTS | ACPI_LV_INIT_NAMES | ACPI_LV_ALL_EXCEPTIONS
+		             | ACPI_LV_RESOURCES | ACPI_LV_EXEC;
+		AcpiDbgLayer |= ACPI_TABLES | ACPI_EXECUTER | ACPI_RESOURCES;
+//		             |  ACPI_EXECUTER | ACPI_EVENTS | ACPI_DISPATCHER;
+
+		AcpiDbgLevel = ~0u;
+		AcpiDbgLayer = ~0u;
+
+		AcpiDbgLevel &= ~ACPI_LV_MUTEX;
+		AcpiDbgLevel &= ~ACPI_LV_FUNCTIONS;
+
 		log("debugging level=", Hex(AcpiDbgLevel),
 		            " layers=", Hex(AcpiDbgLayer));
 	}
@@ -365,6 +375,12 @@ void Acpica::Main::init_acpica(bool const use_gpe)
 	if (status != AE_OK) {
 		error("AcpiGetDevices failed, status=", status);
 		return;
+	}
+
+	/* PCIe controller */
+	status = AcpiGetDevices(ACPI_STRING("PNP0A08"), Pci_bridge::detect, this, nullptr);
+	if (status != AE_OK) {
+		error("AcpiGetDevice PCIe failed, status=", status);
 	}
 
 	status = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION);

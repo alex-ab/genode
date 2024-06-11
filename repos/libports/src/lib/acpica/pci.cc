@@ -41,6 +41,111 @@ struct Bdf
 };
 
 
+template <typename S>
+void for_each_element(auto const & head, S *, auto const &fn, auto const &fn_size)
+{
+	for(S const * e = reinterpret_cast<S const * const>(&head + 1);
+	    e < reinterpret_cast<S const *>(reinterpret_cast<char const *>(&head) + head.Header.Length);
+	    e = reinterpret_cast<S const *>(reinterpret_cast<char const *>(e) + fn_size(e)))
+	{
+		fn(*e);
+	}
+}
+
+
+static void with_config(Bdf             const & bdf,
+                        ACPI_TABLE_MCFG const & mcfg,
+                        auto            const & fn)
+{
+	using namespace Genode;
+
+	typedef ACPI_MCFG_ALLOCATION Mcfg_sub;
+
+	for_each_element(mcfg, (Mcfg_sub *) nullptr, [&] (auto const & e) {
+
+		/* bus_count * up to 32 devices * 8 function per device * 4k */
+		uint32_t const bus_count  = e.EndBusNumber - e.StartBusNumber + 1;
+		uint32_t const func_count = bus_count * 32 * 8;
+		uint32_t const bus_start  = e.StartBusNumber * 32 * 8;
+
+		error("bdf start=", bus_start, " func_count=", func_count,
+			   " ", String<24>(Hex(e.Address)));
+
+		/* force freeing I/O mem so that platform driver can use it XXX */
+//		AcpiGenodeFreeIOMem(e.Address, 0x1000UL * func_count);
+
+		if (bdf.bus < bus_start || bdf.bus >= bus_start + bus_count)
+			return;
+
+		unsigned bus_offset  = bdf.bus - bus_start;
+		if (unsigned(bdf.dev * 8 + bdf.fn) >= func_count)
+			return;
+
+		auto func_offset = 0x1000 * ((bus_offset * 32 * 8) +
+			                         (bdf.dev * 8 + bdf.fn));
+
+		error("func_offset=", Genode::Hex(func_offset), " ", bdf);
+
+		void * ptr = AcpiOsMapMemory(e.Address + func_offset, 0x1000);
+
+		if (ptr)
+			fn(ptr);
+
+		if (ptr)
+			AcpiOsUnmapMemory(ptr, 0x1000);
+
+	}, [](Mcfg_sub const * const e) { return sizeof(*e); });
+}
+
+
+static bool read_config(Bdf const &bdf, UINT32 reg, UINT64 *value, UINT32 width)
+{
+	ACPI_TABLE_HEADER *	header = nullptr;
+
+	ACPI_STATUS status = AcpiGetTable((char *)ACPI_SIG_MCFG, 0, &header);
+
+	if (status != AE_OK || !header || !value)
+		return false;
+
+	auto const &mcfg = reinterpret_cast<ACPI_TABLE_MCFG const &>(*header);
+	bool success     = false;
+
+	using namespace Genode;
+
+	with_config(bdf, mcfg, [&](auto & void_pci_config) {
+		uint8_t * pci_config = reinterpret_cast<uint8_t *>(void_pci_config);
+		*value = 0ull;
+		if (width ==  8) *value = *(uint8_t  *)(pci_config + reg); else
+		if (width == 16) *value = *(uint16_t *)(pci_config + reg); else
+		if (width == 32) *value = *(uint32_t *)(pci_config + reg); else
+		if (width == 64) *value = *(uint64_t *)(pci_config + reg); else {
+			Genode::error("unsupported width=", width);
+			return;
+		}
+
+		error("access ", bdf, " reg=", Hex(reg), " width=", width,
+		      " value=", Hex(*value));
+		success = true;
+
+#if 0
+		/* list PCI caps */
+		error("pci_config[34]=", Hex(pci_config[0x34]));
+
+		unsigned next_cap = *(uint16_t *)(pci_config + pci_config[0x34]);
+
+		while ((next_cap >> 16) & 0xff) {
+			uint8_t next = uint8_t((next_cap >> 16) & 0xff);
+			log("cap ", next_cap & 0xff, " next=", Hex(next));
+			next_cap = *(uint16_t *)(pci_config + next);
+		}
+#endif
+	});
+
+	return success;
+}
+
+
+
 static bool cpu_name(char const * name)
 {
 	unsigned cpuid = 0, edx = 0, ebx = 0, ecx = 0;
@@ -78,6 +183,9 @@ ACPI_STATUS AcpiOsReadPciConfiguration (ACPI_PCI_ID *pcidev, UINT32 reg,
 	 *     for those machines.
 	 */
 	if (emulate) {
+
+		read_config(bdf, reg, value, width);
+
 		if (reg == 0x60 && width == 32) {
 			*value = 0xe0000001;
 			warning(bdf, " emulate read ", Hex(reg), " -> ", Hex(*value));
