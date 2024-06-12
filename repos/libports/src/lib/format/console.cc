@@ -32,16 +32,21 @@ class Format_command
 		enum Type   { INT, UINT, STRING, CHAR, PTR, PERCENT, INVALID };
 		enum Length { DEFAULT, LONG, SIZE_T, LONG_LONG };
 
+		struct Decimal {
+			int  value;
+			bool star;
+		};
+
 	private:
 
 		/**
 		 * Read decimal value from string
 		 */
-		int decode_decimal(const char *str, int *consumed)
+		Decimal decode_decimal(const char *str, int *consumed)
 		{
 			if (str[*consumed] == '*') {
 				(*consumed) ++;
-				return -1;
+				return { .value = 0, .star = true };
 			}
 
 			int res = 0;
@@ -49,7 +54,7 @@ class Format_command
 				char c = str[*consumed];
 
 				if (!c || c < '0' || c > '0' + 9)
-					return res;
+					return { .value = res, .star = false };
 
 				res = (res * 10) + c - '0';
 				(*consumed)++;
@@ -58,15 +63,15 @@ class Format_command
 
 	public:
 
-		Type   type      = INVALID;  /* format argument type               */
-		Length length    = DEFAULT;  /* format argument length             */
-		int    padding   = 0;        /* min number of characters to print  */
-		int    precision = 0;        /* max number of characters to print  */
-		int    base      = 10;       /* base of numeric arguments          */
-		bool   lalign    = false;    /* align left                         */
-		bool   zeropad   = false;    /* pad with zero instead of space     */
-		bool   uppercase = false;    /* use upper case for hex numbers     */
-		int    consumed  = 0;        /* nb of consumed format string chars */
+		Type    type      = INVALID;  /* format argument type               */
+		Length  length    = DEFAULT;  /* format argument length             */
+		Decimal padding   { };        /* min number of characters to print  */
+		Decimal precision { };        /* max number of characters to print  */
+		int     base      = 10;       /* base of numeric arguments          */
+		bool    lalign    = false;    /* align left                         */
+		bool    zeropad   = false;    /* pad with zero instead of space     */
+		bool    uppercase = false;    /* use upper case for hex numbers     */
+		int     consumed  = 0;        /* nb of consumed format string chars */
 
 		/**
 		 * Constructor
@@ -188,11 +193,11 @@ void Console::vprintf(const char *format, va_list list)
 
 		/* read numeric argument from va_list */
 
-		if (cmd.padding == -1)
-			cmd.padding = va_arg(list, int);
+		if (cmd.padding.star)
+			cmd.padding.value = va_arg(list, int);
 
-		if (cmd.precision == -1)
-			cmd.precision = va_arg(list, int);
+		if (cmd.precision.star)
+			cmd.precision.value = va_arg(list, int);
 
 		long long numeric_arg = 0;
 		if (cmd.numeric()) {
@@ -238,7 +243,8 @@ void Console::vprintf(const char *format, va_list list)
 			case Format_command::UINT:
 
 				if (cmd.length == Format_command::LONG_LONG) {
-					out_unsigned<unsigned long long>(numeric_arg, cmd.base, cmd.padding,
+					out_unsigned<unsigned long long>(numeric_arg, cmd.base,
+					                                 cmd.padding.value,
 					                                 [&] (char c) { _out_char(c); });
 					break;
 				}
@@ -247,7 +253,8 @@ void Console::vprintf(const char *format, va_list list)
 
 			case Format_command::PTR:
 
-				out_unsigned<unsigned long>((long)numeric_arg, cmd.base, cmd.padding,
+				out_unsigned<unsigned long>((long)numeric_arg, cmd.base,
+				                            cmd.padding.value,
 				                            [&] (char c) { _out_char(c); });
 				break;
 
@@ -258,12 +265,12 @@ void Console::vprintf(const char *format, va_list list)
 
 			case Format_command::STRING:
 
-				if (cmd.precision) {
+				if (cmd.precision.value) {
 					int p = 0;
 					char const *a = va_arg(list, const char *);
-					for (; a && *a && p < cmd.precision; ++a, ++p)
+					for (; a && *a && p < cmd.precision.value; ++a, ++p)
 						_out_char(*a);
-					for (; p < cmd.padding; ++p)
+					for (; p < cmd.padding.value; ++p)
 						_out_char(' ');
 				} else {
 					_out_string(va_arg(list, const char *));
