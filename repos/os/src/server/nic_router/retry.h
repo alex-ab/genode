@@ -1,7 +1,6 @@
 /*
  * \brief  Utility to execute a function repeatedly
- * \author Norman Feske
- * \author Stefan Kalkowski
+ * \author Martin Stein
  * \date   2015-04-29
  */
 
