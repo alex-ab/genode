@@ -237,7 +237,7 @@ void Tcp_link::_tcp_packet(Tcp_packet &tcp,
                            Peer       &sender,
                            Peer       &receiver)
 {
-	if (_opening)
+	if (_state == State::OPENING)
 		_opening_tcp_packet(tcp, sender, receiver);
 
 	if (_state == State::CLOSED) {
