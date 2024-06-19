@@ -116,7 +116,7 @@ DIR_CONTENT(include/libc/sys/rpc) := $(D)/sys/rpc/types.h
 DIRS += include/libc/sys
 DIR_CONTENT(include/libc/sys) := \
     $(addprefix $(D)/sys/sys/,\
-                _types.h limits.h cdefs.h _null.h types.h _pthreadtypes.h \
+                _types.h limits.h cdefs.h cdio.h _null.h types.h _pthreadtypes.h \
                 syslimits.h select.h _sigset.h _timeval.h timespec.h \
                 _timespec.h stat.h signal.h unistd.h time.h param.h stdint.h \
                 event.h eventhandler.h disk.h errno.h poll.h queue.h mman.h \
@@ -128,7 +128,8 @@ DIR_CONTENT(include/libc/sys) := \
                 exec.h _lock.h _mutex.h statvfs.h ucontext.h syslog.h times.h \
                 utsname.h elf.h mtio.h _stdint.h atomic_common.h _ucontext.h \
                 _cpuset.h _bitset.h bitset.h _stdarg.h _uio.h auxv.h random.h \
-                _sockaddr_storage.h termios.h _termios.h _umtx.h kerneldump.h \
+                sched.h \
+                _sockaddr_storage.h termios.h _termios.h thr.h _umtx.h kerneldump.h \
                 conf.h disk_zone.h counter.h soundcard.h pciio.h timex.h)
 
 DIRS += include/libc/sys/disk
