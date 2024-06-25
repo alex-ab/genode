@@ -167,6 +167,8 @@
 		</route>
 	</start>
 
+	<start name="nvme"/>
+
 	<start name="nvme-1.part" pkg="part_block" priority="-1">
 		<route>
 			<service name="Block">
