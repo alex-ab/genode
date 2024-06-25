@@ -226,10 +226,56 @@ Sup::Handle_exit_result Sup::Vmx::handle_exit(Vcpu_state &state)
 
 	case VMX_EXIT_RDMSR:
 		_handle_default(state);
+
+		{
+			bool show = false;
+			static unsigned apic_cnt = 0;
+			static unsigned efer_cnt = 0;
+
+			if (state.cx.value() == 0x830 || state.cx.value() == 0x80b || state.cx.value() == 0x83f) {
+				apic_cnt ++;
+				show = apic_cnt % 10 == 0;
+
+show = false;
+
+			} else if (state.cx.value() == 0xc0000080) {
+				efer_cnt ++;
+				show = efer_cnt % 10 == 0;
+			} else
+				show = true;
+
+			if (show)
+				Genode::error("rdmsr ", Genode::Hex(state.cx.value()),
+				              " apic=", apic_cnt, " efer", efer_cnt);
+		}
+
 		return { Exit_state::DEFAULT, VINF_CPUM_R3_MSR_READ };
 
 	case VMX_EXIT_WRMSR:
 		_handle_default(state);
+
+		{
+			bool show = false;
+			static unsigned apic_cnt = 0;
+			static unsigned efer_cnt = 0;
+
+			if (state.cx.value() == 0x830 || state.cx.value() == 0x80b || state.cx.value() == 0x83f) {
+				apic_cnt ++;
+				show = apic_cnt % 10 == 0;
+
+show = false;
+
+			} else if (state.cx.value() == 0xc0000080) {
+				efer_cnt ++;
+				show = efer_cnt % 10 == 0;
+			} else
+				show = true;
+
+			if (show)
+				Genode::error("wrmsr ", Genode::Hex(state.cx.value()),
+				              " apic=", apic_cnt, " efer=", efer_cnt);
+		}
+
 		return { Exit_state::DEFAULT, VINF_CPUM_R3_MSR_WRITE };
 
 	case VCPU_PAUSED:
