@@ -1,0 +1,9 @@
+<launcher pkg="nvme" priority="-2">
+	<route>
+		<service name="Platform"> <parent/> </service>
+		<service name="Report"> <parent/> </service>
+		<service name="ROM" label="system">
+			<parent label="config -> managed/system"/>
+		</service>
+	</route>
+</launcher>
