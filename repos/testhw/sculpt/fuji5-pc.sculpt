@@ -9,7 +9,7 @@ drivers:       default
 ram_fs:        all_ram
 #system:        pc
 usb:           fuji5
-manager:       use_ram_fs
+manager:       use_ram_fs_wo_nvme
 
 # optional config (managed by sculpt if not specified)
 #nic_router:   fuji5
@@ -35,6 +35,8 @@ import: pkg/seoul-block
 #import: pkg/glmark2 pkg/acpica
 #import: pkg/usb_webcam pkg/test-capture pkg/top_view pkg/cpu_burner
 
+import: pkg/nvme
+
 # selection of accepted depot-package providers
 depot: genodelabs alex-ab
 
@@ -46,6 +48,8 @@ launcher: shared_fs
 #launcher: vbox6_debian_gpu
 #launcher: vdi_block_debian seoul_debian_cpu
 #launcher: vbox6_win10_gpu
+
+launcher: nvme
 
 #launcher: usb_net
 
