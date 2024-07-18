@@ -149,7 +149,7 @@ namespace Libc {
 	/**
 	 * Signal handling
 	 */
-	void init_signal(Signal &);
+	void init_signal(Signal &, void * stack);
 
 	/**
 	 * Atexit handling

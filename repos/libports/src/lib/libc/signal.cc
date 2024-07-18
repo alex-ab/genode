@@ -30,12 +30,16 @@ extern "C" {
 using namespace Libc;
 
 
-static Libc::Signal *_signal_ptr;
+static Libc::Signal * _signal_ptr;
+static void         * _signal_stack_init;
 
 
-void Libc::init_signal(Signal &signal)
+void Libc::init_signal(Signal & signal, void * stack)
 {
-	_signal_ptr = &signal;
+	_signal_ptr        = &signal;
+	_signal_stack_init = stack;
+
+	signal.use_signal_stack(stack);
 }
 
 
