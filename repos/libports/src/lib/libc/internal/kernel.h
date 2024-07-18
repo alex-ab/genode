@@ -232,6 +232,9 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 			_myself.alloc_secondary_stack(_myself.name().string(),
 			                              _user_stack_size()) };
 
+		void *_signal_stack = { _myself.alloc_secondary_stack("signal",
+		                                                      16 * 1024) };
+
 		enum State { KERNEL, USER };
 
 		State _state = KERNEL;
