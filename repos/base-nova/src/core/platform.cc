@@ -347,6 +347,8 @@ Core::Platform::Platform()
 	log("\nHypervisor ", String<sizeof(hip.signature)+1>((char const *)&hip.signature),
 	    " (API v", hip.api_version, ")");
 
+	nova_die();
+
 	/*
 	 * remap main utcb to default utcb address
 	 * we do this that early, because Core_mem_allocator uses
