@@ -247,7 +247,7 @@ extern "C" int sigaltstack(stack_t const * const ss, stack_t * const old_ss)
 			/* on disable use the default signal stack */
 			signal.use_alternative_stack(nullptr);
 
-			Genode::error("leaking secondary stack memory");
+			warning("leaking secondary stack memory");
 
 		} else {
 			if (ss->ss_sp)

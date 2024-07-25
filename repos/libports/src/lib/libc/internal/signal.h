@@ -103,11 +103,10 @@ struct Libc::Signal : Noncopyable
 				return;
 			}
 
+			Signal_arguments const arg(*this, pending);
+
 			/* save continuation of current stack */
 			if (!_setjmp(_signal_context)) {
-
-				Signal_arguments arg(*this, pending);
-
 				/* _setjmp() returned directly -> switch to signal stack */
 				call_func(signal_stack, (void *)_signal_entry, (void *)&arg);
 
