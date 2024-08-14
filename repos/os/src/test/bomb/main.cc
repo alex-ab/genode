@@ -29,19 +29,31 @@ class Bomb_child : public Child_policy
 {
 	private:
 
+		struct X { ~X() { log(__PRETTY_FUNCTION__); } } x { };
+
 		Env              &_env;
 		Binary_name const _binary_name;
 		Name        const _label;
 		Cap_quota   const _cap_quota;
 		Ram_quota   const _ram_quota;
 
+		struct A { ~A() { log(__PRETTY_FUNCTION__); } } a { };
+
 		Registry<Registered<Parent_service> > &_parent_services;
+
+		struct B { ~B() { log(__PRETTY_FUNCTION__); } } b { };
 
 		Id_space<Parent::Server> _server_ids { };
 
+		struct C { ~C() { log(__PRETTY_FUNCTION__); } } c { };
+
 		Child_policy_dynamic_rom_file _config_policy { _env.rm(), "config", _env.ep().rpc_ep(), &_env.ram() };
 
+		struct D { ~D() { log(__PRETTY_FUNCTION__); } } d { };
+
 		Child _child { _env.rm(), _env.ep().rpc_ep(), *this };
+
+		struct E { ~E() { log(__PRETTY_FUNCTION__); } } e { };
 
 	public:
 
@@ -62,7 +74,7 @@ class Bomb_child : public Child_policy
 			_config_policy.load(config.string(), config.length());
 		}
 
-		~Bomb_child() { log(__PRETTY_FUNCTION__); }
+		~Bomb_child() { log(__PRETTY_FUNCTION__, " ", _label); }
 
 
 		/****************************
@@ -238,6 +250,8 @@ struct Bomb
 		/* master if we have a timer connection */
 		if (master)
 			timer->trigger_once(sleeptime * 1000);
+
+		log("[", round, "] It's time to start all my children... done");
 	}
 
 	void destruct_children()
@@ -245,7 +259,11 @@ struct Bomb
 		log("[", round, "] It's time to kill all my children...");
 
 		child_registry.for_each([&] (Registered<Bomb_child> &child) {
-			destroy(heap, &child); });
+			auto const name = child.name();
+			log ("destroy ", name);
+			destroy(heap, &child);
+			log ("destroy ", name, " done");
+		});
 
 		log("[", round, "] Done.");
 
