@@ -13,7 +13,6 @@
 
 #include <base/attached_rom_dataspace.h>
 #include <base/component.h>
-#include <timer_session/connection.h>
 #include <capture_session/connection.h>
 #include <os/pixel_rgb888.h>
 #include <os/reporter.h>
@@ -33,7 +32,6 @@ extern "C" {
 
 
 extern struct task_struct * lx_user_task;
-extern struct task_struct * lx_update_task;
 
 
 namespace Framebuffer {
@@ -47,15 +45,12 @@ struct Framebuffer::Driver
 	using Attached_rom_system = Constructible<Attached_rom_dataspace>;
 
 	Env                    &env;
-	Timer::Connection       timer    { env };
 	Attached_rom_dataspace  config   { env, "config" };
 	Attached_rom_system     system   { };
 	Expanding_reporter      reporter { env, "connectors", "connectors" };
 
 	Signal_handler<Driver>  config_handler    { env.ep(), *this,
 	                                            &Driver::config_update };
-	Signal_handler<Driver>  timer_handler     { env.ep(), *this,
-	                                            &Driver::handle_timer };
 	Signal_handler<Driver>  scheduler_handler { env.ep(), *this,
 	                                            &Driver::handle_scheduler };
 	Signal_handler<Driver>  system_handler    { env.ep(), *this,
@@ -84,17 +79,14 @@ struct Framebuffer::Driver
 
 		public:
 
-			void paint()
+			bool paint()
 			{
 				using Pixel = Capture::Pixel;
 				Surface<Pixel> surface((Pixel*)_base, _size_phys);
 				_captured_screen.apply_to_surface(surface);
 
-				if (!lx_update_task)
-					return;
-
-				lx_emul_task_unblock(lx_update_task);
-				Lx_kit::env().scheduler.execute();
+				/* XXX tell whether really something need to be updated XXX */
+				return true;
 			}
 
 			Fb(Env & env, void * base, Capture::Area size,
@@ -120,11 +112,6 @@ struct Framebuffer::Driver
 	void system_update();
 	void generate_report();
 	void lookup_config(char const *, struct genode_mode &mode);
-
-	void handle_timer()
-	{
-		if (fb.constructed()) { fb->paint(); }
-	}
 
 	void handle_scheduler()
 	{
@@ -164,9 +151,6 @@ struct Framebuffer::Driver
 		log("--- Intel framebuffer driver started ---");
 
 		lx_emul_start_kernel(nullptr);
-
-		timer.sigh(timer_handler);
-		timer.trigger_periodic(20*1000);
 	}
 
 	bool apply_config_on_hotplug() const
@@ -464,6 +448,17 @@ void lx_emul_i915_report_modes(void * genode_xml, struct genode_mode *mode)
 		if (mode->inuse)
 			xml.attribute("used", true);
 	});
+}
+
+
+int lx_emul_i915_blit()
+{
+	auto &drv = driver(Lx_kit::env().env);
+
+	if (!drv.fb.constructed())
+		return false;
+
+	return drv.fb->paint();
 }
 
 
