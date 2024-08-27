@@ -658,38 +658,12 @@ Date:   Tue Aug 6 13:15:32 2024 +0200
 Platform driver
 ===============
 
-; @alex-ab
-
-commit 0c97c13562be304e42524f76f3691a498ba5d7e0
-Author: Alexander Boettcher <alexander.boettcher@genode-labs.com>
-Date:   Thu Jun 6 10:41:49 2024 +0200
-
-    pci_decode: report pci bridge configuration
-    
-    as setup by firmware after boot. The information will/can be used by the
-    platform driver to re-program bridges after a system suspend/resume cycle.
-    
-    Issue #5241
-
-commit 3216733a059101fd6aaa35fb86d661a54faa7065
-Author: Alexander Boettcher <alexander.boettcher@genode-labs.com>
-Date:   Thu Jun 6 11:08:39 2024 +0200
-
-    driver/platform: remember bridge configuration
-    
-    by evaluating the pci decode's 'devices' ROM and storing the information in
-    the pci config list model representation.
-    
-    Issue #5241
-
-commit 8b0a16d750b33cd325182ff3e1f105917f8d6164
-Author: Alexander Boettcher <alexander.boettcher@genode-labs.com>
-Date:   Thu Jun 6 11:40:01 2024 +0200
-
-    driver/platform: re-configure bridges on resume
-    
-    Fixes #5241
-
+During ACPI suspend the PCI bridges in the system may forget their
+PCI configuration. On resume this configuration needs to be restored, so that
+all PCI devices behind the bridge are usable again. With this release we added
+support to pci_decode to report all relevant information, which is
+used by the platform driver after an ACPI resume to re-configure the used PCI
+bridges.
 
 Improvements for NXP's i.MX family
 ==================================
@@ -1020,55 +994,26 @@ Date:   Thu Jul 4 14:50:14 2024 +0200
 NOVA microhypervisor
 ====================
 
-; @alex-ab
+The kernel received support to handle the x86 CPU FPU extension
+[https://de.wikipedia.org/wiki/Advanced_Vector_Extensions - AVX], which is a
+family of SIMD instruction extensions which are used for optimized
+implementations of mathematical algorithms, e.g. it is used in multimedia
+applications. In principle the kernel has to detect the available AVX versions,
+e.g. AVX, AVX-2, AVX-512 and depending on it it has to save and restore more
+FPU state during thread switching.
+Beside the general availability to Genode applications, the Seoul VMM got
+enabled as a first user of the feature. The VMM now announces the AVX feature
+to the guest VMs, so that the guest kernel can enable it and guest user
+applications can utilize it, e.g. for web browser and video de-/coding
+use-cases. The feature got tested with Seoul for Intel and AMD systems.
 
-commit 641ff65a2ec0691df8904dd2e85b887e6d818258
-Author: Alexander Boettcher <alexander.boettcher@genode-labs.com>
-Date:   Thu Jul 25 11:42:37 2024 +0200
+Additionally, the Genode core roottask now supports Intel SOCs with e-Core
+only CPUs, formerly named Intel ATOM CPUs and nowadays branded as Intel
+n-Series CPUs.
 
-    nova: support to run on e-core only SOCs
-    
-    The code to group together SMT threads of one CPU and to move P-Core to
-    the beginning of Genode's affinity-space, did not consider to run on
-    SOCs with only E-Core CPUs.
-    
-    Re-structure the code to support e-Core only SOCs.
-    
-    Additionally, provide a fallback mapping in case of CPU id reordering problems.
-    Track faulty re-mapping and delay the reporting until core_log is initialized,
-    so that the warnings is visible to consumers, e.g. on Sculpt OS.
-    
-    Related to discussion of #5304
-    
-    Fixes #5307
-
-commit 6aeb5c03749e0ba4d3c8f58304f207f7acdbc249
-Author: Alexander Boettcher <alexander.boettcher@genode-labs.com>
-Date:   Mon Jul 22 10:20:44 2024 +0200
-
-    nova: enable FPU AVX support
-    
-    Add extended FPU state detection and handling (via xsave and friends) to the
-    kernel, which has to store/load more FPU state (~512 -> 2k++) during context
-    switching of threads. Additional the referenced nova branch contains various
-    optimization during VM destruction and cross core IPC resource caching.
-    
-    This FPU work is based upon upstream NOVA kernel and Hedron commits.
-    
-    Issue #5314
-    Fixes #3914
-
-commit 1b8a6c6176c2ba46876591ca13bd3a588b561e18
-Author: Alexander Boettcher <alexander.boettcher@genode-labs.com>
-Date:   Fri Jul 26 19:05:33 2024 +0200
-
-    seoul: enable AVX support
-    
-    Add preliminary support. Tested on Sculpt 24.04 with nova
-    kernel on AMD and Intel in a Debian 12 VM.
-    
-    genodelabs/genode#5314
-
+Finally, the kernel now supports the freeing of vCPU related data structures
+during VM destruction, got optimized to reduce resource overhead during cross
+CPU IPC and improved VM MSR exit handling.
 
 Build system and tools
 ######################
