@@ -598,10 +598,17 @@ static int fb_client_hotplug(struct drm_client_dev *client)
 	 * commit the change.
 	 */
 	if (fb) {
+		bool mode_too_large = false;
+
 		mutex_lock(&client->modeset_mutex);
 		drm_client_for_each_modeset(modeset, client) {
 			if (!modeset || !modeset->num_connectors)
 				continue;
+
+			if (!mode_too_large && modeset->mode &&
+			    (modeset->mode->hdisplay > fb->width ||
+			     modeset->mode->vdisplay > fb->height))
+				mode_too_large = true;
 
 			modeset->fb = fb;
 		}
@@ -610,7 +617,7 @@ static int fb_client_hotplug(struct drm_client_dev *client)
 		/* triggers disablement of encoders attached to disconnected ports */
 		result = drm_client_modeset_commit(client);
 
-		if (result) {
+		if (result && !(mode_too_large && result == -ENOSPC)) {
 			printk("%s: error on modeset commit %d%s\n", __func__, result,
 			       (result == -ENOSPC) ? " - ENOSPC" : " - unknown error");
 		}
