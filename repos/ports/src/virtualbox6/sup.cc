@@ -653,6 +653,11 @@ static void ioctl(SUPCALLVMMR0 &request)
 		rc = vmmr0_vmmr0_init_emt(request.u.In.pVMR0, request.u.In.idCpu);
 		return;
 
+	case VMMR0_DO_PGM_POOL_GROW:
+		error(__func__, " VMMR0_DO_PGM_POOL_GROW to be implemented ?");
+		rc = VINF_SUCCESS;
+		return;
+
 	/* XXX ignore ioctls called during poweroff */
 	case VMMR0_DO_GVMM_DEREGISTER_VMCPU:
 	case VMMR0_DO_VMMR0_TERM:
