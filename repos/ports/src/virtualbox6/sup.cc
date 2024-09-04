@@ -138,10 +138,12 @@ static void ioctl(SUPVTCAPS &request)
 		switch (sup_drv->cpu_virt()) {
 		case Sup::Drv::Cpu_virt::VMX:
 			rc        = VERR_VMX_NO_VMX;
-			out.fCaps = SUPVTCAPS_VT_X | SUPVTCAPS_NESTED_PAGING;
+			rc        = VINF_SUCCESS; //VERR_VMX_NO_VMX;
+			out.fCaps = SUPVTCAPS_VT_X | SUPVTCAPS_NESTED_PAGING |
+			            SUPVTCAPS_VTX_UNRESTRICTED_GUEST;
 			break;
 		case Sup::Drv::Cpu_virt::SVM:
-			rc        = VERR_SVM_NO_SVM;
+			rc        = VINF_SUCCESS; //VERR_SVM_NO_SVM;
 			out.fCaps = SUPVTCAPS_AMD_V | SUPVTCAPS_NESTED_PAGING;
 			break;
 		case Sup::Drv::Cpu_virt::NONE:
