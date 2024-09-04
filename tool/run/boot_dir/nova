@@ -102,7 +102,7 @@ proc run_boot_dir {binaries} {
 		#
 		# Compress Genode image, to be uncompressed by GRUB
 		#
-		exec gzip -n [run_dir]/boot/image.elf
+#		exec gzip -n [run_dir]/boot/image.elf
 
 		if {[have_include "image/disk"]} {
 			install_disk_bootloader_to_run_dir
@@ -130,7 +130,7 @@ proc run_boot_dir {binaries} {
 			puts $fh " module2 /boot/micro.code micro.code"
 		}
 		puts $fh " module2 /boot/hypervisor hypervisor iommu_intel iommu_amd [kernel_output]"
-		puts $fh " module2 /boot/image.elf.gz image.elf"
+		puts $fh " module2 /boot/image.elf image.elf"
 		puts $fh "}"
 		close $fh
 	}
