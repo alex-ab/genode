@@ -206,8 +206,8 @@ class Genode::Vcpu_state
 
 				struct State
 				{
-					uint8_t _buffer[512] { };
-				} __attribute__((aligned(16)));
+					uint8_t _buffer[2560] { };
+				} __attribute__((aligned(64)));
 
 			private:
 
@@ -237,7 +237,7 @@ class Genode::Vcpu_state
 				}
 		};
 
-		Fpu fpu __attribute__((aligned(16))) { };
+		Fpu fpu __attribute__((aligned(64))) { };
 
 		/*
 		 * Registers transfered by hypervisor from guest on VM exit are charged.

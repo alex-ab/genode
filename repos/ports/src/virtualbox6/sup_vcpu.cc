@@ -266,10 +266,9 @@ template <typename VIRT> void Sup::Vcpu_impl<VIRT>::_transfer_state_to_vcpu(CPUM
 	}
 
 	/* export FPU state */
-	AssertCompile(sizeof(Vcpu_state::Fpu::State) >= sizeof(X86FXSTATE));
-
-		_state->ref.fpu.charge([&](Vcpu_state::Fpu::State &fpu) {
-		::memcpy(fpu._buffer, ctx.pXStateR3, sizeof(fpu));
+	_state->ref.fpu.charge([&](Vcpu_state::Fpu::State &fpu) {
+		static_assert(sizeof(*ctx.pXStateR3) >= sizeof(fpu._buffer));
+		::memcpy(fpu._buffer, ctx.pXStateR3, sizeof(fpu._buffer));
 	});
 
 	{
@@ -415,7 +414,8 @@ template <typename VIRT> void Sup::Vcpu_impl<VIRT>::_transfer_state_to_vbox(CPUM
 
 	/* import FPU state */
 	_state->ref.fpu.with_state([&](Vcpu_state::Fpu::State const &fpu) {
-		::memcpy(ctx.pXStateR3, fpu._buffer, sizeof(X86FXSTATE));
+		static_assert(sizeof(*ctx.pXStateR3) >= sizeof(fpu._buffer));
+		::memcpy(ctx.pXStateR3, fpu._buffer, sizeof(fpu._buffer));
 		return true;
 	});
 

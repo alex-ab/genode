@@ -177,6 +177,7 @@ void Nova_vcpu::_read_nova_state(Nova::Utcb &utcb)
 
 	if (utcb.mtd & Nova::Mtd::FPU) {
 		_vcpu_state.fpu.charge([&] (Vcpu_state::Fpu::State &fpu) {
+			static_assert(sizeof(utcb.fpu) == sizeof(fpu));
 			memcpy(&fpu, utcb.fpu, sizeof(fpu));
 		});
 	}
@@ -557,6 +558,7 @@ void Nova_vcpu::_write_nova_state(Nova::Utcb &utcb)
 	if (_vcpu_state.fpu.charged()) {
 		utcb.mtd |= Nova::Mtd::FPU;
 		_vcpu_state.fpu.with_state([&] (Vcpu_state::Fpu::State const &fpu) {
+			static_assert(sizeof(utcb.fpu) == sizeof(fpu));
 			memcpy(utcb.fpu, &fpu, sizeof(fpu));
 		});
 	}
