@@ -301,5 +301,6 @@ lappend boot_modules pci_audio
 build_boot_image $boot_modules
 
 append qemu_args " -m 3500 -cpu EPYC "
+append qemu_args " -accel kvm -cpu host"
 
 run_genode_until forever
