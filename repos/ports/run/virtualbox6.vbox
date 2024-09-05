@@ -10,9 +10,12 @@
     <MediaRegistry>
       <HardDisks>
         <!--HardDisk uuid="{3d9a9193-0fe7-4f8c-8e1b-065dbf514c82}" location="/ram/overlay.vdi" format="VDI" autoReset="true"/-->
+        <HardDisk uuid="{386d400b-0e8d-451f-ae1e-ec6f3a7be169}" location="linux.vmdk" format="VMDK"/>
       </HardDisks>
       <DVDImages>
+<!--
         <Image uuid="{81763434-9a51-49e8-9444-528a5a28c4bc}" location="test.iso"/>
+-->
       </DVDImages>
       <FloppyImages>
         <!--Image uuid="{a804c9cb-ae6d-490a-92e9-8d4605911c22}" location="bootsector.img"/-->
@@ -98,14 +101,14 @@
       </StorageController>
       -->
       <StorageController name="SATA" type="AHCI" PortCount="2" useHostIOCache="true" Bootable="true">
+        <!--
         <AttachedDevice passthrough="false" tempeject="true" type="DVD" port="1" device="0">
           <Image uuid="{81763434-9a51-49e8-9444-528a5a28c4bc}"/>
         </AttachedDevice>
-        <!--
-        <AttachedDevice type="HardDisk" port="0" device="0">
-          <Image uuid="{3d9a9193-0fe7-4f8c-8e1b-065dbf514c82}"/>
-        </AttachedDevice>
         -->
+        <AttachedDevice type="HardDisk" port="0" device="0">
+          <Image uuid="{386d400b-0e8d-451f-ae1e-ec6f3a7be169}"/>
+        </AttachedDevice>
       </StorageController>
       <StorageController name="Floppy" type="I82078" PortCount="1" useHostIOCache="true" Bootable="true">
         <AttachedDevice type="Floppy" hotpluggable="false" port="0" device="0">
