@@ -266,6 +266,7 @@ template <typename VIRT> void Sup::Vcpu_impl<VIRT>::_transfer_state_to_vcpu(CPUM
 	}
 
 	/* export FPU state */
+	state.xcr0.charge(ctx.aXcr[0]);
 	_state->ref.fpu.charge([&](Vcpu_state::Fpu::State &fpu) {
 		static_assert(sizeof(*ctx.pXStateR3) >= sizeof(fpu._buffer));
 		::memcpy(fpu._buffer, ctx.pXStateR3, sizeof(fpu._buffer));
@@ -397,6 +398,15 @@ template <typename VIRT> void Sup::Vcpu_impl<VIRT>::_transfer_state_to_vbox(CPUM
 	if (ctx.msrKERNELGSBASE != state.kernel_gs_base.value())
 		CPUMSetGuestMsr(pVCpu, MSR_K8_KERNEL_GS_BASE, state.kernel_gs_base.value());
 
+/*
+	if (ctx.msrIA32_XSS == 0)
+		error("heho");
+*/
+
+/* XXX what is that
+	ctx.fXStateMask = 0;
+*/
+
 	uint32_t const tpr = state.tpr.value();
 
 	/* update cached state */
@@ -418,6 +428,8 @@ template <typename VIRT> void Sup::Vcpu_impl<VIRT>::_transfer_state_to_vbox(CPUM
 		::memcpy(ctx.pXStateR3, fpu._buffer, sizeof(fpu._buffer));
 		return true;
 	});
+
+	ctx.aXcr[0] = state.xcr0.value();
 
 	/* do SVM/VMX-specific transfers */
 	VIRT::transfer_state_to_vbox(state, _vmcpu, ctx);
