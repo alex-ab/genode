@@ -39,6 +39,7 @@ extern "C" {
 }
 
 static void test_sigalt();
+static void test_sigwait();
 
 int main(int argc, char **argv)
 {
@@ -269,6 +270,7 @@ int main(int argc, char **argv)
 	} while (0);
 
 	test_sigalt();
+	test_sigwait();
 
 	exit(error_count);
 }
@@ -354,6 +356,44 @@ static void test_sigalt()
 
 	/* restore old sigusr2 signal handler */
 	sigaction(SIGUSR2, &sa_old, NULL);
+
+	printf("%s done\n", __func__);
+}
+
+
+static void * test_sigwait_pthread(void *arg)
+{
+	sigset_t set { };
+	int      triggered_signal { };
+
+	sigemptyset(&set);
+	sigaddset  (&set, SIGBUS);
+
+	int result = sigwait(&set, &triggered_signal);
+
+	if (result)
+		abort();
+
+	return arg;
+}
+
+
+static void test_sigwait()
+{
+	pthread_t t;
+
+	if (pthread_create(&t, 0, test_sigwait_pthread, NULL)) {
+		printf("error: pthread_create() failed\n");
+		exit(-1);
+	}
+
+	/* wait for pthread to invoke sigwait */
+	sleep(3);
+
+	/* send signal to pthread */
+	kill(getpid(), SIGBUS);
+
+	pthread_join(t, NULL);
 
 	printf("%s done\n", __func__);
 }
