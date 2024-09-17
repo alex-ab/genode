@@ -42,13 +42,44 @@ void Libc::init_signal(Signal &signal, Monitor &monitor)
 }
 
 
+static void for_each_signal_of_set(sigset_t const &set, auto const &fn)
+{
+	for (unsigned word = 0; word < _SIG_WORDS; word++) {
+		if (!set.__bits[word])
+			continue;
+
+		unsigned signals = set.__bits[word];
+
+		/* invoke functor for all signals of set */
+		while (signals) {
+			unsigned const sigbit = __builtin_ctz(signals);
+			unsigned const signal = word * 32 + sigbit + 1;
+
+			signals &= ~(1u << sigbit);
+
+			fn(signal);
+		}
+	}
+}
+
+
 void Libc::Signal::_execute_signal_handler(unsigned const n)
 {
 	signal_count[n] ++;
 
-	if (signal_sigwait[n])
+	if (signal_sigwait_used[n]) {
+
+		auto const set = signal_sigwait[n];
+
+		/* de-arm sigwait usage of given signal set */
+		for_each_signal_of_set(set, [&](auto const signal) {
+			signal_sigwait_used[signal] = false;
+			signal_sigwait     [signal] = { };
+		});
+
 		/* the blocked thread is woken by sigwait() in monitor() */
 		return;
+	}
 
 	if (signal_action[n].sa_flags & SA_SIGINFO) {
 		signal_action[n].sa_sigaction(n, 0, 0);
@@ -289,31 +320,14 @@ extern "C" int sigwait(const sigset_t *set, int *sig)
 
 	auto &signals = *_signal_ptr;
 
-	auto for_each_signal_of_set = [&](sigset_t const &set, auto const &fn) {
-		for (unsigned word = 0; word < _SIG_WORDS; word++) {
-			if (!set.__bits[word])
-				continue;
-
-			unsigned signals = set.__bits[word];
-
-			/* invoke functor for all signals of set */
-			while (signals) {
-				unsigned const pos    = __builtin_ctz(signals);
-				unsigned const signal = word * 32 + pos + 1;
-
-				signals &= ~(1u << pos);
-
-				fn(signal);
-			}
-		}
-	};
-
 	unsigned signal_count_before[NSIG + 1] { };
 
 	/* mark signals to wait for */
 	for_each_signal_of_set(*set, [&](auto const signal) {
-		signals.signal_sigwait[signal] = true;
-		signal_count_before[signal]    = signals.signal_count[signal];
+		signal_count_before[signal] = signals.signal_count[signal];
+
+		signals.signal_sigwait     [signal] = *set;
+		signals.signal_sigwait_used[signal] = true;
 	});
 
 	/* block as long none of the monitored signals are pending */
@@ -333,11 +347,6 @@ extern "C" int sigwait(const sigset_t *set, int *sig)
 
 		return triggered ? Monitor::Function_result::COMPLETE
 		                 : Monitor::Function_result::INCOMPLETE;
-	});
-
-	/* de-mark signals we had wait for */
-	for_each_signal_of_set(*set, [&](auto const signal) {
-		signals.signal_sigwait[signal] = false;
 	});
 
 	return 0;

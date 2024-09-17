@@ -35,9 +35,10 @@ struct Libc::Signal : Noncopyable
 {
 	public:
 
-		struct sigaction signal_action [NSIG + 1] { };
-		unsigned         signal_count  [NSIG + 1] { };
-		bool             signal_sigwait[NSIG + 1] { };
+		struct sigaction signal_action       [NSIG + 1] { };
+		unsigned         signal_count        [NSIG + 1] { };
+		sigset_t         signal_sigwait      [NSIG + 1] { };
+		bool             signal_sigwait_used [NSIG + 1] { };
 
 	private:
 
