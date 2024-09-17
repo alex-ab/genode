@@ -729,6 +729,7 @@ sigsetjmp T
 sigsetmask T
 sigsuspend W
 sigvec T
+sigwait T
 sl_add T
 sl_find T
 sl_free T
