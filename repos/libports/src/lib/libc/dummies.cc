@@ -197,7 +197,6 @@ DUMMY(int, -1, thr_kill2, (pid_t pid, long id, int sig));
 __SYS_DUMMY(int, -1, sigsuspend, (const sigset_t *))
 __SYS_DUMMY(int, -1, sigtimedwait, (const sigset_t *, siginfo_t *, const struct timespec *));
 __SYS_DUMMY(int, -1, sigwaitinfo, (const sigset_t *, siginfo_t *));
-__SYS_DUMMY(int, -1, sigwait, (const sigset_t *, int *));
 __SYS_DUMMY(int, -1, thr_kill,  (long id, int sig));
 
 

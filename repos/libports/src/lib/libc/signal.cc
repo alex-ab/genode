@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2006-2019 Genode Labs GmbH
+ * Copyright (C) 2006-2024 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
@@ -26,21 +26,30 @@ extern "C" {
 #include <internal/init.h>
 #include <internal/signal.h>
 #include <internal/errno.h>
+#include <internal/monitor.h>
 
 using namespace Libc;
 
 
 static Libc::Signal *_signal_ptr;
+static Monitor      *_monitor_ptr;
 
 
-void Libc::init_signal(Signal &signal)
+void Libc::init_signal(Signal &signal, Monitor &monitor)
 {
-	_signal_ptr = &signal;
+	_signal_ptr  = &signal;
+	_monitor_ptr = &monitor;
 }
 
 
-void Libc::Signal::_execute_signal_handler(unsigned n)
+void Libc::Signal::_execute_signal_handler(unsigned const n)
 {
+	signal_count[n] ++;
+
+	if (signal_sigwait[n])
+		/* the blocked thread is woken by sigwait() in monitor() */
+		return;
+
 	if (signal_action[n].sa_flags & SA_SIGINFO) {
 		signal_action[n].sa_sigaction(n, 0, 0);
 		return;
@@ -263,6 +272,73 @@ extern "C" int sigaltstack(stack_t const * const ss, stack_t * const old_ss)
 
 	if (old_ss && ss && !(ss->ss_flags & SS_DISABLE))
 		old_ss->ss_flags = SS_DISABLE;
+
+	return 0;
+}
+
+
+extern "C" int __libc_sigwait(const sigset_t *, int *) __attribute__((weak, alias("sigwait")));
+
+extern "C" int sigwait(const sigset_t *set, int *sig)
+{
+	if (!set || !sig)
+		return EINVAL;
+
+	if (!_signal_ptr || !_monitor_ptr)
+		return EINVAL;
+
+	auto &signals = *_signal_ptr;
+
+	auto for_each_signal_of_set = [&](sigset_t const &set, auto const &fn) {
+		for (unsigned word = 0; word < _SIG_WORDS; word++) {
+			if (!set.__bits[word])
+				continue;
+
+			unsigned signals = set.__bits[word];
+
+			/* invoke functor for all signals of set */
+			while (signals) {
+				unsigned const pos    = __builtin_ctz(signals);
+				unsigned const signal = word * 32 + pos + 1;
+
+				signals &= ~(1u << pos);
+
+				fn(signal);
+			}
+		}
+	};
+
+	unsigned signal_count_before[NSIG + 1] { };
+
+	/* mark signals to wait for */
+	for_each_signal_of_set(*set, [&](auto const signal) {
+		signals.signal_sigwait[signal] = true;
+		signal_count_before[signal]    = signals.signal_count[signal];
+	});
+
+	/* block as long none of the monitored signals are pending */
+	_monitor_ptr->monitor([&]() {
+		bool triggered = false;
+
+		for_each_signal_of_set(*set, [&](auto const signal) {
+			if (triggered)
+				return;
+
+			triggered = signals.signal_count[signal] !=
+			            signal_count_before[signal];
+
+			if (triggered)
+				*sig = signal;
+		});
+
+		return triggered ? Monitor::Function_result::COMPLETE
+		                 : Monitor::Function_result::INCOMPLETE;
+	});
+
+	/* de-mark signals we had wait for */
+	for_each_signal_of_set(*set, [&](auto const signal) {
+		signals.signal_sigwait[signal] = false;
+	});
 
 	return 0;
 }
