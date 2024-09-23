@@ -21,6 +21,7 @@
 #include <capture_session/capture_session.h>
 #include <base/attached_ram_dataspace.h>
 #include <util/reconstructible.h>
+#include <timer_session/connection.h>
 
 namespace Test {
 
@@ -37,7 +38,12 @@ namespace Test {
 
 struct Test::Capture_session : Rpc_object<Capture::Session>
 {
+	typedef Signal_handler<Capture_session> Handler;
+	typedef Signal_context_capability       Signal;
+
 	Env &_env;
+
+	Timer::Connection _timer { _env };
 
 	Pixel const BLACK = {   0,   0,   0 };
 	Pixel const BLUE  = {   0,   0, 255 };
@@ -55,14 +61,37 @@ struct Test::Capture_session : Rpc_object<Capture::Session>
 
 	unsigned long _sync_cnt = 0;
 
+	bool    _client_stopped { };
+	Signal  _client_wakeup  { };
+	Handler _timer_handler  { _env.ep(), *this, &Capture_session::handle_timer };
+
 	enum { FRAME_CNT = 200 };
 
 	void _draw();
 
 	void _draw_frame(Pixel *, Pixel, Area);
 
-	Capture_session(Env &env) : _env(env) { }
+	void handle_timer()
+	{
+		if (!_client_stopped)
+			return;
 
+		if (_sync_cnt % FRAME_CNT == 0) {
+			if (_client_wakeup.valid()) {
+				_client_stopped = false;
+
+				_timer.trigger_periodic(0);
+
+				Genode::Signal_transmitter(_client_wakeup).submit();
+			}
+		} else
+			_sync_cnt ++;
+	}
+
+	Capture_session(Env &env) : _env(env)
+	{
+		_timer.sigh(_timer_handler);
+	}
 
 	/********************************
 	 ** Capture::Session interface **
@@ -72,7 +101,8 @@ struct Test::Capture_session : Rpc_object<Capture::Session>
 
 	void screen_size_sigh(Signal_context_capability) override { }
 
-	void wakeup_sigh(Signal_context_capability) override { }
+	void wakeup_sigh(Signal_context_capability wakeup) override {
+		_client_wakeup = wakeup; }
 
 	Buffer_result buffer(Buffer_attr attr) override
 	{
@@ -96,6 +126,8 @@ struct Test::Capture_session : Rpc_object<Capture::Session>
 	{
 		Affected_rects affected { };
 
+		_client_stopped = false;
+
 		if (_sync_cnt++ % FRAME_CNT == 0) {
 			_draw();
 			affected.rects[0] = Rect(Point(0, 0), _size);
@@ -104,7 +136,14 @@ struct Test::Capture_session : Rpc_object<Capture::Session>
 		return affected;
 	}
 
-	void capture_stopped() override { }
+	void capture_stopped() override
+	{
+		if (_client_stopped || !_client_wakeup.valid())
+			return;
+
+		_client_stopped = true;
+		_timer.trigger_periodic(10*1000);
+	}
 };
 
 
