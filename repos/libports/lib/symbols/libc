@@ -249,7 +249,6 @@ getc T
 getc_unlocked T
 getchar T
 getchar_unlocked T
-getcontext W
 getcwd T
 getdelim T
 getdirentries T
