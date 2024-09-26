@@ -2363,7 +2363,7 @@ void *Libc::Vfs_plugin::mmap(void *addr_in, ::size_t length, int prot, int flags
 	}
 
 	if (flags & MAP_FIXED) {
-		error("mmap for fixed predefined address not supported yet");
+		error("vfs::mmap for fixed predefined address not supported yet ", addr_in);
 		errno = EINVAL;
 		return MAP_FAILED;
 	}
@@ -2453,13 +2453,17 @@ void *Libc::Vfs_plugin::mmap(void *addr_in, ::size_t length, int prot, int flags
 		new (_alloc) Mmap_entry(_mmap_registry, addr, reference_handle);
 	}
 
+	Genode::warning("vfs mmap ", addr_in, " -> ", addr);
+
 	return addr;
 }
 
 
-int Libc::Vfs_plugin::munmap(void *addr, ::size_t)
+int Libc::Vfs_plugin::munmap(void *addr, ::size_t length)
 {
 	using Size_at_error = Mem_alloc::Size_at_error;
+
+	Genode::warning("vfs munmap ", addr, "+", Genode::Hex(length));
 
 	Mem_alloc::Size_at_result const size_at_result = mem_alloc()->size_at(addr);
 

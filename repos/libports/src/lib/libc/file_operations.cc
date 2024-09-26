@@ -445,20 +445,52 @@ __SYS_(void *, mmap, (void *addr, ::size_t length,
 	/* handle requests for anonymous memory */
 	if ((flags & MAP_ANONYMOUS) || (flags & MAP_ANON)) {
 
+		bool const executable = prot & PROT_EXEC;
+
 		if (flags & MAP_FIXED) {
-			Genode::error("mmap for fixed predefined address not supported yet");
+			Genode::error("libc::mmap for fixed predefined address not supported yet ",
+			              addr, "+", Genode::Hex(length),
+			              " flags=",Genode::Hex(flags),
+			              " prot=", Genode::Hex(prot), " ",
+			              prot & PROT_EXEC  ? "exec "  : "",
+			              prot & PROT_READ  ? "read "  : "",
+			              prot & PROT_WRITE ? "write " : "",
+			              prot == PROT_NONE ? "none"   : "");
+
+			return mem_alloc(executable)->size_at(addr).convert<void *>([&](auto value) {
+				Genode::error(" size at ", Genode::Hex(value), " ", length, "<=", value);
+
+				if (length <= value)
+					return addr;
+
+				errno = EINVAL;
+				return MAP_FAILED;
+			}, [&](auto) {
+				Genode::error(" error ");
+				errno = EINVAL;
+				return MAP_FAILED;
+			});
+
 			errno = EINVAL;
 			return MAP_FAILED;
 		}
 
-		bool const executable = prot & PROT_EXEC;
 		void *start = mem_alloc(executable)->alloc(length, _mmap_align_log2);
 		if (!start) {
 			errno = ENOMEM;
 			return MAP_FAILED;
 		}
+
 		::memset(start, 0, align_addr(length, PAGE_SHIFT));
+
 		mmap_registry()->insert(start, length, 0);
+
+		Genode::error("libc mmap ", addr, " -> ", start, "+", Genode::Hex(length),
+		              " B flags=", Genode::Hex(flags),
+		              " prot=", Genode::Hex(prot), " ",
+		              executable ? "executable" : " non executable");
+		Genode::error("start value=", Genode::Hex(*(unsigned *)start));
+
 		return start;
 	}
 
@@ -475,6 +507,10 @@ __SYS_(void *, mmap, (void *addr, ::size_t length,
 	if (start != MAP_FAILED)
 		mmap_registry()->insert(start, length, fd->plugin);
 
+	bool const executable = prot & PROT_EXEC;
+	Genode::warning("libc mmap ", addr, " -> ", start, " A ",
+	                executable ? "executable" : " non executable");
+
 	return start;
 })
 
@@ -486,6 +522,8 @@ extern "C" int munmap(void *start, ::size_t length)
 		errno = EINVAL;
 		return -1;
 	}
+
+	Genode::warning("libc munmap ", start, "+", Genode::Hex(length));
 
 	/*
 	 * Lookup plugin that was used for mmap
