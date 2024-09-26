@@ -843,3 +843,53 @@ extern "C" int __getcwd(char *dst, ::size_t dst_size)
 	copy_cstring(dst, cwd().base(), dst_size);
 	return 0;
 }
+
+
+extern "C" int mprotect(void * const addr, size_t const size, int const prot)
+{
+	bool const executable = prot & PROT_EXEC;
+
+	if (0)
+	Genode::error(__func__, " ", addr, "+", Genode::Hex(size),
+	              " port=", Genode::Hex(prot), " ",
+	              prot & PROT_EXEC  ? "exec "  : "",
+	              prot & PROT_READ  ? "read "  : "",
+	              prot & PROT_WRITE ? "write " : "",
+	              prot == PROT_NONE ? "none"   : "");
+
+	return mem_alloc(executable)->size_at(addr).convert<int>([&](auto value) {
+		if (size <= value)
+			return 0;
+
+		errno = EINVAL;
+		return -1;
+	}, [&](auto error_start) {
+		/* kind of okay ? We don't know about this region at all */
+		if (prot == PROT_NONE)
+			return 0;
+
+		if (error_start != Allocator_avl_base::Size_at_error::MISMATCHING_ADDR) {
+			errno = EINVAL;
+			return -1;
+		}
+
+		auto result = mem_alloc(executable)->size_at((char *)addr + size - 1).convert<int>([&](auto value) {
+			if (size <= value)
+				return 0;
+
+			errno = EINVAL;
+			return -1;
+		}, [&](auto error_end) {
+			if (error_end == Allocator_avl_base::Size_at_error::MISMATCHING_ADDR)
+				return 0;
+
+			errno = EINVAL;
+			return -1;
+		});
+
+		if (result < 0)
+			errno = EINVAL;
+
+		return result;
+	});
+}

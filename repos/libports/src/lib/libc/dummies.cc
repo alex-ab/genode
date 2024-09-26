@@ -123,7 +123,6 @@ DUMMY_SILENT(int   ,  1, isatty, (int))
 DUMMY(int   , -1, link, (const char *, const char *))
 DUMMY(int   ,  0, minherit, (void *, size_t, int))
 DUMMY(int   , -1, mknod, (const char *, mode_t, dev_t))
-DUMMY(int   , -1, mprotect, (void *, size_t, int))
 DUMMY(void *,  0, ___mtctxres, (void))
 DUMMY(void *,  0, __nsdefaultsrc, (void))
 DUMMY(int   , -1, _nsdispatch, (void))
@@ -219,7 +218,8 @@ int __attribute__((weak)) madvise(void *addr, size_t length, int advice)
 	return -1;
 }
 
+
 const struct res_sym __p_type_syms[] = { };
 
-} /* extern "C" */
 
+} /* extern "C" */
