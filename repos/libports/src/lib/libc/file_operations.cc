@@ -475,26 +475,7 @@ __SYS_(void *, mmap, (void *addr, ::size_t length,
 			return MAP_FAILED;
 		}
 
-		auto align = _mmap_align_log2;
-
-		if (length) {
-			auto highest_bit = sizeof(length) * 8 - __builtin_clzl(length);
-
-			if ((int(highest_bit) != __builtin_ctzl(length)) &&
-			    (sizeof(length) * 8 - 1 != highest_bit))
-				highest_bit += 1;
-
-			if (highest_bit > align)
-				align = highest_bit;
-		}
-
-		void *start = mem_alloc(executable)->alloc(length, align);
-
-		if (!start) {
-			align = _mmap_align_log2;
-			start = mem_alloc(executable)->alloc(length, align);
-		}
-
+		void *start = mem_alloc(executable)->alloc(length, _mmap_align_log2);
 		if (!start) {
 			errno = ENOMEM;
 			return MAP_FAILED;
