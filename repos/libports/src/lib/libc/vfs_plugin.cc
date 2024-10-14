@@ -105,6 +105,8 @@ static void vfs_stat_to_libc_stat_struct(Vfs::Directory_service::Stat const &src
 	               writeable_bits  = S_IWUSR,
 	               executable_bits = S_IXUSR;
 
+	Genode::error(__func__, ":", __LINE__);
+
 	auto type = [] (Vfs::Node_type type)
 	{
 		switch (type) {
@@ -117,6 +119,8 @@ static void vfs_stat_to_libc_stat_struct(Vfs::Directory_service::Stat const &src
 	};
 
 	*dst = { };
+
+	Genode::error(__func__, ":", __LINE__, " size=", src.size);
 
 	dst->st_uid     = 0;
 	dst->st_gid     = 0;
@@ -796,6 +800,8 @@ int Libc::Vfs_plugin::stat_from_kernel(const char *path, struct stat *buf)
 
 int Libc::Vfs_plugin::stat(char const *path, struct stat *buf)
 {
+	error(__func__, ":", __LINE__);
+
 	if (!path or !buf) {
 		return Errno(EFAULT);
 	}
@@ -807,11 +813,18 @@ int Libc::Vfs_plugin::stat(char const *path, struct stat *buf)
 	int result = -1;
 	int result_errno = 0;
 	monitor().monitor([&] {
+	error(__func__, ":", __LINE__);
 		switch (_root_fs.stat(path, stat)) {
-		case Result::STAT_ERR_NO_ENTRY: result_errno = ENOENT; break;
-		case Result::STAT_ERR_NO_PERM:  result_errno = EACCES; break;
+		case Result::STAT_ERR_NO_ENTRY: result_errno = ENOENT;
+	error(__func__, ":", __LINE__);
+ break;
+		case Result::STAT_ERR_NO_PERM:  result_errno = EACCES;
+	error(__func__, ":", __LINE__);
+ break;
 		case Result::STAT_OK:
+	error(__func__, ":", __LINE__);
 			vfs_stat_to_libc_stat_struct(stat, buf);
+	error(__func__, ":", __LINE__);
 			result = 0;
 			break;
 		}
@@ -819,6 +832,7 @@ int Libc::Vfs_plugin::stat(char const *path, struct stat *buf)
 		return Fn::COMPLETE;
 	});
 
+	error(__func__, ":", __LINE__);
 	if (result == -1)
 		errno = result_errno;
 
