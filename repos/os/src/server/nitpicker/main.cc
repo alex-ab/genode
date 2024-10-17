@@ -484,8 +484,13 @@ struct Nitpicker::Main : Focus_updater, Hover_updater,
 
 		Ticks _previous_sync { };
 
+		bool _timeout_active { };
+
 		Signal_handler<Framebuffer_screen> _sync_handler {
 			_env.ep(), *this, &Framebuffer_screen::_handle_sync };
+
+		Timer::One_shot_timeout<Framebuffer_screen> _oneshot_sync {
+			_main._timer, *this, &Framebuffer_screen::_handle_sync_timeout };
 
 		void _handle_sync()
 		{
@@ -509,6 +514,7 @@ struct Nitpicker::Main : Focus_updater, Hover_updater,
 		{
 			_fb.mode_sigh(_main._fb_screen_mode_handler);
 			_fb.sync_sigh(_sync_handler);
+
 			mark_as_dirty(_rect);
 		}
 
@@ -518,12 +524,34 @@ struct Nitpicker::Main : Focus_updater, Hover_updater,
 			_fb.sync_sigh(Signal_context_capability());
 		}
 
+		void _handle_sync_timeout(Duration)
+		{
+			if (!_timeout_active)
+				return;
+
+			_sync_or_timeout();
+		}
+
 		void mark_as_dirty(Rect rect)
 		{
 			_dirty_rect.mark_as_dirty(rect);
 
-			if (_main._now().ms - _previous_sync.ms > 40)
+			_sync_or_timeout();
+		}
+
+		void _sync_or_timeout()
+		{
+			auto const diff_ms = _main._now().ms - _previous_sync.ms;
+
+			if (diff_ms >= 40) {
+				_timeout_active = false;
 				_handle_sync();
+			} else {
+				if (!_timeout_active) {
+					_oneshot_sync.schedule(Microseconds((40 - diff_ms) * 1000));
+					_timeout_active = true;
+				}
+			}
 		}
 
 		bool visible(Point p) const { return _rect.contains(p); }
