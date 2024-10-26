@@ -1,3 +1,5 @@
 -machine q35
 -cpu Skylake-Client
 -net nic,model=e1000,netdev=net0 -netdev user,id=net0
+-M q35,accel=kvm,kernel-irqchip=split
+-device intel-iommu,intremap=on
