@@ -47,6 +47,8 @@
 	movq %rax, (%rbx)
 	movq __initial_di@GOTPCREL(%rip), %rbx
 	movq %rdi, (%rbx)
+	movq __initial_si@GOTPCREL(%rip), %rbx
+	movq %rsi, (%rbx)
 	movq __initial_sp@GOTPCREL(%rip), %rax
 	movq %rsp, (%rax)
 
@@ -103,4 +105,7 @@
 	.space 8
 	.global __initial_di
 	__initial_di:
+	.space 8
+	.global __initial_si
+	__initial_si:
 	.space 8
