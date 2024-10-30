@@ -14,6 +14,29 @@
 		<policy label="7" partition="7" writeable="yes"/>
 		<policy label="8" partition="8" writeable="yes"/>
 		<policy label="9" partition="9" writeable="yes"/>
+		<policy label="10" partition="10" writeable="yes"/>
+		<policy label="11" partition="11" writeable="yes"/>
+		<policy label="12" partition="12" writeable="yes"/>
+		<policy label="13" partition="13" writeable="yes"/>
+		<policy label="14" partition="14" writeable="yes"/>
+		<policy label="15" partition="15" writeable="yes"/>
+		<policy label="16" partition="16" writeable="yes"/>
+		<policy label="17" partition="17" writeable="yes"/>
+		<policy label="18" partition="18" writeable="yes"/>
+		<policy label="19" partition="19" writeable="yes"/>
+		<policy label="20" partition="20" writeable="yes"/>
+		<policy label="21" partition="21" writeable="yes"/>
+		<policy label="22" partition="22" writeable="yes"/>
+		<policy label="23" partition="23" writeable="yes"/>
+		<policy label="24" partition="24" writeable="yes"/>
+		<policy label="25" partition="25" writeable="yes"/>
+		<policy label="26" partition="26" writeable="yes"/>
+		<policy label="27" partition="27" writeable="yes"/>
+		<policy label="28" partition="28" writeable="yes"/>
+		<policy label="29" partition="29" writeable="yes"/>
+		<policy label="30" partition="30" writeable="yes"/>
+		<policy label="31" partition="31" writeable="yes"/>
+		<policy label="32" partition="32" writeable="yes"/>
 	</config>
 
 	<content>
