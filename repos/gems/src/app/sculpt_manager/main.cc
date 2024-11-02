@@ -2194,7 +2194,7 @@ void Sculpt::Main::_update_window_layout(Xml_node const &decorator_margins,
 				Area const size = win_size(win);
 				Rect const inspect = Rect::compound(inspect_p1, inspect_p2);
 
-				int const x = runtime_view_pos.x + _popup.anchor.x2();
+				int const x = 10 + _popup.anchor.x2();
 
 				auto y = [&]
 				{
@@ -2226,7 +2226,8 @@ void Sculpt::Main::_update_window_layout(Xml_node const &decorator_margins,
 		 */
 		_with_window(window_list, runtime_view_label, [&] (Xml_node const &win) {
 			if (_selected_tab == Panel_dialog::Tab::COMPONENTS)
-				gen_window(win, Rect(runtime_view_pos, win_size(win))); });
+				gen_window(win, Rect({ 10, runtime_view_pos.y }, win_size(win)));
+		});
 
 		_with_window(window_list, logo_label, [&] (Xml_node const &win) {
 			Area  const size = win_size(win);
