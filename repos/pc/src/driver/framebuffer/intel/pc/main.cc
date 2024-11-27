@@ -60,7 +60,7 @@ struct Framebuffer::Driver
 
 	bool                    disable_all         { false };
 	bool                    merge_label_changed { false };
-	bool                    verbose             { false };
+	bool                    verbose             { true };
 
 	Capture::Connection::Label merge_label { "mirror" };
 
