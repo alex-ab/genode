@@ -3,7 +3,7 @@ drivers: pc
 system:  pc
 gpu:     intel
 
-build: driver/framebuffer/intel app/sculpt_manager
+build: driver/framebuffer/intel app/sculpt_manager kernel core lib/ld
 
 # supplemental depot content added to the system image
 import: pkg/sculpt_drivers-pc
