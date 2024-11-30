@@ -65,7 +65,7 @@ puts "Disk image:     $depot_image_path.img"
 
 # install content of boot directory into depot
 exec rm -rf $depot_image_path
-exec cp -r [run_dir]/boot $depot_image_path
+exec cp -rL [run_dir]/boot $depot_image_path
 if {[have_board pinephone]} {
 	exec cp [run_dir]/ext2/boot/uboot.env $depot_image_path
 }
