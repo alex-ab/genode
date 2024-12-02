@@ -33,7 +33,7 @@ enum { CAPTURE_RATE_MS =  10, ATTEMPTS_BEFORE_STOP = 7 };
 static struct task_struct      * lx_update_task = NULL;
 static struct drm_client_dev   * dev_client     = NULL;
 
-static bool const verbose = true;
+static bool const verbose = false;
 
 static struct state {
 	struct drm_mode_create_dumb  fb_dumb;
