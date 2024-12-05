@@ -28,4 +28,6 @@ if {$use_nvme} {
 	append qemu_args " -device nvme,drive=nvme0,serial=NVMe_666,id=nvme0n1 "
 }
 
+append qemu_args " -accel kvm -cpu host"
+
 run_genode_until forever
