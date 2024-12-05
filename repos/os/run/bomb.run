@@ -9,6 +9,7 @@ set demand      [expr 1*1024*1024]
 
 if {[have_include "power_on/qemu"]} {
 	append qemu_args "-nographic "
+	append qemu_args "-accel kvm -cpu host "
 } else {
 	# foc is really slow on native hardware executing this test - limit rounds
 	if {[have_spec foc]} {
