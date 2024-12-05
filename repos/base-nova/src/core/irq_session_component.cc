@@ -238,7 +238,7 @@ Irq_session_component::Irq_session_component(Range_allocator &irq_alloc,
 
 	_irq_number = (unsigned)irq_number;
 
-	long device_phys = Arg_string::find_arg(args, "device_config_phys").long_value(0);
+	long device_phys = Arg_string::find_arg(args, "pci_cfg").long_value(0);
 	_irq_object.start(_irq_number, device_phys, irq_args);
 }
 

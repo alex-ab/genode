@@ -47,17 +47,20 @@ struct Genode::Irq_connection : Connection<Irq_session>, Irq_session_client
 	 *
 	 * \param label              (virtual) interrupt number
 	 * \param device_config_phys config-space physical address
+	 * \param bdf                PCI bdf of device
 	 * \param type               interrupt type (e.g., msi/msi-x)
 	 */
 	Irq_connection(Env         &env,
 	               Label const &label,
 	               addr_t       device_config_phys,
-	               Type         type     = Irq_session::TYPE_MSI)
+	               uint16_t     bdf,
+	               Type         type)
 	:
 		Connection<Irq_session>(env, label, Ram_quota { RAM_QUOTA },
-		                        Args("irq_number=",         label, ", "
-		                             "device_config_phys=", Hex(device_config_phys), ", "
-		                             "irq_type=",           unsigned(type))),
+		                        Args("irq_number=", label, ", "
+		                             "pci_cfg=",    Hex(device_config_phys), ", "
+		                             "bdf=",        Hex(bdf), ", "
+		                             "irq_type=",   unsigned(type))),
 		Irq_session_client(cap())
 	{ }
 };

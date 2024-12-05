@@ -108,7 +108,8 @@ Genode::Irq_session_capability Device_component::irq(unsigned idx)
 					else
 						error("MSI(-x) detected for device without pci-config!");
 
-					irq.irq.construct(_env, irq.number, pci_cfg_addr, irq.type);
+					irq.irq.construct(_env, irq.number, pci_cfg_addr,
+					                  Pci::Bdf::rid(_pci_config->bdf), irq.type);
 				} else
 					irq.irq.construct(_env, irq.number, irq.mode, irq.polarity);
 
@@ -220,7 +221,7 @@ Device_component::Device_component(Registry<Device_component> & registry,
 			_ram_quota += Io_mem_session::RAM_QUOTA;
 			session.cap_quota_guard().withdraw(Cap_quota{Io_mem_session::CAP_QUOTA});
 			_cap_quota += Io_mem_session::CAP_QUOTA;
-			_pci_config.construct(cfg.addr);
+			_pci_config.construct(cfg.addr, Pci::Bdf(cfg.bus_num, cfg.dev_num, cfg.func_num));
 		});
 
 		device.for_each_reserved_memory([&] (unsigned idx, Range range)

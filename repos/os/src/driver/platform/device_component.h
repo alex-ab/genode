@@ -98,9 +98,10 @@ class Driver::Device_component : public Rpc_object<Platform::Device_interface,
 
 		struct Pci_config
 		{
-			addr_t addr;
+			addr_t        const addr;
+			Pci::Bdf      const bdf;
 
-			Pci_config(addr_t addr) : addr(addr) {}
+			Pci_config(addr_t addr, Pci::Bdf bdf) : addr(addr), bdf(bdf) {}
 		};
 
 		Device_component(Registry<Device_component> & registry,
