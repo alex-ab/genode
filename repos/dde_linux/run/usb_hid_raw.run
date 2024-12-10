@@ -65,7 +65,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/usb_hid \
                   [depot_user]/src/init
 
-build { server/event_dump }
+build { server/event_dump kernel lib/ld core }
 
 install_config {
 <config>
