@@ -15,4 +15,8 @@ depot: genodelabs cnuke alex-ab mstein nfeske cproc chelmuth jschlatow
 depot: ssumpf skalk atopia
 
 # preconfigured example scenarios
-presets: empty nano3d window_manager falkon_web_browser goa_testbed
+#presets: empty nano3d window_manager falkon_web_browser goa_testbed
+presets: window_manager
+
+build: lib/ld kernel core driver/platform driver/acpi app/sculpt_manager app/pci_decode app/depot_deploy
+build: driver/gpu/intel driver/framebuffer/intel/pc driver/framebuffer/boot
