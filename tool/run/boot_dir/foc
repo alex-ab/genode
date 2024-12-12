@@ -120,12 +120,12 @@ proc run_boot_dir_x86 {binaries} {
 		# appear right after 'sigma0' as boot module. Hence the special case.
 		#
 		puts $fh "menuentry [grub_menuentry] {"
-		puts $fh " insmod multiboot"
-		puts $fh " multiboot /boot/bender $options_bender"
-		puts $fh " module /boot/bootstrap"
-		puts $fh " module /boot/kernel fiasco [fiasco_serial_esc_arg]"
-		puts $fh " module /boot/sigma0"
-		puts $fh " module /boot/image.elf"
+		puts $fh " insmod multiboot2"
+#		puts $fh " multiboot2 /boot/bender $options_bender"
+		puts $fh " multiboot2 /boot/bootstrap"
+		puts $fh " module2 /boot/kernel fiasco [fiasco_serial_esc_arg]"
+		puts $fh " module2 /boot/sigma0"
+		puts $fh " module2 /boot/image.elf"
 		puts $fh "}"
 		close $fh
 	}
