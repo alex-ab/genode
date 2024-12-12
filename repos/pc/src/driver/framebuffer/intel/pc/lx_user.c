@@ -857,10 +857,11 @@ static void _report_connectors(void * genode_data, bool const discrete)
 	drm_connector_list_iter_begin(dev_client->dev, &conn_iter);
 	drm_client_for_each_connector_iter(connector, &conn_iter) {
 
-		bool const valid_fb = connector->index < MAX_CONNECTORS
-		                    ? states[connector->index].fbs : false;
-
 		struct genode_mode conf_mode = {};
+		struct state *     state     = &states[connector->index];
+
+		if (connector->index >= MAX_CONNECTORS)
+			continue;
 
 		/* read configuration for connector */
 		lx_emul_i915_connector_config(connector->name, &conf_mode);
@@ -871,7 +872,7 @@ static void _report_connectors(void * genode_data, bool const discrete)
 		lx_emul_i915_report_connector(connector, genode_data,
 		                              connector->name,
 		                              connector->status != connector_status_disconnected,
-		                              valid_fb,
+		                              state->enabled,
 		                              get_brightness(connector, INVALID_BRIGHTNESS),
 		                              connector->display_info.width_mm,
 		                              connector->display_info.height_mm);

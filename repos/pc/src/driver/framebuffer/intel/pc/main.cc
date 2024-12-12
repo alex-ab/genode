@@ -680,7 +680,7 @@ int lx_emul_i915_action_to_process(int const action_failed)
 
 void lx_emul_i915_report_connector(void * lx_data, void * genode_xml,
                                    char const *name, char const connected,
-                                   char const /* fb_available */,
+                                   char const enabled,
                                    unsigned brightness, unsigned width_mm,
                                    unsigned height_mm)
 {
@@ -694,6 +694,8 @@ void lx_emul_i915_report_connector(void * lx_data, void * genode_xml,
 			xml.attribute("width_mm" , width_mm);
 		if (height_mm)
 			xml.attribute("height_mm", height_mm);
+
+		xml.attribute("enabled", !!enabled);
 
 		/* insane values means no brightness support - we use percentage */
 		if (brightness <= MAX_BRIGHTNESS)
