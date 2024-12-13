@@ -181,7 +181,8 @@ struct Sculpt::Fb_driver : private Noncopyable
 		if (use_boot_fb && !_boot_fb.constructed())
 			Boot_fb::with_mode(platform, [&] (Boot_fb::Mode mode) {
 				_boot_fb.construct(registry, "boot_fb", Priority::MULTIMEDIA,
-				                   mode.ram_quota(), Cap_quota { 100 }); });
+				                   Ram_quota { mode.ram_quota().value + (1 << 20) },
+				                   Cap_quota { 100 }); });
 
 		if (orig_fb_name != _fb_name()) {
 			Session_label label { "report -> runtime/", _fb_name(), "/connectors" };
