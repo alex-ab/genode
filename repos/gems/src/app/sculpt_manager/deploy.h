@@ -66,7 +66,7 @@ struct Sculpt::Deploy
 		                 .priority  = Priority::STORAGE,
 		                 .cpu_quota = 0,
 		                 .location  = { },
-		                 .initial   = { Ram_quota{24*1024*1024}, Cap_quota{200} },
+		                 .initial   = { Ram_quota{24*1024*1024}, Cap_quota{2000} },
 		                 .max       = { Ram_quota{2*1024*1024*1024UL}, { } } } };
 
 	Child_state uncached_depot_rom_state {
@@ -74,7 +74,7 @@ struct Sculpt::Deploy
 		                 .priority  = Priority::STORAGE,
 		                 .cpu_quota = 0,
 		                 .location  = { },
-		                 .initial   = { Ram_quota{8*1024*1024}, Cap_quota{200} },
+		                 .initial   = { Ram_quota{8*1024*1024}, Cap_quota{400} },
 		                 .max       = { Ram_quota{2*1024*1024*1024UL}, { } } } };
 
 	/*

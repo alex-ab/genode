@@ -1,4 +1,4 @@
-<runtime ram="4M" caps="200" binary="nano3d">
+<runtime ram="6M" caps="200" binary="nano3d">
 
 	<requires> <gui/> <timer/> </requires>
 
