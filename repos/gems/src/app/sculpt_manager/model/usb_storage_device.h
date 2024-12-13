@@ -143,7 +143,7 @@ struct Sculpt::Usb_storage_device : List_model<Usb_storage_device>::Element,
 
 void Sculpt::Usb_storage_device::gen_usb_block_start_content(Generator &g) const
 {
-	gen_common_start_content(g, driver, Cap_quota{100}, Ram_quota{6*1024*1024},
+	gen_common_start_content(g, driver, Cap_quota{300}, Ram_quota{6*1024*1024},
 	                         Priority::STORAGE);
 
 	gen_named_node(g, "binary", "usb_block");

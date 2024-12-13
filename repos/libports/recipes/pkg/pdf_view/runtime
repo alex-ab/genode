@@ -1,4 +1,4 @@
-<runtime ram="64M" caps="2000" binary="pdf_view">
+<runtime ram="128M" caps="2000" binary="pdf_view">
 
 	<requires> <timer/> <gui/> <file_system/> </requires>
 

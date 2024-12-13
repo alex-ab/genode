@@ -28,7 +28,7 @@ static void for_each_inspected_storage_target(Storage_devices const &devices, au
 static void gen_terminal_start(Generator &g)
 {
 	gen_common_start_content(g, "terminal",
-	                         Cap_quota{140}, Ram_quota{36*1024*1024},
+	                         Cap_quota{260}, Ram_quota{36*1024*1024},
 	                         Priority::NESTED_MAX);
 
 	gen_provides<Terminal::Session>(g);
@@ -214,7 +214,7 @@ void Sculpt::gen_inspect_view(Generator             &g,
 		g.attribute("version", version.value);
 
 		gen_common_start_content(g, "inspect",
-		                         Cap_quota{1000}, Ram_quota{76*1024*1024},
+		                         Cap_quota{1200}, Ram_quota{76*1024*1024},
 		                         Priority::LEITZENTRALE);
 
 		gen_named_node(g, "binary", "init", [&] { });

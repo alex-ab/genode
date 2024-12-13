@@ -43,7 +43,7 @@
 			<has_value input="leitzentrale_enabled" value="yes" />
 			<then>
 				<inline>
-					<start name="fader" ram="100M" priority="-1">
+					<start name="fader" ram="100M" caps="300" priority="-1">
 						<binary name="gui_fader"/>
 						<resource name="CPU" quantum="20"/>
 						<provides> <service name="Gui"/> </provides>
@@ -57,7 +57,7 @@
 			</then>
 			<else>
 				<inline>
-					<start name="fader" ram="100M" priority="-1">
+					<start name="fader" ram="100M" caps="300" priority="-1">
 						<binary name="gui_fader"/>
 						<resource name="CPU" quantum="20"/>
 						<provides> <service name="Gui"/> </provides>
@@ -81,7 +81,7 @@
 				</route>
 			</start>
 
-			<start name="nitpicker" caps="200" ram="14M" priority="-1">
+			<start name="nitpicker" caps="500" ram="14M" priority="-1">
 				<resource name="CPU" quantum="40"/>
 				<provides>
 					<service name="Gui"/> <service name="Capture"/> <service name="Event"/>
@@ -208,7 +208,7 @@
 				</route>
 			</start>
 
-			<start name="manager" caps="400" ram="3M" priority="-1">
+			<start name="manager" caps="600" ram="3M" priority="-1">
 				<binary name="sculpt_manager"/>
 				<provides> <service name="Gui"/> </provides>
 				<route>
@@ -254,7 +254,7 @@
 				</route>
 			</start>
 
-			<start name="fonts_fs" caps="100" ram="4M" priority="-1">
+			<start name="fonts_fs" caps="120" ram="4M" priority="-1">
 				<binary name="vfs"/>
 				<provides> <service name="File_system"/> </provides>
 				<route>
@@ -264,7 +264,7 @@
 				</route>
 			</start>
 
-			<start name="log_terminal" caps="120" ram="8M" priority="-1">
+			<start name="log_terminal" caps="140" ram="12M" priority="-1">
 				<binary name="terminal"/>
 				<provides> <service name="Terminal"/> </provides>
 				<config>
@@ -288,7 +288,7 @@
 				</route>
 			</start>
 
-			<start name="log" caps="100" ram="2M" priority="-1">
+			<start name="log" caps="120" ram="3M" priority="-1">
 				<binary name="stdin2out"/>
 				<config>
 					<libc stdin="/report/log" stdout="/dev/terminal"/>
@@ -303,7 +303,7 @@
 				</route>
 			</start>
 
-			<start name="backdrop" caps="150" ram="6M" priority="-1">
+			<start name="backdrop" caps="180" ram="6M" priority="-1">
 				<config width="580" height="150">
 					<libc/>
 					<vfs> <rom name="genode_logo.png"/> </vfs>

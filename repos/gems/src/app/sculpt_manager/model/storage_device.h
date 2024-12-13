@@ -229,8 +229,7 @@ void Sculpt::Storage_device::gen_part_block_start_content(Generator &g) const
 	g.attribute("version", _part_block_version);
 
 	gen_common_start_content(g, part_block_start_name(),
-	                         Cap_quota{100}, Ram_quota{8*1024*1024},
-	                         Priority::STORAGE);
+	                         Cap_quota{200}, Ram_quota{8*1024*1024},
 
 	gen_named_node(g, "binary", "part_block");
 
