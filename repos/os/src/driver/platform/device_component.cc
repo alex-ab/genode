@@ -95,36 +95,38 @@ Genode::Irq_session_capability Device_component::irq(unsigned idx)
 {
 	Irq_session_capability cap;
 
-	_irq_registry.for_each([&] (Irq & irq)
-	{
-		if (irq.idx != idx)
-			return;
+	try {
+		_irq_registry.for_each([&] (Irq & irq)
+		{
+			if (irq.idx != idx)
+				return;
 
-		if (!irq.shared && !irq.irq.constructed()) {
-			addr_t pci_cfg_addr = 0;
-			if (irq.type != Irq_session::TYPE_LEGACY) {
-				if (_pci_config.constructed()) pci_cfg_addr = _pci_config->addr;
-				else
-					error("MSI(-x) detected for device without pci-config!");
+			if (!irq.shared && !irq.irq.constructed()) {
+				addr_t pci_cfg_addr = 0;
+				if (irq.type != Irq_session::TYPE_LEGACY) {
+					if (_pci_config.constructed()) pci_cfg_addr = _pci_config->addr;
+					else
+						error("MSI(-x) detected for device without pci-config!");
 
-				irq.irq.construct(_env, irq.number, pci_cfg_addr, irq.type);
-			} else
-				irq.irq.construct(_env, irq.number, irq.mode, irq.polarity);
+					irq.irq.construct(_env, irq.number, pci_cfg_addr, irq.type);
+				} else
+					irq.irq.construct(_env, irq.number, irq.mode, irq.polarity);
 
-			Irq_session::Info info = irq.irq->info();
-			if (pci_cfg_addr && info.type == Irq_session::Info::MSI)
-				pci_msi_enable(_env, *this, pci_cfg_addr, info, irq.type);
-		}
+				Irq_session::Info info = irq.irq->info();
+				if (pci_cfg_addr && info.type == Irq_session::Info::MSI)
+					pci_msi_enable(_env, *this, pci_cfg_addr, info, irq.type);
+			}
 
-		if (irq.shared && !irq.sirq.constructed())
-			_device_model.with_shared_irq(irq.number,
-			                              [&] (Shared_interrupt & sirq) {
-				irq.sirq.construct(_env.ep().rpc_ep(), sirq,
-				                   irq.mode, irq.polarity);
-			});
+			if (irq.shared && !irq.sirq.constructed())
+				_device_model.with_shared_irq(irq.number,
+				                              [&] (Shared_interrupt & sirq) {
+					irq.sirq.construct(_env.ep().rpc_ep(), sirq,
+					                   irq.mode, irq.polarity);
+				});
 
-		cap = irq.shared ? irq.sirq->cap() : irq.irq->cap();
-	});
+			cap = irq.shared ? irq.sirq->cap() : irq.irq->cap();
+		});
+	} catch (Service_denied) { error("irq could not be setup ", _device); }
 
 	return cap;
 }
