@@ -43,7 +43,7 @@
 			<has_value input="leitzentrale_enabled" value="yes" />
 			<then>
 				<inline>
-					<start name="fader" priority="-1">
+					<start name="fader" caps="200" priority="-1">
 						<binary name="gui_fader"/>
 						<resource name="RAM" quantum="100M"/>
 						<resource name="CPU" quantum="20"/>
@@ -58,7 +58,7 @@
 			</then>
 			<else>
 				<inline>
-					<start name="fader" priority="-1">
+					<start name="fader" caps="200" priority="-1">
 						<binary name="gui_fader"/>
 						<resource name="RAM" quantum="50M"/>
 						<resource name="CPU" quantum="20"/>
@@ -256,7 +256,7 @@
 				</route>
 			</start>
 
-			<start name="fonts_fs" caps="100" priority="-1">
+			<start name="fonts_fs" caps="120" priority="-1">
 				<binary name="vfs"/>
 				<resource name="RAM" quantum="4M"/>
 				<provides> <service name="File_system"/> </provides>
@@ -267,7 +267,7 @@
 				</route>
 			</start>
 
-			<start name="log_terminal" priority="-1" caps="120">
+			<start name="log_terminal" priority="-1" caps="140">
 				<binary name="terminal"/>
 				<resource name="RAM" quantum="8M"/>
 				<provides> <service name="Terminal"/> </provides>
@@ -292,9 +292,9 @@
 				</route>
 			</start>
 
-			<start name="log" caps="100" priority="-1">
+			<start name="log" caps="120" priority="-1">
 				<binary name="stdin2out"/>
-				<resource name="RAM" quantum="2M" />
+				<resource name="RAM" quantum="4M" />
 				<config>
 					<libc stdin="/report/log" stdout="/dev/terminal"/>
 					<vfs>
@@ -308,7 +308,7 @@
 				</route>
 			</start>
 
-			<start name="backdrop" caps="150" priority="-1">
+			<start name="backdrop" caps="180" priority="-1">
 				<resource name="RAM" quantum="4M" />
 				<config width="300" height="150">
 					<libc/>
