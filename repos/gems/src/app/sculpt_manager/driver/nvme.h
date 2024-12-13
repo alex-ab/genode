@@ -66,7 +66,7 @@ struct Sculpt::Nvme_driver : private Noncopyable
 	{
 		_nvme.conditional(board_info.detected.nvme,
 		                  registry, "nvme", Priority::DEFAULT,
-		                  Ram_quota { 8*1024*1024 }, Cap_quota { 100 });
+		                  Ram_quota { 8*1024*1024 }, Cap_quota { 150 });
 	}
 
 	void with_namespaces(auto const &fn) const
