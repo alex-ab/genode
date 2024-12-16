@@ -21,12 +21,12 @@
 using namespace Core;
 
 
-void Io_mem_session_component::_unmap_local(addr_t base, size_t, addr_t size)
+void Io_mem_session_component::_unmap_local(addr_t base, size_t size, addr_t)
 {
 	if (!base)
 		return;
 
-	unmap_local(base, size);
+	unmap_local(base, size >> 12);
 	platform().region_alloc().free(reinterpret_cast<void *>(base));
 }
 
