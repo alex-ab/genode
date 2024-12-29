@@ -198,8 +198,8 @@ config
     + service Gui                                  | + parent
     + any-service                                  | + parent
 
-+ start backdrop | caps: 200 | ram: 4M
-  + config | width: 300 | height: 150
++ start backdrop | caps: 200 | ram: 6M
+  + config | width: 580 | height: 150
   | + libc
   | + vfs
   |   + rom genode_logo.png
