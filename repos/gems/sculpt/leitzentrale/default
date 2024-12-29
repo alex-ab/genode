@@ -303,8 +303,8 @@
 				</route>
 			</start>
 
-			<start name="backdrop" caps="150" ram="4M" priority="-1">
-				<config width="300" height="150">
+			<start name="backdrop" caps="150" ram="6M" priority="-1">
+				<config width="580" height="150">
 					<libc/>
 					<vfs> <rom name="genode_logo.png"/> </vfs>
 					<fill color="#272f45"/>
