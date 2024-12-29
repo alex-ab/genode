@@ -309,8 +309,8 @@
 			</start>
 
 			<start name="backdrop" caps="180" priority="-1">
-				<resource name="RAM" quantum="4M" />
-				<config width="300" height="150">
+				<resource name="RAM" quantum="6M" />
+				<config width="600" height="150">
 					<libc/>
 					<vfs> <rom name="genode_logo.png"/> </vfs>
 					<fill color="#272f45"/>
