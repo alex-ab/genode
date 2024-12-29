@@ -1122,6 +1122,15 @@ if {[have_spec linux] || [have_spec fiasco] || [have_spec foc]} {
 copy_file [genode_dir]/repos/gems/src/app/backdrop/genode_logo.png [run_dir]/genode/
 copy_file [genode_dir]/repos/gems/run/sculpt/drop_shadow.png       [run_dir]/genode/
 
+if {[have_spec nova     ]} { copy_file [genode_dir]/repos/gems/run/sculpt/logo_nova.png      [run_dir]/genode/genode_logo.png }
+if {[have_spec novae    ]} { copy_file [genode_dir]/repos/gems/run/sculpt/logo_novae.png     [run_dir]/genode/genode_logo.png }
+if {[have_spec sel4     ]} { copy_file [genode_dir]/repos/gems/run/sculpt/logo_sel4.png      [run_dir]/genode/genode_logo.png }
+if {[have_spec hw       ]} { copy_file [genode_dir]/repos/gems/run/sculpt/logo_hw.png        [run_dir]/genode/genode_logo.png }
+if {[have_spec foc      ]} { copy_file [genode_dir]/repos/gems/run/sculpt/logo_foc.png       [run_dir]/genode/genode_logo.png }
+if {[have_spec okl4     ]} { copy_file [genode_dir]/repos/gems/run/sculpt/logo_okl4.png      [run_dir]/genode/genode_logo.png }
+if {[have_spec fiasco   ]} { copy_file [genode_dir]/repos/gems/run/sculpt/logo_fiasco.png    [run_dir]/genode/genode_logo.png }
+if {[have_spec linux    ]} { copy_file [genode_dir]/repos/gems/run/sculpt/logo_linux.png     [run_dir]/genode/genode_logo.png }
+if {[have_spec pistachio]} { copy_file [genode_dir]/repos/gems/run/sculpt/logo_pistachio.png [run_dir]/genode/genode_logo.png }
 
 #
 # Generate depot index from gems/run/sculpt/index
