@@ -327,6 +327,48 @@ void Core::Platform::_setup_mem_alloc()
 			}
 		} while (!err);
 	}
+
+	using Foc::L4::Kip::Mem_desc;
+
+	auto const &kip = sigma0_map_kip();
+	auto const * const desc = Mem_desc::first(&kip);
+
+	log(_ram_alloc);
+
+	for (unsigned i = 0; i < Mem_desc::count(&kip); ++i) {
+		switch (desc[i].type()) {
+		case Mem_desc::Mem_type::Undefined:
+//			error(Hex_range(desc[i].start(), desc[i].size()), " Undefined");
+			break;
+		case Mem_desc::Mem_type::Conventional:
+			error(Hex_range(desc[i].start(), desc[i].size()), " RAM");
+			break;
+		case Mem_desc::Mem_type::Reserved:
+			error(Hex_range(desc[i].start(), desc[i].size()), " RESERVED");
+			break;
+		case Mem_desc::Mem_type::Dedicated:
+			error(Hex_range(desc[i].start(), desc[i].size()), " DEDICATED");
+			break; 
+		case Mem_desc::Mem_type::Shared:
+			error(__LINE__, " ", Hex_range(desc[i].start(), desc[i].size()));
+			break;
+		case Mem_desc::Mem_type::Info:
+			error(__LINE__, " ", Hex_range(desc[i].start(), desc[i].size()));
+			break;
+		case Mem_desc::Mem_type::Bootloader:
+			error(__LINE__, " ", Hex_range(desc[i].start(), desc[i].size()));
+			break;
+		case Mem_desc::Mem_type::Arch: {
+			error(Hex_range(desc[i].start(), desc[i].size()), " ARCH");
+//			Region region { desc[i].start(), desc[i].end() };
+//			remove_region(region, _region_alloc);
+			break;
+		}
+		}
+	}
+
+	log(_ram_alloc);
+
 }
 
 
