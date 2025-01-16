@@ -485,7 +485,7 @@ Intel::Io_mmu::Io_mmu(Env                      & env,
 
 	/* enable fault event interrupts (if not already enabled by kernel) */
 	if (irq_number && !read<Global_status::Ires>()) {
-		_fault_irq.construct(_env, irq_number, 0, uint8_t(0u), Irq_session::TYPE_MSI);
+		_fault_irq.construct(_env, irq_number, 0, Irq_session::TYPE_MSI, 0u);
 
 		_fault_irq->sigh(_fault_handler);
 		_fault_irq->ack_irq();

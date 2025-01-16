@@ -47,14 +47,14 @@ struct Genode::Irq_connection : Connection<Irq_session>, Irq_session_client
 	 *
 	 * \param label              (virtual) interrupt number
 	 * \param device_config_phys config-space physical address
-	 * \param bdf                PCI bdf of device
 	 * \param type               interrupt type (e.g., msi/msi-x)
+	 * \param bdf                PCI bdf of device
 	 */
 	Irq_connection(Env         &env,
 	               Label const &label,
 	               addr_t       device_config_phys,
-	               uint16_t     bdf,
-	               Type         type)
+	               Type         type,
+	               unsigned     bdf)
 	:
 		Connection<Irq_session>(env, label, Ram_quota { RAM_QUOTA },
 		                        Args("irq_number=", label, ", "
