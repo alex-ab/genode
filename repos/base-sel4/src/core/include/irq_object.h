@@ -23,6 +23,7 @@
 
 /* core includes */
 #include <types.h>
+#include <irq_args.h>
 
 namespace Core { class Irq_object; }
 
@@ -41,8 +42,7 @@ class Core::Irq_object : public Thread {
 
 		void entry() override;
 
-		long _associate(Irq_session::Trigger const &irq_trigger,
-		                Irq_session::Polarity const &irq_polarity);
+		long _associate(Irq_args const &);
 
 	public:
 
@@ -53,7 +53,7 @@ class Core::Irq_object : public Thread {
 		void ack_irq();
 
 		Start_result start() override;
-		bool associate(Irq_session::Trigger const, Irq_session::Polarity const);
+		bool associate(Irq_args const &);
 };
 
 #endif /* _CORE__INCLUDE__IRQ_OBJECT_H_ */
