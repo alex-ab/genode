@@ -204,6 +204,16 @@ struct Accesspoint : Interface
 	: bssid(bssid), freq(freq), prot(prot), ssid(ssid), quality(quality)
 	{ }
 
+	bool ssid_contains_unquoted_chars() const
+	{
+		/* we care only about the occurrence of " within the SSID string */
+		for (char const *s = ssid.string(); *s; s++)
+			if (*s == '"')
+				return true;
+
+		return false;
+	}
+
 	void print(Output &out) const
 	{
 		Genode::print(out, "SSID: '",         ssid, "'",  " "
@@ -841,6 +851,13 @@ struct Scan_results_cmd : Action
 
 					/* ignore potentially empty ssids */
 					if (ap.ssid == "")
+						return;
+
+					/*
+					 * For the time being ignore APs with an conspicious
+					 * SSID - Xml_unquoted & co would be more reasonable.
+					 */
+					if (ap.ssid_contains_unquoted_chars())
 						return;
 
 					xml.node("accesspoint", [&]() {
