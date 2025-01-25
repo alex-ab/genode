@@ -105,6 +105,7 @@ struct Genode::Allocator : Deallocator
 		case Alloc_error::OUT_OF_CAPS: throw Out_of_caps();
 		case Alloc_error::DENIED:      break;
 		}
+		Genode::error("throw alloc error - denied");
 		throw Denied();
 	}
 
@@ -124,6 +125,8 @@ struct Genode::Allocator : Deallocator
 		return try_alloc(size).convert<void *>(
 			[&] (void *ptr) { return ptr; },
 			[&] (Alloc_error error) -> void * {
+//				if (error == Alloc_error::DENIED)
+//					throw Out_of_ram();
 				throw_alloc_error(error); });
 	}
 };
