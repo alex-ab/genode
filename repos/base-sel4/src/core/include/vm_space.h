@@ -42,6 +42,7 @@ class Core::Vm_space
 
 		unsigned const _id;
 		Cap_sel  const _pd_sel;
+		unsigned       _flush_cnt { };
 
 		Range_allocator &_phys_alloc;
 
@@ -192,15 +193,18 @@ class Core::Vm_space
 			return Cap_sel(unsigned(sel));
 		}
 
-		bool _flush(bool const flush_support, auto const &fn)
+		bool _flush(bool const flush_support, auto const &fn,
+		            auto const reason)
 		{
 			if (!flush_support) {
 				warning("mapping cache full, but can't flush");
 				return false;
 			}
 
-			warning("flush page table entries - mapping cache full - PD: ",
-			        _pd_label.string());
+			if (_flush_cnt++ % 10 == 0)
+				warning("flush page table entries - mapping cache full - ",
+				        _flush_cnt, ". time - PD: ",
+				        _pd_label.string(), " - reason=", reason);
 
 			_page_table_registry.flush_pages(fn);
 
@@ -226,7 +230,7 @@ class Core::Vm_space
 			auto pte_result = _sel_alloc.alloc();
 			if (pte_result.failed()) {
 				/* free all page-table-entry selectors and retry once */
-				if (!_flush(attr.flush_support, fn))
+				if (!_flush(attr.flush_support, fn "Selector::Out_of_indicies"))
 					return false;
 
 				pte_result = _sel_alloc.alloc();
@@ -250,13 +254,16 @@ class Core::Vm_space
 
 			/* remember relationship between pte_sel and the virtual address */
 			try { _page_table_registry.insert_page_frame(to_dest, Cap_sel(pte_idx)); }
-			catch (Page_table_registry::Mapping_cache_full) {
+			catch (Page_table_registry::Mapping_cache_full const full) {
 
 				/* free all entries of mapping cache and re-try once */
-				if (!_flush(attr.flush_support, fn))
+				if (!_flush(attr.flush_support, fn,
+				            full.reason == Page_table_registry::Mapping_cache_full::Type::CAPS   ? " Out_of_caps" :
+				            full.reason == Page_table_registry::Mapping_cache_full::Type::MEMORY ? " Out_of_memory" : "none"))
 					return false;
 
 				_page_table_registry.insert_page_frame(to_dest, Cap_sel(pte_idx));
+
 			}
 
 			/*
