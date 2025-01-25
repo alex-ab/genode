@@ -201,6 +201,7 @@ void Pager_entrypoint::entry()
 
 		reply_pending = false;
 
+	try {
 		Pool::apply(_pager.badge(), [&] (Pager_object *obj) {
 			if (!obj)
 				return;
@@ -229,5 +230,8 @@ void Pager_entrypoint::entry()
 			else
 				_pager.reply_save_caller(obj->reply_cap_sel());
 		});
+	} catch (...) {
+		error("uncatched exception in Pager_entrypoint");
+	}
 	}
 }
