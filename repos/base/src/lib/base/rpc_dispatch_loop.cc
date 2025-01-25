@@ -65,11 +65,15 @@ void Rpc_entrypoint::entry()
 		exc = Rpc_exception_code(Rpc_exception_code::INVALID_OBJECT);
 		_snd_buf.reset();
 
-		apply(request.badge, [&] (Rpc_object_base *obj)
-		{
-			if (obj)
-				exc = obj->dispatch(opcode, unmarshaller, _snd_buf);
-		});
+		try {
+			apply(request.badge, [&] (Rpc_object_base *obj)
+			{
+				if (obj)
+					exc = obj->dispatch(opcode, unmarshaller, _snd_buf);
+			});
+		} catch (...) {
+			error("uncatched exception in Rpc_entrypoint");
+		}
 	}
 
 	/* answer exit call, thereby wake up '~Rpc_entrypoint' */
