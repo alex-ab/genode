@@ -27,26 +27,44 @@ class Log
 		Genode::Attached_rom_dataspace _rom_ds;
 		Genode::Log_connection         _log;
 
-		char           _buffer [Genode::Log_session::MAX_STRING_LEN];
+		char           _buffer [Genode::Log_session::MAX_STRING_LEN] { };
 		unsigned short _buf_pos { 0 };
 		unsigned       _rom_pos { 0 };
 
+		bool const     _novae   { false };
+
+		unsigned header_size() const
+		{
+			return (_novae ? 2 : 1) * 4;
+		}
+
 		unsigned log_size() const
 		{
-			return (unsigned)(_rom_ds.size() - sizeof(_rom_pos));
+			return (unsigned)(_rom_ds.size() - header_size());
 		}
 
 		char const * char_from_rom(unsigned offset = 0) const
 		{
-			return _rom_ds.local_addr<char const>() + sizeof(_rom_pos) +
+			return _rom_ds.local_addr<char const>() + header_size() +
 			       (_rom_pos + offset) % log_size();
 		}
 
 		unsigned next_pos(unsigned pos) const {
 			return (pos + 1) % log_size(); }
 
-		unsigned end_pos() const {
-			return *_rom_ds.local_addr<unsigned volatile>() % log_size(); }
+		unsigned end_pos() const
+		{
+			if (!_novae)
+				return *_rom_ds.local_addr<unsigned volatile>() % log_size();
+
+			auto pos = novae_write_next_pos();
+			if (pos == 0) pos = log_size(); else pos --;
+
+			return pos;
+		}
+
+		unsigned novae_write_next_pos() const {
+			return *(_rom_ds.local_addr<unsigned volatile>() + 1) % log_size(); }
 
 		void _rom_to_log(unsigned const last_pos)
 		{
@@ -71,8 +89,8 @@ class Log
 	public:
 
 		Log (Genode::Env &env, char const * const rom_name,
-		     char const * const log_name)
-		: _rom_ds(env, rom_name), _log(env, log_name)
+		     char const * const log_name, bool novae)
+		: _rom_ds(env, rom_name), _log(env, log_name), _novae(novae)
 		{
 			unsigned const pos = end_pos();
 
@@ -97,7 +115,10 @@ struct Monitor
 {
 	Genode::Env &env;
 
-	Log output { env, "log", "log" };
+	Genode::Attached_rom_dataspace config { env, "config" };
+
+	Log output { env, "log", "log",
+	             config.xml().attribute_value("type", Genode::String<9>("default")) == "novae" };
 
 	Timer::Connection timer { env };
 
@@ -107,12 +128,7 @@ struct Monitor
 	{
 		timer.sigh(interval);
 
-		Genode::addr_t period_ms = 1000;
-
-		try {
-			Genode::Attached_rom_dataspace config { env, "config" };
-			period_ms = config.xml().attribute_value("period_ms", 1000UL);
-		} catch (...) { }
+		auto period_ms = config.xml().attribute_value("period_ms", 1000UL);
 
 		timer.trigger_periodic((Genode::uint64_t)1000 * period_ms);
 	}
