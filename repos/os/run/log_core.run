@@ -21,10 +21,14 @@ build {
 
 create_boot_directory
 
-proc kernel_start_node { } { return {
+proc kernel_start_node { } {
+ set kernel_type " "
+ if {[have_spec novae]} { set kernel_type "| type: novae" }
+
+ append cfg {
 + start log_kernel | ram: 10M
   + binary log_core
-  + config | period_ms: 2000
+  + config | period_ms: 2000 } $kernel_type {
   + route
     + service ROM | unscoped_label: log_core  | + parent
     + service ROM | unscoped_label: ld.lib.so | + parent
@@ -33,10 +37,9 @@ proc kernel_start_node { } { return {
     + service PD                              | + parent
     + service CPU                             | + parent
     + service LOG                             | + parent
-} }
-
-if {![have_spec nova]} { proc kernel_start_node { } { } }
-
+}
+  return $cfg;
+}
 
 install_config {
 config
