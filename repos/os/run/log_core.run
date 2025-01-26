@@ -23,13 +23,24 @@ create_boot_directory
 
 proc kernel_start_node { } {
 
-	if {![have_spec nova]} {
+	if {!([have_spec nova] || [have_spec novae])} {
 		return { } }
 
-	return {
-	<start name="log_kernel" ram="10M">
-		<binary name="log_core"/>
-		<config period_ms="2000"/>
+	set ret ""
+
+	append ret {
+	<start name="log_kernel">
+		<binary name="log_core"/>}
+
+	if {[have_spec nova]} {
+		append ret {
+		<config period_ms="2000"/>}
+	} else {
+		append ret {
+		<config period_ms="2000" type="novae"/>}
+	}
+
+	append ret {
 		<route>
 			<service name="ROM" unscoped_label="log_core"> <parent/> </service>
 			<service name="ROM" unscoped_label="ld.lib.so"> <parent/> </service>
@@ -40,6 +51,8 @@ proc kernel_start_node { } {
 			<service name="LOG"> <parent/> </service>
 		</route>
 	</start>}
+
+	return $ret
 }
 
 install_config {
