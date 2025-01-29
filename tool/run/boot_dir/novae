@@ -1,0 +1,191 @@
+#
+# Return Bender option that configures Bender's Intel HWP plugin
+#
+# \param --bender-intel-hwp-mode   Run the Intel HWP plugin of Bender in the
+#                                  given mode. Valid argument values are
+#                                     "off",
+#                                     "performance",
+#                                     "balanced", and
+#                                     "power_saving"
+#                                  The argument value defaults to
+#                                  "performance".
+#
+proc bender_intel_hwp_mode_option { } {
+
+	set opt [get_cmd_arg_first --bender-intel-hwp-mode "performance"]
+	if {$opt == "off"} {
+		return "intel_hwp_off"
+	} elseif {$opt == "performance"} {
+		return "intel_hwp_performance"
+	} elseif {$opt == "balanced"} {
+		return "intel_hwp_balanced"
+	} elseif {$opt == "power_saving"} {
+		return "intel_hwp_power_saving"
+	} else {
+		return "intel_hwp_performance"
+	}
+}
+
+proc binary_name_ld_lib_so { } { return "ld-novae.lib.so" }
+proc binary_name_core_a    { } { return "core-novae.a" }
+proc binary_name_timer     { } { return "novae_timer" }
+#proc binary_name_novae-pc  { } { return "novae-pc" }
+
+proc kernel_files { } { return novae-pc }
+proc kernel_output { } { return "serial" }
+
+proc boot_output { } { return "serial" }
+
+proc run_boot_string { } {
+	return "\nHypervisor 'NOVA'e "
+}
+
+proc apply_microcode { } { return false }
+
+proc core_link_address { } { return "0x100000" }
+
+
+proc core_ld_opts { } {
+	set ret { -Wl,-T }
+	lappend ret "-Wl,[genode_dir]/repos/base/src/ld/genode.ld"
+	lappend ret "-Wl,[genode_dir]/repos/base-novae/src/core/core-bss.ld"
+	return $ret
+}
+
+##
+# Populate directory with binaries on NOVAe
+#
+proc run_boot_dir {binaries} {
+
+	#
+	# Build kernel-specific targets if needed
+	#
+	# If the run scripts imports the base-nova binary archive, [run_dir] is
+	# already populated, so we can skip the build.
+	#
+	set kernel_arg ""
+	set core_arg   ""
+	set ld_arg     ""
+	if {![file exists [run_dir]/genode/novae]}        { set kernel_arg kernel }
+	if {![file exists [run_dir]/genode/core-novae.a]} { set core_arg   core/novae }
+	if {![file exists [run_dir]/genode/ld.lib.so]}    { set ld_arg     lib/ld-novae }
+
+	set targets "$kernel_arg $core_arg $ld_arg"
+	if {[llength $targets]} { build $targets }
+
+	if {[have_spec arm_64]} {
+		set kernel_arch "aarch64"
+	} else {
+		set kernel_arch "x86_64"
+	}
+
+	if {$kernel_arg != ""} { copy_file kernel/novae/$kernel_arch-nova [run_dir]/genode/novae-pc }
+	if {$core_arg   != ""} { copy_file bin/core-novae.a         [run_dir]/genode/core-novae.a }
+	if {$ld_arg     != ""} { copy_file bin/ld-novae.lib.so      [run_dir]/genode/ld.lib.so }
+
+	#
+	# Collect contents of the boot image
+	#
+	build_core_image $binaries
+
+	exec mkdir -p [run_dir]/boot
+	copy_file [run_dir]/genode/novae-pc [run_dir]/boot/novae-pc
+
+	remove_genode_dir
+
+	exec mv [run_dir]/image.elf [run_dir]/boot/image.elf
+
+	#
+	# Setup bender options, e.g. serial and applying Intel HWP mode
+	#
+	set options_bender "[boot_output] [bender_intel_hwp_mode_option] "
+
+	if {[apply_microcode]} {
+		exec cp bin/micro.code [run_dir]/boot/
+		append options_bender " microcode"
+	}
+
+	if {[have_include "image/iso"] || [have_include "image/disk"] || [have_include image/uefi]} {
+		#
+		# Compress Genode image, to be uncompressed by GRUB
+		#
+		exec gzip -n [run_dir]/boot/image.elf
+
+		if {[have_include "image/disk"]} {
+			install_disk_bootloader_to_run_dir
+		}
+
+		if {[have_include "image/iso"]} {
+			install_iso_bootloader_to_run_dir
+		}
+
+		if {[have_include image/uefi]} {
+			install_uefi_bootloader_to_run_dir
+			append options_bender " serial_fallback"
+		}
+
+		#
+		# Generate GRUB2 config file
+		#
+		set fh [create_header_grub2_config]
+
+		puts $fh "menuentry 'Genode on NOVAe' {"
+		puts $fh " insmod multiboot2"
+		puts $fh " insmod gzio"
+		puts $fh " multiboot2 /boot/bender $options_bender"
+		if {[apply_microcode]} {
+			puts $fh " module2 /boot/micro.code micro.code"
+		}
+		puts $fh " module2 /boot/novae-pc novae-pc nosmmu [kernel_output]"
+		puts $fh " module2 /boot/image.elf.gz image.elf"
+		puts $fh "}"
+		close $fh
+	}
+
+	#
+	# Build image
+	#
+	run_image
+
+	if {[have_include "load/tftp"]} {
+		#
+		# Install PXE bootloader pulsar
+		#
+		install_pxe_bootloader_to_run_dir
+
+		#
+		# Generate pulsar config file
+		#
+		set fh [open "[run_dir]/config-52-54-00-12-34-56" "WRONLY CREAT TRUNC"]
+		puts $fh " exec /boot/bender $options_bender"
+		if {[apply_microcode]} {
+			puts $fh " load /boot/micro.code micro.code"
+		}
+		puts $fh " load /boot/novae-pc nosmmu [kernel_output]"
+		puts $fh " load /boot/image.elf"
+		close $fh
+
+		generate_tftp_config
+	}
+
+	if {[have_include "load/ipxe"]} {
+		create_ipxe_config
+		update_ipxe_boot_dir
+		create_symlink_for_iso
+	}
+}
+
+
+##
+# Base source archive within depot
+#
+proc base_src { } {
+
+	if {[have_spec x86]} { return base-novae }
+
+	global specs
+
+	puts stderr "Test requires base-novae kernel archive, which is missing for this build configuration"
+	puts stderr "  SPECS=\"$specs\""
+	exit 0
+}
