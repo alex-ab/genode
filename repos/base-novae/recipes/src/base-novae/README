@@ -1,0 +1,9 @@
+This archive contains the NOVAe-specific part of Genode.
+
+It also contains the source code of the NOVAe hypervisor in the src/kernel/nova/
+directory.
+
+This NOVAe version is maintained at 'https://github.com/alex-ab/NOVA.git'.
+
+Please note that NOVAe has a license distinct from Genode. NOVAe's license can
+be found at 'src/kernel/nova/LICENSE'.
