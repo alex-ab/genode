@@ -1,0 +1,60 @@
+#
+# \brief  Portions of base library shared by core and non-core processes
+# \author Norman Feske
+# \date   2013-02-14
+#
+
+#
+# include $(BASE_DIR)/lib/mk/base-common.inc - start
+#
+SRC_CC += avl_tree.cc
+SRC_CC += slab.cc
+SRC_CC += allocator_avl.cc
+SRC_CC += heap.cc sliced_heap.cc
+SRC_CC += registry.cc
+SRC_CC += output.cc
+SRC_CC += child.cc
+SRC_CC += child_process.cc
+SRC_CC += session_state.cc
+SRC_CC += elf_binary.cc
+SRC_CC += ipc.cc
+SRC_CC += mutex.cc
+SRC_CC += log.cc
+SRC_CC += raw_output.cc
+SRC_CC += rpc_entrypoint.cc
+SRC_CC += signal_common.cc
+SRC_CC += sleep.cc
+SRC_CC += region_map_client.cc
+SRC_CC += rm_session_client.cc
+SRC_CC += stack_allocator.cc
+SRC_CC += trace_buffer.cc
+SRC_CC += env_session_id_space.cc
+SRC_CC += stack_protector.cc
+SRC_CC += hid.cc
+SRC_CC += local_clock.cc
+
+INC_DIR += $(REP_DIR)/src/include $(BASE_DIR)/src/include
+
+# prevent include of base/internal/platform.h by core
+CC_OPT += -DUSED_BY_CORE
+
+vpath %.cc  $(REP_DIR)/src/lib/base
+vpath %.cc $(BASE_DIR)/src/lib/base
+#
+# include $(BASE_DIR)/lib/mk/base-common.inc - end
+#
+
+LIBS += startup-novae
+
+SRC_CC += cache.cc
+SRC_CC += thread.cc thread_myself.cc
+SRC_CC += stack.cc
+SRC_CC += stack_area_addr.cc
+SRC_CC += cap_map.cc
+SRC_CC += capability.cc
+SRC_CC += lock.cc
+
+#
+# Prevent the compiler from deleting null pointer checks related to 'this == 0'
+#
+CC_OPT += -fno-delete-null-pointer-checks
