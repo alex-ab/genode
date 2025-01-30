@@ -125,7 +125,7 @@ class Core::Vm_session_component
 		 ** Vm session interface **
 		 **************************/
 
-		Capability<Native_vcpu> create_vcpu(Thread_capability) override;
+		Capability<Native_vcpu> create_vcpu(Thread_capability);
 		void attach_pic(addr_t) override { /* unused on Fiasco.OC */ }
 
 		void attach(Dataspace_capability, addr_t, Attach_attr) override; /* vm_session_common.cc */
