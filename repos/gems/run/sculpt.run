@@ -677,16 +677,6 @@ install_config {
 		</provides>
 	</start>
 
-	<start name="top">
-		<resource name="RAM" quantum="2M"/>
-		<config sort_time="sc"/>
-		<route>
-			<service name="Timer"> <child name="timer"/> </service>
-			<service name="TRACE"> <parent label=""/> </service>
-			<any-service> <parent/> </any-service>
-		</route>
-	</start>
-
 	<start name="runtime" caps="50000" priority="-1" managing_system="yes">
 		<binary name="monitor"/>
 		<resource name="RAM" quantum="32G"/>
@@ -1171,7 +1161,6 @@ close $fd
 ##
 ## Create boot image
 ##
-build app/top
 
 build [ingredients_of_type build]
 
