@@ -1,4 +1,4 @@
-assert {[have_spec hw] || [have_spec nova] || [have_spec sel4]}
+assert {[have_spec hw] || [have_spec nova] || [have_spec novae] || [have_spec sel4]}
 
 set build_components {
 	core init timer
