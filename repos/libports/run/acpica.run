@@ -2,6 +2,7 @@ assert {[have_spec hw] || [have_spec nova] || [have_spec novae] || [have_spec se
 
 set build_components {
 	core init timer
+	lib/ld
 	driver/platform
 	driver/acpi
 	server/event_dump
