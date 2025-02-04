@@ -429,7 +429,9 @@ class Genode::Rpc_entrypoint : Thread, public Object_pool<Rpc_object_base>
 		Capability<RPC_INTERFACE>
 		manage(Rpc_object<RPC_INTERFACE, RPC_SERVER> *obj)
 		{
-			return reinterpret_cap_cast<RPC_INTERFACE>(_manage(obj));
+			auto cap = reinterpret_cap_cast<RPC_INTERFACE>(_manage(obj));
+//			error("manage --- ", Thread::name(), " ", Hex((cap.local_name())));
+			return cap;
 		}
 
 		/**
