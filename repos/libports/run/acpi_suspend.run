@@ -896,6 +896,7 @@ build_boot_image [build_artifacts]
 # enable MMIO PCI MMCFG access.
 #
 append qemu_args "-smp 1"
+append qemu_args " -accel kvm -cpu host"
 
 if {[have_include "power_on/qemu"] && $use_ahci} {
 	append qemu_args " -device ahci,id=ahci "
