@@ -329,6 +329,8 @@ static bool setup_allocators(auto &mem_io, auto &mem_ram, auto &region_alloc,
 	auto const offset   = phys_mbi & 0xfffu;
 	void * map = nullptr;
 
+	__initial_si = 0;
+
 	if (__initial_di != Multiboot2_info::MAGIC)
 		return true; /* Multiboot v1 or other kinds of boot are unsupported */
 

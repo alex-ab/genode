@@ -636,10 +636,11 @@ void Pager_object::_delegate_handler(Pager_object &obj, unsigned mtd)
 		break;
 	}
 	default:
+		error("unknown call=", Hex(id_action));
 		break;
 	}
 
-	if (verbose_rpc_track) {
+	if (verbose_rpc_track || !t_ptr) {
 		auto client = is_core ? nullptr
 		                      : reinterpret_cast<Platform_thread *>(obj._badge);
 

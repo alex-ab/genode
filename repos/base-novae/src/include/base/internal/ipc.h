@@ -143,6 +143,8 @@ static inline unsigned copy_msgbuf_to_utcb(auto const    pt_dst,
 	using namespace Genode;
 	using namespace Novae;
 
+	extern addr_t __initial_si;
+
 	/* look up address and size of message payload */
 	mword_t *msg_buf = (mword_t *)snd_msg.data();
 
@@ -165,8 +167,15 @@ static inline unsigned copy_msgbuf_to_utcb(auto const    pt_dst,
 		utcb.msg()[2] = cap.local_name();
 		utcb.msg()[3] = pt_dst;
 
+		if (__initial_si)
+			utcb.msg()[0xa0] = 0xbad;
+
 		auto mtd = 4u - 1;
+		if (__initial_si)
+			mtd = 0xa0;
 		Novae::call(pt_sel_delegate, mtd);
+
+		utcb.msg()[0xa0] = 0;
 	}
 
 	/* do the actual Genode RPC */

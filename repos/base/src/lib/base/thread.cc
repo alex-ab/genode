@@ -309,7 +309,8 @@ Thread::~Thread()
 	}
 
 	_deinit_platform_thread();
-	_free_stack(_stack);
+	error("skip free stack");
+	//_free_stack(_stack);
 
 	cxx_free_tls(this);
 
