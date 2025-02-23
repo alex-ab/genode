@@ -88,12 +88,8 @@ void Cap_range::dec(unsigned const id_start, bool revoke, unsigned num_log_2)
 		error("cap reference counting error - one counter of cap ",
 		      "range ", _base + id_start, "+", 1 << num_log_2, " "
 		      "has been already zero");
-
-	(void)drop;
-#if 0
 	if (drop)
 		error("could not drop reference but keeping id ", id_start, "+", 1 << num_log_2);
-#endif
 }
 
 

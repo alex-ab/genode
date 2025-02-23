@@ -68,7 +68,6 @@ void Thread::_init_platform_thread(size_t, Type type)
 
 void Thread::_deinit_platform_thread()
 {
-#if 1
 	auto const core_pd = platform_specific().core_obj_sel();
 
 	revoke(core_pd, Novae::Obj_crd(native_thread().ec_sel, 2));
@@ -88,8 +87,6 @@ void Thread::_deinit_platform_thread()
 	addr_t utcb = reinterpret_cast<addr_t>(&_stack->utcb());
 	revoke(platform_specific().core_host_sel(),
 	       Novae::Mem_crd(utcb >> 12, 0, Novae::Rights::none()));
-#endif
-	error(__func__, " ", name());
 }
 
 

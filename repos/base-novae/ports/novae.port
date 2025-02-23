@@ -4,7 +4,7 @@ DOWNLOADS := novae.git
 
 # upstream release 24.35 + extensions required by Genode -> r24.35 branch
 URL(novae) := https://github.com/alex-ab/NOVA.git
-REV(novae) := 0076ce86eb623888b50df76f8f28140b4435c115
+REV(novae) := 0db9cd6a7bcd60564d75aeaaed2e33137d6d2148
 DIR(novae) := src/kernel/novae
 
 PATCHES   := $(sort $(wildcard $(REP_DIR)/patches/*.patch))

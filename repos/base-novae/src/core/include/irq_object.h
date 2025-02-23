@@ -45,8 +45,6 @@ class Core::Irq_object : public Thread
 
 	public:
 
-		unsigned _irq { };
-
 		Irq_object();
 		~Irq_object();
 

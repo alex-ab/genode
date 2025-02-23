@@ -62,8 +62,6 @@ static bool associate_msi(addr_t irq_sel, addr_t bdf, addr_t &msi_addr,
 
 void Irq_object::sigh(Signal_context_capability cap)
 {
-	error("irq sigh ", cap);
-
 	if (!_sigh_cap.valid() && !cap.valid())
 		return;
 
@@ -159,17 +157,6 @@ Irq_object::~Irq_object()
 	revoke(core_pd, Novae::Obj_crd(_kernel_caps, 0));
 
 	cap_map().remove(_kernel_caps, 0);
-
-	error(__func__, " gone ?");
-
-	if (_sigh_cap.valid()) {
-		error(__func__, " valid ", _sigh_cap);
-		Pager_object::untrack_rpc_cap(_sigh_cap.local_name());
-		_sigh_cap = { };
-	}
-
-	auto res = Novae::sm_ctrl(irq_sel(), Novae::SEMAPHORE_UP);
-	error(__func__, " cancel irq ? res", res);
 }
 
 
@@ -223,8 +210,6 @@ Irq_session_component::Irq_session_component(Range_allocator &irqs,
 
 	if (Thread::Start_result::OK != _irq_object.start(_irq_number, bdf, irq_args))
 		throw Service_denied();
-
-	_irq_object._irq = _irq_number;
 }
 
 
@@ -235,7 +220,6 @@ Irq_session_component::~Irq_session_component()
 
 	addr_t free_irq = _irq_number;
 	_irq_alloc.free((void *)free_irq);
-
 }
 
 
@@ -250,13 +234,9 @@ void Irq_session_component::sigh(Signal_context_capability cap)
 	_irq_object.sigh(cap);
 }
 
-extern "C" addr_t __initial_si;
-
 
 void Irq_object::entry()
 {
-	error("irq alive ", _irq);
-
 	/* thread is up and ready */
 	while (true) {
 
@@ -266,22 +246,9 @@ void Irq_object::entry()
 		if (res != Novae::NOVA_OK)
 			error(this, " wait for IRQ failed ", res);
 
-		if (_sigh_cap.valid()) {
-			if (_irq == 11) {
-				error("entry sigh submit - start ", &_stack->utcb(), " ", Thread::myself()->utcb());
-				__initial_si = 1;
-			}
-
+		if (_sigh_cap.valid())
 			Signal_transmitter(_sigh_cap).submit(1);
-
-			if (_irq == 11) {
-				__initial_si = 0;
-				error("entry sigh submit - done");
-			}
-		}
 	}
-
-	error("irq dead  ", _irq);
 }
 
 
@@ -386,8 +353,6 @@ Genode::Thread::Start_result Irq_object::start()
 		error("Thread::start: failed to create SC");
 		return Start_result::DENIED;
 	}
-
-	error("start thread ", name(), " ", Hex(_stack->top()), " ", &new_utcb);
 
 	wait_for_irq_construction().block();
 
