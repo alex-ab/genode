@@ -173,8 +173,7 @@ namespace Novae {
 	{
 		auto flags = uint8_t((global ? 2u : 0u) | 4 /* FPU */);
 		return syscall_4(NOVA_CREATE_EC, flags, ec, pd,
-		                 (cpu & 0xfff) | (utcb & ~0xfff),
-		                 sp, evt);
+		                 utcb & ~0xffful, (evt << 16) | (cpu & 0xffffu), sp);
 	}
 
 	ALWAYS_INLINE
@@ -224,6 +223,13 @@ namespace Novae {
 
 
 	ALWAYS_INLINE
+	inline uint8_t create_sm_irq(mword_t sm, mword_t pd, mword_t cnt)
+	{
+		return syscall_3(NOVA_CREATE_SM, 1, sm, pd, cnt, 0);
+	}
+
+
+	ALWAYS_INLINE
 	inline uint8_t sm_ctrl(mword_t sm, Sem_op op, unsigned long long timeout = 0)
 	{
 		return syscall_1(NOVA_SM_CTRL, op, sm, timeout);
@@ -251,11 +257,13 @@ namespace Novae {
 
 	ALWAYS_INLINE
 	inline uint8_t assign_int(mword_t sm, uint8_t flags, mword_t cpu,
-	                          mword_t dev, mword_t &msi_addr,
+	                          mword_t irq_idx, mword_t sbdf, mword_t &msi_addr,
 	                          mword_t &msi_data)
 	{
-		msi_addr = cpu;
-		msi_data = dev;
+		msi_addr = ((cpu     & 0xfffful) <<  0) |
+		           ((irq_idx & 0xfffful) << 16) |
+		                           (sbdf << 32);
+		msi_data = 0;
 		return syscall_5(NOVA_ASSIGN_INT, flags, sm, msi_addr, msi_data);
 	}
 }

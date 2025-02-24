@@ -33,7 +33,8 @@ class Core::Irq_object : public Thread
 
 		addr_t _msi_addr { };
 		addr_t _msi_data { };
-		addr_t _bdf      { }; /* PCI bdf */
+		addr_t _sbdf     { }; /* PCI segment bus device function */
+		addr_t _idx      { }; /* interrupt index */
 
 		Novae::Gsi_flags _gsi_flags { };
 

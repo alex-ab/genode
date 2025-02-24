@@ -26,12 +26,13 @@
 using namespace Core;
 
 
-static bool irq_ctrl(addr_t const irq_sel, addr_t &msi_addr, addr_t &msi_data,
-                     Novae::Gsi_flags const flags, addr_t const bdf)
+static bool irq_ctrl(addr_t const irq_sel, addr_t const irq_idx,
+                     addr_t &msi_addr, addr_t &msi_data,
+                     Novae::Gsi_flags const flags, addr_t const sbdf)
 {
 	/* assign IRQ to CPU && request msi data to be used by driver */
 	uint8_t res = Novae::assign_int(irq_sel, flags.value(),
-	                                kernel_hip().cpu_bsp, bdf,
+	                                kernel_hip().cpu_bsp(), irq_idx, sbdf,
 	                                msi_addr, msi_data);
 
 	if (res != Novae::NOVA_OK)
@@ -45,18 +46,19 @@ static bool irq_ctrl(addr_t const irq_sel, addr_t &msi_addr, addr_t &msi_data,
 }
 
 
-static bool associate_gsi(addr_t irq_sel, addr_t bdf, Novae::Gsi_flags gsi_flags)
+static bool associate_gsi(addr_t irq_sel, addr_t irq_idx, addr_t bdf,
+                          Novae::Gsi_flags gsi_flags)
 {
 	addr_t dummy1 = 0, dummy2 = 0;
 
-	return irq_ctrl(irq_sel, dummy1, dummy2, gsi_flags, bdf);
+	return irq_ctrl(irq_sel, irq_idx, dummy1, dummy2, gsi_flags, bdf);
 }
 
 
-static bool associate_msi(addr_t irq_sel, addr_t bdf, addr_t &msi_addr,
-                          addr_t &msi_data)
+static bool associate_msi(addr_t irq_sel, addr_t irq_idx, addr_t bdf,
+                          addr_t &msi_addr, addr_t &msi_data)
 {
-	return irq_ctrl(irq_sel, msi_addr, msi_data, Novae::Gsi_flags(), bdf);
+	return irq_ctrl(irq_sel, irq_idx, msi_addr, msi_data, { }, bdf);
 }
 
 
@@ -78,9 +80,9 @@ void Irq_object::sigh(Signal_context_capability cap)
 	/* associate GSI or MSI to device */
 	bool ok = false;
 	if (_irq_type == Irq_session::TYPE_LEGACY)
-		ok = associate_gsi(irq_sel(), _bdf, _gsi_flags);
+		ok = associate_gsi(irq_sel(), _idx, _sbdf, _gsi_flags);
 	else
-		ok = associate_msi(irq_sel(), _bdf, _msi_addr, _msi_data);
+		ok = associate_msi(irq_sel(), _idx, _sbdf, _msi_addr, _msi_data);
 
 	if (!ok) {
 		_sigh_cap = Signal_context_capability();
@@ -99,15 +101,7 @@ void Irq_object::ack_irq()
 
 Thread::Start_result Irq_object::start(unsigned irq, addr_t const bdf, Irq_args const &irq_args)
 {
-	/* map IRQ SM cap from kernel to core at irq_sel selector */
-	using Novae::Obj_crd;
-
-	auto & hip = kernel_hip();
-
-	if (async_map(hip.sel_num - 1, /* kernel object space */
-	              hip.sel_num - 2, /* root   object space */
-	              Obj_crd((1u << 16) + irq, 0), /* offset according to spec */
-	              Obj_crd(irq_sel(), 0)))
+	if (Novae::create_sm_irq(irq_sel(), platform_specific().core_pd_sel(), irq) != Novae::NOVA_OK)
 		return Start_result::DENIED;
 
 	/* initialize GSI IRQ flags */
@@ -127,14 +121,15 @@ Thread::Start_result Irq_object::start(unsigned irq, addr_t const bdf, Irq_args 
 
 	_gsi_flags = gsi_flags(irq_args);
 	_irq_type  = irq_args.type();
-	_bdf       = bdf;
+	_sbdf      = bdf;
+	_idx       = irq;
 
 	/* associate GSI or MSI (and retrieve _msi_addr and _msi_data) to device */
 	bool ok = false;
 	if (_irq_type == Irq_session::TYPE_LEGACY)
-		ok = associate_gsi(irq_sel(), _bdf, _gsi_flags);
+		ok = associate_gsi(irq_sel(), _idx, _sbdf, _gsi_flags);
 	else
-		ok = associate_msi(irq_sel(), _bdf, _msi_addr, _msi_data);
+		ok = associate_msi(irq_sel(), _idx, _sbdf, _msi_addr, _msi_data);
 
 	if (!ok)
 		return Start_result::DENIED;
@@ -176,8 +171,8 @@ Irq_session_component::Irq_session_component(Range_allocator &irqs,
 	auto const bdf = Arg_string::find_arg(args, "bdf").long_value(0x10000u);
 
 	if (irq_args.type() == Irq_session::TYPE_LEGACY) {
-		if (irq >= kernel_hip().int_pin) {
-			error("GSI out of range ", irq, ">", kernel_hip().int_pin);
+		if (irq >= kernel_hip().gsi_pin()) {
+			error("GSI out of range ", irq, ">", kernel_hip().gsi_pin());
 			throw Service_denied();
 		}
 
@@ -193,9 +188,8 @@ Irq_session_component::Irq_session_component(Range_allocator &irqs,
 	} else {
 
 		auto result = irqs.alloc_aligned(1, 0,
-		                                 { .start = kernel_hip().int_pin,
-		                                   .end   = addr_t(kernel_hip().int_pin) +
-		                                            kernel_hip().int_msi });
+		                                 { .start = kernel_hip().gsi_pin(),
+		                                   .end   = kernel_hip().gsi_max() + 1 });
 
 		if (result.failed()) {
 			error("Out of MSIs");

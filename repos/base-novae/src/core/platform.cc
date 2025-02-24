@@ -255,24 +255,24 @@ static bool cpuid_invariant_tsc()
 static Affinity::Space setup_affinity_space(Hip const &hip)
 {
 	/* XXX hyperthreading detection missing */
-	return Affinity::Space(hip.cpu_num, 1);
+	return Affinity::Space(hip.cpu_max(), 1);
 }
 
 
 static void setup_io_port_access(Hip const & hip)
 {
-	async_map(        hip.sel_num - 1,      /* kernel object space */
-	                  hip.sel_num - 2,      /* root   object space */
-	          Obj_crd(hip.sel_num - 4, 0),  /* source - kernel PIO cap */
-	          Obj_crd(hip.sel_num - 6, 0)); /* target selector in this space */
+	async_map(        hip.sel_num() - 1,      /* kernel object space */
+	                  hip.sel_num() - 2,      /* root   object space */
+	          Obj_crd(hip.sel_num() - 4, 0),  /* source - kernel PIO cap */
+	          Obj_crd(hip.sel_num() - 6, 0)); /* target selector in this space */
 
-	async_map(        hip.sel_num - 1,      /* kernel object space */
-	                  hip.sel_num - 2,      /* root   object space */
-	          Obj_crd(hip.sel_num - 8, 0),  /* source - root PIO cap */
-	          Obj_crd(hip.sel_num - 7, 0)); /* target selector in this space */
+	async_map(        hip.sel_num() - 1,      /* kernel object space */
+	                  hip.sel_num() - 2,      /* root   object space */
+	          Obj_crd(hip.sel_num() - 8, 0),  /* source - root PIO cap */
+	          Obj_crd(hip.sel_num() - 7, 0)); /* target selector in this space */
 
-	async_map(hip.sel_num - 6, /* cap of kernel pio space */
-	          hip.sel_num - 7, /* cap of root   pio space */
+	async_map(hip.sel_num() - 6, /* cap of kernel pio space */
+	          hip.sel_num() - 7, /* cap of root   pio space */
 	          Io_crd(0, 16),   /* grant all IO ports from kernel PIO space */
 	          Io_crd(0, 16));  /* take  all IO ports in   root   PIO space */
 }
@@ -280,17 +280,17 @@ static void setup_io_port_access(Hip const & hip)
 
 static void take_kernel_core_cap(Hip const & hip)
 {
-	async_map(        hip.sel_num - 1,      /* kernel object space */
-	                  hip.sel_num - 2,      /* root   object space */
-	          Obj_crd(hip.sel_num - 3, 0),  /* source - kernel host space cap */
-	          Obj_crd(hip.sel_num - 8, 0)); /* target selector in this space */
+	async_map(        hip.sel_num() - 1,      /* kernel object space */
+	                  hip.sel_num() - 2,      /* root   object space */
+	          Obj_crd(hip.sel_num() - 3, 0),  /* source - kernel host space cap */
+	          Obj_crd(hip.sel_num() - 8, 0)); /* target selector in this space */
 
 	/* 'hip.sel_num - 8' is now Platform::kernel_host_sel() */
 
-	async_map(        hip.sel_num - 1,      /* kernel object space */
-	                  hip.sel_num - 2,      /* root   object space */
-	          Obj_crd(hip.sel_num - 7, 0),  /* source - root host space cap */
-	          Obj_crd(hip.sel_num - 9, 0)); /* target selector in this space */
+	async_map(        hip.sel_num() - 1,      /* kernel object space */
+	                  hip.sel_num() - 2,      /* root   object space */
+	          Obj_crd(hip.sel_num() - 7, 0),  /* source - root host space cap */
+	          Obj_crd(hip.sel_num() - 9, 0)); /* target selector in this space */
 
 	/* 'hip.sel_num - 9' is now Platform::core_host_sel() */
 }
@@ -559,7 +559,8 @@ Core::Platform::Platform()
 	 * done before core_log is initialized to prevent unexpected-reboot
 	 * detection.
 	 */
-	log("\nHypervisor '", Cstring((char *)&hip.signature, 4), "'e",
+	auto const signature = hip.signature();
+	log("\nHypervisor '", Cstring((char *)&signature, sizeof(signature)), "'e",
 	    " cpus=", _cpus.width(), "x", _cpus.height());
 
 	_cpus = Affinity::Space(1, 1);
@@ -583,7 +584,7 @@ Core::Platform::Platform()
 #endif
 
 	/* set up page fault handler for core - for debugging */
-	init_core_page_fault_handler(core_obj_sel(), core_pd_sel(), hip.cpu_bsp);
+	init_core_page_fault_handler(core_obj_sel(), core_pd_sel(), hip.cpu_bsp());
 
 	/* remap main UTCB to default utcb address */
 	error_remap = map_local(Platform::core_host_sel(),
@@ -654,9 +655,9 @@ Core::Platform::Platform()
 	                                _core_phys_start, boot_info);
 
 	/* remove reserved RAM regions occupied by kernel */
-	ram_alloc().remove_range(hip.nova_addr_start, hip.nova_addr_end - hip.nova_addr_start);
-	ram_alloc().remove_range(hip.mbuf_addr_start, hip.mbuf_addr_end - hip.mbuf_addr_start);
-	ram_alloc().remove_range(hip.root_addr_start, hip.root_addr_end - hip.root_addr_start);
+	ram_alloc().remove_range(hip.nova_addr_start(), hip.nova_addr_end() - hip.nova_addr_start());
+	ram_alloc().remove_range(hip.mbuf_addr_start(), hip.mbuf_addr_end() - hip.mbuf_addr_start());
+	ram_alloc().remove_range(hip.root_addr_start(), hip.root_addr_end() - hip.root_addr_start());
 
 	/* needed as I/O memory by the VESA driver and acpi to search for rsdp */
 	_io_mem_alloc.add_range   (0, 0x2000);
@@ -666,7 +667,7 @@ Core::Platform::Platform()
 	 * From now on, it is save to use the core allocators...
 	 */
 
-	size_t kernel_memory = hip.nova_addr_end - hip.nova_addr_start;
+	size_t kernel_memory = hip.nova_addr_end() - hip.nova_addr_start();
 
 	_init_rom_modules();
 
@@ -750,8 +751,8 @@ Core::Platform::Platform()
 					});
 					xml.node("tsc", [&] {
 						xml.attribute("invariant", cpuid_invariant_tsc());
-						xml.attribute("freq_hz"  , hip.timer_freq);
-						xml.attribute("freq_khz" , hip.timer_freq / 1000);
+						xml.attribute("freq_hz"  , hip.timer_freq());
+						xml.attribute("freq_khz" , hip.timer_freq() / 1000);
 					});
 					xml.node("cpus", [&] {
 						for_each_location([&](Affinity::Location &location) {
@@ -775,10 +776,10 @@ Core::Platform::Platform()
 	});
 
 	/* export hypervisor log memory */
-	if (hip.mbuf_addr_start && hip.mbuf_addr_end)
+	if (hip.mbuf_addr_start() && hip.mbuf_addr_end())
 		new (core_mem_alloc())
-			Rom_module(_rom_fs, "kernel_log", hip.mbuf_addr_start,
-			           hip.mbuf_addr_end - hip.mbuf_addr_start);
+			Rom_module(_rom_fs, "kernel_log", hip.mbuf_addr_start(),
+			           hip.mbuf_addr_end() - hip.mbuf_addr_start());
 
 	/* show all warnings/errors after init_core_log setup core_log */
 	if (warn_reorder)
@@ -787,7 +788,7 @@ Core::Platform::Platform()
 		error("mismatch in address layout of binaries with core");
 	if (error_overlap)
 		error("memory overlap issues detected");
-	if (hip.sel_hst_arch + 3 > NUM_INITIAL_PT_RESERVED)
+	if (hip.sel_hst_arch() + hip.sel_hst_nova() + 4 > NUM_INITIAL_PT_RESERVED)
 		error("configuration error (NUM_INITIAL_PT_RESERVED)");
 	if (error_memory)
 		error("Memory allocator issues detected");
@@ -795,11 +796,11 @@ Core::Platform::Platform()
 		error("UTCB of first thread could not be remapped");
 
 	/* map idle SCs */
-	auto const log2cpu  = log2(unsigned(hip.cpu_num));
+	auto const log2cpu  = log2(unsigned(hip.cpu_max()));
 	auto const idle_scs = cap_map().insert(log2cpu + 1);
 
-	if (async_map(hip.sel_num - 1, /* kernel object space */
-	              hip.sel_num - 2, /* root   object space */
+	if (async_map(hip.sel_num() - 1, /* kernel object space */
+	              hip.sel_num() - 2, /* root   object space */
 	              Obj_crd(       0, log2cpu),
 	              Obj_crd(idle_scs, log2cpu)))
 		error("idle SC information unavailable");
@@ -825,7 +826,7 @@ Core::Platform::Platform()
 
 			log(" remap (", location.xpos(), "x", location.ypos(),") -> ",
 			    kernel_cpu_id, " - ", text,
-			    hip.cpu_bsp == kernel_cpu_id ? " boot cpu" : "");
+			    hip.cpu_bsp() == kernel_cpu_id ? " boot cpu" : "");
 		});
 	}
 
@@ -833,7 +834,7 @@ Core::Platform::Platform()
 	_io_port_alloc.add_range(0, 0x10000);
 
 	/* IRQ allocator */
-	_irq_alloc.add_range(0, hip.int_pin + hip.int_msi);
+	_irq_alloc.add_range(0, hip.gsi_max());
 
 	if (verbose_boot_info)
 		log(_rom_fs);
@@ -960,7 +961,7 @@ Core::Platform::Platform()
 	new (core_mem_alloc())
 		Core_trace_source(Trace::sources(),
 		                  Affinity::Location(0, 0, _cpus.width(), 1),
-		                  hip.sel_num - 5, "root");
+		                  hip.sel_num() - 5, "root");
 }
 
 

@@ -2,9 +2,9 @@ LICENSE   := GPLv2
 VERSION   := git
 DOWNLOADS := novae.git
 
-# upstream release 24.35 + extensions required by Genode -> r24.35 branch
+# upstream release 24.43 + extensions required by Genode -> r24.43 branch
 URL(novae) := https://github.com/alex-ab/NOVA.git
-REV(novae) := 0db9cd6a7bcd60564d75aeaaed2e33137d6d2148
+REV(novae) := af54c82ff7539bcc097b7b8b8a1d837be9828904
 DIR(novae) := src/kernel/novae
 
 PATCHES   := $(sort $(wildcard $(REP_DIR)/patches/*.patch))

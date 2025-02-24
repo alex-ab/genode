@@ -128,25 +128,25 @@ class Core::Platform : public Platform_generic
 		auto core_pd_sel() const
 		{
 			auto const & hip = *(Novae::Hip const *)__initial_sp;
-			return hip.sel_num - 3; /* root host space */
+			return hip.sel_num() - 3; /* root host space */
 		}
 
 		auto core_obj_sel() const
 		{
 			auto const & hip = *(Novae::Hip const *)__initial_sp;
-			return hip.sel_num - 2; /* root object space */
+			return hip.sel_num() - 2; /* root object space */
 		}
 
 		static auto kernel_host_sel()
 		{
 			auto const & hip = *(Novae::Hip const *)__initial_sp;
-			return hip.sel_num - 8; /* kernel host space */
+			return hip.sel_num() - 8; /* kernel host space */
 		}
 
 		static auto core_host_sel()
 		{
 			auto const & hip = *(Novae::Hip const *)__initial_sp;
-			return hip.sel_num - 9; /* core host space */
+			return hip.sel_num() - 9; /* core host space */
 		}
 
 		void for_each_location(auto const &fn)

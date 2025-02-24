@@ -88,67 +88,33 @@ namespace Novae {
 	 */
 	struct Hip
 	{
-		struct Mem_desc
-		{
-			enum Type {
-				EFI_SYSTEM_TABLE    = -7,
-				HYPERVISOR_LOG      = -6,
-				FRAMEBUFFER         = -5,
-				ACPI_XSDT           = -4,
-				ACPI_RSDT           = -3,
-				MULTIBOOT_MODULE    = -2,
-				MICROHYPERVISOR     = -1,
-				AVAILABLE_MEMORY    =  1,
-				RESERVED_MEMORY     =  2,
-				ACPI_RECLAIM_MEMORY =  3,
-				ACPI_NVS_MEMORY     =  4
-			};
+		mword_t raw[512];
 
-			uint64_t const addr;
-			uint64_t const size;
-			Type     const type;
-			uint32_t const aux;
-		};
+		auto signature()       const { return uint32_t(raw[0x00 / 8]); }
+		auto nova_addr_start() const { return         (raw[0x08 / 8]); }
+		auto nova_addr_end()   const { return         (raw[0x10 / 8]); }
+		auto mbuf_addr_start() const { return         (raw[0x18 / 8]); }
+		auto mbuf_addr_end()   const { return         (raw[0x20 / 8]); }
+		auto root_addr_start() const { return         (raw[0x28 / 8]); }
+		auto root_addr_end()   const { return         (raw[0x30 / 8]); }
 
-		uint32_t const signature;   /* magic value 0x41564f4e */
-		uint16_t const hip_checksum;
-		uint16_t const hip_length;
-		uint64_t const nova_addr_start;
-		uint64_t const nova_addr_end;
-		uint64_t const mbuf_addr_start;
-		uint64_t const mbuf_addr_end;
-		uint64_t const root_addr_start;
-		uint64_t const root_addr_end;
-		uint64_t const acpi_addr_rsdp;
-		uint64_t const uefi_addr_mmap;
-		uint32_t const uefi_size_mmap;
-		uint16_t const uefi_desc_size;
-		uint16_t const uefi_desc_version;
-		uint64_t const timer_freq;
-		uint64_t const sel_num;     /* number of cap selectors                 */
-		uint16_t const sel_hst_arch;
-		uint16_t const sel_hst_nova;
-		uint16_t const sel_gst_arch;
-		uint16_t const sel_gst_nova;
-		uint16_t const cpu_num;
-		uint16_t const cpu_bsp;
-		uint16_t const int_pin;
-		uint16_t const int_msi;
-		uint8_t         mco_obj, mco_hst, mco_gst, mco_dma, mco_pio, mco_msr;       // 0x70
-		uint16_t        kimax;                                                      // 0x76
-		uint64_t const  features;
-#if 0
-        uint16_t        sel_hst_arch, sel_hst_nova, sel_gst_arch, sel_gst_nova;     // 0x60
-        uint16_t        cpu_num, cpu_bsp, int_pin, int_msi;                         // 0x68
-        uint8_t         mco_obj, mco_hst, mco_gst, mco_dma, mco_pio, mco_msr;       // 0x70
-        uint16_t        kimax;                                                      // 0x76
-        Atomic<feat_t>  features;                                                   // 0x78
-        Hip_arch        arch;                                                       // 0x80
-#endif
+		auto timer_freq()      const { return         (raw[0x50 / 8]); }
 
-		bool has_feature_iommu() const { return features & (1 << 0); }
-		bool has_feature_vmx()   const { return features & (1 << 1); }
-		bool has_feature_svm()   const { return features & (1 << 2); }
+		auto sel_num () const { return 1u << uint8_t (raw[0x58 / 8] >>  0); }
+		auto cpu_bsp () const { return       uint16_t(raw[0x58 / 8] >> 48); }
+		auto gsi_pin () const { return       uint16_t(raw[0x60 / 8] >> 48); }
+		auto gsi_max () const { return          1u + ((raw[0x68 / 8] >> 16) & 0xfffful);  }
+		auto cpu_max () const { return uint32_t(1u + ((raw[0x68 / 8] >> 32) & 0xfffful)); }
+		auto vec_max () const { return uint16_t(      (raw[0x68 / 8] >> 48)); }
+
+		auto sel_hst_arch() const { return uint16_t(raw[0x70 / 8] >>  0); }
+		auto sel_hst_nova() const { return uint16_t(raw[0x70 / 8] >> 16); }
+
+		auto features()     const { return uint64_t(raw[0x78 / 8]); }
+
+		bool has_feature_iommu() const { return !!(features() & (1 << 0)); }
+		bool has_feature_vmx()   const { return !!(features() & (1 << 1)); }
+		bool has_feature_svm()   const { return !!(features() & (1 << 2)); }
 
 	} __attribute__((packed));
 
