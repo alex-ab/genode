@@ -34,7 +34,7 @@ struct Driver::Main
 	                                         &Main::_system_update };
 
 	Intel::Io_mmu_factory  _intel_iommu    { _env, _common.io_mmu_factories() };
-	Ioapic_factory         _ioapic_factory { _env, _common.irq_controller_factories() };
+//	Ioapic_factory         _ioapic_factory { _env, _common.irq_controller_factories() };
 
 	void _handle_config();
 	void _suspend(String<8>);
