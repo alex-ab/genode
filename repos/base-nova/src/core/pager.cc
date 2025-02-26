@@ -817,6 +817,10 @@ uint8_t Pager_object::handle_oom(addr_t pd_from, addr_t pd_to,
 	addr_t limit_after = 0, usage_after = 0;
 	Nova::pd_ctrl_debug(pd_to, limit_after, usage_after);
 	/* if we could free up memory we continue */
+
+	warning("usage before=", usage_before, " after=", usage_after, " - ",
+	        "limit before=", limit_before, " after=", limit_after);
+
 	if (usage_after < usage_before)
 		return Nova::NOVA_OK;
 
