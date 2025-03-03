@@ -7,6 +7,8 @@ ram_fs:  depot
 
 # supplemental depot content added to the system image
 import: pkg/sculpt_drivers-pc
+import: pkg/wm pkg/sticks_blue_backdrop pkg/motif_decorator pkg/window_layouter
+import: pkg/recall_fs pkg/system_clock-pc pkg/record_play_mixer pkg/black_hole
 
 # selection of launcher-menu entries
 launcher: vm_fs shared_fs download_debug_info black_hole trace_logger
