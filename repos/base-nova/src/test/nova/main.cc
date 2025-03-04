@@ -611,11 +611,49 @@ class Greedy : public Genode::Thread {
 		{
 			log("starting");
 
-			enum { SUB_RM_SIZE = 1280 * 1024 * 1024 };
+			enum { SUB_RM_SIZE = 1280 * 1024 * 1024 / 2 };
 
 			Genode::Ram_dataspace_capability ds = _env.ram().alloc(4096);
 
 			Nova::Rights const mapping_rwx(true, true, true);
+
+			static addr_t recall[SUB_RM_SIZE / 4096];
+
+for (unsigned j=0; j < 8; j++) {
+
+			log("attach a lot");
+
+			for (unsigned i = 0; i < SUB_RM_SIZE / 4096; i++) {
+				addr_t const map_to = _env.rm().attach(ds, { }).convert<addr_t>(
+					[&] (Region_map::Range r) { return r.start; },
+					[&] (Region_map::Attach_error) {
+						error("Greedy: failed to attach RAM dataspace");
+						return 0UL;
+					}
+				);
+
+				/* check that we really got the mapping */
+				touch_read(reinterpret_cast<unsigned char *>(map_to));
+
+				if (i % 8192 == 0)
+					log(Hex(i * 4096));
+
+				recall[i] = map_to;
+			}
+
+#if 1
+			log("detach a lot");
+
+			for (unsigned i = 0; i < SUB_RM_SIZE / 4096 / 2; i++) {
+				_env.rm().detach(recall[i]);
+
+				if (i % 8192 == 0)
+					log(Hex(i * 4096));
+
+				recall[i] = 0;
+			}
+#endif
+}
 
 			log("cause mappings");
 
