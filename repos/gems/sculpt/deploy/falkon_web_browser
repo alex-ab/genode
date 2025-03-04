@@ -74,6 +74,7 @@
 			<service name="Report" label="falkon -> shape"> <child name="wm"/> </service>
 			<service name="Report" label="clipboard">       <child name="wm"/> </service>
 			<service name="ROM"    label="clipboard">       <child name="wm"/> </service>
+			<service name="PD">    <parent diag="true"/> </service>
 		</route>
 	</start>
 
