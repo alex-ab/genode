@@ -24,7 +24,7 @@ set config {
 		<default-route>
 			<any-service> <parent/> </any-service>
 		</default-route>
-		<start name="test-nova" caps="12350" ram="128M" ld="no">}
+		<start name="test-nova" caps="20350" ram="228M" ld="no">}
 
 append config "
 			<config check_pat=\"$check_pat\"/\>"
@@ -40,6 +40,7 @@ build_boot_image [build_artifacts]
 
 append qemu_args "-nographic  -smp 2"
 
+run_genode_until forever
 run_genode_until {Test finished} 240
 
 puts "\nTest succeeded"
