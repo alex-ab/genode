@@ -25,15 +25,18 @@ void Genode::Allocator_avl_base::print(Genode::Output & out) const
 
 	_addr_tree.for_each([&] (Block const & b)
 	{
+#if 0
 		print(out, " Block: ", Hex_range<addr_t>(b.addr(), b.size()), " "
 		      "size=",      Number_of_bytes(b.size()), " "
 		      "avail=",     Number_of_bytes(b.avail()), " "
 		      "max_avail=", Number_of_bytes(b.max_avail()), "\n");
+#endif
 		mem_size  += b.size();
 		mem_avail += b.avail();
 	});
 
 	print(out, " => mem_size=", mem_size, " (", mem_size / 1024 / 1024 ,
 	      " MB) / mem_avail=" , mem_avail , " (" , mem_avail / 1024 / 1024 ,
-	      " MB)\n");
+	      " MB),"
+	      " mem_used =", mem_size - mem_avail, " (", (mem_size - mem_avail) / 1024 / 1024, " MB)");
 }
