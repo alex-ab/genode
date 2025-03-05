@@ -282,12 +282,7 @@ Region_map_component::_attach(Dataspace_capability ds_cap, Attach_attr const cor
 		return Range { .start = at, .num_bytes = size };
 	};
 
-	auto const res = _ds_ep.apply(ds_cap, lambda);
-
-	if (_diag.enabled)
-		log(_map);
-
-	return res;
+	return _ds_ep.apply(ds_cap, lambda);
 }
 
 
