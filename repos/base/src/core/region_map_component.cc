@@ -244,6 +244,9 @@ Region_map_component::_attach(Dataspace_capability ds_cap, Attach_attr const cor
 		if (!at_defined)
 			return Attach_error::REGION_CONFLICT;
 
+		if (_diag.enabled)
+			log("attach ", Hex(at), "+", Hex(size));
+
 		Rm_region::Attr const region_attr
 		{
 			.base  = at,
@@ -454,6 +457,10 @@ void Region_map_component::detach_at(addr_t const at)
 	_with_region(at, [&] (Rm_region &region) {
 		if (!region.reserved())
 			_reserve_and_flush_unsynchronized(region);
+
+		if (_diag.enabled)
+			log("detach ", Hex(region.base()), "+", Hex(region.size()));
+
 		/* free the reserved region */
 		_map.free(reinterpret_cast<void *>(region.base()));
 	});
