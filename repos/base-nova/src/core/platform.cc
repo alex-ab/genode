@@ -289,7 +289,7 @@ static bool cpuid_invariant_tsc()
 struct Resolution : Register<64>
 {
 	struct Bpp    : Bitfield<0, 8> { };
-	struct Type   : Bitfield<8, 8> { enum { VGA_TEXT = 2 }; };
+	struct Type   : Bitfield<8, 8> { enum { RGB_COLOR = 1 }; };
 	struct Height : Bitfield<16, 24> { };
 	struct Width  : Bitfield<40, 24> { };
 };
@@ -455,7 +455,6 @@ Core::Platform::Platform()
 
 	Hip::Mem_desc *boot_fb = nullptr;
 
-	bool efi_boot = false;
 	size_t kernel_memory = 0;
 
 	/*
@@ -463,10 +462,6 @@ Core::Platform::Platform()
 	 * non "available" regions that overlaps with ram get removed.
 	 */
 	for (unsigned i = 0; i < num_mem_desc; i++, mem_desc++) {
-		/* 32/64bit EFI image handle pointer - see multiboot spec 2 */
-		if (mem_desc->type == 20 || mem_desc->type == 19)
-			efi_boot = true;
-
 		if (mem_desc->type == Hip::Mem_desc::FRAMEBUFFER)
 			boot_fb = mem_desc;
 		if (mem_desc->type == Hip::Mem_desc::MICROHYPERVISOR)
@@ -677,7 +672,7 @@ Core::Platform::Platform()
 					if (!boot_fb)
 						return;
 
-					if (!efi_boot && (Resolution::Type::get(boot_fb->size) != Resolution::Type::VGA_TEXT))
+					if (Resolution::Type::get(boot_fb->size) != Resolution::Type::RGB_COLOR)
 						return;
 
 					xml.node("framebuffer", [&] {
