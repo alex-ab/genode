@@ -8,10 +8,12 @@ ram_fs:  depot
 # supplemental depot content added to the system image
 import: pkg/sculpt_drivers-pc
 import: pkg/black_hole
+import: pkg/intel_display pkg/intel_gpu pkg/vesa_fb
 
 # selection of launcher-menu entries
 launcher: vm_fs shared_fs download_debug_info black_hole trace_logger
 launcher: audio mixer system_clock acpi_support recall_fs
+launcher: intel_display intel_gpu vesa_fb
 # touchpad
 
 # selection of accepted depot-package providers
