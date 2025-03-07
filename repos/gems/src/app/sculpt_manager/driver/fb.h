@@ -35,10 +35,7 @@ struct Sculpt::Fb_driver : private Noncopyable
 	Env    &_env;
 	Action &_action;
 
-	Constructible<Child_state> _intel_gpu { },
-	                           _intel_fb  { },
-	                           _vesa_fb   { },
-	                           _boot_fb   { },
+	Constructible<Child_state> _boot_fb   { },
 	                           _soc_fb    { };
 
 	Constructible<Rom_handler<Fb_driver>> _connectors { };
@@ -47,9 +44,7 @@ struct Sculpt::Fb_driver : private Noncopyable
 
 	Fb_name _fb_name() const
 	{
-		return _intel_fb.constructed() ? "intel_fb"
-		     : _vesa_fb .constructed() ? "vesa_fb"
-		     : _boot_fb .constructed() ? "boot_fb"
+		return _boot_fb .constructed() ? "boot_fb"
 		     : _soc_fb  .constructed() ? "fb"
 		     : "";
 	}
@@ -72,47 +67,6 @@ struct Sculpt::Fb_driver : private Noncopyable
 					gen_named_node(g, "binary", binary);
 					fn(); });
 		};
-
-		start_node(_intel_gpu, "intel_gpu", [&] {
-			g.node("provides", [&] {
-				gen_service_node<Gpu::Session>     (g, [&] { });
-				gen_service_node<Platform::Session>(g, [&] { });
-			});
-			g.tabular_node("route", [&] {
-				gen_parent_route<Platform::Session>(g);
-				gen_parent_rom_route(g, "intel_gpu");
-				gen_parent_rom_route(g, "config", "config -> gpu");
-				gen_parent_rom_route(g, "system", "config -> managed/system");
-				gen_parent_route<Rm_session>(g);
-				gen_common_routes(g);
-			});
-		});
-
-		start_node(_intel_fb, "pc_intel_fb", [&] {
-			g.node("heartbeat", [&] { });
-			g.tabular_node("route", [&] {
-				gen_service_node<Platform::Session>(g, [&] {
-					gen_named_node(g, "child", "intel_gpu"); });
-				gen_capture_route(g);
-				gen_parent_rom_route(g, "pc_intel_fb");
-				gen_parent_rom_route(g, "config", "config -> managed/fb");
-				gen_parent_rom_route(g, "intel_opregion", "report -> drivers/intel_opregion");
-				gen_parent_route<Rm_session>(g);
-				gen_common_routes(g);
-			});
-		});
-
-		start_node(_vesa_fb, "vesa_fb", [&] {
-			g.tabular_node("route", [&] {
-				gen_parent_route<Platform::Session>(g);
-				gen_capture_route(g);
-				gen_parent_rom_route(g, "vesa_fb");
-				gen_parent_rom_route(g, "config", "config -> managed/fb");
-				gen_parent_route<Io_mem_session>(g);
-				gen_parent_route<Io_port_session>(g);
-				gen_common_routes(g);
-			});
-		});
 
 		start_node(_boot_fb, "boot_fb", [&] {
 			g.tabular_node("route", [&] {
@@ -143,29 +97,10 @@ struct Sculpt::Fb_driver : private Noncopyable
 	void update(Registry<Child_state> &registry, Board_info const &board_info,
 	            Node const &platform)
 	{
-		bool const suspending  = board_info.options.suspending;
-
-		bool const use_intel_gpu =  board_info.detected.intel_gfx &&
-		                           !board_info.options.suppress.intel_gpu;
-		bool const use_intel_fb  =  use_intel_gpu && !suspending;
-		bool const use_boot_fb   = !use_intel_fb  && !suspending &&
-		                            board_info.detected.boot_fb;
-		bool const use_vesa      = !use_intel_fb  && !suspending &&
-		                            board_info.detected.vga && !use_boot_fb;
+		bool const use_boot_fb = !board_info.options.suspending &&
+		                          board_info.detected.boot_fb;
 
 		Fb_name const orig_fb_name = _fb_name();
-
-		_intel_gpu.conditional(use_intel_gpu,
-		                       registry, "intel_gpu", Priority::MULTIMEDIA,
-		                       Ram_quota { 32*1024*1024 }, Cap_quota { 1400 });
-
-		_intel_fb.conditional(use_intel_fb,
-		                      registry, "intel_fb", Priority::MULTIMEDIA,
-		                      Ram_quota { 16*1024*1024 }, Cap_quota { 800 });
-
-		_vesa_fb.conditional(use_vesa,
-		                     registry, "vesa_fb", Priority::MULTIMEDIA,
-		                     Ram_quota { 8*1024*1024 }, Cap_quota { 110 });
 
 		Affinity::Location const fb_affinity =
 			board_info.soc.fb_on_dedicated_cpu ? Affinity::Location { 1, 0, 1, 1 }
