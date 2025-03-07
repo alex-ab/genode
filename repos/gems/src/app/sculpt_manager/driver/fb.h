@@ -35,6 +35,8 @@ struct Sculpt::Fb_driver : private Noncopyable
 	Env    &_env;
 	Action &_action;
 
+	Fb_name _launcher_fb { };
+
 	Constructible<Child_state> _boot_fb   { },
 	                           _soc_fb    { };
 
@@ -46,7 +48,7 @@ struct Sculpt::Fb_driver : private Noncopyable
 	{
 		return _boot_fb .constructed() ? "boot_fb"
 		     : _soc_fb  .constructed() ? "fb"
-		     : "";
+		     : _launcher_fb;
 	}
 
 	Fb_driver(Env &env, Action &action) : _env(env), _action(action) { }
@@ -69,6 +71,7 @@ struct Sculpt::Fb_driver : private Noncopyable
 		};
 
 		start_node(_boot_fb, "boot_fb", [&] {
+			g.node("heartbeat", [&] { });
 			g.tabular_node("route", [&] {
 				gen_parent_rom_route(g, "config", "config -> fb");
 				gen_parent_rom_route(g, "boot_fb");
@@ -98,9 +101,19 @@ struct Sculpt::Fb_driver : private Noncopyable
 	            Node const &platform)
 	{
 		bool const use_boot_fb = !board_info.options.suspending &&
-		                          board_info.detected.boot_fb;
+		                          board_info.detected.boot_fb &&
+		                         !board_info.options.display;
 
 		Fb_name const orig_fb_name = _fb_name();
+
+		if (_boot_fb.constructed() && !use_boot_fb)
+			_boot_fb.destruct();
+
+		if (board_info.options.display)
+			_launcher_fb = board_info.options.display_name;
+
+		error("fb driver update ",
+		      use_boot_fb ? " use_boot" : " no use_boot", " ", _fb_name());
 
 		Affinity::Location const fb_affinity =
 			board_info.soc.fb_on_dedicated_cpu ? Affinity::Location { 1, 0, 1, 1 }

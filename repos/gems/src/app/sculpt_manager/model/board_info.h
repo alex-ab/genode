@@ -113,6 +113,8 @@ struct Sculpt::Board_info
 	{
 		bool display, usb_net, nic, wifi;
 
+		String<16> display_name;
+
 		struct Suppress {
 
 			bool ps2, intel_gpu;
