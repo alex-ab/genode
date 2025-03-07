@@ -65,6 +65,7 @@ struct Sculpt::Fb_driver : private Noncopyable
 		};
 
 		start_node(_boot_fb, "boot_fb", [&] {
+			xml.node("heartbeat", [&] { });
 			xml.node("route", [&] {
 				gen_parent_rom_route(xml, "config", "config -> fb");
 				gen_parent_rom_route(xml, "boot_fb");
@@ -94,9 +95,16 @@ struct Sculpt::Fb_driver : private Noncopyable
 	            Xml_node const &platform)
 	{
 		bool const use_boot_fb = !board_info.options.suspending &&
-		                          board_info.detected.boot_fb;
+		                          board_info.detected.boot_fb &&
+		                         !board_info.options.display;
 
 		Fb_name const orig_fb_name = _fb_name();
+
+		error("fb driver update ",
+		      use_boot_fb ? " use_boot" : " no use_boot");
+
+		if (_boot_fb.constructed() && !use_boot_fb)
+			_boot_fb.destruct();
 
 		Affinity::Location const fb_affinity =
 			board_info.soc.fb_on_dedicated_cpu ? Affinity::Location { 1, 0, 1, 1 }
@@ -118,7 +126,8 @@ struct Sculpt::Fb_driver : private Noncopyable
 				                   mode.ram_quota(), Cap_quota { 100 }); });
 
 		if (orig_fb_name != _fb_name()) {
-			Session_label label { "report -> runtime/", _fb_name(), "/connectors" };
+			Session_label label { "report -> runtime/intel_display/connectors" };
+			//Session_label label { "report -> runtime/", _fb_name(), "/connectors" };
 			_connectors.conditional((label.length() > 1), _env, label,
 			                        *this, &Fb_driver::_handle_connectors);
 		}

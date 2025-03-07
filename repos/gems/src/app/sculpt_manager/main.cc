@@ -1249,6 +1249,23 @@ struct Sculpt::Main : Input_event_handler,
 	{
 		_runtime_state.launch(launcher, launcher);
 
+		if (launcher == "intel_display" || launcher == "intel_gpu") {
+			bool display = launcher == "intel_display";
+			bool gpu     = launcher == "intel_gpu";
+
+			error("A gpu=", gpu, " display=", display);
+
+			if (!display) display = _deploy._children.exists("intel_display");
+			if (!gpu)     gpu     = _deploy._children.exists("intel_gpu");
+
+			error("B gpu=", gpu, " display=", display);
+
+			if (gpu && display) {
+				_driver_options.display = true;
+				_drivers.update_options(_driver_options);
+			}
+		}
+
 		/* trigger change of the deployment */
 		_deploy.update_managed_deploy_config();
 		_download_queue.remove_inactive_downloads();
@@ -1260,6 +1277,12 @@ struct Sculpt::Main : Input_event_handler,
 	void disable_optional_component(Path const &launcher) override
 	{
 		_runtime_state.abandon(launcher);
+
+		if (launcher == "intel_display") {
+			error("try re-using boot display driver");
+			_driver_options.display = false;
+			_drivers.update_options(_driver_options);
+		}
 
 		/* update config/managed/deploy with the component 'name' removed */
 		_deploy.update_managed_deploy_config();
@@ -2427,7 +2450,7 @@ void Sculpt::Main::_handle_runtime_state(Xml_node const &state)
 	}
 
 	{
-		Child_exit_state exit_state(state, "intel_fb");
+		Child_exit_state exit_state(state, "intel_display");
 
 		if (exit_state.exited && _system_state.state == System_state::BLANKING) {
 
