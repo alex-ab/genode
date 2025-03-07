@@ -317,6 +317,7 @@ struct Sculpt::Main : Input_event_handler,
 		.usb_net = false,
 		.nic     = false,
 		.wifi    = _mnt_pocket,
+		.display_name {},
 		.suppress {},
 		.suspending = false,
 	};
@@ -1337,7 +1338,37 @@ struct Sculpt::Main : Input_event_handler,
 	 */
 	void enable_optional_component(Path const &launcher) override
 	{
+		bool intel_display = launcher == "intel_display";
+		bool intel_gpu     = launcher == "intel_gpu";
+		bool vesa          = launcher == "vesa_fb";
+
+		if (vesa || intel_display || intel_gpu) {
+			if (vesa) {
+				if (_deploy._children.exists("intel_gpu") ||
+				    _deploy._children.exists("intel_display")) {
+					warning("Action denied - Intel GPU or display already running");
+					return;
+				}
+			} else {
+				if (_deploy._children.exists("vesa_fb")) {
+					warning("Action denied - Intel GPU or display already running");
+					return;
+				}
+			}
+		}
+
 		_runtime_state.launch(launcher, launcher);
+
+		if (intel_display || intel_gpu || vesa) {
+			auto display = intel_display || _deploy._children.exists("intel_display");
+			auto gpu     = intel_gpu     || _deploy._children.exists("intel_gpu");
+
+			if (vesa || (gpu && display)) {
+				_driver_options.display = true;
+				_driver_options.display_name = launcher;
+				_drivers.update_options(_driver_options);
+			}
+		}
 
 		/* trigger change of the deployment */
 		_deploy.update_managed_deploy_config();
@@ -1350,6 +1381,12 @@ struct Sculpt::Main : Input_event_handler,
 	void disable_optional_component(Path const &launcher) override
 	{
 		_runtime_state.abandon(launcher);
+
+		if (launcher == "intel_display") {
+			error("try re-using boot display driver");
+			_driver_options.display = false;
+			_drivers.update_options(_driver_options);
+		}
 
 		/* update config/managed/deploy with the component 'name' removed */
 		_deploy.update_managed_deploy_config();
@@ -2567,7 +2604,7 @@ void Sculpt::Main::_handle_runtime_state(Xml_node const &state)
 	}
 
 	{
-		Child_exit_state exit_state(state, "intel_fb");
+		Child_exit_state exit_state(state, "intel_display");
 
 		if (exit_state.exited && _system_state.state == System_state::BLANKING) {
 
