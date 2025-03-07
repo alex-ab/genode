@@ -1,7 +1,6 @@
 # configuration decisions
 drivers: pc
 system:  pc
-gpu:     intel
 manager: use_ram_fs
 ram_fs:  depot
 
