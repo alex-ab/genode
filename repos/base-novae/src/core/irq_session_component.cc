@@ -139,6 +139,13 @@ Thread::Start_result Irq_object::start(unsigned irq, addr_t const bdf, Irq_args 
 }
 
 
+static Genode::Blockade & wait_for_irq_construction()
+{
+	static Genode::Blockade blockade { };
+	return blockade;
+}
+
+
 Irq_object::Irq_object()
 :
 	Thread(Weight::DEFAULT_WEIGHT, "core_irq", 4096 /* stack */, Type::NORMAL),
@@ -149,8 +156,22 @@ Irq_object::Irq_object()
 Irq_object::~Irq_object()
 {
 	auto const core_pd = platform_specific().core_obj_sel();
-	revoke(core_pd, Novae::Obj_crd(_kernel_caps, 0));
 
+	/* let thread die in-kernel by revoking pagefault selector */
+	revoke(core_pd, Novae::Obj_crd(native_thread().exc_pt_sel +
+	                               Novae::PT_SEL_PAGE_FAULT, 0));
+
+	/* wait until ack */
+	while (_state == READY || _state == KILL) {
+		_state = KILL;
+		auto res = Novae::sm_ctrl(irq_sel(), Novae::SEMAPHORE_UP);
+		if (res != Novae::NOVA_OK)
+			error(__func__, " res=", res);
+		wait_for_irq_construction().block();
+	}
+
+	/* destruct irq object */
+	revoke(core_pd, Novae::Obj_crd(_kernel_caps, 0));
 	cap_map().remove(_kernel_caps, 0);
 }
 
@@ -237,6 +258,14 @@ void Irq_object::entry()
 		_wait_for_ack.block();
 
 		auto res = Novae::sm_ctrl(irq_sel(), Novae::SEMAPHORE_DOWN);
+
+		if (_state != READY) {
+			_state = DEAD;
+			wait_for_irq_construction().wakeup();
+
+			*((unsigned *)0) = 0xdead;
+		}
+
 		if (res != Novae::NOVA_OK)
 			error(this, " wait for IRQ failed ", res);
 
@@ -256,13 +285,6 @@ Irq_session::Info Irq_session_component::info()
 		.address = _irq_object.msi_address(),
 		.value   = _irq_object.msi_value()
 	};
-}
-
-
-static Genode::Blockade & wait_for_irq_construction()
-{
-	static Genode::Blockade blockade { };
-	return blockade;
 }
 
 
@@ -348,6 +370,7 @@ Genode::Thread::Start_result Irq_object::start()
 		return Start_result::DENIED;
 	}
 
+	_state = READY;
 	wait_for_irq_construction().block();
 
 	struct Core_trace_source : public  Core::Trace::Source::Info_accessor,

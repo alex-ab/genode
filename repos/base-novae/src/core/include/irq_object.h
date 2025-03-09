@@ -38,6 +38,8 @@ class Core::Irq_object : public Thread
 
 		Novae::Gsi_flags _gsi_flags { };
 
+		enum { OFF = 0, READY = 1, KILL = 2, DEAD = 3 } _state { };
+
 		Blockade _wait_for_ack { };
 
 		addr_t irq_sel() const { return _kernel_caps; }
