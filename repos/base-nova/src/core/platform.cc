@@ -383,7 +383,8 @@ Core::Platform::Platform()
 
 	/* configure virtual address spaces */
 #ifdef __x86_64__
-	_vm_size = 0x7fffc0000000UL - _vm_base;
+	/* limit to 32 GB virtual address space -> ~64MB memory for page tables per PD */
+	_vm_size = (32ull << 30) - _vm_base;
 #else
 	_vm_size = 0xc0000000UL - _vm_base;
 #endif
