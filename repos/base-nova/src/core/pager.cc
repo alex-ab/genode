@@ -762,7 +762,11 @@ uint8_t Pager_object::handle_oom(addr_t pd_from, addr_t pd_to,
 {
 	addr_t const core_pd_sel = platform_specific().core_pd_sel();
 
-	enum { QUOTA_TRANSFER_PAGES = 2 };
+	static Mutex pd { };
+
+	Mutex::Guard guard(pd);
+
+	enum { QUOTA_TRANSFER_PAGES = 4 };
 
 	if (pd_from == SRC_CORE_PD)
 		pd_from = core_pd_sel;
@@ -929,12 +933,12 @@ void Pager_object::_oom_handler(addr_t pager_dst, addr_t pager_src,
 		/* handling succeeded - continue with original IPC */
 		reply(myself.stack_top());
 
-	/* transfer nothing */
-	utcb.set_msg_word(0);
-
 	if (res != Nova::NOVA_PD_OOM)
 		error("upgrading kernel memory failed, policy ", (int)policy, ", "
 		      "error ", (int)res, " - stop thread finally");
+
+	/* transfer nothing */
+	utcb.set_msg_word(0);
 
 	/* else: caller will get blocked until RCU period is over */
 
