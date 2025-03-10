@@ -31,7 +31,7 @@
 #include <nova_util.h> /* map_local */
 #include <nova/capability_space.h>
 
-static bool verbose_oom = true;
+static bool verbose_oom = false;
 
 using namespace Core;
 using namespace Nova;
