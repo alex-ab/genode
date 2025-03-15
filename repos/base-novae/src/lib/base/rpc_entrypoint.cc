@@ -126,13 +126,21 @@ extern addr_t __initial_si;
 
 void Rpc_entrypoint::_activation_entry()
 {
+#ifdef __x86_64__
 	/* retrieve portal id from RDI and mtd form RSI */
 	addr_t id_pt; asm volatile ("" : "=D" (id_pt));
 	addr_t   mtd; asm volatile ("" : "=S" (mtd));
+#else
+	register addr_t _id_pt asm("x0");
+	register addr_t _mtd   asm("x1");
 
-	Thread         &thread = *static_cast<Thread *>(Thread::myself());
-	Rpc_entrypoint &ep     = *static_cast<Rpc_entrypoint *>(Thread::myself());
-	Novae::Utcb    &utcb   = *reinterpret_cast<Novae::Utcb *>(Thread::myself()->utcb());
+	addr_t const id_pt = _id_pt;
+	addr_t const mtd   = _mtd;
+#endif
+
+	auto & thread = *static_cast<Thread *>(Thread::myself());
+	auto & ep     = *static_cast<Rpc_entrypoint *>(Thread::myself());
+	auto & utcb   = *reinterpret_cast<Novae::Utcb *>(Thread::myself()->utcb());
 
 	auto const transaction_id = utcb.msg()[0];
 

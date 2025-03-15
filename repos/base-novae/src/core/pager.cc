@@ -138,9 +138,16 @@ void Pager_object::_page_fault_handler(Pager_object &obj, unsigned mtd)
 	 */
 	obj._state_lock.acquire();
 
+#ifdef __x86_64__
 	obj._state.thread.cpu.ip     = ipc_pager.fault_ip();
 	obj._state.thread.cpu.sp     = 0;
 	obj._state.thread.cpu.trapno = PT_SEL_PAGE_FAULT;
+#else
+	error(__func__, " not implemented");
+	while (true) {
+		obj._state.block();
+	}
+#endif
 
 	obj._state.block();
 	obj._state.block_pause_sm();
@@ -187,9 +194,6 @@ void Pager_object::exception(uint8_t exit_id, unsigned mtd)
 	Thread &myself = *Thread::myself();
 	Utcb   &utcb   = *reinterpret_cast<Utcb *>(myself.utcb());
 
-	if (exit_id > PT_SEL_PARENT)
-		nova_die();
-
 	addr_t const fault_ip = utcb.ip();
 	addr_t const fault_sp = utcb.sp();
 	addr_t const fault_bp = utcb.bp();
@@ -199,8 +203,15 @@ void Pager_object::exception(uint8_t exit_id, unsigned mtd)
 
 	_state_lock.acquire();
 
+#ifdef __x86_64__
 	/* remember exception type for Cpu_session::state() calls */
 	_state.thread.cpu.trapno = exit_id;
+#else
+	error(__func__, " not implemented");
+	while (true) {
+		_state.block();
+	}
+#endif
 
 	if (_exception_sigh.valid()) {
 		_state.submit_signal();
@@ -256,6 +267,7 @@ void Pager_object::_recall_handler(Pager_object &obj, unsigned mtd)
 		mtd = 0;
 
 	/* switch on/off single step */
+#ifdef __x86_64__
 	bool singlestep_state = obj._state.thread.cpu.eflags & 0x100UL;
 	if (obj._state.singlestep() && !singlestep_state) {
 		utcb.fl(utcb.fl() | 0x100UL);
@@ -264,6 +276,7 @@ void Pager_object::_recall_handler(Pager_object &obj, unsigned mtd)
 		utcb.fl(utcb.fl() & ~0x100UL);
 		mtd |= Mtd::EFL;
 	}
+#endif
 
 	/* deliver signal if it was requested */
 	if (obj._state.to_submit())
@@ -1101,9 +1114,15 @@ static uint8_t create_portal(addr_t pt, addr_t pd, addr_t ec, Mtd mtd,
  ** Exception handlers **
  ************************/
 
+#ifdef __x86_64__
 template <uint8_t EV>
 void Exception_handlers::register_handler(Pager_object &obj, Mtd mtd,
                                           void (* __attribute__((regparm(2))) func)(Pager_object &, unsigned))
+#else
+template <uint8_t EV>
+void Exception_handlers::register_handler(Pager_object &obj, Mtd mtd,
+                                          void (* func)(Pager_object &, unsigned))
+#endif
 {
 	uint8_t res = !Novae::NOVA_OK;
 	with_pager_thread(obj.location(), platform_specific(), [&] (Pager_thread &pager_thread) {

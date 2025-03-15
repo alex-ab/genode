@@ -5,7 +5,6 @@ GEN_CORE_DIR = $(BASE_DIR)/src/core
 SRC_CC      += stack_area.cc \
                core_mem_alloc.cc \
                core_log.cc \
-               core_log_out.cc \
                core_region_map.cc \
                core_rpc_cap_alloc.cc \
                cpu_session_component.cc \
@@ -16,8 +15,6 @@ SRC_CC      += stack_area.cc \
                dump_alloc.cc \
                io_mem_session_component.cc \
                io_mem_session_support.cc \
-               io_port_session_component.cc \
-               io_port_session_support.cc \
                ipc_pager.cc \
                irq_session_component.cc \
                main.cc \
@@ -30,14 +27,12 @@ SRC_CC      += stack_area.cc \
                platform.cc \
                platform_rom_modules.cc \
                platform_pd.cc \
-               platform_services.cc \
                platform_thread.cc \
                pd_session_component.cc \
                ram_dataspace_support.cc \
                region_map_component.cc \
                rom_session_component.cc \
                thread_start.cc \
-               bios_data_area.cc \
                trace_session_component.cc \
                signal_receiver.cc \
                signal_source_component.cc \

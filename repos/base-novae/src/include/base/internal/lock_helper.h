@@ -46,8 +46,7 @@ static inline void thread_stop_myself(Genode::Thread *myself)
 	auto sem = myself ? myself->native_thread().exc_pt_sel + Novae::SM_SEL_EC
 	                  : main_thread_running_semaphore();
 
-	if (Novae::NOVA_OK != Novae::sm_ctrl(sem, Novae::SEMAPHORE_DOWNZERO))
-		nova_die();
+	Novae::sm_ctrl(sem, Novae::SEMAPHORE_DOWNZERO);
 }
 
 

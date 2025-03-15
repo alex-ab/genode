@@ -57,14 +57,15 @@ static inline void * alloc_region(Dataspace_component &ds, const size_t size)
 void Ram_dataspace_factory::_clear_ds(Dataspace_component &ds)
 {
 	size_t const size = align_addr(ds.size(), get_page_size_log2());
+	addr_t memset_ptr = ds.core_local_addr();
 
+#ifdef __x86_64__
 	size_t memset_count = size / 4;
-	addr_t memset_ptr   = ds.core_local_addr();
-
 	if ((memset_count * 4 == size) && !(memset_ptr & 0x3))
 		asm volatile ("rep stosl" : "+D" (memset_ptr), "+c" (memset_count)
 		                          : "a" (0)  : "memory");
 	else
+#endif
 		memset(reinterpret_cast<void *>(memset_ptr), 0, size);
 
 	/* we don't keep any core-local mapping */

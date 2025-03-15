@@ -114,7 +114,9 @@ Native_utcb *main_thread_utcb();
 /**
  * Exception handler for all core threads
  */
+#ifdef __x86_64__
 __attribute__((regparm(1)))
+#endif
 static void exception_handler(addr_t const pt_id)
 {
 	Utcb *utcb = (Utcb *)CORE_PAGER_UTCB_ADDR;
@@ -187,7 +189,9 @@ static addr_t core_pager_stack_top()
 /**
  * Startup handler for core IRQ threads
  */
+#ifdef __x86_64__
 __attribute__((regparm(1)))
+#endif
 static void startup_handler(Genode::addr_t const utcb_new_global_ec)
 {
 	Utcb & utcb     = *reinterpret_cast<Utcb *>(CORE_PAGER_UTCB_ADDR);

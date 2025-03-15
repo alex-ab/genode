@@ -1,5 +1,8 @@
+SRC_CC += spec/x86_64/bios_data_area.cc
+SRC_CC += spec/x86_64/core_log_out.cc
 SRC_CC += spec/x86_64/pager.cc
-
-INC_DIR += $(REP_DIR)/src/core/include/spec/x86_64
+SRC_CC += spec/x86_64/platform_services.cc
+SRC_CC += io_port_session_component.cc
+SRC_CC += io_port_session_support.cc
 
 include $(REP_DIR)/lib/mk/core-novae.inc

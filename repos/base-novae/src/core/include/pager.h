@@ -49,16 +49,27 @@ class Core::Exception_handlers
 {
 	private:
 
+#ifdef __x86_64__
 		template <uint8_t EV>
 		__attribute__((regparm(2))) static void _handler(Pager_object &, unsigned);
+#else
+		template <uint8_t EV>
+		static void _handler(Pager_object &, unsigned);
+#endif
 
 	public:
 
 		Exception_handlers(Pager_object &);
 
+#ifdef __x86_64__
 		template <uint8_t EV>
 		void register_handler(Pager_object &, Novae::Mtd,
 		                      void (__attribute__((regparm(2)))*)(Pager_object &, unsigned) = nullptr);
+#else
+		template <uint8_t EV>
+		void register_handler(Pager_object &, Novae::Mtd,
+		                      void (*)(Pager_object &, unsigned) = nullptr);
+#endif
 };
 
 
@@ -140,19 +151,29 @@ class Core::Pager_object : public Object_pool<Pager_object>::Entry
 		addr_t sel_pt_cleanup()     const { return _selectors; }
 		addr_t sel_sm_block_pause() const { return _selectors + 1; }
 
+#ifdef __x86_64__
 		__attribute__((regparm(2)))
+#endif
 		static void _page_fault_handler(Pager_object &, unsigned);
 
+#ifdef __x86_64__
 		__attribute__((regparm(2)))
+#endif
 		static void _startup_handler(Pager_object &, unsigned);
 
+#ifdef __x86_64__
 		__attribute__((regparm(2)))
+#endif
 		static void _invoke_handler(Pager_object &, unsigned);
 
+#ifdef __x86_64__
 		__attribute__((regparm(2)))
+#endif
 		static void _recall_handler(Pager_object &, unsigned);
 
+#ifdef __x86_64__
 		__attribute__((regparm(2)))
+#endif
 		static void _delegate_handler(Pager_object &, unsigned);
 
 		void _construct_pager();

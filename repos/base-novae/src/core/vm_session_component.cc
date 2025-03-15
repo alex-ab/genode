@@ -14,7 +14,7 @@
 
 /* Genode includes */
 #include <base/cache.h>
-#include <cpu/vcpu_state.h>
+//#include <cpu/vcpu_state.h>
 #include <util/list.h>
 #include <util/flex_iterator.h>
 

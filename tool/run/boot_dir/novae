@@ -74,7 +74,7 @@ proc run_boot_dir {binaries} {
 	if {[llength $targets]} { build $targets }
 
 	if {[have_spec arm_64]} {
-		set kernel_arch "aarch64"
+		set kernel_arch "aarch64-qemu"
 	} else {
 		set kernel_arch "x86_64"
 	}
@@ -147,7 +147,7 @@ proc run_boot_dir {binaries} {
 	#
 	run_image
 
-	if {[have_include "load/tftp"]} {
+	if {[have_spec x86] && [have_include "load/tftp"]} {
 		#
 		# Install PXE bootloader pulsar
 		#
@@ -168,7 +168,7 @@ proc run_boot_dir {binaries} {
 		generate_tftp_config
 	}
 
-	if {[have_include "load/ipxe"]} {
+	if {[have_spec x86] && [have_include "load/ipxe"]} {
 		create_ipxe_config
 		update_ipxe_boot_dir
 		create_symlink_for_iso
