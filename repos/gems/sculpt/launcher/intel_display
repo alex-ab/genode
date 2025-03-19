@@ -1,0 +1,28 @@
+<launcher pkg="intel_display" priority="-1">
+	<route>
+
+		<service name="ROM" label="config">
+			<parent label="config -> managed/fb"/>
+		</service>
+
+		<service name="ROM" label="system">
+			<parent label="config -> managed/system"/>
+		</service>
+
+		<service name="ROM" label="intel_opregion">
+			<parent label="report -> drivers/intel_opregion"/>
+		</service>
+
+		<service name="Platform">
+			<child name="intel_gpu"/>
+		</service>
+
+		<service name="Capture"> <parent/> </service>
+		<service name="Report">  <parent/> </service>
+		<service name="RM">      <parent/> </service>
+
+		<service name="ROM" label_last="pc_intel_fb">
+			<parent label="pc_intel_fb"/>
+		</service>
+	</route>
+</launcher>
