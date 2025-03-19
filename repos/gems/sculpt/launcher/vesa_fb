@@ -1,0 +1,15 @@
+<launcher pkg="vesa_fb" priority="-1">
+	<route>
+
+		<service name="ROM" label="config">
+			<parent label="config -> managed/fb"/>
+		</service>
+
+		<service name="Platform"> <parent/> </service>
+		<service name="IO_PORT">  <parent/> </service>
+		<service name="IO_MEM">   <parent/> </service>
+
+		<service name="Capture">  <parent/> </service>
+		<service name="RM">       <parent/> </service>
+	</route>
+</launcher>
