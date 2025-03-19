@@ -1,0 +1,17 @@
+<runtime ram="8M" caps="200" binary="vesa_fb">
+
+	<requires>
+		<capture/>
+		<platform/>
+		<io_mem/>
+		<io_port/>
+		<rm/>
+		<rom label="config"/>
+		<timer/>
+	</requires>
+
+	<content>
+		<rom label="vesa_fb"/>
+	</content>
+
+</runtime>
