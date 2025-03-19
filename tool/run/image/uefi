@@ -46,15 +46,22 @@ proc run_image { } {
 
 proc install_uefi_bootloader_to_run_dir { } {
 	exec mkdir -p [run_dir]/efi/boot
-	exec cp [get_grub2_dir]/boot/grub2/grub2_32.efi [run_dir]/efi/boot/bootia32.efi
-	exec cp [get_grub2_dir]/boot/grub2/grub2_64.efi [run_dir]/efi/boot/bootx64.efi
+
+	if {[have_spec arm_64]} {
+		exec cp [get_grub2_dir]/boot/grub2/grub2_arm64.efi [run_dir]/efi/boot/bootaa64.efi
+	} else {
+		exec cp [get_grub2_dir]/boot/grub2/grub2_32.efi [run_dir]/efi/boot/bootia32.efi
+		exec cp [get_grub2_dir]/boot/grub2/grub2_64.efi [run_dir]/efi/boot/bootx64.efi
+	}
 
 	if {[image_uefi_shim] != ""} {
 		setup_shim_and_sign_grub2 [image_uefi_shim] [run_dir]/efi/boot
 	}
 
 	exec mkdir -p [run_dir]/boot/grub
-	exec cp [genode_dir]/tool/boot/bender [run_dir]/boot/bender
+
+	if {[have_spec x86]} {
+		exec cp [genode_dir]/tool/boot/bender [run_dir]/boot/bender }
 
 	exec cp [genode_dir]/tool/boot/boot.png [run_dir]/boot/boot.png
 	exec cp [get_grub2_dir]/boot/font.pf2   [run_dir]/boot/font.pf2
