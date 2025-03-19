@@ -588,6 +588,7 @@ void Depot_deploy::Child::gen_start_node(Generator              &g,
 						_gen_provides_sub_node(g, service, "capture",     "Capture");
 						_gen_provides_sub_node(g, service, "play",        "Play");
 						_gen_provides_sub_node(g, service, "record",      "Record");
+						_gen_provides_sub_node(g, service, "platform",    "Platform");
 					});
 				});
 			});
