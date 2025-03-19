@@ -1,0 +1,18 @@
+<runtime ram="16M" caps="800" binary="pc_intel_fb">
+
+	<requires>
+		<capture/>
+		<platform/>
+		<rm/>
+		<report/>
+		<rom label="system"/>
+		<rom label="config"/>
+		<rom label="intel_opregion"/>
+		<timer/>
+	</requires>
+
+	<content>
+		<rom label="pc_intel_fb"/>
+	</content>
+
+</runtime>
