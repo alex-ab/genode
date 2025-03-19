@@ -119,7 +119,7 @@ proc run_power_on { } {
 		if {[have_include "image/uefi"]} {
 			set uefi_firmware "/usr/share/ovmf/OVMF.fd"
 			if {![file exists $uefi_firmware]} {
-				puts "'$uefi_firmware' uefi image missing. Please install a ovmf package matching your qemu version."
+				puts "'$uefi_firmware' UEFI image missing. Please install a OVMF package matching your QEMU version."
 				exit -3
 			}
 			append qemu_args " --bios $uefi_firmware -net none -drive format=raw,file=[run_dir].img "
@@ -132,9 +132,20 @@ proc run_power_on { } {
 		} } } }
 	}
 
-	# on ARM/RISC-V, we supply the boot image as kernel
-	if {[have_spec arm] || [have_spec arm_v8] || [have_spec riscv]} {
-		append qemu_args " -kernel [run_dir]/boot/[kernel_specific_binary image.elf] " }
+	if {[have_spec arm_v8] && [have_include "image/uefi"]} {
+		set uefi_firmware "/usr/share/qemu-efi-aarch64/QEMU_EFI.fd"
+		if {![file exists $uefi_firmware]} {
+			puts "'$uefi_firmware' UEFI firmware missing. Please install a OVMF package matching your QEMU version."
+			exit -5
+		}
+		append qemu_args " --bios $uefi_firmware -net none -drive format=raw,file=[run_dir].img "
+	}
+
+	if {![have_include "image/uefi"]} {
+		# on ARM/RISC-V, we supply the boot image as kernel
+		if {[have_spec arm] || [have_spec arm_v8] || [have_spec riscv]} {
+				append qemu_args " -kernel [run_dir]/boot/[kernel_specific_binary image.elf] " }
+	}
 
 	set board_qemu_args [board_qemu_args]
 
