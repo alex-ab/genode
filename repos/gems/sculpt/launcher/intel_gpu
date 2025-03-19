@@ -1,0 +1,22 @@
+<launcher pkg="intel_gpu" priority="-1">
+
+	<provides>
+		<service name="Platform"/>
+		<service name="Gpu"/>
+	</provides>
+
+	<route>
+		<service name="ROM" label="system">
+			<parent label="config -> managed/system"/>
+		</service>
+		<service name="Platform">
+			<parent label="intel_gpu"/>
+		</service>
+		<service name="Report">  <parent/> </service>
+		<service name="RM">      <parent/> </service>
+
+		<service name="ROM" label_last="intel_gpu">
+			<parent label="intel_gpu"/>
+		</service>
+	</route>
+</launcher>
