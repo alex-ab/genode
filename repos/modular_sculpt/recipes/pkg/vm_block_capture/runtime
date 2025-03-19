@@ -1,4 +1,4 @@
-<runtime ram="7G" caps="2500" binary="virtualbox6">
+<runtime ram="8G" caps="2500" binary="virtualbox6">
 
 	<requires>
 		<file_system label="vm"/>

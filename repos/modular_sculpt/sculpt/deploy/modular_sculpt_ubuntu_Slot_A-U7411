@@ -23,7 +23,7 @@
 	<start name="themed_decorator"/>
 	<start name="wm"/>
 
-	<start name="mesa_gpu-cpu" pkg="mesa_gpu-cpu" priority="-2">
+	<start name="mesa_gpu-intel" pkg="mesa_gpu-intel" priority="-2">
 		<route>
 			<service name="RM"> <parent/> </service>
 		</route>
