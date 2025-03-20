@@ -100,24 +100,31 @@ Device_component::io_mem(unsigned idx, Range &range)
 {
 	Io_mem_session_capability cap;
 
+error(__func__, " ", __LINE__);
+
 	_io_mem_registry.for_each([&] (Io_mem & iomem)
 	{
 		if (iomem.idx != idx)
 			return;
 
 		try {
+error(__func__, " ", __LINE__);
 			if (!iomem.io_mem.constructed())
 				iomem.io_mem.construct(_env,
 				                       iomem.range.start,
 				                       iomem.range.size,
 				                       iomem.prefetchable);
 
+error(__func__, " ", __LINE__);
 			range = iomem.range;
 			range.start &= 0xfff;
 			cap = iomem.io_mem->cap();
-		} catch (Genode::Service_denied) { }
+		} catch (Genode::Service_denied) {
+error(__func__, " ", __LINE__);
+ }
 	});
 
+error(__func__, " ", __LINE__);
 	return cap;
 }
 
