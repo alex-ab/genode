@@ -162,6 +162,11 @@ class Platform::Device_component : public Rpc_object<Device_interface,
 			return Io_mem_session_capability();
 		}
 
+		void io_mem_release(Io_mem_session_capability)
+		{
+			error(__func__, " not implemented");
+		}
+
 		Io_port_session_capability io_port_range(unsigned /* id */)
 		{
 			Genode::error(__func__, " is not supported");

@@ -122,6 +122,22 @@ Device_component::io_mem(unsigned idx, Range &range)
 }
 
 
+void Device_component::io_mem_release(Io_mem_session_capability const cap)
+{
+	if (!cap.valid())
+		return;
+
+	_io_mem_registry.for_each([&] (Io_mem & iomem)
+	{
+		if (!iomem.io_mem.constructed())
+			return;
+
+		if (iomem.io_mem->cap() == cap)
+			iomem.io_mem.destruct();
+	});
+}
+
+
 Genode::Irq_session_capability Device_component::irq(unsigned idx)
 {
 	using Irq_config = Irq_controller::Irq_config;

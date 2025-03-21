@@ -134,6 +134,7 @@ class Driver::Device_component : public Rpc_object<Platform::Device_interface,
 		Irq_session_capability     irq(unsigned);
 		Io_mem_session_capability  io_mem(unsigned, Range &);
 		Io_port_session_capability io_port_range(unsigned);
+		void                       io_mem_release(Io_mem_session_capability);
 
 	private:
 

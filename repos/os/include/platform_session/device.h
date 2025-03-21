@@ -57,6 +57,11 @@ class Platform::Device : Interface, Noncopyable
 			return _cap.call<Device_interface::Rpc_io_port_range>(index);
 		}
 
+		void _io_mem_release(Io_mem_session_capability cap)
+		{
+			_cap.call<Device_interface::Rpc_io_mem_release>(cap);
+		}
+
 		Region_map &_rm() { return _platform._env.rm(); }
 
 	public:
@@ -89,6 +94,8 @@ class Platform::Device::Mmio : Range, Attached_dataspace, public Genode::Mmio<SI
 {
 	private:
 
+		Io_mem_session_capability _io_mem_cap { };
+
 		Dataspace_capability _ds_cap(Device &device, unsigned id)
 		{
 			Io_mem_session_client io_mem(device._io_mem(id, *this));
@@ -107,7 +114,8 @@ class Platform::Device::Mmio : Range, Attached_dataspace, public Genode::Mmio<SI
 		Mmio(Device &device, Index index)
 		:
 			Attached_dataspace(device._rm(), _ds_cap(device, index.value)),
-			Genode::Mmio<SIZE>({(char *)_local_addr(), size()})
+			Genode::Mmio<SIZE>({(char *)_local_addr(), size()}),
+			_io_mem_cap(device._io_mem(index.value, *this))
 		{ }
 
 		explicit Mmio(Device &device) : Mmio(device, Index { 0 }) { }
@@ -118,6 +126,9 @@ class Platform::Device::Mmio : Range, Attached_dataspace, public Genode::Mmio<SI
 		T *local_addr() { return reinterpret_cast<T *>(_local_addr()); }
 
 		Dataspace_capability cap() { return Attached_dataspace::cap(); }
+
+		void release_iomem(Device &device) {
+			device._io_mem_release(_io_mem_cap); }
 };
 
 

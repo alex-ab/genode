@@ -45,8 +45,11 @@ struct Platform::Device_interface : Interface
 	           unsigned, Range &);
 	GENODE_RPC(Rpc_io_port_range, Io_port_session_capability, io_port_range,
 	           unsigned);
+	GENODE_RPC(Rpc_io_mem_release, void, io_mem_release,
+               Io_mem_session_capability);
 
-	GENODE_RPC_INTERFACE(Rpc_irq, Rpc_io_mem, Rpc_io_port_range);
+	GENODE_RPC_INTERFACE(Rpc_irq, Rpc_io_mem, Rpc_io_port_range,
+                         Rpc_io_mem_release);
 };
 
 
