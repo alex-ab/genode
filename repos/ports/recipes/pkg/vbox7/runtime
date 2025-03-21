@@ -1,0 +1,87 @@
+runtime | ram: 8300M | caps: 2500 | binary: virtualbox7
+
++ requires
+  + file_system | label: vm
+  + file_system | label: shared
+  + vm
+  + timer
+  + gpu
+  + gui
+  + nic
+  + rom    | label: capslock
+  + rom    | label: platform_info
+  + report | label: shape
+  + report | label: clipboard
+  + rom    | label: clipboard
+  + rom    | label: mesa_gpu.lib.so
+  + rm
+  + rtc
+  + usb
+  + play
+  + record
+
++ config
+  |      vbox_file:  machine.vbox7
+  |      xhci:       yes
+  |      vm_name:    linux
+  |      capslock:   rom
+  |      ld_verbose: yes
+  + vfs
+  | + dir dev
+  |   + log
+  |   + rtc
+  |   + null
+  |   + gpu
+  |   + zero
+  |   + oss dsp | min_ofrag_size: 8192 | min_ifrag_size: 8192
+  | + dir pipe | + pipe
+  | + dir shared | + fs | label: shared -> / | writeable: yes
+  | + rom VBoxGuestPropSvc.so
+  | + rom VBoxSharedClipboard.so
+  | + rom VBoxSharedFolders.so
+  | + rom VBoxVMM.so
+  | + fs | label: vm -> / | writeable: yes
+  |
+  + libc | stdout: /dev/log | stderr: /dev/log | rtc: /dev/rtc | pipe: /pipe
+  | + pthread | placement: single-cpu
+  |
+  + monitor | label: VBOX-1
+  + arg virtualbox
+  + env VBOX_USER_HOME         | : /
+  + env VBOX_LOG_DEST          | : file=/dev/log
+  + env VBOX_LOG               | : +dbgf+gim
+  + env VBOX_LOG_FLAGS         | : thread
+  + env VBOX_RELEASE_LOG_DEST  | : nofile
+  |  . no release log
+  x env VBOX_RELEASE_LOG_DEST  | : file=/dev/log
+  |  . full release log
+  + env VBOX_RELEASE_LOG       | :
+  |  . leave empty for default release log
+  + env VBOX_RELEASE_LOG_FLAGS | : thread
+
++ content
+  + rom | label: egl.lib.so
+  + rom | label: expat.lib.so
+  + rom | label: glapi.lib.so
+  + rom | label: ld.lib.so
+  + rom | label: virtualbox7
+  + rom | label: jpeg.lib.so
+  + rom | label: libc.lib.so
+  + rom | label: libdrm.lib.so
+  + rom | label: libiconv.lib.so
+  + rom | label: libm.lib.so
+  + rom | label: libyuv.lib.so
+  + rom | label: mesa.lib.so
+  + rom | label: qemu-usb.lib.so
+  + rom | label: stdcxx.lib.so
+  + rom | label: vfs.lib.so
+  + rom | label: vfs_gpu.lib.so
+  + rom | label: vfs_oss.lib.so
+  + rom | label: vfs_pipe.lib.so
+  + rom | label: virtualbox7-shaderlib.lib.so
+  + rom | label: virtualbox7-guestproperties.lib.so | as: VBoxGuestPropSvc.so
+  + rom | label: virtualbox7-sharedclipboard.lib.so | as: VBoxSharedClipboard.so
+  + rom | label: virtualbox7-sharedfolders.lib.so   | as: VBoxSharedFolders.so
+  + rom | label: virtualbox7-dummy.lib.so           | as: VBoxVMM.so
+  + rom | label: zlib.lib.so
+-

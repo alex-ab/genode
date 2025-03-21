@@ -1,0 +1,15 @@
+Return true on Genode
+
+--- src/virtualbox7/src/VBox/Main/src-server/HostImpl.cpp
++++ src/virtualbox7/src/VBox/Main/src-server/HostImpl.cpp
+@@ -4310,7 +4310,9 @@ BOOL Host::i_HostIsNativeApiSupported()
+     }
+ 
+     return FALSE;
+-# endif
++#elif defined (__GENODE__)
++    return TRUE;
++#endif
+ }
+ #endif
+ 

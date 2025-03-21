@@ -1,0 +1,17 @@
+Disable TMTSCMODE_NATIVE_API for now
+
+diff --git src/virtualbox7/src/VBox/VMM/VMMR3/NEMR3.cpp src/virtualbox7/src/VBox/VMM/VMMR3/NEMR3.cpp
+index 240d9f53..8688f9cb 100644
+--- src/virtualbox7/src/VBox/VMM/VMMR3/NEMR3.cpp
++++ src/virtualbox7/src/VBox/VMM/VMMR3/NEMR3.cpp
+@@ -472,8 +472,10 @@ VMMR3_INT_DECL(void) NEMR3ResetCpu(PVMCPU pVCpu, bool fInitIpi)
+ VMMR3_INT_DECL(bool) NEMR3NeedSpecialTscMode(PVM pVM)
+ {
+ #ifdef VBOX_WITH_NATIVE_NEM
++#ifndef __GENODE__
+     if (VM_IS_NEM_ENABLED(pVM))
+         return true;
++#endif
+ #else
+     RT_NOREF(pVM);
+ #endif

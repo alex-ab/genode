@@ -1,0 +1,62 @@
+See vusb_root_helper.cc
+
+--- src/virtualbox7/src/VBox/Devices/USB/DevOHCI.cpp
++++ src/virtualbox7/src/VBox/Devices/USB/DevOHCI.cpp
+@@ -4648,6 +4648,25 @@ static VBOXSTRICTRC HcControl_r(PPDMDEVINS pDevIns, PCOHCI pThis, uint32_t iReg,
+     return VINF_SUCCESS;
+ }
+ 
++
++static DECLCALLBACK(void) ohciR3PowerOff(PPDMDEVINS pDevIns)
++{
++    POHCI    pThis   = PDMDEVINS_2_DATA(pDevIns, POHCI);
++    POHCICC  pThisCC = PDMDEVINS_2_DATA_CC(pDevIns, POHCICC);
++    uint32_t state   = pThis->ctl & OHCI_CTL_HCFS;
++    PVM      pVM     = PDMDevHlpGetVM(pDevIns);
++
++    switch (state)
++    {
++        case OHCI_USB_OPERATIONAL:
++            LogRel(("OHCI PowerOff: USB Suspended\n"));
++            ohciR3BusStop(pThisCC);
++            break;
++        default: break;
++    }
++}
++
++
+ /**
+  * Write the HcControl register.
+  */
+@@ -6204,7 +6223,7 @@ const PDMDEVREG g_DeviceOHCI =
+     /* .pfnDetach = */              NULL,
+     /* .pfnQueryInterface = */      NULL,
+     /* .pfnInitComplete = */        NULL,
+-    /* .pfnPowerOff = */            NULL,
++    /* .pfnPowerOff = */            ohciR3PowerOff,
+     /* .pfnSoftReset = */           NULL,
+     /* .pfnReserved0 = */           NULL,
+     /* .pfnReserved1 = */           NULL,
+--- src/virtualbox7/src/VBox/Devices/USB/DrvVUSBRootHub.cpp
++++ src/virtualbox7/src/VBox/Devices/USB/DrvVUSBRootHub.cpp
+@@ -1156,6 +1156,9 @@ static DECLCALLBACK(int) vusbRhAbortEpByAddr(PVUSBIROOTHUBCONNECTOR pInterface,
+     return VINF_SUCCESS;
+ }
+ 
++#ifdef __GENODE__
++void vusb_request_process(PPDMDRVINS);
++#endif
+ 
+ /** @interface_method_impl{VUSBIROOTHUBCONNECTOR,pfnSetPeriodicFrameProcessing} */
+ static DECLCALLBACK(int) vusbRhSetFrameProcessing(PVUSBIROOTHUBCONNECTOR pInterface, uint32_t uFrameRate)
+@@ -1202,6 +1205,10 @@ static DECLCALLBACK(int) vusbRhSetFrameProcessing(PVUSBIROOTHUBCONNECTOR pInterf
+             /* Signal the frame thread to stop. */
+             RTSemEventMultiSignal(pThis->hSemEventPeriodFrame);
+ 
++#ifdef __GENODE__
++            vusb_request_process(pThis->pDrvIns);
++#endif
++
+             /* Wait for signal from the thread that it stopped. */
+             rc = RTSemEventMultiWait(pThis->hSemEventPeriodFrameStopped, RT_INDEFINITE_WAIT);
+             AssertRC(rc);

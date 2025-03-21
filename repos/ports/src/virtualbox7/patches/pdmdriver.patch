@@ -1,0 +1,13 @@
+Assertion should not trigger
+
+--- src/virtualbox7/src/VBox/VMM/VMMR3/PDMR3Driver.cpp
++++ src/virtualbox7/src/VBox/VMM/VMMR3/PDMR3Driver.cpp
+@@ -1171,7 +1171,7 @@ VMMR3DECL(int) PDMR3DriverEnumInstances(PUVM pUVM, const char *pszDriver, PFNPDM
+         }
+     }
+     else
+-        AssertFailedStmt(rc = VERR_PDM_DRIVER_NOT_FOUND);
++        rc = VERR_PDM_DRIVER_NOT_FOUND;
+     RTCritSectRwLeaveShared(&pVM->pdm.s.CoreListCritSectRw);
+     return rc;
+ }

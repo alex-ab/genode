@@ -1,0 +1,27 @@
+See comment below
+
+--- src/virtualbox7/src/VBox/HostServices/SharedClipboard/VBoxSharedClipboardSvc.cpp
++++ src/virtualbox7/src/VBox/HostServices/SharedClipboard/VBoxSharedClipboardSvc.cpp
+@@ -2072,11 +2072,22 @@ static int shClSvcClientMsgDataWrite(PSHCLCLIENT pClient, uint32_t cParms, VBOXH
+         if (RT_FAILURE(rc))
+             LogRel(("Shared Clipboard: Writing guest clipboard data to the host failed with %Rrc\n", rc));
+ 
++#ifndef __GENODE__
++        /*
++         * The pEvent required for ShClSvcGuestDataSignal was destroyed by
++         * shClSvcClientMsgReportFormats before because
++         * ShClSvcReadDataFromGuestAsync does not have the pEvent argument in
++         * ShClBackendReportFormats, if it has we will leak pEvents and
++         * payloads. In order to not deal with the reference counters of pEvents
++         * we avoid the signalling. To fix this the behavior of the "eager"
++         * reading in ShClBackendReportFormats must be changed.
++         */
+         int rc2; /* Don't return internals back to the guest. */
+         rc2 = ShClSvcGuestDataSignal(pClient, &cmdCtx, uFormat, pvData, cbData); /* To complete pending events, if any. */
+         if (RT_FAILURE(rc2))
+             LogRel(("Shared Clipboard: Signalling host about guest clipboard data failed with %Rrc\n", rc2));
+         AssertRC(rc2);
++#endif
+     }
+ 
+     RTCritSectLeave(&g_CritSect);

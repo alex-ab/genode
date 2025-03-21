@@ -1,0 +1,11 @@
+--- src/virtualbox7/src/VBox/Main/src-server/SystemPropertiesImpl.cpp
++++ src/virtualbox7/src/VBox/Main/src-server/SystemPropertiesImpl.cpp
+@@ -1673,7 +1673,7 @@ HRESULT SystemProperties::i_setDefaultMachineFolder(const Utf8Str &strPath)
+ 
+ HRESULT SystemProperties::i_setLoggingLevel(const com::Utf8Str &aLoggingLevel)
+ {
+-    static const char s_szDefaultLevel[] = VBOXSVC_LOG_DEFAULT;
++    static const char *s_szDefaultLevel  = VBOXSVC_LOG_DEFAULT;
+     const char       *pszUseLoggingLevel = aLoggingLevel.isEmpty() || aLoggingLevel.equalsIgnoreCase(s_szDefaultLevel)
+                                          ? s_szDefaultLevel : aLoggingLevel.c_str();
+     HRESULT           hrc                = S_OK;

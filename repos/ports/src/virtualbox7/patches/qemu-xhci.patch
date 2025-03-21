@@ -1,0 +1,31 @@
+--- src/virtualbox7/src/VBox/Main/src-client/BusAssignmentManager.cpp
++++ src/virtualbox7/src/VBox/Main/src-client/BusAssignmentManager.cpp
+@@ -99,6 +99,7 @@ static const DeviceAssignmentRule g_aGenericRules[] =
+     {"usb-ohci",      0,  6,  0, 0},
+     {"usb-ehci",      0, 11,  0, 0},
+     {"usb-xhci",      0, 12,  0, 0},
++    {"qemu-xhci",     0, 29,  0, 0},
+ 
+     /* ACPI controller */
+ #if 0
+--- src/virtualbox7/src/VBox/Main/src-client/ConsoleImplConfigX86.cpp
++++ src/virtualbox7/src/VBox/Main/src-client/ConsoleImplConfigX86.cpp
+@@ -1724,6 +1724,18 @@ int Console::i_configConstructorX86(PUVM pUVM, PVM pVM, PCVMMR3VTABLE pVMM, Auto
+         PCFGMNODE pUsbDevices = NULL;
+         vrc = i_configUsb(pMachine, pBusMgr, pRoot, pDevices, aKbdHID, aPointingHID, &pUsbDevices);
+ 
++        /*
++         * QEMU xHCI controllers.
++         */
++        extern bool use_xhci_controller();
++        if (use_xhci_controller()) {
++            InsertConfigNode(pDevices, "qemu-xhci", &pDev);
++            InsertConfigNode(pDev,     "0",         &pInst);
++            InsertConfigNode(pInst,    "Config",    &pCfg);
++            InsertConfigInteger(pInst, "Trusted",    1);
++            hrc = pBusMgr->assignPCIDevice("qemu-xhci", pInst);     H();
++        }
++
+         /*
+          * Storage controllers.
+          */

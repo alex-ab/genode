@@ -1,0 +1,66 @@
+--- src/virtualbox7/include/iprt/types.h
++++ src/virtualbox7/include/iprt/types.h
+@@ -308,10 +308,10 @@ typedef unsigned char bool;
+ #  endif
+ # endif
+ # ifndef true
+-#  define true  (1)
++#  define true  1
+ # endif
+ # ifndef false
+-#  define false (0)
++#  define false 0
+ # endif
+ #endif
+ 
+--- src/virtualbox7/src/libs/libtpms-0.10.2/src/tpm2/Clock.c
++++ src/virtualbox7/src/libs/libtpms-0.10.2/src/tpm2/Clock.c
+@@ -194,7 +194,6 @@ LIB_EXPORT void _plat__TimerRestart(void)
+ // These functions are called by the TPM code. They should be replaced by
+ // appropriated hardware functions.
+ 
+-clock_t debugTime;
+ 
+ //*** _plat__RealTime()
+ // This is another, probably futile, attempt to define a portable function
+@@ -265,7 +264,6 @@ LIB_EXPORT uint64_t _plat__TimerRead(void)
+     if(s_lastSystemTime == 0)
+ 	{
+ 	    s_lastSystemTime   = timeNow;
+-	    debugTime          = clock();
+ 	    s_lastReportedTime = 0;
+ 	    s_realTimePrevious = 0;
+ 	}
+--- src/virtualbox7/src/libs/openssl-3.4.6/crypto/dso/dso_dlfcn.c
++++ src/virtualbox7/src/libs/openssl-3.4.6/crypto/dso/dso_dlfcn.c
+@@ -241,6 +241,8 @@ static char *dlfcn_merger(DSO *dso, const char *filespec1,
+     return merged;
+ }
+ 
++#define DSO_EXTENSION ".so"
++
+ static char *dlfcn_name_converter(DSO *dso, const char *filename)
+ {
+     char *translated;
+--- src/virtualbox7/src/libs/openssl-3.4.6/crypto/info.c
++++ src/virtualbox7/src/libs/openssl-3.4.6/crypto/info.c
+@@ -13,7 +13,7 @@
+ #include "internal/thread_once.h"
+ #include "internal/cryptlib.h"
+ #include "internal/e_os.h"
+-#include "buildinf.h"
++//#include "buildinf.h"
+ 
+ #ifndef OPENSSL_NO_JITTER
+ #include <stdio.h>
+--- src/virtualbox7/src/libs/openssl-3.4.6/crypto/thread/arch/thread_posix.c
++++ src/virtualbox7/src/libs/openssl-3.4.6/crypto/thread/arch/thread_posix.c
+@@ -15,6 +15,8 @@
+ #include <sys/types.h>
+ #include <unistd.h>
+ 
++#include <pthread.h>
++
+ static void *thread_start_thunk(void *vthread)
+ {
+     CRYPTO_THREAD *thread;

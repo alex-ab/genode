@@ -1,0 +1,27 @@
+Add missing VBOX_WITH_FULL_VM_ENCRYPTION to get disabled case working
+
+--- src/virtualbox7/src/VBox/Main/src-client/ConsoleImpl.cpp
++++ src/virtualbox7/src/VBox/Main/src-client/ConsoleImpl.cpp
+@@ -9812,7 +9812,10 @@ int Console::i_retainCryptoIf(PCVBOXCRYPTOIF *ppCryptoIf)
+  */
+ int Console::i_releaseCryptoIf(PCVBOXCRYPTOIF pCryptoIf)
+ {
++#ifdef VBOX_WITH_FULL_VM_ENCRYPTION
+     AssertReturn(pCryptoIf == &g_VBoxCryptoIf, VERR_INVALID_PARAMETER);
++#endif
++
+     return VINF_SUCCESS;
+ }
+ 
+--- src/virtualbox7/src/VBox/Main/src-server/VirtualBoxImpl.cpp
++++ src/virtualbox7/src/VBox/Main/src-server/VirtualBoxImpl.cpp
+@@ -6733,7 +6733,9 @@ HRESULT VirtualBox::i_releaseCryptoIf(PCVBOXCRYPTOIF pCryptoIf)
+     AutoCaller autoCaller(this);
+     AssertComRCReturnRC(autoCaller.hrc());
+ 
++#ifdef VBOX_WITH_FULL_VM_ENCRYPTION
+     AssertReturn(pCryptoIf == &g_VBoxCryptoIf, E_INVALIDARG);
++#endif
+ 
+     return S_OK;
+ }

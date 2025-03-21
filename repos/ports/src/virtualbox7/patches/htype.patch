@@ -1,0 +1,18 @@
+The htype for handlers is initialized in R0 now. Explicitly enable on Genode
+(remove fDriverless check).
+
+--- src/virtualbox7/src/VBox/VMM/VMMR3/PGMR3.cpp
++++ src/virtualbox7/src/VBox/VMM/VMMR3/PGMR3.cpp
+@@ -826,7 +826,11 @@ VMMR3DECL(int) PGMR3Init(PVM pVM)
+     AssertReleaseReturn(pVM->pgm.s.cPhysHandlerTypes == 0, VERR_WRONG_ORDER);
+     for (size_t i = 0; i < RT_ELEMENTS(pVM->pgm.s.aPhysHandlerTypes); i++)
+     {
+-#if defined(VBOX_WITH_R0_MODULES) && !defined(VBOX_WITH_MINIMAL_R0)
++        /*
++         * hType is now initialized in R0 (PGMR0InitPerVMData), initialize it here
++         * on Genode
++         */
++#if !defined(__GENODE__) && defined(VBOX_WITH_R0_MODULES) && !defined(VBOX_WITH_MINIMAL_R0)
+         if (fDriverless)
+ #endif
+             pVM->pgm.s.aPhysHandlerTypes[i].hType  = i | (RTRandU64() & ~(uint64_t)PGMPHYSHANDLERTYPE_IDX_MASK);

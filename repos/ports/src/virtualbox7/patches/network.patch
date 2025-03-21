@@ -1,0 +1,116 @@
+--- src/virtualbox7/include/VBox/vmm/pdmnetifs.h
++++ src/virtualbox7/include/VBox/vmm/pdmnetifs.h
+@@ -346,6 +346,8 @@ typedef struct PDMINETWORKUP
+ 
+     /** @todo Add a callback that informs the driver chain about MAC address changes if we ever implement that.  */
+ 
++    DECLR3CALLBACKMEMBER(void, pfnReceiveReady,(PPDMINETWORKUP pInterface));
++
+ } PDMINETWORKUP;
+ 
+ /** Ring-0 edition of PDMINETWORKUP. */
+--- src/virtualbox7/src/VBox/Devices/Network/DevE1000.cpp
++++ src/virtualbox7/src/VBox/Devices/Network/DevE1000.cpp
+@@ -1805,6 +1805,13 @@ DECLINLINE(bool) e1kUpdateRxDContext(PPDMDEVINS pDevIns, PE1KSTATE pThis, PE1KRX
+  */
+ static void e1kWakeupReceive(PPDMDEVINS pDevIns, PE1KSTATE pThis)
+ {
++    PE1KSTATECC pThisCC = PDMDEVINS_2_DATA_CC(pDevIns, PE1KSTATECC);
++
++    if (pThisCC->pDrvR3 && pThisCC->pDrvR3->pfnReceiveReady) {
++        pThisCC->pDrvR3->pfnReceiveReady(pThisCC->pDrvR3);
++        return;
++    }
++
+     if (   pThis->fMaybeOutOfSpace
+         && pThis->hEventMoreRxDescAvail != NIL_SUPSEMEVENT)
+     {
+@@ -8076,7 +8083,7 @@ static DECLCALLBACK(int) e1kR3Construct(PPDMDEVINS pDevIns, int iInstance, PCFGM
+         return PDMDEV_SET_ERROR(pDevIns, rc,
+                                 N_("Configuration error: Failed to get the value of 'EthernetCRC'"));
+ 
+-    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "GSOEnabled", &pThis->fGSOEnabled, true);
++    rc = pHlp->pfnCFGMQueryBoolDef(pCfg, "GSOEnabled", &pThis->fGSOEnabled, false);
+     if (RT_FAILURE(rc))
+         return PDMDEV_SET_ERROR(pDevIns, rc,
+                                 N_("Configuration error: Failed to get the value of 'GSOEnabled'"));
+@@ -8125,6 +8132,35 @@ static DECLCALLBACK(int) e1kR3Construct(PPDMDEVINS pDevIns, int iInstance, PCFGM
+             pDevIns->fR0Enabled ? "enabled" : "disabled",
+             pDevIns->fRCEnabled ? "enabled" : "disabled"));
+ 
++    /* For Genode attach already here to be able to overwrite mac address */
++    /* Network driver */
++    rc = PDMDevHlpDriverAttach(pDevIns, 0, &pThisCC->IBase, &pThisCC->pDrvBase, "Network Port");
++    if (RT_SUCCESS(rc))
++    {
++        /* Genode: read out the mac address from nic_session interface */
++        PPDMINETWORKCONFIG  pDrvConfig = PDMIBASE_QUERY_INTERFACE(pThisCC->pDrvBase, PDMINETWORKCONFIG);
++        Assert(pDrvConfig && pDrvConfig->pfnGetMac);
++        pDrvConfig->pfnGetMac(pDrvConfig, &pThis->macConfigured);
++
++        pThisCC->pDrvR3 = PDMIBASE_QUERY_INTERFACE(pThisCC->pDrvBase, PDMINETWORKUP);
++        AssertMsgReturn(pThisCC->pDrvR3, ("Failed to obtain the PDMINETWORKUP interface!\n"), VERR_PDM_MISSING_INTERFACE_BELOW);
++
++#if 0 /** @todo @bugref{9218} ring-0 driver stuff */
++        pThisR0->pDrvR0 = PDMIBASER0_QUERY_INTERFACE(PDMIBASE_QUERY_INTERFACE(pThisCC->pDrvBase, PDMIBASER0), PDMINETWORKUP);
++        pThisRC->pDrvRC = PDMIBASERC_QUERY_INTERFACE(PDMIBASE_QUERY_INTERFACE(pThisCC->pDrvBase, PDMIBASERC), PDMINETWORKUP);
++#endif
++       /* Mark device as attached. */
++       pThis->fIsAttached = true;
++    }
++    else if (   rc == VERR_PDM_NO_ATTACHED_DRIVER
++             || rc == VERR_PDM_CFG_MISSING_DRIVER_NAME)
++    {
++        /* No error! */
++        E1kLog(("%s This adapter is not attached to any network!\n", pThis->szPrf));
++    }
++    else
++        return PDMDEV_SET_ERROR(pDevIns, rc, N_("Failed to attach the network LUN"));
++
+     /*
+      * Initialize sub-components and register everything with the VMM.
+      */
+@@ -8267,29 +8303,6 @@ static DECLCALLBACK(int) e1kR3Construct(PPDMDEVINS pDevIns, int iInstance, PCFGM
+     else
+         return PDMDEV_SET_ERROR(pDevIns, rc, N_("Failed to attach the status LUN"));
+ 
+-    /* Network driver */
+-    rc = PDMDevHlpDriverAttach(pDevIns, 0, &pThisCC->IBase, &pThisCC->pDrvBase, "Network Port");
+-    if (RT_SUCCESS(rc))
+-    {
+-        pThisCC->pDrvR3 = PDMIBASE_QUERY_INTERFACE(pThisCC->pDrvBase, PDMINETWORKUP);
+-        AssertMsgReturn(pThisCC->pDrvR3, ("Failed to obtain the PDMINETWORKUP interface!\n"), VERR_PDM_MISSING_INTERFACE_BELOW);
+-
+-#if 0 /** @todo @bugref{9218} ring-0 driver stuff */
+-        pThisR0->pDrvR0 = PDMIBASER0_QUERY_INTERFACE(PDMIBASE_QUERY_INTERFACE(pThisCC->pDrvBase, PDMIBASER0), PDMINETWORKUP);
+-        pThisRC->pDrvRC = PDMIBASERC_QUERY_INTERFACE(PDMIBASE_QUERY_INTERFACE(pThisCC->pDrvBase, PDMIBASERC), PDMINETWORKUP);
+-#endif
+-        /* Mark device as attached. */
+-        pThis->fIsAttached = true;
+-    }
+-    else if (   rc == VERR_PDM_NO_ATTACHED_DRIVER
+-             || rc == VERR_PDM_CFG_MISSING_DRIVER_NAME)
+-    {
+-        /* No error! */
+-        E1kLog(("%s This adapter is not attached to any network!\n", pThis->szPrf));
+-    }
+-    else
+-        return PDMDEV_SET_ERROR(pDevIns, rc, N_("Failed to attach the network LUN"));
+-
+     rc = PDMDevHlpSUPSemEventCreate(pDevIns, &pThis->hEventMoreRxDescAvail);
+     AssertRCReturn(rc, rc);
+ 
+--- src/virtualbox7/src/VBox/Devices/Network/DevPCNet.cpp
++++ src/virtualbox7/src/VBox/Devices/Network/DevPCNet.cpp
+@@ -5223,6 +5223,11 @@ static DECLCALLBACK(int) pcnetR3Construct(PPDMDEVINS pDevIns, int iInstance, PCF
+     rc = PDMDevHlpDriverAttach(pDevIns, 0, &pThisCC->IBase, &pThisCC->pDrvBase, "Network Port");
+     if (RT_SUCCESS(rc))
+     {
++        /* Genode: read out the mac address from nic_session interface */
++        PPDMINETWORKCONFIG pDrvConfig = PDMIBASE_QUERY_INTERFACE(pThisCC->pDrvBase, PDMINETWORKCONFIG);
++        Assert(pDrvConfig && pDrvConfig->pfnGetMac);
++        pDrvConfig->pfnGetMac(pDrvConfig, &pThis->MacConfigured);
++
+         pThisCC->pDrv = PDMIBASE_QUERY_INTERFACE(pThisCC->pDrvBase, PDMINETWORKUP);
+         AssertMsgReturn(pThisCC->pDrv, ("Failed to obtain the PDMINETWORKUP interface!\n"),
+                         VERR_PDM_MISSING_INTERFACE_BELOW);

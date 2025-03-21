@@ -1,0 +1,22 @@
+diff --git src/virtualbox7/src/VBox/Storage/VMDK.cpp src/virtualbox7/src/VBox/Storage/VMDK.cpp
+index e8a41921..ebeb7a41 100644
+--- src/virtualbox7/src/VBox/Storage/VMDK.cpp
++++ src/virtualbox7/src/VBox/Storage/VMDK.cpp
+@@ -49,6 +49,17 @@
+ #include <iprt/zip.h>
+ #include <iprt/asm.h>
+ #include <iprt/zero.h>
++
++#ifdef __GENODE__
++/*
++ * Genode does not support vmdkCreateImage/vmdkMakeRawDescriptor and the copying
++ * of partition tables from a real disk into a vmdk and does not provide the
++ * libgeom library of FreeBSD. So we have to undefine it here because it will be
++ * defined through iprt/cdefs.h.
++ */
++#undef RT_OS_FREEBSD
++#endif
++
+ #ifdef RT_OS_WINDOWS
+ # include <iprt/utf16.h>
+ # include <iprt/uni.h>

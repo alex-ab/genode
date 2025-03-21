@@ -1,0 +1,254 @@
+#
+# This run script tests the VirtualBox USB device pass-through feature
+# by running the 'usb_hid_raw' test in a VM.
+#
+# See 'usb_hid_raw.run' for more information about the setup of the 'Pro Micro' USB
+# device for automated testing.
+#
+# Note: the USB device(s) to be passed through must be included in the whitelist.
+#
+
+assert {[have_spec x86_64]}
+assert {[have_spec nova] || [have_spec hw]}
+assert {![have_include power_on/qemu]}
+
+create_boot_directory
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/src/acpi \
+                  [depot_user]/src/black_hole \
+                  [depot_user]/src/expat \
+                  [depot_user]/src/fs_rom \
+                  [depot_user]/src/init \
+                  [depot_user]/src/jpeg \
+                  [depot_user]/src/libc \
+                  [depot_user]/src/libdrm \
+                  [depot_user]/src/libiconv \
+                  [depot_user]/src/libyuv \
+                  [depot_user]/src/log_terminal \
+                  [depot_user]/src/mesa \
+                  [depot_user]/src/nitpicker \
+                  [depot_user]/src/pc_usb_host \
+                  [depot_user]/src/pci_decode \
+                  [depot_user]/src/platform \
+                  [depot_user]/src/posix \
+                  [depot_user]/src/ps2 \
+                  [depot_user]/src/report_rom \
+                  [depot_user]/src/stdcxx \
+                  [depot_user]/src/vbox7 \
+                  [depot_user]/src/vesa_fb \
+                  [depot_user]/src/vfs \
+                  [depot_user]/src/vfs_gpu \
+                  [depot_user]/src/vfs_import \
+                  [depot_user]/src/vfs_pipe \
+                  [depot_user]/src/zlib
+
+install_config {
+config | prio_levels: 4
++ parent-provides
+  + service ROM
+  + service IRQ
+  + service IO_MEM
+  + service IO_PORT
+  + service PD
+  + service RM
+  + service CPU
+  + service LOG
+  + service VM
+
++ default-route
+  + any-service
+    + parent
+    + any-child
++ default | caps: 150 | ram: 1M
+
++ start timer
+  + provides | + service Timer
+
++ start report_rom | priority: -1
+  + provides
+    + service Report
+    + service ROM
+  + config
+    + policy | label: pci_decode -> system | report: acpi -> acpi
+    + policy | label: platform -> devices | report: pci_decode -> devices
+    + policy | label: pointer -> hover | report: nitpicker -> hover
+    + policy | label: pointer -> xray | report: nitpicker -> xray
+
++ start acpi | caps: 250 | ram: 8M
+  + route
+    + service Report | + child report_rom
+    + any-service
+      + parent
+      + any-child
+
++ start pci_decode | caps: 350 | ram: 2M
+  + route
+    + service ROM | label: system | + child report_rom
+    + service Report              | + child report_rom
+    + any-service
+      + parent
+      + any-child
+
++ start platform | caps: 100 | ram: 2M | managing_system: yes
+  + provides
+    + service Dma
+    + service Platform
+  + route
+    + service Report               | + child report_rom
+    + service ROM | label: devices | + child report_rom
+    + any-service
+      + parent
+      + any-child
+  + config
+    + policy | label_prefix: usb | info: yes
+      + pci | class: USB
+
++ start usb | ram: 16M | caps: 200 | priority: -1
+  + binary pc_usb_host
+  + provides | + service Usb
+  + config | bios_handoff: no
+    + report | devices: yes | config: yes
+    + policy | label_prefix: virtualbox
+      + device | class: 0x3
+  + route
+    + service IRQ    | + child acpi
+    + service Report | + child report_rom
+    + any-service
+      + parent
+      + any-child
+
++ start nitpicker | ram: 12M | priority: -1
+  + provides | + service Gui
+  + config
+    + report | focus: yes | hover: yes
+    + domain | layer: 3 | content: client | label: no | focus: click | hover: always
+    + default-policy | domain:
+  + route
+    + service Report | + child report_rom
+    + any-service
+      + parent
+      + any-child
+
++ start black_hole
+  + provides
+  | + service Event
+  | + service Nic
+  + config
+    + event
+    + nic
+
++ start log_terminal | ram: 2M | priority: -1
+  + provides | + service Terminal
+
++ start virtualbox | caps: 800 | ram: 1024M | priority: -2
+  + binary virtualbox7
+  + config | vbox_file: vbox7_genode_usb_hid_raw.vbox | vm_name: TestVM | xhci: yes
+    + vfs
+      + dir dev
+        + log
+        + terminal
+        + null
+        + inline rtc | : 2022-08-10 00:01
+      + dir pipe | + pipe
+      + rom usb_hid_raw.iso
+      + rom VBoxVMM.so
+      + tar virtualbox7.tar
+    + libc | stdout: /dev/log | stderr: /dev/log | pipe: /pipe | rtc: /dev/rtc
+    + monitor | label: VBOX-1
+    + arg     | : virtualbox
+    + env VBOX_USER_HOME | : /
+    + env VBOX_LOG_DEST  | : file=/dev/log
+    + env VBOX_LOG
+    + env VBOX_LOG_FLAGS | : thread
+    + env VBOX_RELEASE_LOG_DEST  | : nofile
+    + env VBOX_RELEASE_LOG
+    + env VBOX_RELEASE_LOG_FLAGS | : thread
+  + route
+    + service Report | + child report_rom
+    + service ROM    | label_last: VBoxVMM.so | + parent | label: virtualbox7-dummy.lib.so
+    + any-service
+      + parent
+      + any-child
+-
+}
+
+
+puts "--- executing the 'usb_hid_raw' run script to generate the 'usb_hid_raw.iso' image ---"
+
+global specs
+global repositories
+
+if [have_spec nova] { set kernel nova }
+if [have_spec hw]   { set kernel hw }
+
+set depot_auto_update ""
+if {[have_cmd_switch --depot-auto-update]} {
+	set depot_auto_update "--depot-auto-update"
+}
+
+exec -ignorestderr \
+     $::argv0 \
+     --genode-dir [genode_dir] \
+     --name usb_hid_raw \
+     --specs "$specs" \
+     --board "$board_var" \
+     --repositories "$repositories" \
+     --depot-dir [depot_dir] \
+     --depot-user [depot_user] \
+     $depot_auto_update \
+     --cross-dev-prefix "[cross_dev_prefix]" \
+     --include "boot_dir/$kernel" \
+     --include image/iso \
+     --include [repository_contains run/usb_hid_raw.run]/run/usb_hid_raw.run
+
+exec ln -sf ../../usb_hid_raw.iso bin/
+
+set boot_components [build_artifacts]
+
+append boot_components { usb_hid_raw.iso }
+
+exec tar cf bin/virtualbox7.tar -C [genode_dir]/repos/ports/run vbox7_genode_usb_hid_raw.vbox
+append boot_components { virtualbox7.tar }
+
+build_boot_image $boot_components
+
+if { ![have_cmd_switch --autopilot] } { run_genode_until forever }
+
+# autopilot test
+
+run_genode_until {\[init -\> log_terminal\] \[init -\> event_dump\] Input event #0\t} 90
+
+# remove everything before the first interesting line
+regexp {(\[init -\> log_terminal\] \[init -\> event_dump\] Input event #0\t.*)} $output all output
+
+run_genode_until {.*\[init -\> event_dump\] Input event #11.*\n} 60 [output_spawn_id]
+
+# pay only attention to the output of init and its children
+grep_output {^\[init }
+
+unify_output {(?n)^\[init -\> log_terminal\] \[init -\> usb_hid\] usb usb-[0-9]-[0-9]: input irq status -19 received} ""
+unify_output {(?n) on usb-usbbus.*$} ""
+unify_output {(?n) at usb-usbbus.*\)} ")"
+unify_output {(?n)hid-generic.*input:} "hid-generic: input:"
+unify_output {(?n)usb-[0-9]-[0-9]: USB disconnect, device number [0-9]} "usb-X-X: USB disconnect, device number X"
+unify_output {(?n)device number [0-9]+} "device number X"
+unify_output {(?n)input[0-9]} "inputX"
+unify_output {(?n) as /devices/.*} ""
+unify_output {(?n)^\[init -\> usb.*} ""
+unify_output {(?n)^\[init -\> log_terminal\] \[init -\> usb.*} ""
+unify_output {(?n)^.*dangling allocation.*$} ""
+unify_output {(?n)^.*usbfs: process .* did not claim interface.*$} ""
+trim_lines
+
+compare_output_to {
+[init -> log_terminal] [init -> event_dump] Input event #0	PRESS KEY_X 65534	key count: 1
+[init -> log_terminal] [init -> event_dump] Input event #1	RELEASE KEY_X	key count: 0
+[init -> log_terminal] [init -> event_dump] Input event #2	REL_MOTION -1+1	key count: 0
+[init -> log_terminal] [init -> event_dump] Input event #3	PRESS BTN_LEFT 65534	key count: 1
+[init -> log_terminal] [init -> event_dump] Input event #4	RELEASE BTN_LEFT	key count: 0
+[init -> log_terminal] [init -> event_dump] Input event #5	PRESS KEY_X 65534	key count: 1
+[init -> log_terminal] [init -> event_dump] Input event #6	RELEASE KEY_X	key count: 0
+[init -> log_terminal] [init -> event_dump] Input event #7	REL_MOTION -1+1	key count: 0
+[init -> log_terminal] [init -> event_dump] Input event #8	PRESS BTN_LEFT 65534	key count: 1
+[init -> log_terminal] [init -> event_dump] Input event #9	RELEASE BTN_LEFT	key count: 0
+}
