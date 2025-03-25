@@ -12,7 +12,7 @@ set ramdisk [run_dir]/rootfs.cpio
 
 create_boot_directory
 
-build { pc_linux busybox }
+build { pc_linux }
 
 # Create expected boot directory, as we cannot use build_boot_image
 exec mkdir -p [run_dir]/boot
@@ -77,7 +77,7 @@ proc _cpio_desc { } {
 	return $file_path
 }
 
-set cpio_desc [_cpio_desc]
+#set cpio_desc [_cpio_desc]
 
 proc _uart { } {
 	if {[have_board "pc"]} { return "ttyS0" }
@@ -95,8 +95,7 @@ proc _boot_script { } {
 	set file_path [run_dir]/boot.cfg
 	set fd [open $file_path w]
 	puts $fd "#!ipxe
-kernel bzImage console=$uart,115200 root=/dev/ram ip=dhcp debug rdinit=/linuxrc initrd=rootfs.cpio.gz
-initrd rootfs.cpio.gz
+kernel bzImage console=$uart,115200 root=/dev/ram ip=dhcp debug
 boot
 "
 	close $fd
@@ -121,8 +120,8 @@ set boot_script [_boot_script]
 
 # Provide kernel image and create initial-ram-filesystem
 file copy pc_linux/$arch/arch/x86/boot/bzImage [run_dir]/
-exec pc_linux/$arch/usr/gen_init_cpio $cpio_desc > $ramdisk
-exec gzip $ramdisk
+#exec pc_linux/$arch/usr/gen_init_cpio $cpio_desc > $ramdisk
+#exec gzip $ramdisk
 
 # Trick run tools that the kernel started
 proc run_boot_string { } { return "Booting Linux" }
