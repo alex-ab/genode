@@ -185,7 +185,6 @@ class Platform::Session_component : public Rpc_object<Session>,
 		Env                & _env;
 		Connection         & _platform;
 		Hw_ready_state     & _hw_ready;
-		Gpu_reset_handler  & _reset_handler;
 		Heap                 _heap { _env.ram(), _env.rm() };
 		Device_component     _device_component;
 		Dynamic_rom_session  _rom_session { _env.ep(), _env.ram(),
@@ -215,7 +214,6 @@ class Platform::Session_component : public Rpc_object<Session>,
 		Session_component(Env                & env,
 		                  Connection         & platform,
 		                  Irq_ack_handler    & ack_handler,
-		                  Gpu_reset_handler  & reset_handler,
 		                  Hw_ready_state     & hw_ready,
 		                  Dataspace_capability gttmmadr_ds_cap,
 		                  Range                gttmmadr_range,
@@ -226,7 +224,6 @@ class Platform::Session_component : public Rpc_object<Session>,
 		  _env(env),
 		  _platform(platform),
 		  _hw_ready(hw_ready),
-		  _reset_handler(reset_handler),
 		  _device_component(env, ack_handler, gttmmadr_ds_cap, gttmmadr_range,
 		                    gmadr_ds_cap, gmadr_range)
 		{
@@ -236,9 +233,6 @@ class Platform::Session_component : public Rpc_object<Session>,
 		~Session_component()
 		{
 			_env.ep().rpc_ep().dissolve(&_device_component);
-
-			/* clear ggtt */
-			_reset_handler.reset();
 
 			/* free DMA allocations */
 			_dma_registry.for_each([&](Buffer & dma) {
@@ -415,6 +409,7 @@ class Platform::Resources : Noncopyable, public Hw_ready_state
 		Region_map_client   _rm_gmadr;
 		Range               _range_gttmm;
 		Range               _range_gmadr;
+		Range               _stolen_memory { };
 
 		void _reinit()
 		{
@@ -457,9 +452,44 @@ class Platform::Resources : Noncopyable, public Hw_ready_state
 					.writeable  = true
 				 }).failed()) error("failed to re-attach mmio at gtt offset to gttmm");
 
+				_guess_stolen_memory(mmio);
+
 			}, []() {
 				error("reinit failed");
 			});
+		}
+
+		void _guess_stolen_memory(auto const &mmio)
+		{
+			if (_stolen_memory.size)
+				return;
+
+			unsigned entry_subsequent { };
+			uint64_t entry_prev       { };
+
+			_for_each_gtt_entry(mmio, 0, [&](auto const pos, auto const value) {
+
+				if (pos == 0 || value == entry_prev + Igd::PAGE_SIZE) {
+					entry_prev = value;
+					entry_subsequent += 1;
+					return true;
+				}
+
+				return false;
+			});
+
+			if (entry_subsequent * Igd::PAGE_SIZE < 640 * 480 * 4)
+				return;
+
+			auto constexpr mask = ~0xfffull;
+
+			_stolen_memory = {
+				.start = (entry_prev - (entry_subsequent - 1) * Igd::PAGE_SIZE) & mask,
+				.size  = entry_subsequent * Igd::PAGE_SIZE
+			};
+
+			log("  Stolen memory ", Hex_range(_stolen_memory.start,
+			    _stolen_memory.size), " (guessed)");
 		}
 
 		/*
@@ -537,7 +567,52 @@ class Platform::Resources : Noncopyable, public Hw_ready_state
 			return reconstructed;
 		}
 
+		void _for_each_gtt_entry(auto & mmio, unsigned const start, auto const &fn)
+		{
+			Attached_dataspace gtt(_env.rm(), _rm_gttmm.dataspace());
+
+			size_t const gttm_half_size = mmio.size() / 2;
+			addr_t const gtt_offset     = gttm_half_size;
+			auto   const start_i        = start / Igd::PAGE_SIZE;
+
+			for (unsigned i = start_i; i < gtt_reserved() / 8; i++) {
+				auto const offset = gtt_offset + i * 8;
+				auto       value  = reinterpret_cast<uint64_t *>(gtt.local_addr<char>() + offset);
+
+				if (!fn(i - start_i, *value))
+					break;
+			}
+		}
+
 	public:
+
+		void dump_gtt(auto const &mmio, char const * const text)
+		{
+			unsigned cnt_subsequent = 0;
+			uint64_t last_value = 0ull;
+
+			_for_each_gtt_entry(mmio, 0, [&](unsigned const i, uint64_t const value) {
+
+				if (i > 0x4000)
+					return false;
+
+				if (value == last_value || value == last_value + Igd::PAGE_SIZE) {
+					last_value = value;
+					cnt_subsequent += 1;
+					return true;
+				}
+
+				error(text, " gtt ", i, " ", Hex(value), " cnt_sub=", cnt_subsequent);
+
+				last_value = value;
+				cnt_subsequent = 1;
+
+				return true;
+			});
+
+			if (cnt_subsequent > 1)
+				error(text, " gtt end ", Hex(last_value), " cnt_sub=", cnt_subsequent);
+		}
 
 		Resources(Env &env, Rm_connection &rm, Signal_context_capability irq)
 		:
@@ -679,6 +754,36 @@ class Platform::Resources : Noncopyable, public Hw_ready_state
 			_gmadr.destruct();
 		}
 
+		void try_prepare_for_boot_fb()
+		{
+			if (!_stolen_memory.size)
+				return;
+
+			uint64_t const memory_stolen_base = _stolen_memory.start;
+
+			uint64_t const fb_size = 0x7e9000;
+
+			uint64_t const offset_gtt_boot_fb = 0;
+			uint64_t const offset_gtt_display = 0x100000; // + 0xc0000;
+
+			/* boot fb */
+			_for_each_gtt_entry(*_mmio, offset_gtt_boot_fb, [&](unsigned const i, auto & entry) {
+				entry = memory_stolen_base + i * Igd::PAGE_SIZE + 1;
+				return i < (offset_gtt_boot_fb + fb_size) / Igd::PAGE_SIZE &&
+				       i <  offset_gtt_display / Igd::PAGE_SIZE;
+			});
+
+			/* Intel display driver last configuration */
+			_for_each_gtt_entry(*_mmio, offset_gtt_display, [&](unsigned const i, auto & entry) {
+				entry = memory_stolen_base + i * Igd::PAGE_SIZE + 1;
+				return i < (offset_gtt_display + fb_size) / Igd::PAGE_SIZE;
+			});
+
+			/* XXX */
+			Igd::wmb();
+			_mmio->flush_gfx_tlb();
+		}
+
 		/*
 		 * Reserved aperture for platform service
 		 */
@@ -729,8 +834,7 @@ class Platform::Root : public Root_component<Session_component, Genode::Single_c
 			_resources.with_gttm_gmadr([&](auto &platform,
 			                               auto &rm_gttmm, auto &range_gttmm,
 			                               auto &rm_gmadr, auto &range_gmadr) {
-				_session.construct(_env, platform, _ack_handler,
-				                   _reset_handler, _resources,
+				_session.construct(_env, platform, _ack_handler, _resources,
 				                   rm_gttmm.dataspace(), range_gttmm,
 				                   rm_gmadr.dataspace(), range_gmadr);
 			});
@@ -753,10 +857,28 @@ class Platform::Root : public Root_component<Session_component, Genode::Single_c
 
 		void _destroy_session(Session_component *) override
 		{
-			if (_session.constructed())
-				_session.destruct();
+			if (!_session.constructed())
+				return;
 
+			_resources.with_mmio([&](auto const & mmio) {
+				_resources.dump_gtt(mmio, "release");
+			}, []() {
+				error("dump gtt failed");
+			});
+
+			/* clear ggtt */
+			_reset_handler.reset();
+
+			_resources.try_prepare_for_boot_fb();
 			_resources.release_aperture_access();
+
+			_session.destruct();
+
+			_resources.with_mmio([&](auto const & mmio) {
+				_resources.dump_gtt(mmio, "release after");
+			}, []() {
+				error("dump gtt failed");
+			});
 		}
 
 		bool handle_irq()
