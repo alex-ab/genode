@@ -189,6 +189,7 @@ class Platform::Session_component : public Rpc_object<Session>,
 		Device_component     _device_component;
 		Dynamic_rom_session  _rom_session { _env.ep(), _env.ram(),
 		                                    _env.rm(), *this    };
+		Range const          _stolen_memory;
 		bool                 _acquired { false };
 
 		/*
@@ -215,6 +216,7 @@ class Platform::Session_component : public Rpc_object<Session>,
 		                  Connection         & platform,
 		                  Irq_ack_handler    & ack_handler,
 		                  Hw_ready_state     & hw_ready,
+		                  Range const          stolen_memory,
 		                  Dataspace_capability gttmmadr_ds_cap,
 		                  Range                gttmmadr_range,
 		                  Dataspace_capability gmadr_ds_cap,
@@ -225,7 +227,8 @@ class Platform::Session_component : public Rpc_object<Session>,
 		  _platform(platform),
 		  _hw_ready(hw_ready),
 		  _device_component(env, ack_handler, gttmmadr_ds_cap, gttmmadr_range,
-		                    gmadr_ds_cap, gmadr_range)
+		                    gmadr_ds_cap, gmadr_range),
+		  _stolen_memory(stolen_memory)
 		{
 			_env.ep().rpc_ep().manage(&_device_component);
 		}
@@ -357,6 +360,13 @@ class Platform::Session_component : public Rpc_object<Session>,
 							});
 						});
 					});
+
+					if (_stolen_memory.size) {
+						xml.node("stolen-memory", [&]() {
+							xml.attribute("base", _stolen_memory.start);
+							xml.attribute("size", _stolen_memory.size);
+						});
+					}
 				});
 			});
 		}
@@ -790,6 +800,8 @@ class Platform::Resources : Noncopyable, public Hw_ready_state
 		uint64_t aperture_reserved() const { return _aperture_reserved; }
 		uint64_t aperture_size()     const { return _aperture_size; }
 
+		Range    stolen_memory()     const { return _stolen_memory; }
+
 		uint64_t gtt_reserved() const
 		{
 			/* reserved GTT for platform service, GTT entry is 8 byte */
@@ -835,6 +847,7 @@ class Platform::Root : public Root_component<Session_component, Genode::Single_c
 			                               auto &rm_gttmm, auto &range_gttmm,
 			                               auto &rm_gmadr, auto &range_gmadr) {
 				_session.construct(_env, platform, _ack_handler, _resources,
+				                   _resources.stolen_memory(),
 				                   rm_gttmm.dataspace(), range_gttmm,
 				                   rm_gmadr.dataspace(), range_gmadr);
 			});

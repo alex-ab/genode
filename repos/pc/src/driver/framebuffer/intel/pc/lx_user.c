@@ -21,9 +21,11 @@
 #include "display/intel_backlight.h"
 #include "display/intel_display_types.h"
 #include "display/intel_fb_pin.h"
+#include "drm/i915_drm.h"
 
 #include "lx_emul.h"
 
+struct resource intel_graphics_stolen_res;
 
 enum { MAX_BRIGHTNESS  = 100, INVALID_BRIGHTNESS   = MAX_BRIGHTNESS + 1 };
 enum { MAX_CONNECTORS  =  32, CONNECTOR_ID_MIRROR  = MAX_CONNECTORS - 1 };
@@ -62,6 +64,12 @@ static int check_resize_fb(struct drm_client_dev       * const dev,
                            bool                        * const resized,
                            unsigned                      const width,
                            unsigned                      const height);
+
+
+void lx_emul_i915_init_stolen_memory(unsigned long base, unsigned long size)
+{
+	intel_graphics_stolen_res = DEFINE_RES_MEM(base, size);
+}
 
 
 static inline bool mode_larger(struct drm_display_mode const * const x,

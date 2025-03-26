@@ -1152,11 +1152,6 @@ unsigned int intel_engines_has_context_isolation(struct drm_i915_private * i915)
 }
 
 
-#include <drm/i915_drm.h>
-
-struct resource intel_graphics_stolen_res;
-
-
 extern void intel_gsc_uc_fini(struct intel_gsc_uc * gsc);
 void intel_gsc_uc_fini(struct intel_gsc_uc * gsc)
 {
