@@ -25,10 +25,11 @@ struct genode_mode {
 	unsigned height_mm;
 	unsigned hz;
 	unsigned brightness;
-	unsigned enabled;
-	unsigned preferred;
-	unsigned inuse;
 	unsigned id;
+	unsigned ggtt_offset;
+	char enabled;
+	char preferred;
+	char inuse;
 	char mirror;
 	char name[32];
 };
@@ -64,7 +65,7 @@ int  lx_emul_i915_config_done_and_block(void);
 void lx_emul_i915_framebuffer_ready(unsigned connector_id,
                                     char const * const connector_name,
                                     void * base,
-                                    unsigned long size,
+                                    unsigned gtt_offset,
                                     unsigned xres, unsigned yres,
                                     unsigned virtual_width,
                                     unsigned virtual_height,

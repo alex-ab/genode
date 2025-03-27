@@ -278,12 +278,13 @@ static void destroy_fb(struct drm_client_dev       * const dev,
 
 static int kernel_register_fb(struct fb_info const * const fb_info,
                               unsigned               const width_mm,
-                              unsigned               const height_mm)
+                              unsigned               const height_mm,
+                              unsigned               const gtt_offset)
 {
 	lx_emul_i915_framebuffer_ready(fb_info->node,
 	                               fb_info->par,
 	                               fb_info->screen_base,
-	                               fb_info->screen_size,
+	                               gtt_offset,
 	                               fb_info->var.xres_virtual,
 	                               fb_info->var.yres_virtual,
 	                               fb_info->fix.line_length /
@@ -305,7 +306,7 @@ static void destroy_fb_and_capture(struct drm_client_dev       * const dev,
 	info.node               = connector->index;
 	info.par                = connector->name;
 
-	kernel_register_fb(&info, 0, 0);
+	kernel_register_fb(&info, 0, 0, 0);
 
 	if (state->vma) {
 		intel_unpin_fb_vma(state->vma,
@@ -361,7 +362,7 @@ static void close_unused_captures(struct drm_client_dev * const dev)
 		fb_info.node               = CONNECTOR_ID_MIRROR;
 		fb_info.par                = "mirror_capture";
 
-		kernel_register_fb(&fb_info, 0, 0);
+		kernel_register_fb(&fb_info, 0, 0, 0);
 	}
 }
 
@@ -1258,7 +1259,7 @@ static int user_register_fb(struct drm_client_dev const * const dev,
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
-	kernel_register_fb(info, width_mm, height_mm);
+	kernel_register_fb(info, width_mm, height_mm, i915_vma_offset(*vma));
 
 	return 0;
 }

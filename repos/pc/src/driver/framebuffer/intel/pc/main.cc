@@ -556,7 +556,7 @@ unsigned long long driver_max_framebuffer_memory(void)
 void lx_emul_i915_framebuffer_ready(unsigned const connector_id,
                                     char const * const conn_name,
                                     void * const base,
-                                    unsigned long,
+                                    unsigned const gtt_offset,
                                     unsigned const xres,
                                     unsigned const yres,
                                     unsigned const phys_width,
@@ -618,7 +618,7 @@ void lx_emul_i915_framebuffer_ready(unsigned const connector_id,
 		if (conn.size.valid()) {
 			if (drv.verbose)
 				log(space, label, ": capture ", xres, "x", yres, " with "
-				    " framebuffer ", phys_width, "x", phys_height);
+				    " framebuffer ", phys_width, "x", phys_height, " gtt_offset=", Hex(gtt_offset));
 
 			lx_emul_i915_wakeup(unsigned(id.value));
 		} else
