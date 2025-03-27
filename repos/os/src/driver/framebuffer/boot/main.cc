@@ -82,8 +82,11 @@ struct Framebuffer::Main
 
 	bool const _checked_info = ( _check_info(), true );
 
-	Attached_io_mem_dataspace _fb_ds { _env, _info.addr,
-	                                   _info.pitch*_info.size.h, true };
+	Attached_io_mem_dataspace _fb_ds0 { _env, _info.addr,
+	                                    _info.pitch*_info.size.h, true };
+
+	Attached_io_mem_dataspace _fb_ds1 { _env, _info.addr + 2240 * 4096,
+	                                    _info.pitch*_info.size.h, true };
 
 	Capture::Connection _capture { _env };
 
@@ -100,14 +103,27 @@ struct Framebuffer::Main
 	{
 		Area const phys_size { (uint32_t)(_info.pitch/sizeof(Pixel)), _info.size.h };
 
-		Surface<Pixel> surface(_fb_ds.local_addr<Pixel>(), phys_size);
+#if 0
+		static unsigned count = 0;
 
-		_captured_screen.apply_to_surface(surface);
+		if (++count % 100)
+			error(__func__, " ", count);
+#endif
+
+		Surface<Pixel> surface0(_fb_ds0.local_addr<Pixel>(), phys_size);
+
+		_captured_screen.apply_to_surface(surface0);
+
+#if 0
+		Surface<Pixel> surface1(_fb_ds1.local_addr<Pixel>(), phys_size);
+
+		_captured_screen.apply_to_surface(surface1);
+#endif
 	}
 
 	Main(Env &env) : _env(env)
 	{
-		log("using boot framebuffer: ", _info);
+		log("using boot framebuffer: ", _info, " x");
 
 		_timer.sigh(_timer_handler);
 		_timer.trigger_periodic(10*1000);
