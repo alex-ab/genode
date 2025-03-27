@@ -82,11 +82,13 @@ struct Framebuffer::Main
 
 	bool const _checked_info = ( _check_info(), true );
 
-	Attached_io_mem_dataspace _fb_ds0 { _env, _info.addr,
+	Attached_io_mem_dataspace _fb_ds0 { _env, _info.addr + 0x100000,
 	                                    _info.pitch*_info.size.h, true };
 
+#if 0
 	Attached_io_mem_dataspace _fb_ds1 { _env, _info.addr + 2240 * 4096,
 	                                    _info.pitch*_info.size.h, true };
+#endif
 
 	Capture::Connection _capture { _env };
 

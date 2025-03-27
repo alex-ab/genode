@@ -754,17 +754,40 @@ class Platform::Resources : Noncopyable, public Hw_ready_state
 			_gmadr.destruct();
 		}
 
-		void try_prepare_for_boot_fb()
+		uint64_t guess_gtt_offset_inuse_display()
+		{
+			uint64_t guess_used_display_region = 0;
+
+			/* search for memory stolen base in use */
+			_for_each_gtt_entry(*_mmio, 0, [&](unsigned const i, auto const entry) {
+				/* XXX i != 0 */
+				if (i == 0 || i == 2240)
+					error(i, " ", Hex(entry), " ", Hex(_stolen_memory.start | 1));
+				if (entry == (_stolen_memory.start | 1) && i != 0) {
+					guess_used_display_region = i * Igd::PAGE_SIZE;
+					return false;
+				}
+				return true;
+			});
+
+			error("guessed region ", Hex(guess_used_display_region));
+
+			return guess_used_display_region;
+		}
+
+		void try_prepare_for_boot_fb(uint64_t offset_gtt_display)
 		{
 			if (!_stolen_memory.size)
 				return;
 
 			uint64_t const memory_stolen_base = _stolen_memory.start;
 
-			uint64_t const fb_size = 0x7e9000;
+			uint64_t       fb_size = 0x7e9000;
 
 			uint64_t const offset_gtt_boot_fb = 0;
-			uint64_t const offset_gtt_display = 0x100000; // + 0xc0000;
+
+			if (!offset_gtt_display)
+				offset_gtt_display = 0x100000; // - 0xc0000;
 
 			/* boot fb */
 			_for_each_gtt_entry(*_mmio, offset_gtt_boot_fb, [&](unsigned const i, auto & entry) {
@@ -866,10 +889,14 @@ class Platform::Root : public Root_component<Session_component, Genode::Single_c
 				error("dump gtt failed");
 			});
 
+			auto const offset_gtt_display = _resources.guess_gtt_offset_inuse_display();
+
 			/* clear ggtt */
 			_reset_handler.reset();
 
-			_resources.try_prepare_for_boot_fb();
+			_resources.try_prepare_for_boot_fb(offset_gtt_display);
+			(void)offset_gtt_display;
+
 			_resources.release_aperture_access();
 
 			_session.destruct();
