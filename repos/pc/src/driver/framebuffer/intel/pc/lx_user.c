@@ -36,6 +36,7 @@ static struct task_struct      * lx_update_task = NULL;
 static struct drm_client_dev   * dev_client     = NULL;
 
 static bool const verbose = false;
+static bool       boot_fb = false;
 
 static struct state {
 	struct drm_mode_create_dumb  fb_dumb;
@@ -58,7 +59,7 @@ static int user_register_fb(struct drm_client_dev   const * const dev,
                             struct drm_framebuffer        * const fb,
                             struct i915_vma              ** vma,
                             unsigned long                 * vma_flags,
-                            unsigned width_mm, unsigned height_mm);
+                            unsigned width_mm, unsigned height_mm, bool);
 
 
 static int check_resize_fb(struct drm_client_dev       * const dev,
@@ -66,7 +67,8 @@ static int check_resize_fb(struct drm_client_dev       * const dev,
                            struct drm_mode_fb_cmd2     * const dumb_fb,
                            bool                        * const resized,
                            unsigned                      const width,
-                           unsigned                      const height);
+                           unsigned                      const height,
+                           bool                          const no_resize_for_mirror);
 
 
 void lx_emul_i915_init_stolen_memory(unsigned long base, unsigned long size)
@@ -517,7 +519,8 @@ static void handle_mirror(struct drm_client_dev   * const dev,
 		                                 mirror_fb_cmd,
 		                                &resized,
 		                                 mirror->mode.hdisplay,
-		                                 mirror->mode.vdisplay);
+		                                 mirror->mode.vdisplay,
+		                                 boot_fb);
 
 		if (err) {
 			printk("setting up mirrored framebuffer of %ux%u failed - error=%d\n",
@@ -587,10 +590,13 @@ static void reconfigure(struct drm_client_dev * const dev)
 		/* read configuration of connector */
 		lx_emul_i915_connector_config(connector->name, &conf_mode);
 
+		printk("------------- state->fbs=%px %d\n", state->fbs, connector->index);
 		/* drop old fb reference, taken again later */
-		if (state->fbs) {
-			drm_framebuffer_put(state->fbs);
-			state->fbs = NULL;
+		if (!boot_fb || !state->mirrored) {
+			if (state->fbs) {
+				drm_framebuffer_put(state->fbs);
+				state->fbs = NULL;
+			}
 		}
 
 		/* lookup next mode */
@@ -656,6 +662,17 @@ static void reconfigure(struct drm_client_dev * const dev)
 		}
 
 		if (conf_mode.mirror) {
+
+			if (boot_fb) {
+				if (!state->fbs && states[CONNECTOR_ID_MIRROR].fbs) {
+					state->fbs = states[CONNECTOR_ID_MIRROR].fbs;
+					drm_framebuffer_get(state->fbs);
+				}
+				printk("------------- mirrrof state->fbs=%px mirror=%px\n",
+				       state->fbs, states[CONNECTOR_ID_MIRROR].fbs);
+				continue;
+			}
+
 			struct drm_mode_fb_cmd2 * mirror_fb_cmd = &states[CONNECTOR_ID_MIRROR].fb_cmd;
 			/* get new fb reference for mirrored fb */
 			state->fbs = drm_framebuffer_lookup(dev->dev, dev->file,
@@ -666,7 +683,7 @@ static void reconfigure(struct drm_client_dev * const dev)
 		/* discrete case handling */
 
 		err = check_resize_fb(dev, &state->fb_dumb, &state->fb_cmd,
-		                      &resized, mode->hdisplay, mode->vdisplay);
+		                      &resized, mode->hdisplay, mode->vdisplay, false);
 		if (err) {
 			printk("setting up framebuffer of %ux%u failed - error=%d\n",
 			       mode->hdisplay, mode->vdisplay, err);
@@ -687,7 +704,7 @@ static void reconfigure(struct drm_client_dev * const dev)
 
 			int err = user_register_fb(dev, &fb_info, state->fbs,
 			                           &state->vma, &state->vma_flags,
-			                           width_mm, height_mm);
+			                           width_mm, height_mm, false);
 
 			if (err == -ENOSPC) {
 				if (state->fbs) {
@@ -705,7 +722,7 @@ static void reconfigure(struct drm_client_dev * const dev)
 		                  states[CONNECTOR_ID_MIRROR].fbs,
 		                 &states[CONNECTOR_ID_MIRROR].vma,
 		                 &states[CONNECTOR_ID_MIRROR].vma_flags,
-		                 mirror.width_mm, mirror.height_mm);
+		                 mirror.width_mm, mirror.height_mm, boot_fb);
 	}
 
 	close_unused_captures(dev);
@@ -1179,7 +1196,8 @@ static int user_register_fb(struct drm_client_dev const * const dev,
                             struct i915_vma            ** const vma,
                             unsigned long               * const vma_flags,
                             unsigned                      const width_mm,
-                            unsigned                      const height_mm)
+                            unsigned                      const height_mm,
+                            bool                          const keep_vma)
 {
 	intel_wakeref_t wakeref;
 
@@ -1193,7 +1211,7 @@ static int user_register_fb(struct drm_client_dev const * const dev,
 		return -ENODEV;
 	}
 
-	if (*vma) {
+	if (!keep_vma && *vma) {
 		intel_unpin_fb_vma(*vma, *vma_flags);
 
 		*vma       = NULL;
@@ -1206,9 +1224,10 @@ static int user_register_fb(struct drm_client_dev const * const dev,
 	 * This also validates that any existing fb inherited from the
 	 * BIOS is suitable for own access.
 	 */
-	*vma = intel_pin_and_fence_fb_obj(   fb, false /* phys_cursor */,
-	                                  &view, false /* use fences */,
-	                                   vma_flags);
+	if (!*vma)
+		*vma = intel_pin_and_fence_fb_obj(   fb, false /* phys_cursor */,
+		                                  &view, false /* use fences */,
+		                                   vma_flags);
 
 	if (IS_ERR(*vma)) {
 		intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
@@ -1236,6 +1255,20 @@ static int user_register_fb(struct drm_client_dev const * const dev,
 	}
 
 	vaddr = i915_vma_pin_iomap(*vma);
+
+	printk("%s:%u '%s' %s offset=%llx size=%llx guard=%x\n", __func__, __LINE__,
+	       (info && info->par) ? (char *)info->par : "unknown",
+	       i915_vma_is_map_and_fenceable(*vma) ? " vma_is_map_and_fenceable" : "unknown vma state",
+	       i915_vma_offset(*vma), i915_vma_size(*vma), (*vma)->guard);
+
+	if (i915_vma_is_map_and_fenceable(*vma))
+	{
+		struct io_mapping * x = &i915_vm_to_ggtt((*vma)->vm)->iomap;
+
+		printk("%s:%u base=%llx+%lx iomem=%px\n",
+		       __func__, __LINE__,
+		       x->base, x->size, x->iomem);
+	}
 
 	if (IS_ERR(vaddr)) {
 		intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
@@ -1270,7 +1303,8 @@ static int check_resize_fb(struct drm_client_dev       * const dev,
                            struct drm_mode_fb_cmd2     * const dumb_fb,
                            bool                        * const resized,
                            unsigned                      const width,
-                           unsigned                      const height)
+                           unsigned                      const height,
+                           bool                          const no_resize_on_mirror)
 {
 	int result = -EINVAL;
 
@@ -1286,6 +1320,8 @@ static int check_resize_fb(struct drm_client_dev       * const dev,
 
 		destroy_fb(dev, gem_dumb, dumb_fb);
 
+		printk("%s:%u destroy fb\n", __func__, __LINE__);
+
 		*resized = true;
 	}
 
@@ -1297,39 +1333,48 @@ static int check_resize_fb(struct drm_client_dev       * const dev,
 		gem_dumb->flags  = 0;
 		/* .handle, .pitch, .size written by kernel in gem_dumb */
 
-		result = drm_mode_create_dumb_ioctl(dev->dev, gem_dumb, dev->file);
-		if (result) {
-			drm_err(dev->dev, "%s: failed to create framebuffer %d\n",
-			        __func__, result);
-			memset(gem_dumb, 0, sizeof(*gem_dumb));
-			return -ENODEV;
-		}
+		if (!no_resize_on_mirror || *resized) {
+			result = drm_mode_create_dumb_ioctl(dev->dev, gem_dumb, dev->file);
+			if (result) {
+				drm_err(dev->dev, "%s: failed to create framebuffer %d\n",
+				        __func__, result);
+				memset(gem_dumb, 0, sizeof(*gem_dumb));
+				return -ENODEV;
+			}
 
-		*resized = true;
+			printk("%s:%u create dumb fb\n", __func__, __LINE__);
+
+			*resized = true;
+		}
 	}
 
 	/* bind framebuffer(GEM object) to drm client */
 	if (!dumb_fb->width && !dumb_fb->height) {
 		/* .fb_id <- written by kernel */
-		dumb_fb->width        = gem_dumb->width,
-		dumb_fb->height       = gem_dumb->height,
-		dumb_fb->pixel_format = DRM_FORMAT_XRGB8888,
+		dumb_fb->width        = gem_dumb->width;
+		dumb_fb->height       = gem_dumb->height;
+		dumb_fb->pixel_format = DRM_FORMAT_XRGB8888;
 		/* .flags */
 		/* up to 4 planes with handle/pitch/offset/modifier can be set */
-		dumb_fb->handles[0] = gem_dumb->handle;
-		dumb_fb->pitches[0] = gem_dumb->pitch;
-		/* .offsets[4]  */
-		/* .modifier[4] */
 
-		result = drm_mode_addfb2_ioctl(dev->dev, dumb_fb, dev->file);
-		if (result) {
-			drm_err(dev->dev, "%s: failed to add framebuffer to drm client %d\n",
-			        __func__, result);
-			memset(dumb_fb, 0, sizeof(*dumb_fb));
-			return -ENODEV;
+		if (!no_resize_on_mirror || *resized) {
+			dumb_fb->handles[0] = gem_dumb->handle;
+			dumb_fb->pitches[0] = gem_dumb->pitch;
+			/* .offsets[4]  */
+			/* .modifier[4] */
+
+			result = drm_mode_addfb2_ioctl(dev->dev, dumb_fb, dev->file);
+			if (result) {
+				drm_err(dev->dev, "%s: failed to add framebuffer to drm client %d\n",
+				        __func__, result);
+				memset(dumb_fb, 0, sizeof(*dumb_fb));
+				return -ENODEV;
+			}
+
+			printk("%s:%u bind fb\n", __func__, __LINE__);
+
+			*resized = true;
 		}
-
-		*resized = true;
 	}
 
 	return 0;
@@ -1424,6 +1469,16 @@ static bool intel_fbdev_init_bios(struct drm_device *dev)
 			max_size = obj->base.size;
 
 			{
+				boot_fb = true;
+
+				struct state * state_mirror = &states[CONNECTOR_ID_MIRROR];
+
+				state_mirror->fbs       = plane_state->uapi.fb;
+				state_mirror->vma       = i915_vma_get(plane_state->ggtt_vma);
+				state_mirror->vma_flags = plane_state->flags;
+
+				drm_framebuffer_get(state_mirror->fbs);
+
 				printk("XXXXXXXXXXX vma=%px flags=%lx\n", plane_state->ggtt_vma, plane_state->flags);
 			}
 		}
