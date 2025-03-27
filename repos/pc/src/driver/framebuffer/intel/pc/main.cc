@@ -274,19 +274,6 @@ struct Framebuffer::Driver
 			});
 		});
 
-		Lx_kit::env().devices.with_xml([&](auto const & node) {
-			node.with_optional_sub_node("device",[&](auto const & dev) {
-				dev.with_optional_sub_node("stolen-memory",[&](auto const & mem) {
-					auto const base = mem.attribute_value("base", 0ull);
-					auto const size = mem.attribute_value("size", 0ull);
-
-					log("Stolen memory ", Hex_range(base, size));
-
-					lx_emul_i915_init_stolen_memory(base, size);
-				});
-			});
-		});
-
 		config.sigh(config_handler);
 
 		config_read();

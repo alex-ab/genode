@@ -72,6 +72,4 @@ void lx_emul_i915_framebuffer_ready(unsigned connector_id,
                                     unsigned mm_width,
                                     unsigned mm_height);
 
-void lx_emul_i915_init_stolen_memory(unsigned long base, unsigned long size);
-
 #endif /* _LX_I915_H_ */
