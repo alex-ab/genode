@@ -37,10 +37,13 @@ struct dma_fence_ops const i915_fence_ops;
 /* Bits allowed in normal kernel mappings: */
 pteval_t __default_kernel_pte_mask __read_mostly = ~0;
 
+extern unsigned long __drm_debug;
 
 void si_meminfo(struct sysinfo * val)
 {
 	unsigned long long const ram_pages = emul_avail_ram() / PAGE_SIZE;
+
+//	__drm_debug = 0xffff;
 
 	/* used by drivers/gpu/drm/ttm/ttm_device.c */
 	val->totalram  = ram_pages;
@@ -86,6 +89,9 @@ pgprot_t pgprot_writecombine(pgprot_t prot)
 int intel_root_gt_init_early(struct drm_i915_private * i915)
 {
 	struct intel_gt *gt = to_gt(i915);
+
+	/* disable panel self refresh (required for FUJITSU S937/S938) */
+//	i915->params.enable_psr = 0;
 
 	gt->i915 = i915;
 	gt->uncore = &i915->uncore;
