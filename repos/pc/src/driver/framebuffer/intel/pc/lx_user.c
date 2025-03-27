@@ -50,6 +50,9 @@ static struct state {
 } states [MAX_CONNECTORS] = { };
 
 
+static bool intel_fbdev_init_bios(struct drm_device *dev);
+
+
 static int user_register_fb(struct drm_client_dev   const * const dev,
                             struct fb_info                * const info,
                             struct drm_framebuffer        * const fb,
@@ -1159,6 +1162,12 @@ static int register_drm_client(struct drm_device * const dev)
 	 */
 	dev_client->file->aspect_ratio_allowed = 1;
 
+	printk("%s:%u\n", __func__, __LINE__);
+
+	intel_fbdev_init_bios(dev);
+
+	printk("%s:%u\n", __func__, __LINE__);
+
 	return 0;
 }
 
@@ -1370,4 +1379,67 @@ void intel_fbdev_restore_mode(struct drm_device *dev)
 void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	lx_emul_trace(__func__);
+}
+
+
+/* based upon linux/drivers/gpu/drm/i915/display/intel_fbdev.c */
+static bool intel_fbdev_init_bios(struct drm_device *dev)
+{
+	struct drm_i915_private *i915 = to_i915(dev);
+	struct intel_framebuffer *fb = NULL;
+	struct intel_crtc *crtc;
+	unsigned int max_size = 0;
+
+	/* Find the largest fb */
+	for_each_intel_crtc(dev, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+		struct intel_plane *plane =
+			to_intel_plane(crtc->base.primary);
+		struct intel_plane_state *plane_state =
+			to_intel_plane_state(plane->base.state);
+		struct drm_i915_gem_object *obj =
+			intel_fb_obj(plane_state->uapi.fb);
+
+		if (!crtc_state->uapi.active) {
+			printk(
+				    "[CRTC:%d:%s] not active, skipping\n",
+				    crtc->base.base.id, crtc->base.name);
+			continue;
+		}
+
+		if (!obj) {
+			printk(
+				    "[PLANE:%d:%s] no fb, skipping\n",
+				    plane->base.base.id, plane->base.name);
+			continue;
+		}
+
+		if (obj->base.size > max_size) {
+			printk(
+				    "found possible fb from [PLANE:%d:%s]\n",
+				    plane->base.base.id, plane->base.name);
+			fb = to_intel_framebuffer(plane_state->uapi.fb);
+			max_size = obj->base.size;
+
+			{
+				printk("XXXXXXXXXXX vma=%px flags=%lx\n", plane_state->ggtt_vma, plane_state->flags);
+			}
+		}
+
+		printk("%s fall through\n", __func__);
+	}
+
+	printk("fb ??? %px\n", fb);
+
+	if (!fb) {
+		drm_dbg_kms(&i915->drm,
+			    "no active fbs found, not using BIOS config\n");
+		goto out;
+	}
+
+	return true;
+
+out:
+	return false;
 }
