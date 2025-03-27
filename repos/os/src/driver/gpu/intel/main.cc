@@ -2661,7 +2661,10 @@ struct Main : Irq_ack_handler, Gpu_reset_handler
 	void handle_irq()
 	{
 		bool display_irq = false;
+
 		if (_igd_device.constructed()) {
+			error("handle irq IGD");
+
 			_dev.with_mmio([&](auto &mmio) {
 				display_irq = _igd_device->handle_irq(mmio);
 			}, []() {
@@ -2669,6 +2672,7 @@ struct Main : Irq_ack_handler, Gpu_reset_handler
 			});
 		/* GPU not present forward all IRQs to platform client */
 		} else {
+			error("handle irq Platform client");
 			_platform_root.handle_irq();
 			return;
 		}
@@ -2678,9 +2682,11 @@ struct Main : Irq_ack_handler, Gpu_reset_handler
 		 * client
 		 */
 		if (display_irq && _platform_root.handle_irq()) {
+			error("handle irq Platform client 2");
 			return;
 		}
 
+		error("handle irq ack_irq");
 		ack_irq();
 	}
 
