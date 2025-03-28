@@ -672,6 +672,10 @@ class Platform::Resources : Noncopyable, public Hw_ready_state
 		void release_aperture_access()
 		{
 			_gmadr_mem.destruct();
+
+			if (_device.constructed() && _gmadr.constructed())
+				_gmadr->release_iomem(*_device);
+
 			_gmadr.destruct();
 		}
 
