@@ -1,0 +1,9 @@
+<launcher pkg="glmark2" priority="-2">
+	<route>
+		<service name="Gui"> <parent/> </service>
+		<service name="Gpu"> <child name="intel_gpu"/> </service>
+		<service name="ROM" label="mesa_gpu.lib.so">
+			<child name="mesa_gpu-intel"/>
+		</service>
+	</route>
+</launcher>

@@ -8,11 +8,13 @@ ram_fs:  depot
 import: pkg/sculpt_drivers-pc
 import: pkg/black_hole
 import: pkg/intel_display pkg/intel_gpu pkg/vesa_fb
+import: pkg/glmark2 pkg/mesa_gpu-intel
 
 # selection of launcher-menu entries
 launcher: vm_fs shared_fs download_debug_info black_hole trace_logger
 launcher: audio mixer system_clock acpi_support recall_fs
 launcher: intel_display intel_gpu vesa_fb
+launcher: glmark2 mesa_gpu-intel
 # touchpad
 
 # selection of accepted depot-package providers
