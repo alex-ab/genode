@@ -163,7 +163,12 @@ class Capture::Connection::Screen
 
 			with_texture([&] (Texture<Pixel> const &texture) {
 				affected.for_each_rect([&] (Capture::Rect const rect) {
-					Blit::back2front(surface, texture, rect, attr.rotate, attr.flip);
+                    if (surface.size() != texture.size()) {
+                        surface.clip(rect);
+						Blit_painter::paint(surface, texture, Capture::Point(0, 0));
+                    }
+					else
+						Blit::back2front(surface, texture, rect, attr.rotate, attr.flip);
 				});
 			});
 			surface.flusher(nullptr);
