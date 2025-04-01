@@ -903,14 +903,20 @@ static void _report_connectors(void * genode_data, bool const discrete)
 		if (connector->edid_blob_ptr)
 			display_name_from_edid(connector->edid_blob_ptr, display_name, sizeof(display_name));
 
-		lx_emul_i915_report_connector(connector, genode_data,
-		                              connector->name,
-		                              connector->status != connector_status_disconnected,
-		                              valid_fb,
-		                              get_brightness(connector, INVALID_BRIGHTNESS),
-		                              *display_name ? display_name : 0,
-		                              connector->display_info.width_mm,
-		                              connector->display_info.height_mm);
+		{
+			unsigned brightness = get_brightness(connector, INVALID_BRIGHTNESS);
+
+			if (!brightness && conf_mode.brightness)
+				brightness = conf_mode.brightness;
+
+			lx_emul_i915_report_connector(connector, genode_data,
+			                              connector->name,
+			                              connector->status != connector_status_disconnected,
+			                              valid_fb, brightness,
+			                              *display_name ? display_name : 0,
+			                              connector->display_info.width_mm,
+			                              connector->display_info.height_mm);
+		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
 }
