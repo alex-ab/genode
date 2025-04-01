@@ -8,11 +8,15 @@ ram_fs:  depot
 # supplemental depot content added to the system image
 import: pkg/sculpt_drivers-pc
 import: pkg/black_hole
+import: pkg/top_view pkg/top_view_config pkg/top_view_storage
 
 # selection of launcher-menu entries
 launcher: vm_fs shared_fs download_debug_info black_hole trace_logger
 launcher: audio mixer system_clock acpi_support recall_fs
-# touchpad
+launcher: top_view_config msr_gui lock-screen
+launcher: firefox
+# launcher: vm_mail vm_mail_fs
+# launcher: vm_tc vm_tc_fs
 
 # selection of accepted depot-package providers
 depot: genodelabs cnuke alex-ab mstein nfeske cproc chelmuth jschlatow
