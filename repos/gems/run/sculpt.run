@@ -1011,7 +1011,7 @@ proc augment_pkg_versions { path node } {
 
 	# filter 'pkg' attribute that is not <user>/pkg/<
 	set pattern "(\<$node\[^\>]+?pkg=\")"
-	append pattern {(?![\w\d\-]+/pkg/[\w\d\-_]+/[\w\d\-\._]+)(.*)}
+	append pattern {(?![\w\d\-]+/pkg/[\w\d\-_@]+/[\w\d\-\._]+)(.*)}
 	append pattern "(\")"
 	while {[regexp $pattern $content dummy head pkg tail]} {
 		if {[regexp [_depot_archive_path_pattern] $pkg dummy user type name]
