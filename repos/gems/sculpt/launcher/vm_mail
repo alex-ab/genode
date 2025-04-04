@@ -1,0 +1,13 @@
+<launcher pkg="thunderbird@seoul" priority="-2">
+	<route>
+		<service name="Nic">                       <child name="nic_router"/>      </service>
+		<service name="File_system" label_prefix="home ->">  <child name="vm_mail_fs"/>      </service>
+		<service name="Usb">                       <child name="usb"/>             </service>
+		<service name="Rtc">                       <child name="system_clock"/>    </service>
+		<service name="Gui">                       <child name="wm"/>              </service>
+		<service name="Report" label="shape">      <child name="wm"/>              </service>
+		<service name="ROM" label="platform_info"> <parent label="platform_info"/> </service>
+		<service name="VM">                        <parent/>                       </service>
+		<service name="RM">                        <parent/>                       </service>
+	</route>
+</launcher>

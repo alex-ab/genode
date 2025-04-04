@@ -1,0 +1,8 @@
+<launcher managing_system="yes" pkg="msr_gui" priority="-2">
+	<route>
+		<service name="Gui">                       <child name="wm"/> </service>
+		<service name="File_system" label_prefix="fonts ->">  <child name="fonts_fs"/> </service>
+		<service name="Report">                    <parent/> </service>
+		<service name="ROM" label="platform_info"> <parent label="platform_info"/> </service>
+	</route>
+</launcher>

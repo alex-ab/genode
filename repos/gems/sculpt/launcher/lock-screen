@@ -1,0 +1,9 @@
+<launcher pkg="gui_lock" priority="0" ram="96M">
+<!--
+	<config name="Alex" password="test" transparent="no"/>
+-->
+	<route>
+		<service name="Gui"                      > <parent label="lock_screen"  /> </service>
+		<service name="ROM" label="platform_info"> <parent label="platform_info"/> </service>
+	</route>
+</launcher>

@@ -1,0 +1,14 @@
+<launcher pkg="firefox@seoul_audio" priority="0">
+	<affinity xpos="0" ypos="1" width="4" height="1"/>
+	<route>
+		<service name="Nic">                       <child name="nic_router"/> </service>
+		<service name="Gui">                       <child name="wm"/> </service>
+		<service name="Rtc">                       <child name="system_clock"/> </service>
+		<service name="Usb">                       <child name="usb"/> </service>
+		<service name="Report" label="shape">      <child name="wm"/> </service>
+		<service name="Play">                      <child name="mixer"/> </service>
+		<service name="ROM" label="platform_info"> <parent label="platform_info"/> </service>
+		<service name="VM"> <parent/> </service>
+		<service name="RM"> <parent/> </service>
+	</route>
+</launcher>
