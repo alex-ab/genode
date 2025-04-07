@@ -1374,6 +1374,11 @@ struct Sculpt::Main : Input_event_handler,
 	 */
 	void disable_optional_component(Path const &launcher) override
 	{
+		if (launcher == "intel_display" || launcher == "intel_gpu" || launcher == "vesa_fb") {
+			warning("Action denied - unloading of '", launcher, "' is not supported");
+			return;
+		}
+
 		_runtime_state.abandon(launcher);
 
 		if (launcher == "intel_display") {
