@@ -24,7 +24,19 @@
 	.global _start_initial_stack
 	_start_initial_stack:
 
-        /* save initial SP value, used to pass the environment on base-linux */
+	/* save initial x0 value, used to pass the environment on base-novae */
+	adrp x4, :got:__initial_x0
+	ldr  x4, [x4, #:got_lo12:__initial_x0]
+	mov  x3, x0
+	str  x3, [x4]
+
+	/* save initial x1 value, used to pass the environment on base-novae */
+	adrp x4, :got:__initial_x1
+	ldr  x4, [x4, #:got_lo12:__initial_x1]
+	mov  x3, x1
+	str  x3, [x4]
+
+	/* save initial SP value, used to pass the environment on base-linux */
 	adrp x4, :got:__initial_sp
 	ldr  x4, [x4, #:got_lo12:__initial_sp]
 	mov  x1, sp
@@ -62,6 +74,12 @@
 	/* initial value of the SP register */
 	.global __initial_sp
 	__initial_sp:
+	.space 8
+	.global __initial_x0
+	__initial_x0:
+	.space 8
+	.global __initial_x1
+	__initial_x1:
 	.space 8
 
 	/* stack of the temporary initial environment */
