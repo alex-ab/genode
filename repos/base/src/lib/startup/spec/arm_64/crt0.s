@@ -27,14 +27,20 @@
 	/* save initial SP value, used to pass the environment on base-linux */
 	adrp x4, :got:__initial_sp
 	ldr  x4, [x4, #:got_lo12:__initial_sp]
-	mov  x1, sp
-	str  x1, [x4]
+	mov  x2, sp
+	str  x2, [x4]
 
-	/* save initial X0 value, used by base-sel4 */
+	/* save initial X0 value, used by base-sel4 and base-novae */
 	adrp x4, :got:__initial_x0
 	ldr  x4, [x4, #:got_lo12:__initial_x0]
-	mov  x1, x0
-	str  x1, [x4]
+	mov  x2, x0
+	str  x2, [x4]
+
+	/* save initial x1 value, used to pass the environment on base-novae */
+	adrp x4, :got:__initial_x1
+	ldr  x4, [x4, #:got_lo12:__initial_x1]
+	mov  x2, x1
+	str  x2, [x4]
 
 	/*
 	 * Install initial temporary environment that is replaced later by the
@@ -72,6 +78,10 @@
 	/* initial value of the X0 register */
 	.global __initial_x0
 	__initial_x0:
+	.space 8
+	/* initial value of the X1 register */
+	.global __initial_x1
+	__initial_x1:
 	.space 8
 
 	/* stack of the temporary initial environment */
