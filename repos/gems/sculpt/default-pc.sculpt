@@ -1,6 +1,8 @@
 # configuration decisions
 drivers: pc
 system:  pc
+manager: use_ram_fs
+ram_fs:  depot
 
 # supplemental depot content added to the system image
 import: pkg/sculpt_drivers-pc
@@ -9,11 +11,15 @@ import: pkg/intel_display pkg/intel_gpu pkg/vesa_fb
 # selection of launcher-menu entries
 launcher: intel_display intel_gpu vesa_fb
 launcher: vm_fs shared_fs download_debug_info black_hole trace_logger
-launcher: audio mixer system_clock acpi_support recall_fs touchpad
+launcher: audio mixer system_clock acpi_support recall_fs
+# touchpad
 
 # selection of accepted depot-package providers
 depot: genodelabs cnuke alex-ab mstein nfeske cproc chelmuth jschlatow
 depot: ssumpf skalk atopia
 
 # preconfigured example scenarios
-presets: empty nano3d window_manager falkon_web_browser goa_testbed
+presets: empty nano3d window_manager
+# falkon_web_browser goa_testbed
+
+build: app/sculpt_manager driver/framebuffer/boot driver/framebuffer/vesa lib/ld kernel core
