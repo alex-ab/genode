@@ -20,3 +20,6 @@ presets: empty nano3d window_manager falkon_web_browser goa_testbed
 
 build: server/nic_router
 build: app/sculpt_manager
+build: kernel core lib/ld
+build: app/depot_deploy
+build: driver/platform/pc
