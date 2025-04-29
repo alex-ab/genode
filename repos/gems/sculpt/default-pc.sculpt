@@ -17,3 +17,4 @@ depot: genodelabs alex-ab chelmuth cnuke cproc jschlatow nfeske skalk ssumpf
 presets: empty nano3d window_manager falkon_web_browser goa_testbed
 
 build: server/nic_router
+build: app/sculpt_manager
