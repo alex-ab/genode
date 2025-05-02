@@ -276,13 +276,10 @@ struct Genode::Startup
 	bool const ldso_phdr = (init_ldso_phdr(env), true);
 	bool const exception = (init_exception_handling(env.ram(), env.rm()), true);
 
-	struct A { A() { raw(__func__, " before ep"); } } _a { };
 	/*
 	 * The construction of the main entrypoint does never return.
 	 */
 	Entrypoint ep { env };
-
-	struct B { B() { raw(__func__, " before ep"); } } _b { };
 
 	Startup(Platform &platform) : env(platform, ep) { }
 };

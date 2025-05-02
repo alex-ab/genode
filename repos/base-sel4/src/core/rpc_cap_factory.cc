@@ -29,10 +29,8 @@ Native_capability Rpc_cap_factory::alloc(Native_capability ep)
 {
 	static unsigned unique_id_cnt;
 
-	if (!ep.valid()) {
-		error("invalid ep capability");
+	if (!ep.valid())
 		return Native_capability();
-	}
 
 	Mutex::Guard guard(_mutex);
 
