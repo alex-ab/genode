@@ -69,10 +69,14 @@ Rpc_entrypoint::Rpc_entrypoint(Pd_session *pd_session, size_t stack_size,
 	_cap(Untyped_capability()),
 	_pd_session(*pd_session)
 {
+	error(__func__, " ", __LINE__);
 	Thread::start();
+	error(__func__, " ", __LINE__);
 	_block_until_cap_valid();
 
+	error(__func__, " ", __LINE__);
 	_exit_cap = manage(&_exit_handler);
+	error(__func__, " ", __LINE__);
 }
 
 

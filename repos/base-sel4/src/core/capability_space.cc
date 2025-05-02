@@ -33,7 +33,10 @@ class Genode::Native_capability::Data : public Capability_data
 		Data(Rpc_obj_key key)
 		:
 			Capability_data(key)
-		{ }
+		{
+			if (key.value() == ~0u || key.value() == ~0ul)
+				Genode::raw("------------- ui invalid cap ", this);
+		}
 
 		Data() { }
 };
@@ -75,11 +78,19 @@ Capability_space::create_rpc_obj_cap(Native_capability ep_cap,
 	/* allocate core-local selector for RPC object */
 	Cap_sel const rpc_obj_sel = platform_specific().core_sel_alloc().alloc();
 
+	if (!rpc_obj_key.valid())
+		Genode::raw("ui invalid cap A");
+
 	/* create Genode capability */
 	auto & data = local_capability_space().create_capability(rpc_obj_sel,
 	                                                         rpc_obj_key);
 
+	if (!rpc_obj_key.valid())
+		Genode::raw("ui invalid cap A done");
+
 	Cap_sel const ep_sel(local_capability_space().sel(*ep_cap.data()));
+
+	Genode::raw(__func__, " ", &data, " ", ep_sel.value());
 
 	/* mint endpoint capability into RPC object capability */
 	{
@@ -143,7 +154,11 @@ Native_capability Capability_space::create_ep_cap(Thread &ep_thread)
 			Cap_sel const ep_sel(nt.attr.ep_sel);
 
 			/* entrypoint capabilities are not allocated from a PD session */
+			Genode::raw("ui invalid cap B");
+
 			auto &data = local_capability_space().create_capability(ep_sel, Rpc_obj_key());
+//			auto &data = local_capability_space().create_capability(ep_sel, ep_sel.value());
+			Genode::raw("ui invalid cap B done ", &data);
 			return Native_capability(&data);
 		},
 		[&] { return Native_capability(); });
@@ -196,8 +211,15 @@ void Capability_space::reset_sel(unsigned sel)
 
 Native_capability Capability_space::import(Ipc_cap_data ipc_data)
 {
+	if (!ipc_data.rpc_obj_key.valid())
+		Genode::raw("ui invalid cap C");
 	auto &data = local_capability_space().create_capability(ipc_data.sel,
 	                                                        ipc_data.rpc_obj_key);
+
+	Genode::raw(__func__, " ", &data);
+
+	if (!ipc_data.rpc_obj_key.valid())
+		Genode::raw("ui invalid cap C done");
 
 	return Native_capability(&data);
 }
@@ -206,8 +228,10 @@ Native_capability Capability_space::import(Ipc_cap_data ipc_data)
 Native_capability
 Capability_space::create_notification_cap(Cap_sel &notify_cap)
 {
+	Genode::raw("ui invalid cap D");
 	auto &data = local_capability_space().create_capability(notify_cap,
 	                                                        Rpc_obj_key());
+	Genode::raw("ui invalid cap D done ", &data);
 
 	return Native_capability(&data);
 }

@@ -26,15 +26,24 @@ void Genode::init_parent_resource_requests(Genode::Env &env)
 
 Platform &Genode::init_platform()
 {
+	raw(__func__, " ", __LINE__);
 	static Genode::Platform platform;
 
+	raw(__func__, " ", __LINE__);
 	init_log(platform.parent);
+	raw(__func__, " ", __LINE__);
 	init_rpc_cap_alloc(platform.parent);
+	raw(__func__, " ", __LINE__);
 	init_cap_slab(platform.pd, platform.parent);
+	raw(__func__, " ", __LINE__);
 	init_thread(platform.cpu, platform.local_rm);
+	raw(__func__, " ", __LINE__);
 	init_thread_start(platform.pd.rpc_cap());
+	raw(__func__, " ", __LINE__);
 	init_thread_bootstrap(platform.cpu, platform.parent.main_thread_cap());
+	raw(__func__, " ", __LINE__);
 	init_signal_receiver(platform.pd, platform.parent);
+	error(__func__, " ", __LINE__);
 
 	return platform;
 }

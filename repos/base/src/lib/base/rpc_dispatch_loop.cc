@@ -47,7 +47,9 @@ Untyped_capability Rpc_entrypoint::_manage(Rpc_object_base *obj)
 void Rpc_entrypoint::entry()
 {
 	Ipc_server srv;
+	raw(__func__, " ", __LINE__, " ", _cap.data(), " ", _cap.valid(), " ", _cap.local_name());
 	_cap = srv;
+	raw(__func__, " ", __LINE__, " ", _cap.data(), " ", _cap.valid(), " ", _cap.local_name());
 	_cap_valid.wakeup();
 
 	Rpc_exception_code exc = Rpc_exception_code(Rpc_exception_code::INVALID_OBJECT);
