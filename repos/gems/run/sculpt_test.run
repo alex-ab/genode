@@ -4,7 +4,7 @@ source ${genode_dir}/repos/gems/run/sculpt.run
 
 # enable Qemu networking, usable via the nic driver
 append_qemu_nic_args
-append qemu_args " -m 1024 "
+append qemu_args " -m 4096 "
 
 # attach small SATA disk to Qemu to experiment with file-system access
 set disk_image "bin/sculpt-ahci.raw"
@@ -27,5 +27,7 @@ if {$use_nvme} {
 	append qemu_args " -drive id=nvme0,file=$disk_image,format=raw,if=none "
 	append qemu_args " -device nvme,drive=nvme0,serial=NVMe_666,id=nvme0n1 "
 }
+
+append qemu_args " -accel kvm -cpu host"
 
 run_genode_until forever
