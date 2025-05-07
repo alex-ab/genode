@@ -62,6 +62,7 @@ class Core::Static_allocator : public Allocator
 			try {
 				return { *this, { &_elements[_used.alloc()], size } }; }
 			catch (typename Bit_allocator<MAX>::Out_of_indices) {
+				error("core page table allocation failed");
 				return Alloc_error::DENIED; }
 		}
 
@@ -175,6 +176,7 @@ class Core::Platform : public Platform_generic
 				try {
 					return Cap_sel((uint32_t)Core_sel_bit_alloc::alloc()); }
 				catch (Bit_allocator::Out_of_indices) {
+					raw("core selector allocator out of indices");
 					throw Alloc_failed(); }
 			}
 
