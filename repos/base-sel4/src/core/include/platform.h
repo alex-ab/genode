@@ -195,7 +195,7 @@ class Core::Platform : public Platform_generic
 		void       _switch_to_core_cspace();
 		bool const _switch_to_core_cspace_done;
 
-		Static_allocator<sizeof(void *) * 6> _core_page_table_registry_alloc { };
+		Static_allocator<sizeof(void *) * 12> _core_page_table_registry_alloc { };
 		Page_table_registry _core_page_table_registry;
 
 		/**
