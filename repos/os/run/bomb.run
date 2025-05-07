@@ -58,6 +58,6 @@ install_config {
 
 build_boot_image [build_artifacts]
 
-append qemu_args " -accel kvm -cpu host"
+#append qemu_args " -accel kvm -cpu host"
 
 run_genode_until {.*Done\. Going to sleep.*} $timeout

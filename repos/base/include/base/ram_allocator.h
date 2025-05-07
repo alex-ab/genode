@@ -86,6 +86,7 @@ namespace Genode {
 		case Ram::Error::OUT_OF_CAPS: throw Out_of_caps();
 		case Ram::Error::DENIED:      break;
 		}
+		raw(__func__);
 		throw Denied();
 	}
 }

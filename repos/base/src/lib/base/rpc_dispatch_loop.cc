@@ -73,6 +73,7 @@ void Rpc_entrypoint::entry()
 			});
 		} catch (...) {
 			error("uncatched exception in Rpc_entrypoint");
+			throw;
 		}
 	}
 
