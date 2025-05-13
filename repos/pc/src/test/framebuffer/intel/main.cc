@@ -45,7 +45,7 @@ struct Framebuffer_controller
 	Signal_handler<Framebuffer_controller> _timer_handler {
 		_env.ep(), *this, &Framebuffer_controller::_handle_timer };
 
-	void _update_connector_config(Xml_generator & xml, Xml_node & node);
+	void _update_connector_config(Xml_generator &, Xml_node const &);
 	void _update_fb_config(Xml_node const &report);
 	void _handle_connectors();
 	void _handle_timer();
@@ -64,7 +64,7 @@ struct Framebuffer_controller
 
 
 void Framebuffer_controller::_update_connector_config(Xml_generator & xml,
-                                                      Xml_node & node)
+                                                      Xml_node const & node)
 {
 	xml.node("connector", [&] {
 
@@ -100,7 +100,7 @@ void Framebuffer_controller::_update_connector_config(Xml_generator & xml,
 void Framebuffer_controller::_update_fb_config(Xml_node const &report)
 {
 	try {
-		static char buf[4096];
+		static char buf[2*4096];
 
 		Xml_generator xml(buf, sizeof(buf), "config", [&] {
 			xml.attribute("apply_on_hotplug", "no");
@@ -108,8 +108,20 @@ void Framebuffer_controller::_update_fb_config(Xml_node const &report)
 				xml.attribute("connectors", "yes");
 			});
 
-			report.for_each_sub_node("connector", [&] (Xml_node &node) {
-			                         _update_connector_config(xml, node); });
+			report.for_each_sub_node("merge", [&] (auto const & node) {
+				error("connector merge !");
+				xml.node("merge", [&] {
+
+					xml.attribute("name", node.attribute_value("name", String<64>()));
+
+					node.for_each_sub_node("connector", [&] (auto const & node) {
+						_update_connector_config(xml, node);
+					});
+				});
+			});
+
+			report.for_each_sub_node("connector", [&] (auto const & node) {
+				_update_connector_config(xml, node); });
 		});
 		buf[xml.used()] = 0;
 
