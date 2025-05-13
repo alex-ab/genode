@@ -19,7 +19,7 @@ create_boot_directory
 set use_usb 1
 set use_gpu 1
 set use_top 0
-set use_fb_controller 0
+set use_fb_controller 1
 if {$use_fb_controller} {
 	set apply_on_hotplug "no"
 } else {

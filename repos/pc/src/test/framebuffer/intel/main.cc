@@ -37,7 +37,7 @@ struct Framebuffer_controller
 	Attached_rom_dataspace _config { _env, "config" };
 
 	uint64_t const _period_ms =
-		_config.xml().attribute_value("artifical_update_ms", (uint64_t)0);
+		_config.xml().attribute_value("artifical_update_ms", (uint64_t)10000);
 
 	Root_directory _root_dir { _env, _heap, _config.xml().sub_node("vfs") };
 
@@ -86,6 +86,13 @@ void Framebuffer_controller::_update_connector_config(Xml_generator & xml,
 					hz = z;
 			}
 		});
+
+		static unsigned cnt = 0;
+
+		if (cnt++ > 3) {
+			width  = 1920;
+			height = 1080;
+		}
 
 		if (width && height) {
 			xml.attribute("width", width);
@@ -141,7 +148,7 @@ void Framebuffer_controller::_handle_connectors()
 {
 	_connectors.update();
 
-	_update_fb_config(_connectors.xml());
+//	_update_fb_config(_connectors.xml());
 }
 
 
