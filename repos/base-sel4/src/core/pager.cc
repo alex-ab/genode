@@ -235,7 +235,6 @@ void Pager_entrypoint::entry()
 		});
 	} catch (...) {
 		error("uncatched exception in Pager_entrypoint");
-		throw;
 	}
 	}
 }

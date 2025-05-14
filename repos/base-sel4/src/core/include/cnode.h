@@ -158,25 +158,9 @@ class Core::Cnode : public Cnode_base, Noncopyable
 		:
 			Cnode_base(dst_idx, size_log2)
 		{
-			bool verbose = false;
-
-			if (verbose)
-				error(__func__, ":", __LINE__);
-
 			_phys = Untyped_memory::alloc_page(phys_alloc);
-
-			if (verbose)
-				error(__func__, ":", __LINE__);
-
 			seL4_Untyped const service = Untyped_memory::untyped_sel(_phys).value();
-
-			if (verbose)
-				error(__func__, ":", __LINE__);
-
 			create<Cnode_kobj>(service, parent_sel, dst_idx, size_log2);
-
-			if (verbose)
-				error(__func__, ":", __LINE__);
 		}
 
 		/**
