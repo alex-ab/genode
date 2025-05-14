@@ -1,3 +1,14 @@
+--- a/src/virtualbox6/src/libs/openssl-3.3.2/crypto/dso/dso_dlfcn.c
++++ b/src/virtualbox6/src/libs/openssl-3.3.2/crypto/dso/dso_dlfcn.c
+@@ -244,6 +244,8 @@
+     return merged;
+ }
+ 
++#define DSO_EXTENSION ".so"
++
+ static char *dlfcn_name_converter(DSO *dso, const char *filename)
+ {
+     char *translated;
 --- a/src/virtualbox6/include/iprt/types.h
 +++ b/src/virtualbox6/include/iprt/types.h
 @@ -275,10 +275,10 @@
@@ -13,3 +24,25 @@
  # endif
  #endif
  
+--- a/src/virtualbox6/src/libs/openssl-3.3.2/crypto/thread/arch/thread_posix.c
++++ b/src/virtualbox6/src/libs/openssl-3.3.2/crypto/thread/arch/thread_posix.c
+@@ -15,6 +15,8 @@
+ # include <sys/types.h>
+ # include <unistd.h>
+ 
++# include <pthread.h>
++
+ static void *thread_start_thunk(void *vthread)
+ {
+     CRYPTO_THREAD *thread;
+--- a/src/virtualbox6/src/libs/openssl-3.3.2/crypto/info.c
++++ b/src/virtualbox6/src/libs/openssl-3.3.2/crypto/info.c
+@@ -13,7 +13,7 @@
+ #include "internal/thread_once.h"
+ #include "internal/cryptlib.h"
+ #include "internal/e_os.h"
+-#include "buildinf.h"
++//#include "buildinf.h"
+ 
+ #if defined(__arm__) || defined(__arm) || defined(__aarch64__)
+ # include "arm_arch.h"
