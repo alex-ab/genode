@@ -18,3 +18,4 @@ stack_size.patch
 avx.patch
 rdrand.patch
 mousebuttons.patch
+tpm.patch

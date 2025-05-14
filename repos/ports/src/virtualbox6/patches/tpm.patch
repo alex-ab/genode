@@ -1,0 +1,15 @@
+--- a/src/virtualbox6/include/iprt/types.h
++++ b/src/virtualbox6/include/iprt/types.h
+@@ -275,10 +275,10 @@
+ #  endif
+ # endif
+ # ifndef true
+-#  define true  (1)
++#  define true  1
+ # endif
+ # ifndef false
+-#  define false (0)
++#  define false 0
+ # endif
+ #endif
+ 
