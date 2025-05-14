@@ -19,3 +19,4 @@ avx.patch
 rdrand.patch
 mousebuttons.patch
 display.patch
+tpm.patch

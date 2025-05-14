@@ -1,9 +1,12 @@
 LICENSE         := GPLv2
 VERSION         := 6.1.44
-DOWNLOADS       := virtualbox.archive virtualbox_sdk.archive
+DOWNLOADS       := virtualbox.archive virtualbox_sdk.archive vbox7_tpm.archive
 
 VIRTUALBOX_TBZ2    := VirtualBox-$(VERSION)a.tar.bz2
 VIRTUALBOX_SDK_ZIP := VirtualBoxSDK-$(VERSION)-156814.zip
+
+VBOX7_TPM_VERSION  := 7.1.8
+VBOX7_TPM_TBZ2     := VirtualBox-$(VBOX7_TPM_VERSION).tar.bz2
 
 URL(virtualbox) := http://download.virtualbox.org/virtualbox/$(VERSION)/$(VIRTUALBOX_TBZ2)
 DIR(virtualbox) := src/virtualbox6
@@ -12,6 +15,10 @@ SHA(virtualbox) := 27dbf9c2a2183772d91e41d35d41cd7fa9e918c3fe0a2257c336b19a874f2
 URL(virtualbox_sdk) := http://download.virtualbox.org/virtualbox/$(VERSION)/$(VIRTUALBOX_SDK_ZIP)
 DIR(virtualbox_sdk) := src/virtualbox6_sdk
 SHA(virtualbox_sdk) := 88a575326789c9c3e1880ed5b1cd32e9604e45a60b3b08a05491bdeff5be3e8d
+
+URL(vbox7_tpm) := http://download.virtualbox.org/virtualbox/$(VBOX7_TPM_VERSION)/$(VBOX7_TPM_TBZ2)
+DIR(vbox7_tpm) := src/virtualbox6
+SHA(vbox7_tpm) := 3f7132c55ac6c5f50585bfaa115d29e30b47ccf535cb0a12ff50214ddae2f63d
 
 PATCHES_DIR := src/virtualbox6/patches
 PATCHES     := $(addprefix $(PATCHES_DIR)/, $(shell cat $(REP_DIR)/$(PATCHES_DIR)/series))
@@ -145,10 +152,15 @@ VBOX_CONTENT += src/libs/xpcom18a4
 VBOX_CONTENT += include/VBox/vmm include/iprt Version.kmk
 VBOX_CONTENT += COPYING
 
+VBOX7_CONTENT := src/libs/libtpms-0.9.6 src/libs/openssl-3.3.2
 
 TAR_OPT(virtualbox) := \
 	--strip-components 1 \
 	$(addprefix $(VIRTUALBOX_TBZ2:a.tar.bz2=)/,$(VBOX_CONTENT))
+
+TAR_OPT(vbox7_tpm) := \
+	--strip-components 1 \
+	$(addprefix $(VBOX7_TPM_TBZ2:.tar.bz2=)/,$(VBOX7_CONTENT))
 
 UNZIP_OPT(virtualbox_sdk) := $(VIRTUALBOX_SDK_ZIP) "sdk/bindings/xpcom/include*" \#
 

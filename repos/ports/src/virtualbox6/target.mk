@@ -36,6 +36,7 @@ LIBS += virtualbox6-storage
 LIBS += virtualbox6-runtime
 LIBS += virtualbox6-apiwrap
 LIBS += virtualbox6-client
+LIBS += virtualbox6-tpm
 
 INC_DIR += $(call select_from_repositories,src/lib/libc)
 INC_DIR += $(call select_from_repositories,src/lib/libc)/spec/x86_64
