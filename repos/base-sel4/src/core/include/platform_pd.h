@@ -20,6 +20,7 @@
 /* core includes */
 #include <platform_thread.h>
 #include <address_space.h>
+#include <core_cspace.h>
 #include <vm_space.h>
 
 /* base-internal includes */
@@ -39,6 +40,8 @@ class Core::Platform_pd : public Address_space
 		{
 			Sel_alloc() { _reserve(0, INITIAL_SEL_END); }
 		};
+
+		typedef Bit_allocator<1u << Core_cspace::NUM_TOP_SEL_LOG2> Pd_id_allocator;
 
 	private:
 
@@ -129,7 +132,7 @@ class Core::Platform_pd : public Address_space
 
 		bool install_mapping(Mapping const &mapping, const char * thread_name);
 
-		static Bit_allocator<1024> &pd_id_alloc();
+		static Pd_id_allocator & pd_id_alloc();
 };
 
 #endif /* _CORE__INCLUDE__PLATFORM_PD_H_ */
