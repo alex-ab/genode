@@ -81,7 +81,7 @@
 				</route>
 			</start>
 
-			<start name="nitpicker" caps="200" ram="14M" priority="-1">
+			<start name="nitpicker" caps="300" ram="14M" priority="-1">
 				<resource name="CPU" quantum="40"/>
 				<provides>
 					<service name="Gui"/> <service name="Capture"/> <service name="Event"/>

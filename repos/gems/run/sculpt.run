@@ -609,7 +609,7 @@ install_config {
 		</route>
 	</start>
 
-	<start name="leitzentrale" caps="2700" ram="205M" priority="-1">
+	<start name="leitzentrale" caps="2800" ram="205M" priority="-1">
 		<binary name="init"/>
 		<resource name="CPU" quantum="10"/>
 		<affinity xpos="1" width="1"/> <!-- decouple leitzentrale from boot CPU -->
