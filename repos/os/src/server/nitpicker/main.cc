@@ -252,6 +252,8 @@ class Nitpicker::Capture_root : public Root_component<Capture_session>
 			 */
 			_fallback_bounding_box = session->bounding_box();
 
+			error(__func__, " ", session->label());
+
 			Genode::destroy(md_alloc(), session);
 
 			_action.capture_client_appeared_or_disappeared();
@@ -717,6 +719,8 @@ struct Nitpicker::Main : Focus_updater, Hover_updater,
 		new_bb = Rect::compound(new_bb, _capture_root.bounding_box());
 
 		bool const size_changed = (new_bb != _view_stack.bounding_box());
+
+		error(__func__, " ", size_changed ? " size changed" : " size did not change", " ", new_bb);
 
 		if (size_changed) {
 			_view_stack.bounding_box(new_bb);
