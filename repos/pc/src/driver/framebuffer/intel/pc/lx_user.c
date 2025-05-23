@@ -34,7 +34,7 @@ enum { CAPTURE_RATE_MS =  10, ATTEMPTS_BEFORE_STOP = 7 };
 static struct task_struct      * lx_update_task = NULL;
 static struct drm_client_dev   * dev_client     = NULL;
 
-static bool const verbose = false;
+static bool const verbose = true;
 
 static struct state {
 	struct drm_mode_create_dumb  fb_dumb;
@@ -516,10 +516,11 @@ static void handle_mirror(struct drm_client_dev   * const dev,
 		}
 
 		if (verbose) {
-			printk("mirror: compound %ux%u force=%ux%u fb=%ux%u\n",
+			printk("mirror: compound %ux%u force=%ux%u fb=%ux%u - resized=%s\n",
 			       mirror_compound.hdisplay, mirror_compound.vdisplay,
 			       mirror_force.hdisplay,    mirror_force.vdisplay,
-			       mirror->mode.hdisplay,       mirror->mode.vdisplay);
+			       mirror->mode.hdisplay,    mirror->mode.vdisplay,
+			       resized ? "yes" : "no");
 		}
 
 		/* if mirrored fb changed, drop reference and get new framebuffer */
