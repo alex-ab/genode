@@ -956,6 +956,7 @@ void lx_emul_i915_iterate_modes(void * lx_data, void * genode_data)
 			continue;
 
 		/* skip consecutive similar modes */
+#if 0
 		if (prev_mode) {
 			static_assert(sizeof(mode->name) == DRM_DISPLAY_MODE_LEN);
 			skip = (mode->hdisplay == prev_mode->hdisplay) &&
@@ -963,6 +964,7 @@ void lx_emul_i915_iterate_modes(void * lx_data, void * genode_data)
 			       (drm_mode_vrefresh(mode) == drm_mode_vrefresh(prev_mode)) &&
 			       !strncmp(mode->name, prev_mode->name, DRM_DISPLAY_MODE_LEN);
 		}
+#endif
 
 		prev_mode = mode;
 
