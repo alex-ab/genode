@@ -62,8 +62,7 @@ static int check_resize_fb(struct drm_client_dev       * const dev,
                            struct drm_mode_fb_cmd2     * const dumb_fb,
                            bool                        * const resized,
                            unsigned                      const width,
-                           unsigned                      const height,
-                           bool                          const force_resize);
+                           unsigned                      const height);
 
 
 static inline bool mode_larger(struct drm_display_mode const * const x,
@@ -507,8 +506,7 @@ static void handle_mirror(struct drm_client_dev   * const dev,
 		                                 mirror_fb_cmd,
 		                                &resized,
 		                                 mirror->mode.hdisplay,
-		                                 mirror->mode.vdisplay,
-		                                 true);
+		                                 mirror->mode.vdisplay);
 
 		if (err) {
 			printk("setting up mirrored framebuffer of %ux%u failed - error=%d\n",
@@ -658,7 +656,7 @@ static void reconfigure(struct drm_client_dev * const dev)
 		/* discrete case handling */
 
 		err = check_resize_fb(dev, &state->fb_dumb, &state->fb_cmd,
-		                      &resized, mode->hdisplay, mode->vdisplay, false);
+		                      &resized, mode->hdisplay, mode->vdisplay);
 		if (err) {
 			printk("setting up framebuffer of %ux%u failed - error=%d\n",
 			       mode->hdisplay, mode->vdisplay, err);
@@ -1285,8 +1283,7 @@ static int check_resize_fb(struct drm_client_dev       * const dev,
                            struct drm_mode_fb_cmd2     * const dumb_fb,
                            bool                        * const resized,
                            unsigned                      const width,
-                           unsigned                      const height,
-                           bool                          const force_resize)
+                           unsigned                      const height)
 {
 	int result = -EINVAL;
 
@@ -1297,10 +1294,9 @@ static int check_resize_fb(struct drm_client_dev       * const dev,
 	*resized = false;
 
 	/* if requested size is smaller, free up current dumb buffer */
-	if (force_resize ||
-	    (gem_dumb->width && gem_dumb->height &&
-	     (gem_dumb->width < width || gem_dumb->height < height)))
-	{
+	if (gem_dumb->width && gem_dumb->height &&
+	    (gem_dumb->width < width || gem_dumb->height < height)) {
+
 		destroy_fb(dev, gem_dumb, dumb_fb);
 
 		*resized = true;
