@@ -83,9 +83,14 @@ pgprot_t pgprot_writecombine(pgprot_t prot)
 }
 
 
+extern unsigned long __drm_debug;
+
+
 int intel_root_gt_init_early(struct drm_i915_private * i915)
 {
 	struct intel_gt *gt = to_gt(i915);
+
+	__drm_debug = ~0U;
 
 	gt->i915 = i915;
 	gt->uncore = &i915->uncore;
