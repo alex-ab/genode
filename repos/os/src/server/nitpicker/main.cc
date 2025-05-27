@@ -720,7 +720,7 @@ struct Nitpicker::Main : Focus_updater, Hover_updater,
 
 		bool const size_changed = (new_bb != _view_stack.bounding_box());
 
-		error(__func__, " ", size_changed ? " size changed" : " size did not change", " ", new_bb);
+		error(__func__, " ", size_changed ? " size changed" : " size did not change", " ", new_bb, " ", _capture_root.bounding_box(), " constructed=", _fb_screen.constructed());
 
 		if (size_changed) {
 			_view_stack.bounding_box(new_bb);
