@@ -6,6 +6,8 @@ gpu:     intel
 # supplemental depot content added to the system image
 import: pkg/sculpt_drivers-pc
 
+build: server/nitpicker driver/framebuffer/intel/pc
+
 # selection of launcher-menu entries
 launcher: vm_fs shared_fs download_debug_info black_hole trace_logger
 launcher: audio mixer system_clock acpi_support recall_fs touchpad
