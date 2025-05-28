@@ -37,7 +37,7 @@ if {[have_spec nova]} {
 # serial is not ever usable on hardware after resume, avoid hang by now
 if {![have_include "power_on/qemu"]} {
 	# switch off serial device usage by kernel and core
-	proc boot_output { } { return "" }
+#	proc boot_output { } { return "" }
 }
 
 
@@ -48,7 +48,8 @@ set use_gpu_client 1
 set use_gpe "no"
 set use_ahci 0
 set use_nvme 0
-set use_wifi 1
+set use_wifi 0
+set use_qt_clients 1
 
 proc priority_timer    { } { return {priority="0"} }
 proc priority_base     { } { return {priority="-1"} }
@@ -58,6 +59,52 @@ proc priority_wm       { } { return {priority="-2"} }
 proc priority_log      { } { return {priority="-2"} }
 proc priority_drivers  { } { return {priority="-2"} }
 proc priority_scenario { } { return {priority="-3"} }
+
+
+proc qt_clients { } {
+
+	set return_qt ""
+
+	append return_qt {
+	<start name="ram_fs" caps="200" } [priority_scenario] {>
+		<resource name="RAM" quantum="10M"/>
+		<binary name="vfs"/>
+		<provides><service name="File_system"/></provides>
+		<config>
+			<vfs> <ram/> </vfs>
+			<!-- constrain sessions according to their labels -->
+			<policy label_prefix="textedit" root="/" writeable="yes" />
+		</config>
+	</start>
+	<start name="textedit" caps="350" } [priority_scenario] {>
+		<resource name="RAM" quantum="128M"/>
+		<config>
+			<libc stdout="/dev/log" stderr="/dev/log" pipe="/pipe" rtc="/dev/rtc"/>
+			<vfs>
+				<dir name="dev">
+					<log/>
+					<inline name="rtc">2018-01-01 00:01</inline>
+				</dir>
+				<dir name="pipe"> <pipe/> </dir>
+				<dir name="fs">	<fs/> </dir>
+				<tar name="qt5_dejavusans.tar"/>
+				<tar name="qt5_libqgenode.tar"/>
+			</vfs>
+		</config>
+		<route>
+			<service name="File_system"> <child name="ram_fs"/> </service>
+			<service name="Gui"> <child name="wm"/> </service>
+			<service name="Report" label="shape"> <child name="wm"/> </service>
+			<service name="ROM" label="mesa_gpu.lib.so">
+				<parent label="mesa_gpu-softpipe.lib.so" />
+			</service>
+			<any-service> <parent /> <any-child/> </any-service>
+		</route>
+	</start>
+	}
+
+	return $return_qt
+}
 
 
 proc display_config { } {
@@ -83,13 +130,47 @@ proc display_config { } {
 	}
 
 	return {
+		<start name="intel_config_rom" caps="100">
+			<binary name="dynamic_rom"/>
+			<resource name="RAM" quantum="4M"/>
+			<provides><service name="ROM"/></provides>
+			<config verbose="yes">
+				<rom name="intel_config">
+					<inline description="discrete">
+						<config ld_verbose="yes" width="1024" height="768" system="yes">
+							<report connectors="yes"/>
+
+							<connector name="eDP-1" mode="1"/>
+							<connector name="HDMI-A-2" width="1920" height="1080"/>
+
+							<merge name="mirror">
+							</merge>
+						</config>
+					</inline>
+					<sleep milliseconds="15000"/>
+					<inline description="mirror">
+						<config ld_verbose="yes" width="1024" height="768" system="yes">
+							<report connectors="yes"/>
+
+							<merge name="mirror">
+								<connector name="eDP-1" mode="1"/>
+								<connector name="HDMI-A-2" width="1920" height="1080"/>
+							</merge>
+						</config>
+					</inline>
+					<sleep milliseconds="15000"/>
+				</rom>
+			</config>
+			<route> <any-service> <parent/> </any-service> </route>
+		</start>
+
 		<start name="intel_fb" caps="1000">
 			<binary name="pc_intel_fb"/>
-			<resource name="RAM" quantum="60M"/>
-			<config ld_verbose="yes" width="1024" height="768" system="yes">
-				<report connectors="yes"/>
-			</config>
+			<resource name="RAM" quantum="128M"/>
 			<route>
+				<service name="ROM" label="config">
+					<child name="intel_config_rom" label="intel_config"/>
+				 </service>
 				<service name="ROM" label="system">
 					<parent label="system"/> </service>
 				<any-service> <parent/> </any-service>
@@ -148,8 +229,13 @@ proc gui_config { } {
 		<provides>
 			<service name="Gui"/> <service name="Capture"/> <service name="Event"/>
 		</provides>
-		<config>
-			<capture/> <event/>
+		<config panorama="yes">
+			<capture>
+				<policy label="drivers_init -> intel_fb -> eDP-1"/>
+				<policy label="drivers_init -> intel_fb -> HDMI-A-2" xpos="1920" ypos="0"/>
+				<default-policy/>
+			</capture>
+			<event/>
 			<report focus="yes" hover="yes" />
 			<domain name="pointer" layer="1" content="client" label="no" origin="pointer" />
 			<domain name="panel"   layer="2" content="client" label="no" focus="none" />
@@ -431,7 +517,7 @@ proc gpu_config { } {
 	append return_gpu {
 		<start name="gpu" caps="2000" } [priority_drivers] {>
 			<binary name="intel_gpu"/>
-			<resource name="RAM" quantum="40M"/>
+			<resource name="RAM" quantum="256M"/>
 			<provides>
 				<service name="Gpu"/>
 				<service name="Platform"/>
@@ -604,6 +690,11 @@ import_from_depot [depot_user]/src/init \
                   [depot_user]/src/nano3d \
                   [depot_user]/src/log_core
 
+if {$use_qt_clients} {
+	import_from_depot [depot_user]/pkg/qt5_textedit \
+	                  [depot_user]/src/vfs
+}
+
 if {$use_gpu_client} {
 	import_from_depot [depot_user]/pkg/glmark2
 }
@@ -709,12 +800,13 @@ append config {
 	} [  gui_config] {
 	} [  log_output] {
 	} [  gpu_client] {
+	} [  qt_clients] {
 	} [ ahci_config] {
 	} [ nvme_config] {
 
 		<start name="drivers_init" caps="10000" } [priority_drivers] {>
 			<binary name="init"/>
-			<resource name="RAM" quantum="128M"/>
+			<resource name="RAM" quantum="256M"/>
 			<route>
 				<service name="Report">
 					<child name="drivers_reports"/>
@@ -801,6 +893,7 @@ append config {
 					</inline>
 					<sleep milliseconds="10000"/>
 
+<!--
 					<inline description="disable display connectors">
 						<system state="blanking"/>
 					</inline>
@@ -810,7 +903,7 @@ append config {
 						<system state="driver_stop"/>
 					</inline>
 					<sleep milliseconds="4000"/>
-
+-->
 					<!--
 					     TODO: for a real OS scenario, e.g. Sculpt OS - you
 					     have now to wait until all devices are unused and
@@ -818,18 +911,18 @@ append config {
 					     report of the platform driver until it is in the
 					     right state !!!!!!!
 					-->
-
+<!--
 					<inline description="prepare suspending">
 						<system state="s3_prepare"/>
 					</inline>
 					<sleep milliseconds="10000"/>
-
+-->
 					<!--
 					     TODO: for a real OS scenario, e.g. Sculpt OS -
 					     waits until s3_prepare is done, e.g. evaluate the
 					     ACPICA sleep_state report!
 					-->
-
+<!--
 					<inline description="suspend system">
 						<system state="suspend"/>
 					</inline>
@@ -839,7 +932,7 @@ append config {
 						<system state="s3_resume"/>
 					</inline>
 					<sleep milliseconds="10000"/>
-
+-->
 				</rom>
 			</config>
 		</start>
