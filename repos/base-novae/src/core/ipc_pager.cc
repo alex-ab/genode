@@ -56,6 +56,18 @@ void Ipc_pager::set_reply_mapping(Mapping const &mapping)
 	/* asynchronously map memory */
 	_syscall_res = async_map(_pd_core, _pd_dst, nova_src_crd(mapping),
 	                         nova_dst_crd(mapping), mad);
+
+#if 0
+	error(__func__, " ", _syscall_res, " ",
+	      Hex(mapping.src_addr), " -> ", Hex(mapping.dst_addr),
+	      "+", Hex(1u << mapping.size_log2),
+	      mapping.cached         ? " cached"         : "",
+	      mapping.io_mem         ? " io_mem"         : "",
+	      mapping.dma_buffer     ? " dma"            : "",
+	      mapping.write_combined ? " write combined" : "",
+	      mapping.writeable      ? " writeable"      : "",
+	      mapping.executable     ? " executable"     : "");
+#endif
 }
 
 
