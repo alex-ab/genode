@@ -73,9 +73,17 @@ static void terminate_handler()
 void Genode::init_exception_handling(Ram_allocator                 &ram,
                                      Local::Constrained_region_map &rm)
 {
+	error(__func__, ":", __LINE__);
+
 	init_cxx_heap(ram, rm);
 
+	error(__func__, ":", __LINE__, " ", &__eh_frame_start__);
+#ifndef __x86_64__
+	return;
+#endif
 	__register_frame(__eh_frame_start__);
+
+	error(__func__, ":", __LINE__);
 
 	std::set_terminate(terminate_handler);
 
@@ -96,5 +104,9 @@ void Genode::init_exception_handling(Ram_allocator                 &ram,
 	 * an exception here, we mitigate this issue by eagerly performing those
 	 * allocations.
 	 */
+	error(__func__, ":", __LINE__);
+
 	try { throw 1; } catch (...) { }
+	error(__func__, ":", __LINE__);
+
 }
