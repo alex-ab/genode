@@ -153,6 +153,10 @@ VBOX_CONTENT += include/VBox/vmm include/iprt Version.kmk
 VBOX_CONTENT += COPYING
 
 VBOX7_CONTENT := src/libs/libtpms-0.9.6 src/libs/openssl-3.3.2
+VBOX7_CONTENT += src/VBox/Devices/Security
+VBOX7_CONTENT += include/VBox/vmm/pdmtpmifs.h
+VBOX7_CONTENT += include/iprt/formats/tpm.h
+VBOX7_CONTENT += src/VBox/Devices/PC/vbox-tpm.dsl
 
 TAR_OPT(virtualbox) := \
 	--strip-components 1 \

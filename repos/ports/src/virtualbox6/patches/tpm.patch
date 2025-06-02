@@ -46,3 +46,870 @@
  
  #if defined(__arm__) || defined(__arm) || defined(__aarch64__)
  # include "arm_arch.h"
+--- a/src/virtualbox6/include/VBox/log.h
++++ b/src/virtualbox6/include/VBox/log.h
+@@ -156,6 +156,8 @@
+     LOG_GROUP_DEV_SERIAL,
+     /** System Management Controller Device group. */
+     LOG_GROUP_DEV_SMC,
++    /** Trusted Platform Module Device group. */
++    LOG_GROUP_DEV_TPM,
+     /** VGA Device group. */
+     LOG_GROUP_DEV_VGA,
+     /** Virtio PCI Device group. */
+@@ -230,6 +230,8 @@
+     LOG_GROUP_DRV_SCSIHOST,
+     /** TCP socket stream driver group. */
+     LOG_GROUP_DRV_TCP,
++    /** Trusted Platform Module Emulation driver group. */
++    LOG_GROUP_DRV_TPM_EMU,
+     /** Async transport driver group */
+     LOG_GROUP_DRV_TRANSPORT_ASYNC,
+     /** TUN network transport driver group */
+@@ -812,6 +814,7 @@
+     "DEV_SB16", \
+     "DEV_SERIAL", \
+     "DEV_SMC", \
++    "DEV_TPM", \
+     "DEV_VGA", \
+     "DEV_VIRTIO", \
+     "DEV_VIRTIO_NET", \
+@@ -851,6 +853,7 @@
+     "DRV_SCSI", \
+     "DRV_SCSIHOST", \
+     "DRV_TCP", \
++    "DRV_TPM_EMU", \
+     "DRV_TRANSPORT_ASYNC", \
+     "DRV_TUN", \
+     "DRV_UDP", \
+--- a/src/virtualbox6/src/VBox/Devices/build/VBoxDD.h
++++ b/src/virtualbox6/src/VBox/Devices/build/VBoxDD.h
+@@ -105,6 +105,10 @@
+ #ifdef VBOX_WITH_VIRTUALKD
+ extern const PDMDEVREG g_DeviceVirtualKD;
+ #endif
++#ifdef VBOX_WITH_TPM
++extern const PDMDEVREG g_DeviceTpm;
++extern const PDMDEVREG g_DeviceTpmPpi;
++#endif
+ 
+ extern const PDMDRVREG g_DrvMouseQueue;
+ extern const PDMDRVREG g_DrvKeyboardQueue;
+@@ -198,6 +198,12 @@
+ #endif
+ 
+ extern const PDMDRVREG g_DrvIfTrace;
++#ifdef VBOX_WITH_TPM
++extern const PDMDRVREG g_DrvTpmEmu;
++# ifdef VBOX_WITH_LIBTPMS
++extern const PDMDRVREG g_DrvTpmEmuTpms;
++# endif
++#endif
+ 
+ /* VBoxAcpi.cpp */
+ int acpiPrepareDsdt(PPDMDEVINS pDevIns, void **ppvPtr, size_t *pcbDsdt);
+@@ -205,6 +211,11 @@
+ int acpiPrepareSsdt(PPDMDEVINS pDevIns, void **ppvPtr, size_t *pcbSsdt);
+ int acpiCleanupSsdt(PPDMDEVINS pDevIns, void *pvPtr);
+ 
++#ifdef VBOX_WITH_TPM
++int acpiPrepareTpmSsdt(PPDMDEVINS pDevIns, void **ppvPtr, size_t *pcbSsdt);
++int acpiCleanupTpmSsdt(PPDMDEVINS pDevIns, void *pvPtr);
++#endif
++
+ RT_C_DECLS_END
+ 
+ #endif /* !VBOX_INCLUDED_SRC_build_VBoxDD_h */
+--- a/src/virtualbox6/include/VBox/vmm/pdmcritsect.h
++++ b/src/virtualbox6/include/VBox/vmm/pdmcritsect.h
+@@ -98,6 +98,12 @@
+ # endif
+ #endif
+ 
++/** @def PDM_CRITSECT_RELEASE_ASSERT_RC_DEV
++ * Helper for PDMCritSectEnter w/ rcBusy VINF_SUCCESS when there is no way
++ * to forward failures to the caller, device edition. */
++#define PDM_CRITSECT_RELEASE_ASSERT_RC_DEV(a_pDevIns, a_pCritSect, a_rc) \
++    AssertReleaseMsg(RT_SUCCESS(a_rc), ("pDevIns=%p pCritSect=%p: %Rrc\n", (a_pDevIns), (a_pCritSect), (a_rc)))
++
+ /** @} */
+ 
+ RT_C_DECLS_END
++++ a/src/virtualbox6/include/VBox/vmm/pdmifs.h
++++ b/src/virtualbox6/include/VBox/vmm/pdmifs.h
+@@ -2223,6 +2223,119 @@
+ /** PDMIPCIRAWCONNECTOR interface ID. */
+ #define PDMIPCIRAWCONNECTOR_IID                 "14aa9c6c-8869-4782-9dfc-910071a6aebf"
+ 
++
++/** Pointer to a VFS connector interface. */
++typedef struct PDMIVFSCONNECTOR *PPDMIVFSCONNECTOR;
++/**
++ * VFS connector interface (up).
++ */
++typedef struct PDMIVFSCONNECTOR
++{
++    /**
++     * Queries the size of the given path.
++     *
++     * @returns VBox status code.
++     * @retval  VERR_NOT_FOUND if the path is not available.
++     * @param   pInterface          Pointer to this interface.
++     * @param   pszNamespace        The namespace for the path (usually driver/device name) or NULL for default namespace.
++     * @param   pszPath             The path to query the size for.
++     * @param   pcb                 Where to store the size of the path in bytes on success.
++     */
++    DECLR3CALLBACKMEMBER(int, pfnQuerySize, (PPDMIVFSCONNECTOR pInterface, const char *pszNamespace, const char *pszPath,
++                                             uint64_t *pcb));
++
++    /**
++     * Reads everything from the given path and stores the data into the supplied buffer.
++     *
++     * @returns VBox status code.
++     * @retval  VERR_NOT_FOUND if the path is not available.
++     * @retval  VERR_BUFFER_OVERFLOW if the supplied buffer is too small to read everything.
++     * @retval  VINF_BUFFER_UNDERFLOW if the supplied buffer is too large.
++     * @param   pInterface          Pointer to this interface.
++     * @param   pszNamespace        The namespace for the path (usually driver/device name) or NULL for default namespace.
++     * @param   pszPath             The path to read everything for.
++     * @param   pvBuf               Where to store the data.
++     * @param   cbRead              How much to read.
++     */
++    DECLR3CALLBACKMEMBER(int, pfnReadAll, (PPDMIVFSCONNECTOR pInterface, const char *pszNamespace, const char *pszPath,
++                                           void *pvBuf, size_t cbRead));
++
++    /**
++     * Writes the supplied data to the given path, overwriting any previously existing data.
++     *
++     * @returns VBox status code.
++     * @param   pInterface          Pointer to this interface.
++     * @param   pszNamespace        The namespace for the path (usually driver/device name) or NULL for default namespace.
++     * @param   pszPath             The path to write everything to.
++     * @param   pvBuf               The data to store.
++     * @param   cbWrite             How many bytes to write.
++     */
++    DECLR3CALLBACKMEMBER(int, pfnWriteAll, (PPDMIVFSCONNECTOR pInterface, const char *pszNamespace, const char *pszPath,
++                                            const void *pvBuf, size_t cbWrite));
++
++    /**
++     * Deletes the given path.
++     *
++     * @returns VBox status code.
++     * @retval  VERR_NOT_FOUND if the path is not available.
++     * @param   pszNamespace        The namespace for the path (usually driver/device name) or NULL for default namespace.
++     * @param   pszPath             The path to delete.
++     */
++    DECLR3CALLBACKMEMBER(int, pfnDelete, (PPDMIVFSCONNECTOR pInterface, const char *pszNamespace, const char *pszPath));
++
++    /** @todo Add standard open/read/write/close callbacks when the need arises. */
++
++} PDMIVFSCONNECTOR;
++/** PDMIVFSCONNECTOR interface ID. */
++#define PDMIVFSCONNECTOR_IID               "a1fc51e0-414a-4e78-8388-8053b9dc6521"
++
++
++/** Pointer to an GPIO port interface. */
++typedef struct PDMIGPIOPORT       *PPDMIGPIOPORT;
++/**
++ * Interface for GPIO ports (down).
++ * Pair with PDMIGPIOCONNECTORS.
++ */
++typedef struct PDMIGPIOPORT
++{
++
++    /**
++     * Changes the state of the indicated GPIO line to the given value.
++     *
++     * @returns VBox status code.
++     * @param   pInterface          Pointer to this interface.
++     * @param   idGpio              The GPIO line ID to change.
++     * @param   fVal                The value to change the GPIO line to.
++     */
++    DECLR3CALLBACKMEMBER(int, pfnGpioLineChange, (PPDMIGPIOPORT pInterface, uint32_t idGpio, bool fVal));
++
++    /**
++     * Returns whether the given GPIO line is configured as an input.
++     *
++     * @returns true if the line is configured as an input, false if output.
++     * @param   pInterface          Pointer to this interface.
++     * @param   idGpio              The GPIO line ID to check.
++     */
++    DECLR3CALLBACKMEMBER(bool, pfnGpioLineIsInput, (PPDMIGPIOPORT pInterface, uint32_t idGpio));
++
++} PDMIGPIOPORT;
++/** PDMIGPIOPORT interface ID. */
++#define PDMIGPIOPORT_IID                        "75e0017c-4cda-47a4-8160-f4cc436025c4"
++
++
++/** Pointer to an GPIO connectors interface. */
++typedef struct PDMIGPIOCONNECTOR *PPDMIGPIOCONNECTOR;
++/**
++ * GPIO connector interface (up).
++ * Pair with PDMIGPIOPORT.
++ */
++typedef struct PDMIGPIOCONNECTOR
++{
++    uint32_t uDummy;
++} PDMIGPIOCONNECTOR;
++/** PDMIGPIOCONNECTOR interface ID. */
++#define PDMIGPIOCONNECTOR_IID                   "504bff7e-489f-4829-8cc3-f9b080d39133"
++
+ /** @} */
+ 
+ RT_C_DECLS_END
+--- a/src/virtualbox6/src/VBox/Devices/PC/ACPI/VBoxAcpi.cpp
++++ b/src/virtualbox6/src/VBox/Devices/PC/ACPI/VBoxAcpi.cpp
+@@ -44,6 +44,9 @@
+ # include <vboxaml.hex>
+ # include <vboxssdt_standard.hex>
+ # include <vboxssdt_cpuhotplug.hex>
++# ifdef VBOX_WITH_TPM
++#  include <vboxssdt_tpm.hex>
++# endif
+ #endif
+ 
+ #include "VBoxDD.h"
+@@ -464,3 +467,39 @@
+     return VINF_SUCCESS;
+ }
+ 
++#ifdef VBOX_WITH_TPM
++/** No docs, lazy coder. */
++int acpiPrepareTpmSsdt(PPDMDEVINS pDevIns, void **ppvPtr, size_t *pcbSsdt)
++{
++    uint8_t *pabAmlCodeSsdt = NULL;
++    size_t   cbAmlCodeSsdt = 0;
++    int rc = acpiAmlLoadExternal(pDevIns, "SsdtTpmFilePath", "SSDT", &pabAmlCodeSsdt, &cbAmlCodeSsdt);
++    if (rc == VERR_CFGM_VALUE_NOT_FOUND)
++    {
++        rc = VINF_SUCCESS;
++        cbAmlCodeSsdt  = sizeof(AmlCodeSsdtTpm);
++        pabAmlCodeSsdt = (uint8_t *)RTMemDup(AmlCodeSsdtTpm, sizeof(AmlCodeSsdtTpm));
++        if (!pabAmlCodeSsdt)
++            rc = VERR_NO_MEMORY;
++    }
++    else if (RT_FAILURE(rc))
++        return PDMDEV_SET_ERROR(pDevIns, rc, N_("Configuration error: Failed to read \"SsdtFilePath\""));
++
++    if (RT_SUCCESS(rc))
++    {
++        *ppvPtr = pabAmlCodeSsdt;
++        *pcbSsdt = cbAmlCodeSsdt;
++    }
++    return rc;
++}
++
++/** No docs, lazy coder. */
++int acpiCleanupTpmSsdt(PPDMDEVINS pDevIns, void *pvPtr)
++{
++    RT_NOREF1(pDevIns);
++    if (pvPtr)
++        RTMemFree(pvPtr);
++    return VINF_SUCCESS;
++}
++#endif
++
+--- a/src/virtualbox6/src/VBox/Devices/PC/DevACPI.cpp
++++ b/src/virtualbox6/src/VBox/Devices/PC/DevACPI.cpp
+@@ -281,6 +281,20 @@
+ *   Structures and Typedefs                                                                                                      *
+ *********************************************************************************************************************************/
+ /**
++ * The TPM mode configured.
++ */
++typedef enum ACPITPMMODE
++{
++    ACPITPMMODE_INVALID = 0,
++    ACPITPMMODE_DISABLED,
++    ACPITPMMODE_TIS_1_2,
++    ACPITPMMODE_CRB_2_0,
++    ACPITPMMODE_FIFO_2_0,
++    ACPITPMMODE_32BIT_HACK = 0x7fffffff
++} ACPITPMMODE;
++
++
++/**
+  * The shared ACPI device state.
+  */
+ typedef struct ACPISTATE
+@@ -415,6 +429,16 @@
+     uint8_t             uParallel1Irq;
+     /** @} */
+ 
++#ifdef VBOX_WITH_TPM
++    /** @name TPM config bits
++     * @{ */
++    /** The ACPI TPM mode configured. */
++    ACPITPMMODE         enmTpmMode;
++    /** The MMIO register area base address. */
++    RTGCPHYS            GCPhysTpmMmio;
++    /** @} */
++#endif
++
+     /** Number of custom ACPI tables */
+     uint8_t             cCustTbls;
+     /** ACPI OEM ID */
+@@ -804,6 +828,83 @@
+ AssertCompileSize(ACPITBLCUST, 512);
+ 
+ 
++#ifdef VBOX_WITH_TPM
++/**
++ * TPM: The ACPI table for a TPM 2.0 device
++  * (from: https://trustedcomputinggroup.org/wp-content/uploads/TCG_ACPIGeneralSpec_v1p3_r8_pub.pdf).
++ */
++typedef struct ACPITBLTPM20
++{
++    /** The common ACPI table header. */
++    ACPITBLHEADER       Hdr;
++    /** The platform class. */
++    uint16_t            u16PlatCls;
++    /** Reserved. */
++    uint16_t            u16Rsvd0;
++    /** Address of the CRB control area or FIFO base address. */
++    uint64_t            u64BaseAddrCrbOrFifo;
++    /** The start method selector. */
++    uint32_t            u32StartMethod;
++    /** Following are start method specific parameters and optional LAML and LASA fields we don't implement right now. */
++    /** @todo */
++} ACPITBLTPM20;
++AssertCompileSize(ACPITBLTPM20, 52);
++
++/** Revision of the TPM2.0 ACPI table. */
++#define ACPI_TPM20_REVISION                 4
++/** The default MMIO base address of the TPM. */
++#define ACPI_TPM_MMIO_BASE_DEFAULT          0xfed40000
++
++
++/** @name Possible values for the ACPITBLTPM20::u16PlatCls member.
++ * @{ */
++/** Client platform. */
++#define ACPITBL_TPM20_PLAT_CLS_CLIENT       UINT16_C(0)
++/** Server platform. */
++#define ACPITBL_TPM20_PLAT_CLS_SERVER       UINT16_C(1)
++/** @} */
++
++
++/** @name Possible values for the ACPITBLTPM20::u32StartMethod member.
++ * @{ */
++/** MMIO interface (TIS1.2+Cancel). */
++#define ACPITBL_TPM20_START_METHOD_TIS12    UINT16_C(6)
++/** CRB interface. */
++#define ACPITBL_TPM20_START_METHOD_CRB      UINT16_C(7)
++/** @} */
++
++
++/**
++ * TPM: The ACPI table for a TPM 1.2 device
++  * (from: https://trustedcomputinggroup.org/wp-content/uploads/TCG_ACPIGeneralSpecification_v1.20_r8.pdf).
++ */
++typedef struct ACPITBLTCPA
++{
++    /** The common ACPI table header. */
++    ACPITBLHEADER       Hdr;
++    /** The platform class. */
++    uint16_t            u16PlatCls;
++    /** Log Area Minimum Length. */
++    uint32_t            u32Laml;
++    /** Log Area Start Address. */
++    uint64_t            u64Lasa;
++} ACPITBLTCPA;
++AssertCompileSize(ACPITBLTCPA, 50);
++
++/** Revision of the TPM1.2 ACPI table. */
++#define ACPI_TCPA_REVISION                  2
++/** LAML region size. */
++#define ACPI_TCPA_LAML_SZ                   _16K
++
++
++/** @name Possible values for the ACPITBLTCPA::u16PlatCls member.
++ * @{ */
++/** Client platform. */
++#define ACPI_TCPA_PLAT_CLS_CLIENT           UINT16_C(0)
++/** @} */
++#endif
++
++
+ #pragma pack()
+ 
+ 
+@@ -2703,6 +2804,16 @@
+     acpiR3PhysCopy(pDevIns, addr, pvSrc, uSsdtLen);
+ }
+ 
++#ifdef VBOX_WITH_TPM
++/**
++ * Plant the Secondary System Description Table (SSDT).
++ */
++static void acpiR3SetupTpmSsdt(PPDMDEVINS pDevIns, RTGCPHYS32 addr, void const *pvSrc, size_t uSsdtLen)
++{
++    acpiR3PhysCopy(pDevIns, addr, pvSrc, uSsdtLen);
++}
++#endif
++
+ /**
+  * Plant the Firmware ACPI Control Structure (FACS).
+  */
+@@ -3100,6 +3211,63 @@
+ }
+ 
+ 
++#ifdef VBOX_WITH_TPM
++/**
++ * Plant the TPM 2.0 ACPI descriptor.
++ */
++static void acpiR3SetupTpm(PPDMDEVINS pDevIns, PACPISTATE pThis, RTGCPHYS32 addr)
++{
++    if (pThis->enmTpmMode == ACPITPMMODE_TIS_1_2)
++    {
++        ACPITBLTCPA TcpaTbl;
++        RT_ZERO(TcpaTbl);
++
++        acpiR3PrepareHeader(pThis, &TcpaTbl.Hdr, "TCPA", sizeof(TcpaTbl), ACPI_TCPA_REVISION);
++
++        TcpaTbl.u16PlatCls = ACPI_TCPA_PLAT_CLS_CLIENT;
++        TcpaTbl.u32Laml    = ACPI_TCPA_LAML_SZ;
++        TcpaTbl.u64Lasa    = addr + sizeof(TcpaTbl);
++
++        /* Finally, compute checksum. */
++        TcpaTbl.Hdr.u8Checksum = acpiR3Checksum(&TcpaTbl, sizeof(TcpaTbl));
++
++        /* Plant the ACPI table. */
++        acpiR3PhysCopy(pDevIns, addr, (const uint8_t *)&TcpaTbl, sizeof(TcpaTbl));
++    }
++    else
++    {
++        ACPITBLTPM20 Tpm2Tbl;
++        RT_ZERO(Tpm2Tbl);
++
++        acpiR3PrepareHeader(pThis, &Tpm2Tbl.Hdr, "TPM2", sizeof(ACPITBLTPM20), ACPI_TPM20_REVISION);
++
++        switch (pThis->enmTpmMode)
++        {
++            case ACPITPMMODE_CRB_2_0:
++                Tpm2Tbl.u32StartMethod       = ACPITBL_TPM20_START_METHOD_CRB;
++                Tpm2Tbl.u64BaseAddrCrbOrFifo = pThis->GCPhysTpmMmio;
++                break;
++            case ACPITPMMODE_FIFO_2_0:
++                Tpm2Tbl.u32StartMethod = ACPITBL_TPM20_START_METHOD_TIS12;
++                break;
++            case ACPITPMMODE_TIS_1_2: /* Handled above. */
++            case ACPITPMMODE_DISABLED: /* Should never be called with the TPM disabled. */
++            default:
++                AssertFailed();
++        }
++
++        Tpm2Tbl.u16PlatCls = ACPITBL_TPM20_PLAT_CLS_CLIENT;
++
++        /* Finally, compute checksum. */
++        Tpm2Tbl.Hdr.u8Checksum = acpiR3Checksum(&Tpm2Tbl, sizeof(Tpm2Tbl));
++
++        /* Plant the ACPI table. */
++        acpiR3PhysCopy(pDevIns, addr, (const uint8_t *)&Tpm2Tbl, sizeof(Tpm2Tbl));
++    }
++}
++#endif
++
++
+ /**
+  * Used by acpiR3PlantTables to plant a MMCONFIG PCI config space access (MCFG)
+  * descriptor.
+@@ -3199,16 +3367,29 @@
+     int        rc;
+     RTGCPHYS32 GCPhysCur, GCPhysRsdt, GCPhysXsdt, GCPhysFadtAcpi1, GCPhysFadtAcpi2, GCPhysFacs, GCPhysDsdt;
+     RTGCPHYS32 GCPhysHpet = 0;
++#ifdef VBOX_WITH_TPM
++    RTGCPHYS32 GCPhysTpm  = 0;
++    RTGCPHYS32 GCPhysSsdtTpm  = 0;
++#endif
+     RTGCPHYS32 GCPhysApic = 0;
+     RTGCPHYS32 GCPhysSsdt = 0;
+     RTGCPHYS32 GCPhysMcfg = 0;
+     RTGCPHYS32 aGCPhysCust[MAX_CUST_TABLES] = {0};
+     uint32_t   addend = 0;
++# ifdef VBOX_WITH_TPM
++    RTGCPHYS32 aGCPhysRsdt[9 + MAX_CUST_TABLES];
++    RTGCPHYS32 aGCPhysXsdt[9 + MAX_CUST_TABLES];
++# else
+     RTGCPHYS32 aGCPhysRsdt[7 + MAX_CUST_TABLES];
+     RTGCPHYS32 aGCPhysXsdt[7 + MAX_CUST_TABLES];
++# endif
+     uint32_t   cAddr;
+     uint32_t   iMadt  = 0;
+     uint32_t   iHpet  = 0;
++#ifdef VBOX_WITH_TPM
++    uint32_t   iTpm   = 0;
++    uint32_t   iSsdtTpm   = 0;
++#endif
+     uint32_t   iSsdt  = 0;
+     uint32_t   iMcfg  = 0;
+     uint32_t   iCust  = 0;
+@@ -3222,6 +3403,14 @@
+     if (pThis->fUseHpet)
+         iHpet = cAddr++;        /* HPET */
+ 
++#ifdef VBOX_WITH_TPM
++    if (pThis->enmTpmMode != ACPITPMMODE_DISABLED)
++    {
++        iTpm     = cAddr++;   /* TPM device */
++        iSsdtTpm = cAddr++;
++    }
++#endif
++
+     if (pThis->fUseMcfg)
+         iMcfg = cAddr++;        /* MCFG */
+ 
+@@ -3296,6 +3485,28 @@
+         GCPhysHpet = GCPhysCur;
+         GCPhysCur = RT_ALIGN_32(GCPhysCur + sizeof(ACPITBLHPET), 16);
+     }
++#ifdef VBOX_WITH_TPM
++    void  *pvSsdtTpmCode = NULL;
++    size_t cbSsdtTpm = 0;
++
++    if (pThis->enmTpmMode != ACPITPMMODE_DISABLED)
++    {
++        GCPhysTpm = GCPhysCur;
++
++        if (pThis->enmTpmMode == ACPITPMMODE_TIS_1_2)
++            GCPhysCur = RT_ALIGN_32(GCPhysCur + sizeof(ACPITBLTCPA) + ACPI_TCPA_LAML_SZ, 16);
++        else
++            GCPhysCur = RT_ALIGN_32(GCPhysCur + sizeof(ACPITBLTPM20), 16);
++
++        rc = acpiPrepareTpmSsdt(pDevIns, &pvSsdtTpmCode, &cbSsdtTpm);
++        if (RT_FAILURE(rc))
++            return rc;
++
++        GCPhysSsdtTpm = GCPhysCur;
++        GCPhysCur = RT_ALIGN_32(GCPhysCur + cbSsdtTpm, 16);
++    }
++#endif
++
+     if (pThis->fUseMcfg)
+     {
+         GCPhysMcfg = GCPhysCur;
+@@ -3368,6 +3579,20 @@
+         aGCPhysRsdt[iHpet] = GCPhysHpet + addend;
+         aGCPhysXsdt[iHpet] = GCPhysHpet + addend;
+     }
++#ifdef VBOX_WITH_TPM
++    if (pThis->enmTpmMode != ACPITPMMODE_DISABLED)
++    {
++        acpiR3SetupTpm(pDevIns, pThis, GCPhysTpm + addend);
++        aGCPhysRsdt[iTpm] = GCPhysTpm + addend;
++        aGCPhysXsdt[iTpm] = GCPhysTpm + addend;
++
++        acpiR3SetupTpmSsdt(pDevIns, GCPhysSsdtTpm + addend, pvSsdtTpmCode, cbSsdtTpm);
++        acpiCleanupTpmSsdt(pDevIns, pvSsdtTpmCode);
++        aGCPhysRsdt[iSsdtTpm] = GCPhysSsdtTpm + addend;
++        aGCPhysXsdt[iSsdtTpm] = GCPhysSsdtTpm + addend;
++    }
++#endif
++
+     if (pThis->fUseMcfg)
+     {
+         acpiR3SetupMcfg(pDevIns, pThis, GCPhysMcfg + addend);
+@@ -3724,6 +3949,13 @@
+                                   "|Parallel1IoPortBase"
+                                   "|Parallel0Irq"
+                                   "|Parallel1Irq"
++                                  "|IommuIntelEnabled"
++                                  "|IommuAmdEnabled"
++                                  "|IommuPciAddress"
++                                  "|SbIoApicPciAddress"
++                                  "|TpmMode"
++                                  "|TpmMmioAddress"
++                                  "|SsdtTpmFilePath"
+                                   , "");
+ 
+     /* query whether we are supposed to present an IOAPIC */
+@@ -3880,6 +4112,31 @@
+     if (RT_FAILURE(rc))
+         return PDMDEV_SET_ERROR(pDevIns, rc, N_("Configuration error: Failed to read \"Parallel1IoPortBase\""));
+ 
++#ifdef VBOX_WITH_TPM
++    char szTpmMode[64]; RT_ZERO(szTpmMode);
++
++    rc = pHlp->pfnCFGMQueryStringDef(pCfg, "TpmMode", &szTpmMode[0], RT_ELEMENTS(szTpmMode) - 1, "disabled");
++    if (RT_FAILURE(rc))
++        return PDMDEV_SET_ERROR(pDevIns, rc, N_("Configuration error: Failed to read \"TpmMode\""));
++
++    if (!RTStrICmp(szTpmMode, "disabled"))
++        pThis->enmTpmMode = ACPITPMMODE_DISABLED;
++    else if (!RTStrICmp(szTpmMode, "tis1.2"))
++        pThis->enmTpmMode = ACPITPMMODE_TIS_1_2;
++    else if (!RTStrICmp(szTpmMode, "crb2.0"))
++        pThis->enmTpmMode = ACPITPMMODE_CRB_2_0;
++    else if (!RTStrICmp(szTpmMode, "fifo2.0"))
++        pThis->enmTpmMode = ACPITPMMODE_FIFO_2_0;
++    else
++        return PDMDEV_SET_ERROR(pDevIns, VERR_INVALID_PARAMETER, N_("Configuration error: Value of \"TpmMode\" is not known"));
++
++    rc = pHlp->pfnCFGMQueryU64Def(pCfg, "TpmMmioAddress", (uint64_t *)&pThis->GCPhysTpmMmio, ACPI_TPM_MMIO_BASE_DEFAULT);
++    if (RT_FAILURE(rc))
++        return PDMDEV_SET_ERROR(pDevIns, rc, N_("Configuration error: Failed to read \"TpmMmioAddress\""));
++
++    RTLogPrintf("TPMMode %s %s\n", szTpmMode, pThis->enmTpmMode == ACPITPMMODE_FIFO_2_0 ? " active" : " unknown state");
++#endif
++
+     /* Try to attach the other CPUs */
+     for (unsigned i = 1; i < pThis->cCpus; i++)
+     {
+--- a/src/virtualbox6/src/VBox/Main/src-client/ConsoleImpl2.cpp
++++ b/src/virtualbox6/src/VBox/Main/src-client/ConsoleImpl2.cpp
+@@ -128,6 +128,10 @@
+ #endif
+ 
+ 
++/** The TPM PPI MMIO base default (compatible with qemu). */
++#define TPM_PPI_MMIO_BASE_DEFAULT UINT64_C(0xfed45000)
++
++
+ /*********************************************************************************************************************************
+ *   Internal Functions                                                                                                           *
+ *********************************************************************************************************************************/
+@@ -1673,6 +1677,68 @@
+                                     N_("Invalid graphics controller type '%d'"), enmGraphicsController);
+         }
+ 
++#if defined(VBOX_WITH_TPM)
++        /*
++         * Configure the Trusted Platform Module.
++         */
++#if defined(TPM_CONFIGURATION_UNFINISHED)
++        ComObjPtr<ITrustedPlatformModule> ptrTpm;
++        TpmType_T enmTpmType = TpmType_None;
++
++        hrc = pMachine->COMGETTER(TrustedPlatformModule)(ptrTpm.asOutParam());              H();
++        hrc = ptrTpm->COMGETTER(Type)(&enmTpmType);                                         H();
++        if (enmTpmType != TpmType_None)
++#endif
++        {
++            InsertConfigNode(pDevices, "tpm", &pDev);
++            InsertConfigNode(pDev,     "0", &pInst);
++            InsertConfigInteger(pInst, "Trusted", 1); /* boolean */
++            InsertConfigNode(pInst,    "Config", &pCfg);
++            InsertConfigNode(pInst,    "LUN#0", &pLunL0);
++
++#if defined(TPM_CONFIGURATION_UNFINISHED)
++            switch (enmTpmType)
++            {
++                case TpmType_v1_2:
++                case TpmType_v2_0:
++#endif
++                    InsertConfigString(pLunL0, "Driver",               "TpmEmuTpms");
++                    InsertConfigNode(pLunL0,   "Config", &pCfg);
++#if defined(TPM_CONFIGURATION_UNFINISHED)
++                    InsertConfigInteger(pCfg, "TpmVersion", enmTpmType == TpmType_v1_2 ? 1 : 2);
++#else
++                    InsertConfigInteger(pCfg, "TpmVersion", 2);
++#endif
++                    InsertConfigNode(pLunL0, "AttachedDriver", &pLunL1);
++                    InsertConfigString(pLunL1, "Driver", "NvramStore");
++#if defined(TPM_CONFIGURATION_UNFINISHED)
++                    break;
++                case TpmType_Host:
++#if defined(RT_OS_LINUX) || defined(RT_OS_WINDOWS)
++                    InsertConfigString(pLunL0, "Driver",               "TpmHost");
++                    InsertConfigNode(pLunL0,   "Config", &pCfg);
++#endif
++                    break;
++                case TpmType_Swtpm:
++                    hrc = ptrTpm->COMGETTER(Location)(bstr.asOutParam());                   H();
++                    InsertConfigString(pLunL0, "Driver",               "TpmEmu");
++                    InsertConfigNode(pLunL0,   "Config", &pCfg);
++                    InsertConfigString(pCfg,   "Location", bstr);
++                    break;
++                default:
++                    AssertFailedBreak();
++            }
++#endif
++
++            /* Add the device for the physical presence interface. */
++            InsertConfigNode(   pDevices, "tpm-ppi",  &pDev);
++            InsertConfigNode(   pDev,     "0",        &pInst);
++            InsertConfigInteger(pInst,    "Trusted",  1); /* boolean */
++            InsertConfigNode(   pInst,    "Config",   &pCfg);
++            InsertConfigInteger(pCfg,     "MmioBase", TPM_PPI_MMIO_BASE_DEFAULT);
++        }
++#endif
++
+         /*
+          * Firmware.
+          */
+@@ -1861,6 +1927,17 @@
+                 InsertConfigInteger(pCfg, "DmiUseHostInfo", 1);
+                 InsertConfigInteger(pCfg, "DmiExposeMemoryTable", 1);
+             }
++
++#if defined(VBOX_WITH_TPM)
++#if defined(TPM_CONFIGURATION_UNFINISHED)
++            if (enmTpmType != TpmType_None)
++#endif
++                InsertConfigInteger(pCfg, "TpmPpiBase", TPM_PPI_MMIO_BASE_DEFAULT);
++#endif
++
++            /* Attach the NVRAM storage driver. */
++            InsertConfigNode(pInst,    "LUN#0",     &pLunL0);
++            InsertConfigString(pLunL0, "Driver",    "NvramStore");
+         }
+ 
+         /*
+@@ -3337,6 +3411,25 @@
+             InsertConfigInteger(pCfg,  "Parallel1IoPortBase", auParallelIoPortBase[1]);
+             InsertConfigInteger(pCfg,  "Parallel1Irq", auParallelIrq[1]);
+ 
++#if defined(VBOX_WITH_TPM)
++#if defined(TPM_CONFIGURATION_UNFINISHED)
++            switch (enmTpmType)
++            {
++                case TpmType_v1_2:
++                    InsertConfigString(pCfg, "TpmMode", "tis1.2");
++                    break;
++                case TpmType_v2_0:
++                    InsertConfigString(pCfg, "TpmMode", "fifo2.0");
++                    break;
++                /** @todo Host and swtpm. */
++                default:
++                    break;
++            }
++#else
++                    InsertConfigString(pCfg, "TpmMode", "fifo2.0");
++#endif
++#endif
++
+             InsertConfigNode(pInst,    "LUN#0", &pLunL0);
+             InsertConfigString(pLunL0, "Driver",               "ACPIHost");
+             InsertConfigNode(pLunL0,   "Config", &pCfg);
+--- a/src/virtualbox6/src/VBox/Devices/Security/DrvTpmEmuTpms.cpp
++++ b/src/virtualbox6/src/VBox/Devices/Security/DrvTpmEmuTpms.cpp
+@@ -233,6 +233,11 @@
+ {
+     PDRVTPMEMU pThis = g_pDrvTpmEmuTpms;
+ 
++    if (!pThis->pDrvVfs) {
++        RTLogPrintf("%s %s\n", __FILE__, __func__);
++        return TPM_FAIL;
++    }
++
+     AssertReturn(idTpm == 0, TPM_FAIL);
+ 
+     uint64_t cbState = 0;
+@@ -269,6 +274,11 @@
+ 
+     AssertReturn(idTpm == 0, TPM_FAIL);
+ 
++    if (!pThis->pDrvVfs) {
++        RTLogPrintf("%s %s\n", __FILE__, __func__);
++        return TPM_FAIL;
++    }
++
+     int rc = pThis->pDrvVfs->pfnWriteAll(pThis->pDrvVfs, pThis->pDrvIns->pReg->szName, pszName,
+                                          pvData, cbLength);
+     if (RT_SUCCESS(rc))
+@@ -284,6 +294,11 @@
+ 
+     AssertReturn(idTpm == 0, TPM_FAIL);
+ 
++    if (!pThis->pDrvVfs) {
++        RTLogPrintf("%s %s\n", __FILE__, __func__);
++        return TPM_FAIL;
++    }
++
+     int rc = pThis->pDrvVfs->pfnDelete(pThis->pDrvVfs, pThis->pDrvIns->pReg->szName, pszName);
+     if (   RT_SUCCESS(rc)
+         || (   rc == VERR_NOT_FOUND
+@@ -342,6 +357,12 @@
+     TPM_RESULT rcTpm = TPMLIB_GetState(TPMLIB_STATE_VOLATILE, &pbTpmState, &cbTpmState);
+     if (rcTpm == TPM_SUCCESS)
+     {
++
++        if (!pThis->pDrvVfs) {
++            RTLogPrintf("%s %s\n", __FILE__, __func__);
++            rc = VERR_NO_MEMORY;
++        }
++
+         /* Save the volatile state in the VFS so it can get loaded on resume. */
+         rc = pThis->pDrvVfs->pfnWriteAll(pThis->pDrvVfs, pThis->pDrvIns->pReg->szName, TPM_VOLATILESTATE_NAME,
+                                          pbTpmState, cbTpmState);
+@@ -385,6 +406,11 @@
+         PDMDrvHlpVMSetError(pDrvIns, VERR_INVALID_PARAMETER, RT_SRC_POS, "Failed to startup the TPM with %u", rcTpm);
+     }
+ 
++    if (!pThis->pDrvVfs) {
++        RTLogPrintf("%s %s\n", __FILE__, __func__);
++        return VERR_DEV_IO_ERROR;
++    }
++
+     /*
+      * Need to delete the volatile state after loading was done or it will still be present
+      * next time the VM is powered on without a saved state.
+@@ -494,6 +520,7 @@
+     /*
+      * Try attach the VFS driver below and query it's VFS interface.
+      */
++#if 0
+     PPDMIBASE pBase = NULL;
+     int rc = PDMDrvHlpAttach(pDrvIns, fFlags, &pBase);
+     if (RT_FAILURE(rc))
+@@ -503,10 +530,18 @@
+     if (!pThis->pDrvVfs)
+         return PDMDRV_SET_ERROR(pDrvIns, VERR_PDM_MISSING_INTERFACE_BELOW,
+                                 N_("No VFS interface below"));
++#else
++    RTLogPrintf("%s %s - VFS for store/load NVRAM is missing\n", __FILE__, __func__);
++    int rc = 0;
++#endif
+ 
+     TPMLIB_TPMVersion enmVersion = TPMLIB_TPM_VERSION_2;
+     uint32_t uTpmVersion = 0;
++#if 0
+     rc = pHlp->pfnCFGMQueryU32Def(pCfg, "TpmVersion", &uTpmVersion, 2);
++#else
++    uTpmVersion = 2;
++#endif
+     if (RT_FAILURE(rc))
+         return PDMDrvHlpVMSetError(pDrvIns, rc, RT_SRC_POS,
+                                    N_("Configuration error: querying \"TpmVersion\" resulted in %Rrc"), rc);
+@@ -537,10 +572,15 @@
+         return PDMDrvHlpVMSetError(pDrvIns, VERR_INVALID_PARAMETER, RT_SRC_POS,
+                                    N_("Querying the maximum supported buffer size failed with %u"), rcTpm);
+ 
++#if 0
+     rc = pHlp->pfnCFGMQueryU32Def(pCfg, "BufferSize", &pThis->cbBuffer, (uint32_t)cbBufferMax);
+     if (RT_FAILURE(rc))
+         return PDMDrvHlpVMSetError(pDrvIns, rc, RT_SRC_POS,
+                                    N_("Configuration error: querying \"BufferSize\" resulted in %Rrc"), rc);
++#endif
++
++    pThis->cbBuffer = 4096;
++    RTLogPrintf("%s set TPM buffer to %lu\n", __func__, pThis->cbBuffer);
+ 
+     /* Limit to the buffer size of the device above. */
+     pThis->cbBuffer = RT_MIN(pThis->cbBuffer, pThis->pTpmPort->pfnGetMaxBufferSize(pThis->pTpmPort));
+--- a/src/virtualbox6/src/libs/libtpms-0.9.6/src/tpm2/TpmFail.c
++++ b/src/virtualbox6/src/libs/libtpms-0.9.6/src/tpm2/TpmFail.c
+@@ -314,7 +314,8 @@
+ #endif
+     s_failCode = code;
+ 
+-    TPMLIB_LogTPM2Error("Entering failure mode; code: %d"
++    fprintf(stderr, "Entering failure mode; code: %d"
++//    TPMLIB_LogTPM2Error("Entering failure mode; code: %d"
+ #if FAIL_TRACE
+     ", location: %s line %d"
+ #endif
+--- a/src/virtualbox6/src/libs/libtpms-0.9.6/src/tpm_tpm2_interface.c
++++ b/src/virtualbox6/src/libs/libtpms-0.9.6/src/tpm_tpm2_interface.c
+@@ -156,6 +156,11 @@
+     if (ret == TPM_SUCCESS) {
+         if (g_inFailureMode)
+             ret = TPM_RC_FAILURE;
++        if (ret != TPM_SUCCESS) {
++            fprintf(stderr, "Evil hack mack - claim successful TPM start %s %s\n",
++                    __FILE__, __func__);
++            ret = TPM_SUCCESS;
++        }
+     }
+ 
+     if (ret == TPM_SUCCESS && has_cached_state) {

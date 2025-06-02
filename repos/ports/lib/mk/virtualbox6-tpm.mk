@@ -3,6 +3,7 @@ include $(REP_DIR)/lib/mk/virtualbox6-common.inc
 TPM_DIR  = $(VIRTUALBOX_DIR)/src/libs/libtpms-0.9.6
 
 INC_DIR += $(TPM_DIR)
+INC_DIR += $(TPM_DIR)/include
 INC_DIR += $(TPM_DIR)/include/libtpms
 INC_DIR += $(TPM_DIR)/src
 INC_DIR += $(TPM_DIR)/src/tpm2
@@ -18,6 +19,9 @@ SRC_C += $(addprefix tpm12/, $(filter-out tpm_crypto_freebl.c, $(notdir $(wildca
 SRC_C += $(addprefix tpm2/, $(notdir $(wildcard $(TPM_DIR)/src/tpm2/*.c)))
 SRC_C += $(addprefix tpm2/crypto/openssl/, $(notdir $(wildcard $(TPM_DIR)/src/tpm2/crypto/openssl/*.c)))
 
+SRC_CC += Devices/Security/DrvTpmEmu.cpp
+SRC_CC += Devices/Security/DrvTpmEmuTpms.cpp
+
 # see libtpms-0.9.6/Makefile.kmk
 VBOX_CC_OPT += -include tpm_library_conf.h
 VBOX_CC_OPT += -DTPM_PCCLIENT
@@ -32,4 +36,4 @@ VBOX_CC_OPT += -DTPM_POSIX
 
 vpath %.c $(TPM_DIR)/src
 
-#CC_CXX_WARN_STRICT =
+CC_CXX_WARN_STRICT =
