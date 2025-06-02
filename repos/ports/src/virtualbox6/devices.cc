@@ -65,5 +65,10 @@ extern "C" int VBoxDevicesRegister(PPDMDEVREGCB pCallbacks, uint32_t u32Version)
 
 	REGISTER(DeviceXHCI);
 
+#ifdef VBOX_WITH_TPM
+	REGISTER(DeviceTpm);
+	REGISTER(DeviceTpmPpi);
+#endif
+
 	return VINF_SUCCESS;
 }

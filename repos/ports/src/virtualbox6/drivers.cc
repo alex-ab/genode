@@ -52,6 +52,13 @@ extern "C" DECLEXPORT(int) VBoxDriversRegister(PCPDMDRVREGCB pCallbacks, uint32_
 	REGISTER(g_DrvHostSerial);
 	REGISTER(g_DrvIfTrace);
 
+#ifdef VBOX_WITH_TPM
+	REGISTER(g_DrvTpmEmu);
+#endif
+# ifdef VBOX_WITH_LIBTPMS
+	REGISTER(g_DrvTpmEmuTpms);
+# endif
+
 	REGISTER(Keyboard::DrvReg);
 	REGISTER(Mouse::DrvReg);
 	REGISTER(VMMDev::DrvReg);

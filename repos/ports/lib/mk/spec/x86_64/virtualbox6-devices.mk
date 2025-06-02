@@ -65,6 +65,8 @@ SRC_CC += Devices/PC/DevRTC.cpp
 SRC_CC += Devices/PC/DrvACPI.cpp
 SRC_CC += Devices/PC/DrvAcpiCpu.cpp
 SRC_CC += Devices/PC/DevLpc-new.cpp
+SRC_CC += Devices/Security/DevTpmPpi.cpp
+SRC_CC += Devices/Security/DevTpm.cpp
 SRC_CC += Devices/Serial/DevSerial.cpp
 SRC_CC += Devices/Serial/DrvChar.cpp
 SRC_CC += Devices/Serial/DrvHostSerial.cpp
@@ -134,7 +136,7 @@ vbetables-gen: Devices/Graphics/BIOS/vbetables-gen.c
 	$(MSG_BUILD)$@
 	$(VERBOSE)gcc $(VBOX_CC_OPT) $(addprefix -I,$(INC_DIR)) -o $@ $^
 
-Devices/PC/ACPI/VBoxAcpi.o: vboxaml.hex vboxssdt_standard.hex vboxssdt_cpuhotplug.hex
+Devices/PC/ACPI/VBoxAcpi.o: vboxaml.hex vboxssdt_standard.hex vboxssdt_cpuhotplug.hex vboxssdt_tpm.hex
 
 vboxaml.hex: vbox.dsl
 	$(VERBOSE)( \
@@ -162,6 +164,14 @@ vboxssdt_cpuhotplug.hex: vbox-cpuhotplug.dsl
 	 sed "s/AmlCode\|vboxssdt_cpuhotplug_aml_code/AmlCodeSsdtCpuHotPlug/g" <$@.tmp >$@.tmp2 && \
 	 sed "s/__VBOXSSDT-CPUHOTPLUG_HEX__/__VBOXSSDT_CPUHOTPLUG_HEX__/g" <$@.tmp2 >$@ && \
 	 rm $@.tmp $@.tmp2 $@.pre $@.pre1 \
+	)
+
+vboxssdt_tpm.hex: vbox-tpm.dsl
+	$(VERBOSE)( \
+	 iasl -tc -vi -vr -vs -p $@ $^ && \
+	 mv $@ $@.tmp && \
+	 sed "s/AmlCode\|vboxssdt_tpm_aml_code/AmlCodeSsdtTpm/g" <$@.tmp >$@ && \
+	 rm $@.tmp \
 	)
 
 vpath %.dsl $(VBOX_DIR)/Devices/PC
