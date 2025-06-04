@@ -69,7 +69,12 @@ void * Lx_kit::Mem_allocator::alloc(size_t const size, size_t const align,
 		return ptr;
 	};
 
-	return _mem.alloc_aligned(size, (unsigned)log2(align)).convert<void *>(
+	auto log2_align = !align ? 0 : unsigned(log2(align));
+	/* adjust log2_align in case that not only one bit is set in align */
+	if ((1ul << log2_align) < align)
+		log2_align += 1;
+
+	return _mem.alloc_aligned(size, log2_align).convert<void *>(
 
 		[&] (void *ptr) { return cleared_allocation(ptr, size); },
 
@@ -79,23 +84,51 @@ void * Lx_kit::Mem_allocator::alloc(size_t const size, size_t const align,
 			 * Restrict the minimum buffer size to avoid the creation of
 			 * a separate dataspaces for tiny allocations.
 			 */
-			size_t const min_buffer_size = 256*1024;
+			size_t const min_buffer_size = 128*1024;
 
 			/*
-			 * Allocate one excess byte that is not officially registered at
-			 * the '_mem' ranges. This way, two virtual consecutive ranges
+			 * Allocate at least one more byte that is not officially
+			 * registered at the '_mem' ranges.
+			 * This way, two virtual consecutive ranges
 			 * (that must be assumed to belong to non-contiguous physical
 			 * ranges) can never be merged when freeing an allocation. Such
 			 * a merge would violate the assumption that a both the virtual
 			 * and physical addresses of a multi-page allocation are always
 			 * contiguous.
 			 */
-			Buffer & buffer = alloc_buffer(max(size + 1, min_buffer_size));
+
+			/*
+			 * buggy: Buffer & buffer = alloc_buffer(max(size + 1, min_buffer_size));
+			 *
+			 * Using buf_size + 1 lead to dataspace allocations, which have
+			 * more than one bit set in the size,
+			 * e.g. log2_align=16, size=0x10000 + 1 -> 0x10001
+			 *      -> rounded up by core to ds_size=0x11000.
+			 *
+			 * Such a dataspace is not attached by core ever at log2_align
+			 * addresses. However, the following code below assumes so and
+			 * fails in such cases with "memory allocation failed for "...
+			 *
+			 * As stop gap solution, the code now uses the next larger aligned
+			 * data space size, which core *in most cases* will attach aligned.
+			 * Downside is, that allocations are now larger.
+			 *
+			 * This is a stop gap solution, better fix pending, see #5412
+			 * issue.
+			 */
+			auto buf_size = max(1ul << log2_align, max(size, min_buffer_size));
+
+			if (buf_size <= max(size, min_buffer_size)) {
+				/* doubling assures that next log2_align allocation will fit */
+				buf_size = 2 * max(1ul << log2_align, buf_size);
+			}
+
+			Buffer & buffer = alloc_buffer(buf_size);
 
 			_mem.add_range(buffer.virt_addr(), buffer.size() - 1);
 
 			/* re-try allocation */
-			void * const virt_addr = _mem.alloc_aligned(size, (unsigned)log2(align)).convert<void *>(
+			void * const virt_addr = _mem.alloc_aligned(size, log2_align).convert<void *>(
 
 				[&] (void *ptr) { return cleared_allocation(ptr, size); },
 
