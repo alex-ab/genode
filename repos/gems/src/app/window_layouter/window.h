@@ -142,11 +142,19 @@ class Window_layouter::Window : public List_model<Window>::Element
 		 */
 		Area _target_area { };
 
+		public:
+
 		/**
 		 * Desired size to be requested to the client
 		 */
 		Area _requested_size() const
 		{
+			if (_maximized) {
+				error(__func__, " ",
+				      _decorator_margins.inner_geometry({ { }, _target_area }).area, " ", _target_area, " ",
+				      " '", label, "'");
+			}
+
 			return (_maximized || !_floating)
 			       ? _decorator_margins.inner_geometry({ { }, _target_area }).area
 			       : _dragged_size;

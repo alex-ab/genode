@@ -70,6 +70,8 @@ class Window_layouter::Window_list
 
 				[&] (Window &w, Xml_node const &node)
 				{
+					log("_handle_rom ", node);
+
 					w.client_size(Area::from_xml(node));
 					w.title      (node.attribute_value("title", Window::Title("")));
 					w.has_alpha  (node.attribute_value("has_alpha",  false));

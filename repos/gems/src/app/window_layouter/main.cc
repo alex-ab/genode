@@ -517,7 +517,13 @@ struct Window_layouter::Main : User_state::Action,
 	void _handle_mode_change()
 	{
 		_gui.with_info([&] (Xml_node const &node) {
+			log("_handle_mode_change: ");
+			log(node);
+
 			_panorama.update_from_xml(node); });
+
+		error(__func__, " --> ", _panorama.rect, " ",
+		      _panorama.valid_capture ? " valid capture" : " invalid captures");
 
 		if (_panorama.valid_capture)
 			_update_window_layout();
@@ -609,11 +615,17 @@ void Window_layouter::Main::_gen_resize_request()
 	bool resize_needed = false;
 	_assign_list.for_each([&] (Assign const &assign) {
 		assign.for_each_member([&] (Assign::Member const &member) {
+			log("_gen_resize_request", " ",
+			    member.window.resize_request_needed() ? " required" : " NOT required",
+			    " --> '", member.window.label, "'");
+
 			if (member.window.resize_request_needed())
 				resize_needed = true; }); });
 
-	if (!resize_needed)
+	if (!resize_needed) {
+		error(__func__, " no resize required");
 		return;
+	}
 
 	_resize_request_reporter.generate([&] (Xml_generator &xml) {
 		_window_list.for_each_window([&] (Window const &window) {
@@ -621,6 +633,7 @@ void Window_layouter::Main::_gen_resize_request()
 
 	/* prevent superfluous resize requests for the same size */
 	_window_list.for_each_window([&] (Window &window) {
+		error("_gen_resize_request ", window.label, " ", window.client_size(), " -> ", window._requested_size(), "(pending)");
 		window.resize_request_updated(); });
 }
 
