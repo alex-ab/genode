@@ -629,6 +629,7 @@ void Window_layouter::Main::_gen_resize_request()
 
 	_resize_request_reporter.generate([&] (Xml_generator &xml) {
 		_window_list.for_each_window([&] (Window const &window) {
+			warning("gen_resize_request(xml) ", window.label);
 			window.gen_resize_request(xml); }); });
 
 	/* prevent superfluous resize requests for the same size */

@@ -370,6 +370,17 @@ class Window_layouter::Window : public List_model<Window>::Element
 			if (_requested_size() == _reported_resize_request)
 				return false;
 
+			if (_requested_size() != _client_size)
+				if (_requested_size() == _client_size && _reported_resize_request != _client_size)
+					warning(__func__, " better request resize request_size=",
+					        _requested_size(), " reported_resize_request=",
+					        _reported_resize_request, " client_size",
+					        _client_size, " --> ", label);
+
+			if (_requested_size() == _client_size &&
+			    _reported_resize_request != _client_size)
+				return true;
+
 			return (_requested_size() != _client_size);
 		}
 
@@ -384,6 +395,10 @@ class Window_layouter::Window : public List_model<Window>::Element
 			Area const size = _requested_size();
 
 			if (size == _client_size)
+				if (_reported_resize_request != _client_size)
+					warning(__func__, " don't suppress sending resize request --> ", label);
+
+			if (size == _client_size && _reported_resize_request == _client_size)
 				return;
 
 			xml.node("window", [&] () {
