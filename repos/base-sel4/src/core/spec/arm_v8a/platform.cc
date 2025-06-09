@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2017 Genode Labs GmbH
+ * Copyright (C) 2017-2025 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
@@ -65,6 +65,12 @@ void Platform::_init_core_page_table_registry()
 	/* we don't know the physical location of some objects XXX */
 	enum { XXX_PHYS_UNKNOWN = ~0UL };
 
+	if (_core_page_table_registry.insert_page_directory(virt_addr,
+	                                                    Cap_sel(sel++),
+	                                                    XXX_PHYS_UNKNOWN,
+	                                                    PAGE_DIR_LOG2_SIZE).failed())
+		error(__func__, ":", __LINE__, " page table allocation failed");
+
 	/*
 	 * Register initial page tables
 	 */
@@ -74,7 +80,7 @@ void Platform::_init_core_page_table_registry()
 		                                                PAGE_TABLE_LOG2_SIZE).failed())
 			error("page table insertion failed");
 
-		virt_addr += 256 * get_page_size();
+		virt_addr += 512 * get_page_size();
 	}
 
 	/* initialize 16k memory allocator */
@@ -82,7 +88,7 @@ void Platform::_init_core_page_table_registry()
 		static Phys_allocator inst(&core_mem_alloc());
 		_phys_alloc_16k_ptr = &inst;
 	}
-	
+
 	/* reserve some memory for page directory construction - must be 16k on ARM */
 	enum { MAX_PROCESS_COUNT = 32 };
 	addr_t const max_pd_mem = MAX_PROCESS_COUNT * (1UL << Page_directory_kobj::SIZE_LOG2);
@@ -134,11 +140,10 @@ bool Platform_pd::_init_page_directory()
 		return _page_directory.convert<bool>([&](auto &result) {
 			auto const service = Untyped_memory::_core_local_sel(Core_cspace::TOP_CNODE_UNTYPED_16K, addr_t(result.ptr), Page_directory_kobj::SIZE_LOG2).value();
 
-			if (!create<Page_directory_kobj>(service,
-			                                 platform_specific().core_cnode().sel(),
-			                                 _page_directory_sel))
+			if (!create<Vspace_kobj>(service,
+			                         platform_specific().core_cnode().sel(),
+			                         _page_directory_sel))
 				return false;
-
 
 			long ret = seL4_ARM_ASIDPool_Assign(platform_specific().asid_pool().value(),
 			                                    _page_directory_sel.value());

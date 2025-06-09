@@ -5,6 +5,7 @@ proc binary_name_core_a    { } { return "core-sel4.a" }
 proc binary_name_timer     { } {
 	if {[have_board imx6q_sabrelite]} { return "imx6_timer" }
 	if {[have_board imx7d_sabre]}     { return "imx7_timer" }
+	if {[have_board imx8q_evk]}       { return "imx6_timer" }
 	if {[have_board pc]}              { return "hpet_timer" }
 	puts "unknown platform - no timer driver"
 	exit -1
@@ -93,11 +94,13 @@ proc run_boot_dir {binaries} {
 	#
 	# Use seL4 elfloader tool to generate bootable image on ARM
 	#
-	if {[have_spec arm]} {
+	if {[have_spec arm] || [have_spec arm_64]} {
 		if {[have_board imx6q_sabrelite]} {
 			set ::env(PLAT) imx6
 		} elseif {[have_board imx7d_sabre]} {
 			set ::env(PLAT) imx7
+		} elseif {[have_board imx8q_evk]} {
+			set ::env(PLAT) imx8mq-evk
 		} else {
 			puts "abort - unknown ARM board"
 			exit 1
