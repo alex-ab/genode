@@ -76,17 +76,13 @@ struct Window_layouter::Panorama
 		_captures.update_from_xml(gui_info,
 
 			[&] (Xml_node const &node) -> Capture & {
-				if (!valid_capture)
-					valid_capture = node.has_attribute("width") &&
-					                node.has_attribute("height");
 				return *new (_alloc) Capture(name_from_xml(node)); },
 
 			[&] (Capture &capture) { destroy(_alloc, &capture); },
 
 			[&] (Capture &capture, Xml_node const &node) {
-				if (!valid_capture)
-					valid_capture = node.has_attribute("width") &&
-					                node.has_attribute("height");
+				if (node.has_attribute("width") && node.has_attribute("height"))
+					valid_capture = true;
 				capture.update(node); }
 		);
 	}

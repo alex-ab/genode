@@ -519,8 +519,7 @@ struct Window_layouter::Main : User_state::Action,
 		_gui.with_info([&] (Xml_node const &node) {
 			_panorama.update_from_xml(node); });
 
-		if (_panorama.valid_capture)
-			_update_window_layout();
+		_update_window_layout();
 	}
 	
 	Signal_handler<Main> _mode_change_handler {
