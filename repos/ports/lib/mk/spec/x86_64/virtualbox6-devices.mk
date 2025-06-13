@@ -17,6 +17,7 @@ SRC_CC += Devices/Bus/DevPciIch9.cpp
 SRC_CC += Devices/Bus/MsiCommon.cpp
 SRC_CC += Devices/Bus/MsixCommon.cpp
 SRC_CC += Devices/EFI/DevEFI.cpp
+SRC_CC += Devices/EFI/FlashCore.cpp
 SRC_CC += Devices/EFI/DevFlash.cpp
 SRC_CC += Devices/EFI/DevSmc.cpp
 SRC_CC += Devices/EFI/FlashCore.cpp

@@ -7,11 +7,15 @@ include $(REP_DIR)/lib/mk/virtualbox6-common.inc
 
 CC_WARN += -Wall
 
-SRC_CC := main.cc drivers.cc glx_x11.cc
+SRC_CC := main.cc glx_x11.cc
 SRC_CC += libc.cc unimpl.cc dummies.cc pdm.cc devices.cc nem.cc
 SRC_CC += pthread.cc network.cc devxhci.cc
 SRC_CC += sup.cc sup_sem.cc sup_gmm.cc sup_drv.cc sup_vm.cc sup_vcpu.cc sup_gim.cc
 SRC_CC += HostServices/common/message.cpp services/services.cc
+
+# VBOX_COM_INPROC required for DrvReg registration in NvramStoreImpl.h
+SRC_C += drivers.cc
+CC_OPT_drivers = -DVBOX_COM_INPROC -DNvramStore=ClientNvramStore
 
 LIBS  += base
 LIBS  += stdcxx

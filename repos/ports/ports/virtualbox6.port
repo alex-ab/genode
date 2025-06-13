@@ -1,12 +1,14 @@
 LICENSE         := GPLv2
 VERSION         := 6.1.44
-DOWNLOADS       := virtualbox.archive virtualbox_sdk.archive vbox7_tpm.archive
+DOWNLOADS       := virtualbox.archive virtualbox_sdk.archive
+DOWNLOADS       += vbox7_tpm.archive vbox7_tpm_sdk.archive
 
 VIRTUALBOX_TBZ2    := VirtualBox-$(VERSION)a.tar.bz2
 VIRTUALBOX_SDK_ZIP := VirtualBoxSDK-$(VERSION)-156814.zip
 
 VBOX7_TPM_VERSION  := 7.1.8
 VBOX7_TPM_TBZ2     := VirtualBox-$(VBOX7_TPM_VERSION).tar.bz2
+VBOX7_TPM_SDK_ZIP  := VirtualBoxSDK-$(VBOX7_TPM_VERSION)-168469.zip
 
 URL(virtualbox) := http://download.virtualbox.org/virtualbox/$(VERSION)/$(VIRTUALBOX_TBZ2)
 DIR(virtualbox) := src/virtualbox6
@@ -19,6 +21,10 @@ SHA(virtualbox_sdk) := 88a575326789c9c3e1880ed5b1cd32e9604e45a60b3b08a05491bdeff
 URL(vbox7_tpm) := http://download.virtualbox.org/virtualbox/$(VBOX7_TPM_VERSION)/$(VBOX7_TPM_TBZ2)
 DIR(vbox7_tpm) := src/virtualbox6
 SHA(vbox7_tpm) := 3f7132c55ac6c5f50585bfaa115d29e30b47ccf535cb0a12ff50214ddae2f63d
+
+URL(vbox7_tpm_sdk) := http://download.virtualbox.org/virtualbox/$(VBOX7_TPM_VERSION)/$(VBOX7_TPM_SDK_ZIP)
+DIR(vbox7_tpm_sdk) := src/virtualbox7_sdk
+SHA(vbox7_tpm_sdk) := b7cbff74970b7558fefd64e402b599bbfce0b32c74b657d0f4937bbbe5336e11
 
 PATCHES_DIR := src/virtualbox6/patches
 PATCHES     := $(addprefix $(PATCHES_DIR)/, $(shell cat $(REP_DIR)/$(PATCHES_DIR)/series))
@@ -154,9 +160,26 @@ VBOX_CONTENT += COPYING
 
 VBOX7_CONTENT := src/libs/libtpms-0.9.6 src/libs/openssl-3.3.2
 VBOX7_CONTENT += src/VBox/Devices/Security
+VBOX7_CONTENT += include/VBox/VBoxCryptoIf.h
 VBOX7_CONTENT += include/VBox/vmm/pdmtpmifs.h
+VBOX7_CONTENT += include/iprt/formats/efi-common.h
+VBOX7_CONTENT += include/iprt/formats/efi-fv.h
+VBOX7_CONTENT += include/iprt/formats/efi-varstore.h
+VBOX7_CONTENT += include/iprt/formats/efi-signature.h
 VBOX7_CONTENT += include/iprt/formats/tpm.h
+VBOX7_CONTENT += include/iprt/efi.h
 VBOX7_CONTENT += src/VBox/Devices/PC/vbox-tpm.dsl
+VBOX7_CONTENT += src/VBox/Main/src-all/NvramStoreImpl.cpp
+VBOX7_CONTENT += src/VBox/Main/include/NvramStoreImpl.h
+VBOX7_CONTENT += src/VBox/Main/include/UefiVariableStoreImpl.h
+VBOX7_CONTENT += src/VBox/Main/include/TrustAnchorsAndCerts.h
+VBOX7_CONTENT += src/VBox/Main/include/TrustedPlatformModuleImpl.h
+VBOX7_CONTENT += src/VBox/Main/src-server/UefiVariableStoreImpl.cpp
+VBOX7_CONTENT += src/VBox/Main/src-server/TrustedPlatformModuleImpl.cpp
+VBOX7_CONTENT += src/VBox/Runtime/common/efi
+
+VBOX7_EFI_CONTENT := src/VBox/Devices/EFI/FirmwareBin/VBoxEFI32.fd
+VBOX7_EFI_CONTENT += src/VBox/Devices/EFI/FirmwareBin/VBoxEFI64.fd
 
 TAR_OPT(virtualbox) := \
 	--strip-components 1 \
@@ -167,10 +190,12 @@ TAR_OPT(vbox7_tpm) := \
 	$(addprefix $(VBOX7_TPM_TBZ2:.tar.bz2=)/,$(VBOX7_CONTENT))
 
 UNZIP_OPT(virtualbox_sdk) := $(VIRTUALBOX_SDK_ZIP) "sdk/bindings/xpcom/include*" \#
+# UNZIP_OPT(vbox7_tpm_sdk)  := $(VBOX7_SDK_ZIP)
 
 
 default : additional_steps
 additional_steps : $(DOWNLOADS)
+	$(VERBOSE)patch -p1 < $(REP_DIR)/src/virtualbox6/patches/tpm_xidl.diff
 	$(VERBOSE)xsltproc --stringparam mode declare \
 	   -o src/virtualbox6/src/VBox/Main/xml/SchemaDefs.h \
 	   src/virtualbox6/src/VBox/Main/xml/SchemaDefs.xsl \
@@ -224,7 +249,9 @@ additional_steps : $(DOWNLOADS)
 			mv "VBoxAPIWrap/xx$$((i++))" "VBoxAPIWrap/$$f"; \
 		done && \
 		rm "VBoxAPIWrap/xx$$((i))"
-
+	$(VERBOSE)cd src/virtualbox6 && \
+		tar -xf ../../$(VBOX7_TPM_TBZ2) --strip-components 1 \
+		$(addprefix VirtualBox-$(VBOX7_TPM_VERSION)/,$(VBOX7_EFI_CONTENT))
 
 #
 # Generate IEMInstructionStatisticsTmpl.h from the IEM implementation

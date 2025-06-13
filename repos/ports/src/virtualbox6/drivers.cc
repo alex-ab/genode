@@ -19,6 +19,7 @@
 #include <VMMDev.h>
 #include <ConsoleImpl.h>
 #include <DisplayImpl.h>
+#include <NvramStoreImpl.h>
 
 #define REGISTER(driver) \
 	do { \
@@ -64,6 +65,7 @@ extern "C" DECLEXPORT(int) VBoxDriversRegister(PCPDMDRVREGCB pCallbacks, uint32_
 	REGISTER(VMMDev::DrvReg);
 	REGISTER(Console::DrvStatusReg);
 	REGISTER(Display::DrvReg);
+	REGISTER(NvramStore::DrvReg);
 
 	return VINF_SUCCESS;
 }

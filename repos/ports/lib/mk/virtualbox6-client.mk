@@ -6,16 +6,21 @@ LIBS  += stdcxx
 # The 'ProgressImpl' compilation unit is used by both the VBox server and
 # VBox client, but compiled with (client) and without (server) the
 # 'VBOX_COM_INPROC' define set. Since the ABI for 'ProgressImpl' is not
-# the same for client and server but we want to like client and server
+# the same for client and server but we want to link client and server
 # together, we need to disambiguate both flavours.
 #
 # - At the client side, we rename the 'Progress' class to 'ClientProgress'
 # - We set the 'VBOX_COM_INPROC' define for the client code only
 #
+# - At the client side, we rename the 'NvramStore' class to 'ClientNvramStore'
+# - We set the 'VBOX_COM_INPROC' define for the client code only
+#
 VBOX_CC_OPT += -DProgress=ClientProgress
+VBOX_CC_OPT += -DNvramStore=ClientNvramStore
 VBOX_CC_OPT += -DVBOX_COM_INPROC
 
 SRC_CC += Main/src-all/ProgressImpl.cpp
+SRC_CC += Main/src-all/NvramStoreImpl.cpp
 
 SRC_CC += Main/src-client/AdditionsFacilityImpl.cpp
 SRC_CC += Main/src-client/BusAssignmentManager.cpp
