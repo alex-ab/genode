@@ -1,0 +1,348 @@
+--- a/src/virtualbox6/src/VBox/Main/idl/VirtualBox.xidl
++++ b/src/virtualbox6/src/VBox/Main/idl/VirtualBox.xidl
+@@ -5248,6 +5248,57 @@
+   </interface>
+ 
+   <enum
++    name="TpmType"
++    uuid="c669b9f7-a547-42b6-8464-636aa53401eb"
++    >
++    <desc>
++      TPM type enumeration.
++    </desc>
++
++    <const name="None"                   value="0">
++      <desc>No TPM present in the virtual machine.</desc>
++    </const>
++    <const name="v1_2"                   value="1">
++      <desc>A TPM compliant to the 1.2 TCG specification is emulated.</desc>
++    </const>
++    <const name="v2_0"                   value="2">
++      <desc>A TPM compliant to the 2.0 TCG specification is emulated.</desc>
++    </const>
++    <const name="Host"                   value="3">
++      <desc>The host TPM is passed through, might not be available on all host platforms.</desc>
++    </const>
++    <const name="Swtpm"                  value="4">
++      <desc>The VM will attach to an external software TPM emulation compliant to swtpm.</desc>
++    </const>
++  </enum>
++
++  <interface
++    name="ITrustedPlatformModule" extends="$unknown"
++    uuid="cf11d345-0241-4ea9-ac4c-c69ed3d674e3"
++    wsmap="managed"
++    reservedMethods="2" reservedAttributes="8"
++    >
++    <desc>
++        The ITrustedPlatformModule interface represents the settings of the virtual
++        machine's trusted platform module. This is used only in the <link to="IMachine::trustedPlatformModule"/> attribute.
++    </desc>
++
++    <attribute name="type" type="TpmType">
++      <desc>
++        Type of TPM configured for the virtual machine.
++      </desc>
++    </attribute>
++
++    <attribute name="location" type="wstring">
++      <desc>
++        Location of the TPM. This is only used for the TpmType_Swtpm type of TPM
++        where the location denotes a <b>hostname:port</b> where to connect to.
++      </desc>
++    </attribute>
++
++  </interface>
++
++  <enum
+     name="RecordingDestination"
+     uuid="11E3F06B-DEC1-48B9-BDC4-1E618D72893C"
+     >
+@@ -5664,6 +5715,272 @@
+ 
+   </interface>
+ 
++   <enum
++    name="SignatureType"
++    uuid="6f6e67ef-9a32-4084-af84-5702679f882a"
++    >
++    <desc>
++      UEFI signature type enumeration.
++    </desc>
++
++    <const name="X509"                  value="0">
++      <desc>X.509 certificate.</desc>
++    </const>
++    <const name="Sha256"                value="1">
++      <desc>SHA256 hash.</desc>
++    </const>
++  </enum>
++
++  <enum
++    name="UefiVariableAttributes"
++    uuid="cda505ec-b444-4aef-b55c-b687717bdac5"
++    >
++    <desc>
++      Possible variable attributes. More than one flag may be set.
++      <see><link to="IUefiVariableStore"/></see>
++    </desc>
++
++    <const name="None"                      value="0">
++      <desc>No attributes set.</desc>
++    </const>
++    <const name="NonVolatile"               value="0x01">
++      <desc>Variable is stored in non volatile storage.</desc>
++    </const>
++    <const name="BootServiceAccess"         value="0x02">
++      <desc>Variable can be accessed from the boot services.</desc>
++    </const>
++    <const name="RuntimeAccess"             value="0x04">
++      <desc>Variable can be accessed from the runtime.</desc>
++    </const>
++    <const name="HwErrorRecord"             value="0x08">
++      <desc>Variable contains a hardware error record.</desc>
++    </const>
++    <const name="AuthWriteAccess"           value="0x100">
++      <desc>Writing to this variable requires an authenticated source.</desc>
++    </const>
++    <const name="AuthTimeBasedWriteAccess"  value="0x200">
++      <desc>Variable was written with a time based authentication.</desc>
++    </const>
++    <const name="AuthAppendWrite"           value="0x400">
++      <desc>The variable can be appended only.</desc>
++    </const>
++  </enum>
++
++  <interface
++    name="IUefiVariableStore" extends="$unknown"
++    uuid="d134c6b6-4479-430d-bb73-68a452ba3e67"
++    wsmap="managed"
++    reservedMethods="9" reservedAttributes="5"
++    >
++    <desc>
++        The IUefiVariableStore interface allows inspecting and manipulating the content
++        of an existing UEFI variable store in a NVRAM file. This is used only in the
++        <link to="INvramStore::uefiVariableStore" /> attribute.
++    </desc>
++
++    <attribute name="secureBootEnabled" type="boolean">
++      <desc>Flag whether secure boot is currently enabled for the VM.</desc>
++    </attribute>
++
++    <method name="addVariable">
++      <desc>Adds a new variable to the non volatile storage area.</desc>
++      <param name="name" type="wstring" dir="in">
++        <desc>Name of the variable.</desc>
++      </param>
++      <param name="owner" type="uuid" mod="string" dir="in">
++        <desc>UUID of the variable owner.</desc>
++      </param>
++      <param name="attributes" type="UefiVariableAttributes" safearray="yes" dir="in">
++        <desc>Attributes of the variable.</desc>
++      </param>
++      <param name="data" type="octet" dir="in" safearray="yes">
++        <desc>The variable data.</desc>
++      </param>
++    </method>
++
++    <method name="deleteVariable">
++      <desc>Deletes the given variable from the non volatile storage area.</desc>
++      <param name="name" type="wstring" dir="in">
++        <desc>Name of the variable.</desc>
++      </param>
++      <param name="owner" type="uuid" mod="string" dir="in">
++        <desc>UUID of the variable owner.</desc>
++      </param>
++    </method>
++
++    <method name="changeVariable">
++      <desc>Changes the data of the given variable.</desc>
++      <param name="name" type="wstring" dir="in">
++        <desc>Name of the variable.</desc>
++      </param>
++      <param name="data" type="octet" dir="in" safearray="yes">
++        <desc>The new variable data.</desc>
++      </param>
++    </method>
++
++    <method name="queryVariableByName">
++      <desc>Queries the variable content variable by the given name.</desc>
++      <param name="name" type="wstring" dir="in">
++        <desc>Name of the variable to look for.</desc>
++      </param>
++      <param name="owner" type="uuid" mod="string" dir="out">
++        <desc>UUID of the variable owner returned on success.</desc>
++      </param>
++      <param name="attributes" type="UefiVariableAttributes" safearray="yes" dir="out">
++        <desc>Attributes of the variable.</desc>
++      </param>
++      <param name="data" type="octet" dir="out" safearray="yes">
++        <desc>The variable data returned on success.</desc>
++      </param>
++    </method>
++
++    <method name="queryVariables">
++      <desc>
++        Queries all variables in the non volatile storage and returns their names.
++      </desc>
++      <param name="names" type="wstring" dir="out" safearray="yes">
++        <desc>The variable names returned on success.</desc>
++      </param>
++      <param name="owners" type="uuid" mod="string" dir="out" safearray="yes">
++        <desc>UUID of the variable owners returned on success.</desc>
++      </param>
++    </method>
++
++    <method name="enrollOraclePlatformKey">
++      <desc>
++        Enroll the default platform key from Oracle for enabling Secure Boot.
++      </desc>
++    </method>
++
++    <method name="enrollPlatformKey">
++      <desc>
++        Convenience method to enroll a new platform key (PK) for enabling Secure Boot.
++      </desc>
++      <param name="platformKey" type="octet" safearray="yes" dir="in">
++        <desc>The platform key (PK) to enroll.</desc>
++      </param>
++      <param name="owner" type="uuid" mod="string" dir="in">
++        <desc>UUID of the PK owner.</desc>
++      </param>
++    </method>
++
++    <method name="addKek">
++      <desc>
++        Convenience method to add a new Key Encryption Key (KEK) for Secure Boot.
++      </desc>
++      <param name="keyEncryptionKey" type="octet" safearray="yes" dir="in">
++        <desc>The Key Encryption Key (KEK) to add.</desc>
++      </param>
++      <param name="owner" type="uuid" mod="string" dir="in">
++        <desc>UUID of the KEK owner.</desc>
++      </param>
++      <param name="signatureType" type="SignatureType" dir="in">
++        <desc>Type of the signature.</desc>
++      </param>
++    </method>
++
++    <method name="addSignatureToDb">
++      <desc>
++        Convenience method to add a new entry to the signature database.
++      </desc>
++      <param name="signature" type="octet" safearray="yes" dir="in">
++        <desc>The signature to add.</desc>
++      </param>
++      <param name="owner" type="uuid" mod="string" dir="in">
++        <desc>UUID of the signature owner.</desc>
++      </param>
++      <param name="signatureType" type="SignatureType" dir="in">
++        <desc>Type of the signature.</desc>
++      </param>
++    </method>
++
++    <method name="addSignatureToDbx">
++      <desc>
++        Convenience method to add a new entry to the forbidden signature database.
++      </desc>
++      <param name="signature" type="octet" safearray="yes" dir="in">
++        <desc>The signature to add.</desc>
++      </param>
++      <param name="owner" type="uuid" mod="string" dir="in">
++        <desc>UUID of the signature owner.</desc>
++      </param>
++      <param name="signatureType" type="SignatureType" dir="in">
++        <desc>Type of the signature.</desc>
++      </param>
++    </method>
++
++    <method name="enrollDefaultMsSignatures">
++      <desc>
++        Convenience method to enroll the standard Microsoft KEK and signatures
++        in the signature databases.
++      </desc>
++    </method>
++
++    <method name="addSignatureToMok">
++      <desc>
++        Convenience method to add a new entry to the MOK (Machine Owner Key) signature database.
++      </desc>
++      <param name="signature" type="octet" safearray="yes" dir="in">
++        <desc>The signature to add.</desc>
++      </param>
++      <param name="owner" type="uuid" mod="string" dir="in">
++        <desc>UUID of the signature owner.</desc>
++      </param>
++      <param name="signatureType" type="SignatureType" dir="in">
++        <desc>Type of the signature.</desc>
++      </param>
++    </method>
++
++  </interface>
++
++  <interface
++    name="INvramStore" extends="$unknown"
++    uuid="5bfd8965-b81b-469f-8649-f717ce97a5d5"
++    wsmap="managed"
++    >
++
++    <desc>
++      Provides access to the NVRAM store collecting all permanent states from different sources
++      (UEFI, TPM, etc.).
++    </desc>
++
++    <attribute name="nonVolatileStorageFile" type="wstring" readonly="yes">
++      <desc>
++        The location of the file storing the non-volatile memory content when
++        the VM is powered off.  The file does not always exist.
++      </desc>
++    </attribute>
++
++    <attribute name="uefiVariableStore" type="IUefiVariableStore" readonly="yes">
++      <desc>Object to manipulate the data in an existing UEFI variable store.</desc>
++    </attribute>
++
++     <attribute name="keyId" type="wstring" readonly="yes">
++      <desc>
++        Key Id of the password used for encrypting the NVRAM file.
++        Internal use only for now.
++      </desc>
++    </attribute>
++
++    <attribute name="keyStore" type="wstring" readonly="yes">
++      <desc>
++        Key store used for encrypting the NVRAM file.
++        Internal use only for now.
++      </desc>
++    </attribute>
++
++    <method name="initUefiVariableStore">
++      <desc>Initializes the UEFI variable store.</desc>
++      <param name="size" type="unsigned long" dir="in">
++        <desc>
++          Size in bytes of the UEFI variable store. Must be 0 for now to initialize to the
++          default size.
++        </desc>
++      </param>
++    </method>
++
++  </interface>
++
+   <enum
+     name="GraphicsControllerType"
+     uuid="3e009bb0-2b57-4283-a39b-4c363d4f0808"
+@@ -6078,6 +6395,14 @@
+       <desc>Object containing all BIOS settings.</desc>
+     </attribute>
+ 
++    <attribute name="trustedPlatformModule" type="ITrustedPlatformModule" readonly="yes">
++      <desc>Object containing all TPM settings.</desc>
++    </attribute>
++
++    <attribute name="nonVolatileStore" type="INvramStore" readonly="yes">
++      <desc>Object to manipulate data in the non volatile storage file.</desc>
++    </attribute>
++
+     <attribute name="recordingSettings" type="IRecordingSettings" readonly="yes">
+       <desc>Object containing all recording settings.</desc>
+     </attribute>

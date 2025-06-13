@@ -32,6 +32,10 @@
       <HPET enabled="false"/>
       <Chipset type="ICH9"/>
       <!-- types: BIOS, EFI, EFI32, EFI64, EFIDUAL -->
+<!--
+      <Firmware type="EFI"/>
+      <TrustedPlatformModule type="v2_0"/>
+-->
       <Firmware type="BIOS"/>
       <Boot>
         <Order position="1" device="Floppy"/>

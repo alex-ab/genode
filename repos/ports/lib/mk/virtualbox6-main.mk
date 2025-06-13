@@ -11,6 +11,7 @@ SRC_CC += Main/src-all/DisplayResampleImage.cpp
 SRC_CC += Main/src-all/DisplayUtils.cpp
 SRC_CC += Main/src-all/Global.cpp
 SRC_CC += Main/src-all/HashedPw.cpp
+SRC_CC += Main/src-all/NvramStoreImpl.cpp
 SRC_CC += Main/src-all/PCIDeviceAttachmentImpl.cpp
 SRC_CC += Main/src-all/ProgressImpl.cpp
 SRC_CC += Main/src-all/SecretKeyStore.cpp
@@ -63,6 +64,8 @@ SRC_CC += Main/src-server/MediumIOImpl.cpp
 SRC_CC += Main/src-server/DataStreamImpl.cpp
 SRC_CC += Main/src-server/HostPower.cpp
 SRC_CC += Main/src-server/generic/NetIf-generic.cpp
+SRC_CC += Main/src-server/UefiVariableStoreImpl.cpp
+SRC_CC += Main/src-server/TrustedPlatformModuleImpl.cpp
 
 # use OS/2 version of 'pm::createHAL()' because it is empty
 SRC_CC += Main/src-server/os2/PerformanceOs2.cpp
@@ -72,6 +75,10 @@ SRC_CC += Main/VBoxEvents.cpp
 
 # see comment in virtualbox6-client.mk
 CC_OPT_Main/src-server/MediumImpl = -Wno-enum-compare
+
+
+SRC_CC += Main/src-server/TrustAnchorsAndCerts.cpp
+
 
 # prevent double define of 'LOG_GROUP'
 VBOX_CC_OPT += -DIN_VBOXSVC
