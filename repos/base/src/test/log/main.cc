@@ -15,7 +15,7 @@
 #include <base/component.h>
 #include <base/log.h>
 #include <log_session/connection.h>
-
+#include <irq_session/connection.h>
 
 void Component::construct(Genode::Env &env)
 {
@@ -58,5 +58,23 @@ void Component::construct(Genode::Env &env)
 	buf[2*Log_session::MAX_STRING_LEN - 2] = '\0'; /* end of second line */
 	log(Cstring(buf));
 
-	log("Test done.");
+//	log("Test done.");
+	{
+		Label irq = Label(9);
+		log("IRQ: create ", irq);
+		Irq_connection conn(env, irq);
+		log("IRQ: creation done");
+		conn.ack_irq();
+		log("IRQ: ack done");
+	}
+	log("IRQ: destructed");
+	{
+		Label irq = Label(9);
+		log("IRQ: create ", irq);
+		Irq_connection conn(env, irq);
+		log("IRQ: creation done");
+		conn.ack_irq();
+		log("IRQ: ack done");
+	}
+	log("IRQ: destructed");
 }

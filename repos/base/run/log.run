@@ -9,11 +9,12 @@ install_config {
 			<service name="PD"/>
 			<service name="CPU"/>
 			<service name="ROM"/>
+			<service name="IRQ"/>
 		</parent-provides>
 		<default-route>
 			<any-service> <parent/> </any-service>
 		</default-route>
-		<default caps="50" ram="10M"/>
+		<default caps="150" ram="10M"/>
 		<start name="test-log"/>
 	</config>
 }
