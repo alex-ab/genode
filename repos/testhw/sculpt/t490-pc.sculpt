@@ -21,7 +21,7 @@ gpu:      intel
 
 import: pkg/sculpt_drivers-pc
 
-import: pkg/vbox6
+#import: pkg/vbox6
 
 import: pkg/seoul-block
 
@@ -38,15 +38,15 @@ import: pkg/nvme
 # selection of accepted depot-package providers
 depot: genodelabs alex-ab
 
-launcher: msr_gui
+#launcher: msr_gui
 launcher: top_view_config
 
-launcher: shared_fs
-launcher: vbox6_ubuntu_gpu
-launcher: vbox6_debian_gpu
-launcher: vdi_block_debian seoul_debian_cpu
-launcher: vdi_block_ubuntu seoul_ubuntu_cpu
-launcher: vbox6_win10_gpu
+#launcher: shared_fs
+#launcher: vbox6_ubuntu_gpu
+#launcher: vbox6_debian_gpu
+#launcher: vdi_block_debian seoul_debian_cpu
+#launcher: vdi_block_ubuntu seoul_ubuntu_cpu
+#launcher: vbox6_win10_gpu
 
 launcher: acpi_support
 
