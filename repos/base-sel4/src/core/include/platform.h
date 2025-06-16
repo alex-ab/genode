@@ -48,6 +48,8 @@ class Core::Static_allocator : public Allocator
 
 		Elem_space _elements[MAX];
 
+		unsigned long elements_allocated { };
+
 	public:
 
 		class Alloc_failed { };
@@ -61,6 +63,8 @@ class Core::Static_allocator : public Allocator
 
 			return _used.alloc().template convert<Alloc_result>(
 				[&](addr_t const idx) {
+					elements_allocated ++;
+					error("platform try_alloc ", elements_allocated, "/", MAX);
 					return Alloc_result(*this, { &_elements[idx], size }); },
 				[](auto) {
 					error("core page table allocation failed");
@@ -77,6 +81,9 @@ class Core::Static_allocator : public Allocator
 			Elem_space *elem = reinterpret_cast<Elem_space *>(ptr);
 			unsigned const index = (unsigned)(elem - &_elements[0]);
 			_used.free(index);
+
+			elements_allocated --;
+			error("platform try_alloc ", elements_allocated, " free");
 		}
 
 		bool need_size_for_free() const override { return false; }
