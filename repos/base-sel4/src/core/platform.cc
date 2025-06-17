@@ -119,17 +119,49 @@ void Core::Platform::_init_allocators()
 
 			Hex_range const range { phys_addr, phys_size };
 
-			if (device_memory) {
-				if (_io_mem_alloc.add_range(phys_addr, phys_size).failed())
-					warning("failed to register I/O range: ", range);
-			} else {
-				if (_core_mem_alloc.phys_alloc().add_range(phys_addr, phys_size).failed())
-					warning("failed to register RAM range: ", range);
+			if (_unused_phys_alloc.remove_range(phys_addr, phys_size).failed()) {
+				warning("failed to mark physical range as used: ", range);
+				return false;
 			}
-			if (_unused_phys_alloc.remove_range(phys_addr, phys_size).failed())
-				warning("failed to mark range as used: ", range);
+
+			if (device_memory) {
+				if (_io_mem_alloc.add_range(phys_addr, phys_size).failed()) {
+					warning("failed to register I/O range: ", range);
+					return false;
+				}
+			} else {
+				if (_core_mem_alloc.phys_alloc().add_range(phys_addr, phys_size).failed()) {
+					warning("failed to register RAM range: ", range);
+					return false;
+				}
+			}
 
 			return true; /* range used by this functor */
+		},
+		[&] (addr_t const phys, addr_t const size, bool const device_memory) {
+			/* revert region allocation if kernel denied to use it */
+
+			addr_t const phys_addr = trunc_page(phys);
+			size_t const phys_size = round_page(phys - phys_addr + size);
+
+			Hex_range const range { phys_addr, phys_size };
+
+			if (device_memory) {
+				if (_io_mem_alloc.remove_range(phys_addr, phys_size).failed()) {
+					warning("failed to remove I/O range: ", range);
+					return;
+				}
+			} else {
+				if (_core_mem_alloc.phys_alloc().remove_range(phys_addr, phys_size).failed()) {
+					warning("failed to remove RAM range: ", range);
+					return;
+				}
+			}
+
+			if (_unused_phys_alloc.add_range(phys_addr, phys_size).failed()) {
+				warning("failed to mark physical range as free: ", range);
+				return;
+			}
 		});
 
 	/*
