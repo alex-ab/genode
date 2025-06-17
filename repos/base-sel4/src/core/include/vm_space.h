@@ -60,7 +60,7 @@ class Core::Vm_space
 			NUM_LEAF_CNODES_LOG2 = (CONFIG_WORD_SIZE == 32) ? 6 : 5,
 			NUM_LEAF_CNODES      = 1UL << NUM_LEAF_CNODES_LOG2,
 
-			NUM_CNODE_3RD_LOG2 = 3,
+			NUM_CNODE_3RD_LOG2 = 4,
 			NUM_CNODE_3RD      = 1UL << NUM_CNODE_3RD_LOG2,
 
 			/**
