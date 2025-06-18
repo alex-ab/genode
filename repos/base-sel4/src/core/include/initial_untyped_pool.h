@@ -231,6 +231,7 @@ class Core::Initial_untyped_pool
 					if (!used)
 						return;
 
+#if 1
 					long const ret = seL4_Untyped_Retype(service,
 					                                     type,
 					                                     size_bits,
@@ -239,6 +240,18 @@ class Core::Initial_untyped_pool
 					                                     node_depth,
 					                                     node_offset,
 					                                     num_objects);
+#else
+					(void)service;
+					(void)type;
+					(void)root;
+					(void)node_index;
+					(void)node_depth;
+					(void)node_offset;
+					(void)num_objects;
+					(void)size_bits;
+
+					long const ret = 0;
+#endif
 
 					if (ret != 0) {
 						error("turn_into_untyped_object : "

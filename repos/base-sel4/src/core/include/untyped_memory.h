@@ -30,6 +30,62 @@ namespace Core { struct Untyped_memory; }
 
 struct Core::Untyped_memory
 {
+#if 0
+	static inline void untype_as_object(Range const &range)
+	{
+		size_t const size_log2 = get_page_size_log2(); /* XXX = */
+
+		addr_t max_memory = range.size; /* XXX ? */
+
+		for (;;) {
+
+			addr_t const page_aligned_free_offset =
+				align_addr(range.free_offset, (int)size_log2);
+
+			/* back out if no further page can be allocated */
+			if (page_aligned_free_offset + (1UL << size_log2) > range.size)
+				return;
+
+			if (!max_memory)
+				return;
+
+			size_t const remaining_size    = range.size - page_aligned_free_offset;
+			size_t const retype_size_limit = get_page_size()*256;
+			size_t const batch_size        = min(min(remaining_size, retype_size_limit), max_memory);
+
+			addr_t const phys_addr = range.phys + page_aligned_free_offset;
+			size_t const num_pages = batch_size / (1UL << size_log2);
+
+			seL4_Untyped const service     = range.sel;
+			addr_t       const type        = seL4_UntypedObject;
+			addr_t       const size_bits   = size_log2;
+			seL4_CNode   const root        = Core_cspace::top_cnode_sel();
+			addr_t       const node_depth  = Core_cspace::NUM_TOP_SEL_LOG2;
+			addr_t       const node_offset = phys_addr >> size_log2;
+			addr_t       const num_objects = num_pages;
+
+			auto const ret = seL4_Untyped_Retype(service,
+			                                     type,
+			                                     size_bits,
+			                                     root,
+			                                     node_index,
+			                                     node_depth,
+			                                     node_offset,
+			                                     num_objects);
+
+			if (ret == seL4_NoError)
+				error("turn_into_untyped_object : "
+				      "seL4_Untyped_Retype (untyped) returned ", ret);
+
+			/* mark consumed untyped memory range as allocated */
+			range.free_offset += batch_size;
+
+			/* track memory left to be converted */
+			max_memory -= batch_size;
+		}
+	}
+#endif
+
 	static inline Allocator::Alloc_result alloc_pages(Range_allocator &phys,
 	                                                  size_t const num_pages)
 	{
