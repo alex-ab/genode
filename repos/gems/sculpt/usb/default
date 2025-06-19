@@ -12,6 +12,9 @@
 	<policy label_prefix="usb_webcam ->">
 		<device vendor_id="0x5986" product_id="0x366"/>  <!-- x250 webcam -->
 		<device vendor_id="0x5986" product_id="0x706"/>  <!-- x260 webcam -->
+		<device vendor_id="0x04f2" product_id="0xb541"/> <!-- Lenovo T460p -->
+		<device vendor_id="0x0bda" product_id="0x58db"/> <!-- Lenovo T470 -->
+		<device vendor_id="0x04f2" product_id="0xb681"/> <!-- Lenovo T490 -->
 	</policy>
 
 </config>
