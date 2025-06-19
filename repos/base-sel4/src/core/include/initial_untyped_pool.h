@@ -183,6 +183,13 @@ class Core::Initial_untyped_pool
 		{
 			for_each_range([&] (Range const &range) {
 
+				auto const max_memory_save = max_memory;
+
+				bool first = true;
+
+				again:
+
+				error("oi oi ", Hex(range.phys), "+", Hex(range.size), " ", Hex(range.free_offset));
 				/*
 				 * The kernel limits the maximum number of kernel objects to
 				 * be created via a single untyped-retype operation. So we
@@ -196,7 +203,7 @@ class Core::Initial_untyped_pool
 
 					/* back out if no further page can be allocated */
 					if (page_aligned_free_offset + (1UL << size_log2) > range.size)
-						return;
+						break;
 
 					if (!max_memory)
 						return;
@@ -228,6 +235,9 @@ class Core::Initial_untyped_pool
 					bool const used = fn(phys_addr, num_pages << size_log2,
 					                     range.device);
 
+					if (!range.device && !first) {
+						/* go through */
+					} else
 					if (!used)
 						return;
 
@@ -253,6 +263,8 @@ class Core::Initial_untyped_pool
 					long const ret = 0;
 #endif
 
+					if (!range.device && !first) {
+					} else {
 					if (ret != 0) {
 						error("turn_into_untyped_object : "
 						      "seL4_Untyped_Retype (untyped) returned ", ret);
@@ -261,6 +273,7 @@ class Core::Initial_untyped_pool
 						          range.device);
 						return;
 					}
+					}
 
 					/* mark consumed untyped memory range as allocated */
 					range.free_offset += batch_size;
@@ -268,6 +281,27 @@ class Core::Initial_untyped_pool
 					/* track memory left to be converted */
 					max_memory -= batch_size;
 				}
+
+				error("oi oi ", Hex(range.phys), "+", Hex(range.size), " ", size_log2);
+#if 1
+				seL4_CNode_Delete(Core_cspace::TOP_CNODE_UNTYPED_4K, range.phys >> 12, 255);
+//				seL4_CNode_Revoke(Core_cspace::TOP_CNODE_UNTYPED_4K, range.phys >> 12, 32);
+#endif
+
+				error("ui ui ", Hex(range.phys), "+", Hex(range.size), " ", Hex(range.free_offset));
+
+				if (range.free_offset == 0) {
+					return;
+				}
+
+				max_memory = max_memory_save;
+				range.free_offset = 0;
+
+				if (first) {
+					first = false;
+					goto again;
+				}
+				while (true) { }
 			});
 		}
 };
