@@ -109,9 +109,15 @@ class Core::Signal_broker
 			_context_alloc.destroy(*context);
 		}
 
-		void submit(Signal_context_capability const cap, unsigned const cnt)
+		bool submit(Signal_context_capability const cap, unsigned const cnt)
 		{
+			if (!cap.valid()) {
+				error(__func__, " ", __FILE__, " invalid cap");
+				return false;
+			}
+
 			_delivery_proxy.submit(cap, cnt);
+			return true;
 		}
 };
 

@@ -210,8 +210,8 @@ struct Monitor::Inferior_pd : Monitored_pd_session
 	void free_context(Signal_context_capability cap) override {
 		_real.call<Rpc_free_context>(cap); }
 
-	void submit(Signal_context_capability receiver, unsigned cnt = 1) override {
-		_real.call<Rpc_submit>(receiver, cnt); }
+	bool submit(Signal_context_capability receiver, unsigned cnt = 1) override {
+		return _real.call<Rpc_submit>(receiver, cnt); }
 
 	Alloc_rpc_cap_result alloc_rpc_cap(Native_capability ep) override {
 		return _real.call<Rpc_alloc_rpc_cap>(ep); }

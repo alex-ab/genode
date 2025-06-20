@@ -279,8 +279,8 @@ class Core::Pd_session_component : public Session_object<Pd_session>
 			_released_cap(SIG_CONTEXT_CAP);
 		}
 
-		void submit(Signal_context_capability cap, unsigned n) override {
-			_signal_broker.submit(cap, n); }
+		bool submit(Signal_context_capability cap, unsigned n) override {
+			return _signal_broker.submit(cap, n); }
 
 
 		/*******************************
