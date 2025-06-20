@@ -269,12 +269,12 @@ void Vm_session_component::_attach_vm_memory(Dataspace_component &dsc,
                                              addr_t const guest_phys,
                                              Attach_attr const attribute)
 {
-	Vm_space::Map_attr const attr_noflush {
+	Vm_space::Map_attr const attr_flush {
 		.cached         = (dsc.cacheability() == CACHED),
 		.write_combined = (dsc.cacheability() == WRITE_COMBINED),
 		.writeable      = dsc.writeable() && attribute.writeable,
 		.executable     = attribute.executable,
-		.flush_support  = false };
+		.flush_support  = true };
 
 	Flexpage_iterator flex(dsc.phys_addr() + attribute.offset, attribute.size,
 	                       guest_phys, attribute.size, guest_phys);
@@ -296,7 +296,7 @@ void Vm_session_component::_attach_vm_memory(Dataspace_component &dsc,
 
 		auto result_map = _vm_space->map_guest(page.addr, page.hotspot,
 		                                       (1 << page.log2_order) / 4096,
-		                                       attr_noflush);
+		                                       attr_flush);
 
 		result_map.with_result([](auto ok) {
 			if (!ok) throw Invalid_dataspace();
