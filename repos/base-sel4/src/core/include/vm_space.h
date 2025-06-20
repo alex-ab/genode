@@ -210,7 +210,7 @@ class Core::Vm_space
 			return Cap_sel(unsigned(sel));
 		}
 
-		bool _flush(bool const flush_support, auto const &fn)
+		bool _flush(bool const flush_support, auto const &fn, int reason)
 		{
 			if (!flush_support) {
 				warning("mapping cache full, but can't flush");
@@ -218,7 +218,7 @@ class Core::Vm_space
 			}
 
 			warning("flush page table entries - mapping cache full - PD: ",
-			        _pd_label.string());
+			        _pd_label.string(), " ", reason);
 
 			_pt_registry.flush_pages(fn);
 
@@ -246,7 +246,7 @@ class Core::Vm_space
 			auto pte_result = _sel_alloc.alloc();
 			if (pte_result.failed()) {
 				/* free all page-table-entry selectors and retry once */
-				if (!_flush(attr.flush_support, fn))
+				if (!_flush(attr.flush_support, fn, 1))
 					return Result(Alloc_error::DENIED);
 
 				pte_result = _sel_alloc.alloc();
@@ -279,7 +279,7 @@ class Core::Vm_space
 			if (res.failed()) {
 
 				/* free all entries of mapping cache and re-try once */
-				if (!_flush(attr.flush_support, fn))
+				if (!_flush(attr.flush_support, fn, 2))
 					return Result(Alloc_error::DENIED);
 
 				res = _pt_registry.insert_page_frame(to_dest, Cap_sel(pte_idx));
