@@ -103,6 +103,12 @@ Capability_space::create_rpc_obj_cap(Native_capability ep_cap,
 		                                src_depth,
 		                                rights,
 		                                badge);
+
+		if (ret != seL4_NoError)
+			error("rpc_obj_cap failed ", ret,
+			      " ep_sel=", Hex(ep_sel.value()),
+			      " rpc_sel=", Hex(rpc_obj_sel.value()));
+
 		ASSERT(ret == seL4_NoError);
 
 		return Native_capability(&data);
@@ -117,6 +123,7 @@ void Capability_space::destroy_rpc_obj_cap(Native_capability &cap)
 
 	Cap_sel const sel(local_capability_space().sel(*cap.data()));
 	seL4_CNode_Revoke(seL4_CapInitThreadCNode, sel.value(), 32);
+//	error(__func__, " sel=", Hex(sel.value()));
 }
 
 
@@ -132,6 +139,8 @@ void Capability_space_sel4<A, B, C>::_cleanup_last_ref(Native_capability::Data &
 	seL4_CNode_Revoke(seL4_CapInitThreadCNode, sel.value(), 32);
 	seL4_CNode_Delete(seL4_CapInitThreadCNode, sel.value(), 32);
 	platform_specific().core_sel_alloc().free(sel);
+
+//	error(__func__, " sel=", Hex(sel.value()));
 }
 
 
