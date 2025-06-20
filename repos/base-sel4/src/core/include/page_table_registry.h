@@ -158,12 +158,16 @@ class Core::Page_table_registry
 			if (level == FRAME) {
 				return _alloc_frames.try_alloc(sizeof(Frame)).convert<Result>([&](auto &res) {
 					res.deallocate = false;
+
 					auto frame = construct_at<Frame>(res.ptr, vaddr, sel,
-				                                     level_log2_size);
+					                                 level_log2_size);
+
 					_frames.insert(frame);
 
 					return true;
-				}, [&](auto e){ return e; });
+				}, [&](auto e) {
+					error("fail _insert frame ", Hex(paddr), " -> ", Hex(vaddr), " ", e);
+					return e; });
 			}
 
 			return _alloc_high.try_alloc(sizeof(Table)).convert<Result>([&](auto &res) {
@@ -178,7 +182,10 @@ class Core::Page_table_registry
 				case FRAME      : return false;
 				}
 				return false;
-			}, [&](auto e){ return e; });
+			}, [&](auto e){
+				error("fail _insert high ", Hex(paddr), " -> ", Hex(vaddr), " ", e);
+				return e;
+			});
 		}
 
 		template <typename T>
@@ -258,14 +265,19 @@ class Core::Page_table_registry
 		{
 			Avl_tree<Frame> tmp;
 
+			unsigned cnt_removed = 0;
+			unsigned cnt_tried   = 0;
+
 			for (Frame *frame; (frame = _frames.first());) {
 
 				if (fn(frame->sel(), frame->vaddr())) {
 					_frames.remove(frame);
 					destroy(_alloc_frames, frame);
+					cnt_removed ++;
 				} else {
 					_frames.remove(frame);
 					tmp.insert(frame);
+					cnt_tried ++;
 				}
 			}
 
@@ -273,6 +285,8 @@ class Core::Page_table_registry
 				tmp.remove(frame);
 				_frames.insert(frame);
 			}
+
+			error(__func__, " removed=", cnt_removed, " tried=", cnt_tried);
 		}
 
 		void flush_all(auto const &pages, auto const &level)
