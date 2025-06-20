@@ -25,7 +25,7 @@ namespace Core {
 
 struct Core::Signal_delivery_proxy : Interface
 {
-	GENODE_RPC(Rpc_deliver, void, _deliver_from_ep, Signal_context_capability, unsigned);
+	GENODE_RPC(Rpc_deliver, bool, _deliver_from_ep, Signal_context_capability, unsigned);
 	GENODE_RPC(Rpc_release, void, _release_from_ep, addr_t);
 	GENODE_RPC_INTERFACE(Rpc_deliver, Rpc_release);
 };
@@ -61,14 +61,20 @@ struct Core::Signal_delivery_proxy_component
 	 * can produce legitimate IPC reply messages to 'Signal_source'
 	 * clients.
 	 */
-	void _deliver_from_ep(Signal_context_capability cap, unsigned cnt)
+	bool _deliver_from_ep(Signal_context_capability cap, unsigned cnt)
 	{
+		bool result = false;
+
 		_ep.apply(cap, [&] (Signal_context_component *context) {
-			if (context)
+			if (context) {
 				context->source().submit(*context, cnt);
+				result = true;
+			}
 			else
-				warning("invalid signal-context capability");
+				warning("invalid signal-context capability ", cap.valid(), " ", Hex(cap.local_name()));
 		});
+
+		return result;
 	}
 
 	void _release_from_ep(addr_t const context_addr)
@@ -87,7 +93,10 @@ struct Core::Signal_delivery_proxy_component
 	 * Called from threads other than 'ep'.
 	 */
 	void submit(Signal_context_capability cap, unsigned cnt) {
-		_proxy_cap.call<Rpc_deliver>(cap, cnt); }
+		bool res = _proxy_cap.call<Rpc_deliver>(cap, cnt);
+		if (!res)
+			error("submit not successful valid=", cap.valid(), " ", Hex(cap.local_name()));
+	}
 
 	/**
 	 * Deliver signal via the proxy mechanism

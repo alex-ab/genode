@@ -129,12 +129,13 @@ class Core::Signal_broker
 			cap_map().remove(context_cap.local_name(), 0);
 		}
 
-		void submit(Signal_context_capability, unsigned)
+		bool submit(Signal_context_capability, unsigned)
 		{
 			/*
 			 * On NOVA, signals are submitted directly to the kernel, not
 			 * by using core as a proxy.
 			 */
+			return true;
 		}
 };
 

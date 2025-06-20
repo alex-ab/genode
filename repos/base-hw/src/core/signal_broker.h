@@ -131,12 +131,13 @@ class Core::Signal_broker
 			_context_alloc.destroy(*context_ptr);
 		}
 
-		void submit(Signal_context_capability, unsigned)
+		bool submit(Signal_context_capability, unsigned)
 		{
 			/*
 			 * This function is never called as base-hw delivers signals
 			 * directly via the kernel.
 			 */
+			return true;
 		}
 };
 

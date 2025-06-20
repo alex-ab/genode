@@ -48,7 +48,7 @@ struct Monitor::Pd_intrinsics : Sandbox::Pd_intrinsics
 		void                   free_signal_source(Sig_src_cap)           override { never_called(__func__); };
 		Alloc_context_result   alloc_context(Sig_src_cap, Imprint)       override { never_called(__func__); };
 		void                   free_context(Sig_ctx_cap)                 override { never_called(__func__); };
-		void                   submit(Sig_ctx_cap, unsigned)             override { never_called(__func__); };
+		bool                   submit(Sig_ctx_cap, unsigned)             override { never_called(__func__); };
 		Alloc_rpc_cap_result   alloc_rpc_cap(Native_capability)          override { never_called(__func__); };
 		void                   free_rpc_cap(Native_capability)           override { never_called(__func__); };
 		Capability<Region_map> address_space()                           override { never_called(__func__); };

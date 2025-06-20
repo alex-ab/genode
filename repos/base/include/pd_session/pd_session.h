@@ -189,7 +189,7 @@ struct Genode::Pd_session : Session, Pd_account
 	 * could supply a capability with a blocking interface to compromise the
 	 * nonblocking behaviour of the signal submission.
 	 */
-	virtual void submit(Capability<Signal_context> context, unsigned cnt = 1) = 0;
+	virtual bool submit(Capability<Signal_context> context, unsigned cnt = 1) = 0;
 
 
 	/***********************************
@@ -374,7 +374,7 @@ struct Genode::Pd_session : Session, Pd_account
 	GENODE_RPC(Rpc_alloc_context, Alloc_context_result, alloc_context,
 	           Capability<Signal_source>, Imprint);
 	GENODE_RPC(Rpc_free_context, void, free_context, Capability<Signal_context>);
-	GENODE_RPC(Rpc_submit, void, submit, Capability<Signal_context>, unsigned);
+	GENODE_RPC(Rpc_submit, bool, submit, Capability<Signal_context>, unsigned);
 	GENODE_RPC(Rpc_alloc_rpc_cap, Alloc_rpc_cap_result, alloc_rpc_cap, Native_capability);
 	GENODE_RPC(Rpc_free_rpc_cap, void, free_rpc_cap, Native_capability);
 	GENODE_RPC(Rpc_address_space, Capability<Region_map>, address_space);
