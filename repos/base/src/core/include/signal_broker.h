@@ -18,6 +18,7 @@
 #include <signal_source_component.h>
 #include <signal_context_slab.h>
 #include <signal_delivery_proxy.h>
+#include <os/backtrace.h>
 
 namespace Core { class Signal_broker; }
 
@@ -111,6 +112,12 @@ class Core::Signal_broker
 
 		void submit(Signal_context_capability const cap, unsigned const cnt)
 		{
+			if (!cap.valid()) {
+				error(__func__, " ", __FILE__);
+				backtrace();
+				return;
+			}
+
 			_delivery_proxy.submit(cap, cnt);
 		}
 };

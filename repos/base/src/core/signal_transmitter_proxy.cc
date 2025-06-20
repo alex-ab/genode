@@ -23,6 +23,7 @@
 
 /* base-internal includes */
 #include <base/internal/globals.h>
+#include <os/backtrace.h>
 
 using namespace Core;
 
@@ -41,6 +42,11 @@ void Signal_transmitter::submit(unsigned cnt)
 {
 	{
 		Trace::Signal_submit trace_event(cnt);
+	}
+	if (!_context.valid()) {
+		error(__func__, " ", __FILE__);
+		backtrace();
+		return;
 	}
 	delivery_proxy->submit(_context, cnt);
 }
