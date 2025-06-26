@@ -1,5 +1,14 @@
 assert {[have_spec hw] || [have_spec nova] || [have_spec sel4]}
 
+assert {[have_spec x86]}
+
+if { [have_cmd_switch --autopilot] } {
+
+	# Test mimic of sending power down request works solely with Qemu
+	assert {[have_include power_on/qemu]} \
+		"Autopilot mode is not supported on this platform."
+}
+
 set build_components {
 	driver/acpi
 	server/event_dump
