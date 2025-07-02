@@ -79,7 +79,8 @@ void Platform::_init_core_page_table_registry()
 	}
 
 	/* initialize 16k memory allocator */
-	phys_alloc_16k(&core_mem_alloc());
+	phys_alloc_16k  (&core_mem_alloc());
+	phys_alloc_large(&core_mem_alloc());
 
 	/* reserve some memory for VCPUs - must be 16k */
 	enum { MAX_VCPU_COUNT = 16 };
@@ -116,6 +117,45 @@ void Platform::_init_core_page_table_registry()
 		Vcpu_kobj::SIZE_LOG2, max_pd_mem);
 
 	log(":phys_mem_16k:     ",  phys_alloc_16k());
+
+	enum { MAX_LARGE_COUNT = 16 };
+	addr_t const max_pd_mem_large = MAX_LARGE_COUNT * (1UL << PAGE_TABLE_LOG2_SIZE);
+
+	_initial_untyped_pool.turn_into_untyped_object(Core_cspace::TOP_CNODE_UNTYPED_LARGE,
+		[&] (addr_t const phys, addr_t const size, bool const device_memory) {
+
+			if (device_memory)
+				return false;
+
+			/* platform driver requests memory below 4G, so let it to him */
+			if (phys < 1ull << 32)
+				return false;
+
+			if (_unused_phys_alloc.remove_range(phys, size).failed()) {
+				warning("unable to register range as RAM: ", Hex_range(phys, size));
+				return false;
+			}
+
+			if (phys_alloc_large().add_range(phys, size).failed()) {
+				if (_unused_phys_alloc.add_range(phys, size).failed())
+					warning("unable to remove range as RAM: ", Hex_range(phys, size));
+				warning("unable to register range as RAM: ", Hex_range(phys, size));
+				return false;
+			}
+
+			return true;
+		},
+		[&] (addr_t const phys, addr_t const size, bool const device_memory) {
+			if (device_memory)
+				return;
+
+			if (phys_alloc_large().remove_range(phys, size).failed() ||
+			    _unused_phys_alloc.add_range   (phys, size).failed())
+				warning("unable to re-add phys RAM: ", Hex_range(phys, size));
+		},
+		PAGE_TABLE_LOG2_SIZE, max_pd_mem_large);
+
+	log(":phys_mem_2M:     ",  phys_alloc_large());
 }
 
 

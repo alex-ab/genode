@@ -168,6 +168,10 @@ class Core::Platform : public Platform_generic
 		                           Cnode_index(Core_cspace::untyped_cnode_16k()),
 		                           Core_cspace::NUM_PHYS_SEL_LOG2, _initial_untyped_pool };
 
+		/* allocate 2nd-level CNode for storing cap selectors for untyped large objects (super page) */
+		Cnode _untyped_cnode_large { Cap_sel(seL4_CapInitThreadCNode),
+		                             Cnode_index(Core_cspace::untyped_cnode_large()),
+		                             Core_cspace::NUM_PHYS_SEL_LOG2, _initial_untyped_pool };
 		/*
 		 * XXX Consider making Bit_allocator::_reserve public so that we can
 		 *     turn the bit allocator into a private member of 'Core_sel_alloc'.
