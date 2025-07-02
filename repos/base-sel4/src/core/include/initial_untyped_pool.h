@@ -202,8 +202,11 @@ class Core::Initial_untyped_pool
 						return;
 
 					size_t const remaining_size    = range.size - page_aligned_free_offset;
-					size_t const retype_size_limit = get_page_size()*256;
+					size_t const retype_size_limit = max(get_page_size()*256, 1ul << size_log2);
 					size_t const batch_size        = min(min(remaining_size, retype_size_limit), max_memory);
+
+					if (remaining_size < (1ul << size_log2))
+						return;
 
 					addr_t const phys_addr = range.phys + page_aligned_free_offset;
 					size_t const num_pages = batch_size / (1UL << size_log2);
