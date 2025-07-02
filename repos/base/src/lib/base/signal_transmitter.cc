@@ -34,6 +34,9 @@ void Signal_transmitter::submit(unsigned cnt)
 		Trace::Signal_submit trace_event(cnt);
 	}
 
+	if (!_context.valid())
+		return;
+
 	if (_pd) {
 		if (!_pd->submit(_context, unsigned(_context.local_name())))
 			error("Signal_transmitter::submit fail ",
