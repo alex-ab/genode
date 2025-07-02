@@ -83,7 +83,9 @@ void Net::Nic_session_component::
 Interface_policy::_session_link_state_transition(Transient_link_state tls)
 {
 	_transient_link_state = tls;
+	error(__func__, " submit ", _label);
 	Signal_transmitter(_session_link_state_sigh).submit();
+	error(__func__, " submit done");
 }
 
 
