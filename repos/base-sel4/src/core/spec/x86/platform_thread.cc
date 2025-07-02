@@ -24,6 +24,13 @@ Phys_allocator &Core::phys_alloc_16k(Allocator *core_mem_alloc)
 }
 
 
+Phys_allocator &Core::phys_alloc_large(Allocator *core_mem_alloc)
+{
+	static Phys_allocator phys_alloc_large(core_mem_alloc);
+	return phys_alloc_large;
+}
+
+
 void Platform_thread::affinity(Affinity::Location const location)
 {
 	seL4_Error const res = seL4_TCB_SetAffinity(tcb_sel().value(), location.xpos());

@@ -35,21 +35,23 @@ class Core::Core_cspace
 
 		/* selectors for initially created CNodes during core bootup */
 		static unsigned top_cnode_sel()       { return (unsigned)sel4_boot_info().empty.start; }
-		static unsigned core_pad_cnode_sel()  { return top_cnode_sel()      + 1; }
-		static unsigned core_cnode_sel()      { return core_pad_cnode_sel() + 1; }
-		static unsigned phys_cnode_sel()      { return core_cnode_sel()     + 1; }
-		static unsigned untyped_cnode_4k()    { return phys_cnode_sel()     + 1; }
-		static unsigned untyped_cnode_16k()   { return untyped_cnode_4k()   + 1; }
-		static unsigned io_port_sel()         { return untyped_cnode_16k()  + 1; }
-		static unsigned core_static_sel_end() { return io_port_sel()        + 1; }
+		static unsigned core_pad_cnode_sel()  { return top_cnode_sel()       + 1; }
+		static unsigned core_cnode_sel()      { return core_pad_cnode_sel()  + 1; }
+		static unsigned phys_cnode_sel()      { return core_cnode_sel()      + 1; }
+		static unsigned untyped_cnode_4k()    { return phys_cnode_sel()      + 1; }
+		static unsigned untyped_cnode_16k()   { return untyped_cnode_4k()    + 1; }
+		static unsigned untyped_cnode_large() { return untyped_cnode_16k()   + 1; }
+		static unsigned io_port_sel()         { return untyped_cnode_large() + 1; }
+		static unsigned core_static_sel_end() { return io_port_sel()         + 1; }
 
 		/* indices within top-level CNode */
 		enum Top_cnode_idx {
 			TOP_CNODE_CORE_IDX    = 0,
 
-			TOP_CNODE_UNTYPED_16K = 0x7fd, /* untyped objects 16K  */
-			TOP_CNODE_UNTYPED_4K  = 0x7fe, /* untyped objects  4K  */
-			TOP_CNODE_PHYS_IDX    = 0x7ff  /* physical page frames */
+			TOP_CNODE_UNTYPED_LARGE = 0x7fc, /* untyped objects large */
+			TOP_CNODE_UNTYPED_16K   = 0x7fd, /* untyped objects 16K   */
+			TOP_CNODE_UNTYPED_4K    = 0x7fe, /* untyped objects  4K   */
+			TOP_CNODE_PHYS_IDX      = 0x7ff  /* physical page frames  */
 		};
 
 		enum { CORE_VM_ID = 1 };
