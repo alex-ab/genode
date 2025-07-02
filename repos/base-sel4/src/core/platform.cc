@@ -303,6 +303,10 @@ void Core::Platform::_switch_to_core_cspace()
 	_top_cnode.move(initial_cspace, Cnode_index(Core_cspace::untyped_cnode_16k()),
 	                                Cnode_index(Core_cspace::TOP_CNODE_UNTYPED_16K));
 
+	/* insert 2nd-level untyped-pages CNode into 1st-level CNode */
+	_top_cnode.move(initial_cspace, Cnode_index(Core_cspace::untyped_cnode_large()),
+	                                Cnode_index(Core_cspace::TOP_CNODE_UNTYPED_LARGE));
+
 	/* activate core's CSpace */
 	{
 		seL4_CNode_CapData const null_data = { { 0 } };
