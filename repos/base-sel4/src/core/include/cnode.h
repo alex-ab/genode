@@ -46,7 +46,7 @@ class Core::Cnode_base
 		/**
 		 * Copy selector from another CNode
 		 */
-		void copy(Cnode_base const &from, Index from_idx, Index to_idx)
+		bool copy(Cnode_base const &from, Index from_idx, Index to_idx)
 		{
 			seL4_CNode       const service    = sel().value();
 			seL4_Word        const dest_index = to_idx.value();
@@ -58,13 +58,16 @@ class Core::Cnode_base
 
 			int const ret = seL4_CNode_Copy(service, dest_index, dest_depth,
 			                                src_root, src_index, src_depth, rights);
-			if (ret != 0) {
+			if (ret != seL4_NoError) {
 				warning(__FUNCTION__, ": seL4_CNode_Copy (",
 				        Hex(from_idx.value()), ") returned ", ret);
 			}
+
+			return ret == seL4_NoError;
 		}
 
-		void copy(Cnode_base const &from, Index idx) { copy(from, idx, idx); }
+		bool copy(Cnode_base const &from, Index idx) {
+			return copy(from, idx, idx); }
 
 		/**
 		 * Mint selector from another CNode
@@ -93,18 +96,20 @@ class Core::Cnode_base
 		/**
 		 * Delete selector from CNode
 		 */
-		void remove(Index idx)
+		bool remove(Index idx)
 		{
 			int ret = seL4_CNode_Delete(sel().value(), idx.value(), size_log2());
 			if (ret != seL4_NoError)
 				error(__PRETTY_FUNCTION__, ": seL4_CNode_Delete (",
 				      Hex(idx.value()), ") returned ", ret);
+
+			return ret == seL4_NoError;
 		}
 
 		/**
 		 * Move selector from another CNode
 		 */
-		void move(Cnode_base const &from, Index from_idx, Index to_idx)
+		bool move(Cnode_base const &from, Index from_idx, Index to_idx)
 		{
 			seL4_CNode const service    = sel().value();
 			seL4_Word  const dest_index = to_idx.value();
@@ -115,13 +120,16 @@ class Core::Cnode_base
 
 			int const ret = seL4_CNode_Move(service, dest_index, dest_depth,
 			                                src_root, src_index, src_depth);
-			if (ret != 0) {
+			if (ret != seL4_NoError) {
 				warning(__FUNCTION__, ": seL4_CNode_Move (",
 				        Hex(from_idx.value()), ") returned ", ret);
 			}
+
+			return ret == seL4_NoError;
 		}
 
-		void move(Cnode_base const &from, Index idx) { move(from, idx, idx); }
+		bool move(Cnode_base const &from, Index idx) {
+			return move(from, idx, idx); }
 
 		/**
 		 * Constructor
