@@ -30,14 +30,20 @@ using namespace Core;
 
 void Vm_session_component::Vcpu::_free_up()
 {
-	if (_notification.value()) {
-		int ret = seL4_CNode_Delete(seL4_CapInitThreadCNode,
-	                                _notification.value(), 32);
-		if (ret == seL4_NoError)
+	if (!_notification.value())
+		return;
+
+	error("free up ", __LINE__, " ", _notification.value());
+	auto ret = seL4_CNode_Revoke(seL4_CapInitThreadCNode, _notification.value(), 32);
+	if (ret == seL4_NoError) {
+		ret = seL4_CNode_Delete(seL4_CapInitThreadCNode, _notification.value(), 32);
+		if (ret == seL4_NoError) {
 			platform_specific().core_sel_alloc().free(_notification);
-		else
-			error(__func__, " cnode delete error ", ret);
+			return;
+		}
 	}
+
+	error(__func__, " failed - leaking id");
 }
 
 
@@ -210,7 +216,27 @@ Vm_session_component::~Vm_session_component()
 		detach_at(out_addr);
 	}
 
-	if (_vm_page_table.value())
+	if (_notifications._service)
+		Untyped_memory::free_page(platform().ram_alloc(), _notifications._phys);
+
+	int ret = seL4_NoError;
+
+	if (_ept._service) {
+		ret = seL4_CNode_Revoke(seL4_CapInitThreadCNode,
+		                        _vm_page_table.value(), 32);
+		if (ret == seL4_NoError) {
+			ret = seL4_CNode_Delete(seL4_CapInitThreadCNode,
+			                        _vm_page_table.value(), 32);
+			if (ret == seL4_NoError)
+				Untyped_memory::free_page(platform().ram_alloc(), _ept._phys);
+		}
+
+		if (ret != seL4_NoError)
+			error(__func__, ": could not free ASID entry, "
+			      "leaking physical memory ", ret);
+	}
+
+	if (_vm_page_table.value() && ret == seL4_NoError)
 		platform_specific().core_sel_alloc().free(_vm_page_table);
 
 	if (_pd_id)
