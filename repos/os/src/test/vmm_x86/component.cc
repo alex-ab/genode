@@ -571,6 +571,7 @@ class Vmm::Main
 
 		Signal_handler<Main> _destruct_handler;
 		Reconstructible<Vm>  _vm;
+		Env & _env;
 
 		void _destruct()
 		{
@@ -578,7 +579,9 @@ class Vmm::Main
 
 			_vm.destruct();
 
-			log("vmm test finished");
+			log("vmm ");
+			_vm.construct(_env, _destruct_handler);
+			log("vmm done ?");
 		}
 
 	public:
@@ -586,7 +589,7 @@ class Vmm::Main
 		Main(Env &env)
 		:
 			_destruct_handler(env.ep(), *this, &Main::_destruct),
-			_vm(env, _destruct_handler)
+			_vm(env, _destruct_handler), _env(env)
 		{
 		}
 };
