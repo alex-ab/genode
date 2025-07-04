@@ -42,6 +42,7 @@ class Core::Page_table_registry
 			private:
 
 				addr_t  const _vaddr;
+				addr_t  const _paddr;
 				Cap_sel const _sel;
 
 				Frame *_lookup(addr_t vaddr)
@@ -61,13 +62,15 @@ class Core::Page_table_registry
 
 			public:
 
-				Frame(addr_t const vaddr, Cap_sel const sel, unsigned log2base)
+				Frame(addr_t const vaddr, addr_t const paddr,
+				      Cap_sel const sel, unsigned log2base)
 				:
-					_vaddr(_base(vaddr, log2base)), _sel(sel)
+					_vaddr(_base(vaddr, log2base)), _paddr(paddr), _sel(sel)
 				{ }
 
 				Cap_sel   sel() const { return _sel; }
 				addr_t  vaddr() const { return _vaddr; }
+				addr_t  paddr() const { return _paddr; }
 
 				static Frame * lookup(Avl_tree<Frame> &tree,
 				                      addr_t const vaddr,
@@ -159,7 +162,7 @@ class Core::Page_table_registry
 				return _alloc_frames.try_alloc(sizeof(Frame)).convert<Result>([&](auto &res) {
 					res.deallocate = false;
 
-					auto frame = construct_at<Frame>(res.ptr, vaddr, sel,
+					auto frame = construct_at<Frame>(res.ptr, vaddr, paddr, sel,
 					                                 level_log2_size);
 
 					_frames.insert(frame);
@@ -229,8 +232,9 @@ class Core::Page_table_registry
 		bool page_level3_at(addr_t const vaddr, unsigned const level_log2) {
 			return Table::lookup(_level3, vaddr, level_log2); }
 
-		Result insert_page_frame(addr_t const vaddr, Cap_sel const sel) {
-			return _insert(vaddr, sel, Level::FRAME, 0, LEVEL_0); }
+		Result insert_page_frame(addr_t const vaddr, Cap_sel const sel,
+		                         addr_t const paddr) {
+			return _insert(vaddr, sel, Level::FRAME, paddr, LEVEL_0); }
 		Result insert_page_table(addr_t const vaddr, Cap_sel const sel,
 		                         addr_t const paddr, unsigned level_log2) {
 			return _insert(vaddr, sel, Level::PAGE_TABLE, paddr, level_log2); }
@@ -256,7 +260,7 @@ class Core::Page_table_registry
 			if (!frame)
 				return;
 
-			fn(frame->sel(), frame->vaddr());
+			fn(frame->sel(), frame->vaddr(), frame->paddr());
 			_frames.remove(frame);
 			destroy(_alloc_frames, frame);
 		}
