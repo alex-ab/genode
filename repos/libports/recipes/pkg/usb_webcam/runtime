@@ -1,4 +1,4 @@
-<runtime binary="init" caps="900" ram="64M">
+<runtime binary="init" caps="950" ram="65M">
 	<provides> <capture /> </provides>
 	<requires> <timer /> <usb /> </requires>
 	<content>
@@ -63,7 +63,7 @@
 			</route>
 		</start>
 
-		<start name="webcam_config" ram="1M">
+		<start name="webcam_config" ram="2M">
 			<binary name="rom_filter"/>
 			<provides> <service name="ROM"/> </provides>
 			<config verbose="no">
@@ -88,7 +88,7 @@
 								<service name="Gui"/>
 								<service name="Usb"/>
 							</parent-provides>
-							<start name="usb_webcam" caps="300" ram="52M">
+							<start name="usb_webcam" caps="400" ram="52M">
 								<config ld_verbose="no" width="640" height="480">
 									<vfs>
 										<dir name="dev">
@@ -115,7 +115,7 @@
 			</route>
 		</start>
 
-		<start name="webcam" caps="400" ram="54M">
+		<start name="webcam" caps="500" ram="54M">
 			<binary name="init"/>
 			<route>
 				<service name="ROM" label="config">
