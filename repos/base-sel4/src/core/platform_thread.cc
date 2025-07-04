@@ -232,8 +232,6 @@ Platform_thread::Platform_thread(Platform_pd &pd, Rpc_entrypoint &, Ram_allocato
 {
 	static_assert(CONFIG_NUM_PRIORITIES == 256, " unknown priority configuration");
 
-	error("prio ", priority, " -> ", _priority, " of '", _name, "'");
-
 	platform_thread_registry().insert(*this);
 
 	platform_specific().core_sel_alloc().alloc().with_result([&](auto sel) {
@@ -369,18 +367,12 @@ Trace::Execution_time Platform_thread::execution_time() const
 }
 
 
-void Platform_thread::setup_vcpu(Cap_sel ept, Cap_sel notification,
-                                 unsigned const priority)
+void Platform_thread::setup_vcpu(Cap_sel ept, Cap_sel notification)
 {
-	if (!_info.init_vcpu(platform_specific(), ept, priority)) {
+	if (!_info.init_vcpu(platform_specific(), ept)) {
 		error("creating vCPU failed");
 		return;
 	}
-
-	log("set priority of ", _name, " ", _priority, " to ", priority);
-
-	/* the priority may have changed when a vCPU is attached to this thread */
-	_priority = uint16_t(priority);
 
 	/* install the thread's endpoint selector to the PD's CSpace */
 	_pd.with_cspace_cnode(_vcpu_sel, [&](auto &cnode) {

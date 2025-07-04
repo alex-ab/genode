@@ -194,7 +194,7 @@ class Core::Platform_thread : public List<Platform_thread>::Element
 
 		bool install_mapping(Mapping const &mapping);
 
-		void setup_vcpu(Cap_sel ept, Cap_sel notification, unsigned priority);
+		void setup_vcpu(Cap_sel ept, Cap_sel notification);
 };
 
 #endif /* _CORE__INCLUDE__PLATFORM_THREAD_H_ */

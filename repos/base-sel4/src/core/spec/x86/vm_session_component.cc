@@ -98,7 +98,7 @@ Vm_session_component::Vm_session_component(Rpc_entrypoint &ep,
                                            Diag,
                                            Ram_allocator &ram,
                                            Local_rm &local_rm,
-                                           unsigned priority,
+                                           unsigned,
                                            Trace::Source_registry &)
 try
 :
@@ -106,13 +106,10 @@ try
 	Cap_quota_guard(resources.cap_quota),
 	_ep(ep),
 	_ram(ram, _ram_quota_guard(), _cap_quota_guard()),
-	_heap(_ram, local_rm),
-	_priority((uint16_t)(Cpu_session::scale_priority(CONFIG_NUM_PRIORITIES, priority)))
+	_heap(_ram, local_rm)
 {
 	Platform        &platform   = platform_specific();
 	Range_allocator &phys_alloc = platform.ram_alloc();
-
-	error("prio ", priority, " -> ", _priority, " of vCPU");
 
 	platform_specific().core_sel_alloc().alloc().with_result([&](auto sel) {
 		_vm_page_table = Cap_sel(unsigned(sel));
@@ -269,8 +266,7 @@ Capability<Vm_session::Native_vcpu> Vm_session_component::create_vcpu(Thread_cap
 			                                    _notifications._service);
 
 			Platform_thread &pthread = thread->platform_thread();
-			pthread.setup_vcpu(_vm_page_table, vcpu->notification_cap(),
-			                   _priority);
+			pthread.setup_vcpu(_vm_page_table, vcpu->notification_cap());
 
 			int ret = seL4_TCB_BindNotification(pthread.tcb_sel().value(),
 			                                    vcpu->notification_cap().value());

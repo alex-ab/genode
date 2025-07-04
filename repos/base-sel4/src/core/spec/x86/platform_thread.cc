@@ -32,7 +32,7 @@ void Platform_thread::affinity(Affinity::Location const location)
 }
 
 
-bool Thread_info::init_vcpu(Platform &platform, Cap_sel ept, unsigned priority)
+bool Thread_info::init_vcpu(Platform &platform, Cap_sel ept)
 {
 	enum { PAGES_16K = (1UL << Vcpu_kobj::SIZE_LOG2) / 4096 };
 
@@ -54,24 +54,12 @@ bool Thread_info::init_vcpu(Platform &platform, Cap_sel ept, unsigned priority)
 		if (!create<Vcpu_kobj>(service, platform.core_cnode().sel(), vcpu_sel))
 			return false;
 
-		auto res = seL4_X86_VCPU_SetTCB(vcpu_sel.value(), tcb_sel.value());
+		seL4_Error res = seL4_X86_VCPU_SetTCB(vcpu_sel.value(), tcb_sel.value());
 		if (res != seL4_NoError)
 			return false;
 
-		res = seL4_TCB_SetEPTRoot(tcb_sel.value(), ept.value());
-		if (res != seL4_NoError)
-			return false;
-
-		res = seL4_TCB_SetMCPriority(tcb_sel.value(),
-		                             Cnode_index(seL4_CapInitThreadTCB).value(),
-		                             priority);
-		if (res != seL4_NoError)
-			return false;
-
-		res = seL4_TCB_SetPriority(tcb_sel.value(),
-		                           Cnode_index(seL4_CapInitThreadTCB).value(),
-		                           priority);
-		if (res != seL4_NoError)
+		int error = seL4_TCB_SetEPTRoot(tcb_sel.value(), ept.value());
+		if (error != seL4_NoError)
 			return false;
 
 		return true;
