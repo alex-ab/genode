@@ -77,6 +77,7 @@ class Core::Vm_session_component
 		unsigned                 _pd_id    { 0 };
 		Cap_sel                  _vm_page_table { 0 };
 		Page_table_registry      _page_table_registry { _heap };
+		unsigned           const _priority;
 		Constructible<Vm_space>  _vm_space { };
 
 		struct {

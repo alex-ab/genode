@@ -69,7 +69,7 @@ struct Genode::Thread_info
 	inline void init(Core::Utcb_virt const utcb_virt, unsigned const prio);
 	inline void destruct();
 
-	bool init_vcpu(Core::Platform &, Cap_sel ept);
+	bool init_vcpu(Core::Platform &, Cap_sel ept, unsigned prio);
 
 	bool valid() const
 	{
@@ -81,7 +81,7 @@ struct Genode::Thread_info
 
 bool Genode::Thread_info::init_tcb(Core::Platform &platform,
                                    Range_allocator &phys_alloc,
-                                   unsigned const prio,
+                                   unsigned const priority,
                                    unsigned const cpu)
 {
 	using namespace Core;
@@ -103,13 +103,20 @@ bool Genode::Thread_info::init_tcb(Core::Platform &platform,
 			tcb_sel = cap_sel;
 
 			/* set scheduling priority */
-			seL4_TCB_SetMCPriority(tcb_sel.value(), Cnode_index(seL4_CapInitThreadTCB).value(), prio);
-			seL4_TCB_SetPriority(tcb_sel.value(), Cnode_index(seL4_CapInitThreadTCB).value(), prio);
+			auto res = seL4_TCB_SetMCPriority(tcb_sel.value(),
+			                                  Cnode_index(seL4_CapInitThreadTCB).value(),
+			                                  priority);
+			if (res != seL4_NoError)
+				return false;
+
+			res = seL4_TCB_SetPriority(tcb_sel.value(),
+			                           Cnode_index(seL4_CapInitThreadTCB).value(),
+			                           priority);
+			if (res != seL4_NoError)
+				return false;
 
 			/* place at cpu */
-			affinity_sel4_thread(tcb_sel, cpu);
-
-			return true;
+			return affinity_sel4_thread(tcb_sel, cpu);
 		}, [&](auto) { return false; });
 	}, [&](auto) { return false; });
 }
