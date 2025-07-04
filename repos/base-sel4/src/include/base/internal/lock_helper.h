@@ -22,7 +22,7 @@
 #include <sel4/sel4.h>
 
 
-static inline void thread_yield() { seL4_Yield(); }
+static inline void thread_yield() { Genode::raw(__func__); seL4_Yield(); }
 
 
 static inline void thread_switch_to(Genode::Thread *)
