@@ -1719,6 +1719,8 @@ void Acpi::generate_report(Genode::Env &env, Genode::Allocator &alloc,
 		for (Pci_config_space *e = Pci_config_space::list()->first(); e;
 		     e = e->next())
 		{
+			error("bdf start=", Hex(e->_base));
+
 			xml.node("bdf", [&] () {
 				xml.attribute("start", e->_bdf_start);
 				xml.attribute("count", e->_func_count);
