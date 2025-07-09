@@ -19,6 +19,7 @@
 #include <base/attached_rom_dataspace.h>
 #include <base/heap.h>
 #include <os/reporter.h>
+#include <trace/timestamp.h>
 
 enum SORT_TIME { EC_TIME = 0, SC_TIME = 1};
 
@@ -358,6 +359,20 @@ void App::Main::_handle_config()
 
 void App::Main::_handle_period()
 {
+	static uint64_t last = Trace::timestamp();
+	static uint64_t rdtsc_ms_sum = 0;
+
+	auto current = Trace::timestamp();
+
+	auto timer_ms = _timer.elapsed_ms();
+	auto rdtsc_ms = (current - last) / 1'896'000;
+
+	rdtsc_ms_sum += rdtsc_ms;
+
+	error(__func__, " ", rdtsc_ms_sum, "ms vs ", timer_ms, "ms diff=", int64_t(timer_ms) - int64_t(rdtsc_ms_sum));
+
+	last = current;
+
 	/* update subject information */
 	bool const arg_buffer_sufficient = _trace_subject_registry.update(*_trace,
 	                                                                  _heap);
