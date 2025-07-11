@@ -72,7 +72,8 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
 	private:
 
 		Vcpu_handler_base          &_vcpu_handler;
-		Vcpu_handler<Sel4_vcpu>      _exit_handler;
+		Vcpu_handler<Sel4_vcpu>     _exit_handler;
+		Exit_config           const _exit_config;
 		Vcpu_state                  _state __attribute__((aligned(0x10))) { };
 		Semaphore                   _wake_up { 0 };
 		Blockade                    _startup { };
@@ -588,39 +589,78 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
 
 		void _read_sel4_state(seL4_X86_VCPU const service, Vcpu_state &state)
 		{
-			state.ip.charge(seL4_GetMR(SEL4_VMENTER_CALL_EIP_MR));
-			state.ctrl_primary.charge((uint32_t)seL4_GetMR(SEL4_VMENTER_CALL_CONTROL_PPC_MR));
+			typedef Exit_config::Config_flags Charge;
 
-			state.ip_len        .charge(seL4_GetMR(SEL4_VMENTER_FAULT_INSTRUCTION_LEN_MR));
-			state.qual_primary  .charge(seL4_GetMR(SEL4_VMENTER_FAULT_QUALIFICATION_MR));
-			state.qual_secondary.charge(seL4_GetMR(SEL4_VMENTER_FAULT_GUEST_PHYSICAL_MR));
+			auto charge = _exit_config.exits[state.exit_reason];
 
-			state.flags     .charge(seL4_GetMR(SEL4_VMENTER_FAULT_RFLAGS_MR));
-			state.intr_state.charge((uint32_t)seL4_GetMR(SEL4_VMENTER_FAULT_GUEST_INT_MR));
-			state.cr3       .charge(seL4_GetMR(SEL4_VMENTER_FAULT_CR3_MR));
+			if (charge == Charge::CNONE)
+				return;
 
-			state.ax.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EAX));
-			state.bx.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EBX));
-			state.cx.charge(seL4_GetMR(SEL4_VMENTER_FAULT_ECX));
-			state.dx.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EDX));
-			state.si.charge(seL4_GetMR(SEL4_VMENTER_FAULT_ESI));
-			state.di.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EDI));
-			state.bp.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EBP));
+			if (charge == Charge::ALL)
+				charge = ~0u;
 
-			_recent_gpr.eax = state.ax.value();
-			_recent_gpr.ebx = state.bx.value();
-			_recent_gpr.ecx = state.cx.value();
-			_recent_gpr.edx = state.dx.value();
-			_recent_gpr.esi = state.si.value();
-			_recent_gpr.edi = state.di.value();
-			_recent_gpr.ebp = state.bp.value();
+			if (charge & Charge::IP) {
+				state.ip.charge(seL4_GetMR(SEL4_VMENTER_CALL_EIP_MR));
+				state.ip_len.charge(seL4_GetMR(SEL4_VMENTER_FAULT_INSTRUCTION_LEN_MR));
+			}
 
-			state.sp .charge(_read_vmcs(service, Vmcs::RSP));
-			state.dr7.charge(_read_vmcs(service, Vmcs::DR7));
+			if (charge & Charge::CTRL) {
+				state.ctrl_primary.charge((uint32_t)seL4_GetMR(SEL4_VMENTER_CALL_CONTROL_PPC_MR));
+				/* no support by seL4 to read this value */
+				state.ctrl_secondary.charge(state.ctrl_secondary.value());
+				//state.ctrl_secondary.charge(_read_vmcs(service, Vmcs::CTRL_1));
+			}
+
+			if (charge & Charge::QUAL) {
+				state.qual_primary  .charge(seL4_GetMR(SEL4_VMENTER_FAULT_QUALIFICATION_MR));
+				state.qual_secondary.charge(seL4_GetMR(SEL4_VMENTER_FAULT_GUEST_PHYSICAL_MR));
+			}
+
+			if (charge & Charge::FLAGS)
+				state.flags.charge(seL4_GetMR(SEL4_VMENTER_FAULT_RFLAGS_MR));
+
+			if (charge & Charge::STATE)
+				state.intr_state.charge((uint32_t)seL4_GetMR(SEL4_VMENTER_FAULT_GUEST_INT_MR));
+
+			if (charge & Charge::CR)
+				state.cr3.charge(seL4_GetMR(SEL4_VMENTER_FAULT_CR3_MR));
+
+			if (charge & Charge::ACDB) {
+				state.ax.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EAX));
+				state.bx.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EBX));
+				state.cx.charge(seL4_GetMR(SEL4_VMENTER_FAULT_ECX));
+				state.dx.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EDX));
+
+				_recent_gpr.eax = state.ax.value();
+				_recent_gpr.ebx = state.bx.value();
+				_recent_gpr.ecx = state.cx.value();
+				_recent_gpr.edx = state.dx.value();
+			}
+
+			if (charge & Charge::EBSD) {
+				state.si.charge(seL4_GetMR(SEL4_VMENTER_FAULT_ESI));
+				state.di.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EDI));
+				state.bp.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EBP));
+
+				_recent_gpr.esi = state.si.value();
+				_recent_gpr.edi = state.di.value();
+				_recent_gpr.ebp = state.bp.value();
+			}
+
+			if (charge & Charge::STATE) {
+				state.intr_state.charge((uint32_t)_read_vmcs(service, Vmcs::STATE_INTR));
+				state.actv_state.charge((uint32_t)_read_vmcs(service, Vmcs::STATE_ACTV));
+			}
+
+			if (charge & Charge::SP)
+				state.sp.charge(_read_vmcs(service, Vmcs::RSP));
+
+			if (charge & Charge::DR)
+				state.dr7.charge(_read_vmcs(service, Vmcs::DR7));
 
 			/* r8 - r15 not supported on seL4 */
 
-			{
+			if (charge & Charge::CR) {
 				addr_t const cr0        = _read_vmcs(service, Vmcs::CR0);
 				addr_t const cr0_shadow = _read_vmcs(service, Vmcs::CR0_SHADOW);
 				state.cr0.charge((cr0 & ~cr0_mask) | (cr0_shadow & cr0_mask));
@@ -630,9 +670,10 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
 			}
 
 			/* cr2 not supported on seL4 */
-			state.cr2.charge(state.cr2.value());
+			if (charge & Charge::CR)
+				state.cr2.charge(state.cr2.value());
 
-			{
+			if (charge & Charge::CR) {
 				addr_t const cr4        = _read_vmcs(service, Vmcs::CR4);
 				addr_t const cr4_shadow = _read_vmcs(service, Vmcs::CR4_SHADOW);
 				state.cr4.charge((cr4 & ~cr4_mask) | (cr4_shadow & cr4_mask));
@@ -641,86 +682,98 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
 					_write_vmcs(service, Vmcs::CR4_SHADOW, state.cr4.value());
 			}
 
-			using Segment = Genode::Vcpu_state::Segment;
-			using Range   = Genode::Vcpu_state::Range;
+			if (charge & Charge::CSSS) {
+				state.cs.charge({ _read_vmcs_16(service, Vmcs::CS_SEL),
+				                  _convert_ar_16(_read_vmcs(service, Vmcs::CS_AR)),
+				                  _read_vmcs_32(service, Vmcs::CS_LIMIT),
+				                  _read_vmcs(service, Vmcs::CS_BASE)});
 
-			state.cs.charge(Segment{_read_vmcs_16(service, Vmcs::CS_SEL),
-			                       _convert_ar_16(_read_vmcs(service, Vmcs::CS_AR)),
-			                       _read_vmcs_32(service, Vmcs::CS_LIMIT),
-			                       _read_vmcs(service, Vmcs::CS_BASE)});
+				state.ss.charge({ _read_vmcs_16(service, Vmcs::SS_SEL),
+				                  _convert_ar_16(_read_vmcs(service, Vmcs::SS_AR)),
+				                  _read_vmcs_32(service, Vmcs::SS_LIMIT),
+				                  _read_vmcs(service, Vmcs::SS_BASE)});
+			}
 
-			state.ss.charge(Segment{_read_vmcs_16(service, Vmcs::SS_SEL),
-			                       _convert_ar_16(_read_vmcs(service, Vmcs::SS_AR)),
-			                       _read_vmcs_32(service, Vmcs::SS_LIMIT),
-			                       _read_vmcs(service, Vmcs::SS_BASE)});
+			if (charge & Charge::ESDS) {
+				state.es.charge({ _read_vmcs_16(service, Vmcs::ES_SEL),
+				                  _convert_ar_16(_read_vmcs(service, Vmcs::ES_AR)),
+				                  _read_vmcs_32(service, Vmcs::ES_LIMIT),
+				                  _read_vmcs(service, Vmcs::ES_BASE)});
 
-			state.es.charge(Segment{_read_vmcs_16(service, Vmcs::ES_SEL),
-			                       _convert_ar_16(_read_vmcs(service, Vmcs::ES_AR)),
-			                       _read_vmcs_32(service, Vmcs::ES_LIMIT),
-			                       _read_vmcs(service, Vmcs::ES_BASE)});
+				state.ds.charge({ _read_vmcs_16(service, Vmcs::DS_SEL),
+				                  _convert_ar_16(_read_vmcs(service, Vmcs::DS_AR)),
+				                  _read_vmcs_32(service, Vmcs::DS_LIMIT),
+				                  _read_vmcs(service, Vmcs::DS_BASE)});
+			}
 
-			state.ds.charge(Segment{_read_vmcs_16(service, Vmcs::DS_SEL),
-			                       _convert_ar_16(_read_vmcs(service, Vmcs::DS_AR)),
-			                       _read_vmcs_32(service, Vmcs::DS_LIMIT),
-			                       _read_vmcs(service, Vmcs::DS_BASE)});
+			if (charge & Charge::FSGS) {
+				state.fs.charge({ _read_vmcs_16(service, Vmcs::FS_SEL),
+				                  _convert_ar_16(_read_vmcs(service, Vmcs::FS_AR)),
+				                  _read_vmcs_32(service, Vmcs::FS_LIMIT),
+				                  _read_vmcs(service, Vmcs::FS_BASE)});
 
-			state.fs.charge(Segment{_read_vmcs_16(service, Vmcs::FS_SEL),
-			                       _convert_ar_16(_read_vmcs(service, Vmcs::FS_AR)),
-			                       _read_vmcs_32(service, Vmcs::FS_LIMIT),
-			                       _read_vmcs(service, Vmcs::FS_BASE)});
+				state.gs.charge({ _read_vmcs_16(service, Vmcs::GS_SEL),
+				                  _convert_ar_16(_read_vmcs(service, Vmcs::GS_AR)),
+				                  _read_vmcs_32(service, Vmcs::GS_LIMIT),
+				                  _read_vmcs(service, Vmcs::GS_BASE)});
+			}
 
-			state.gs.charge(Segment{_read_vmcs_16(service, Vmcs::GS_SEL),
-			                       _convert_ar_16(_read_vmcs(service, Vmcs::GS_AR)),
-			                       _read_vmcs_32(service, Vmcs::GS_LIMIT),
-			                       _read_vmcs(service, Vmcs::GS_BASE)});
+			if (charge & Charge::TR)
+				state.tr.charge({ _read_vmcs_16(service, Vmcs::TR_SEL),
+				                  _convert_ar_16(_read_vmcs(service, Vmcs::TR_AR)),
+				                  _read_vmcs_32(service, Vmcs::TR_LIMIT),
+				                  _read_vmcs(service, Vmcs::TR_BASE)});
 
-			state.tr.charge(Segment{_read_vmcs_16(service, Vmcs::TR_SEL),
-			                       _convert_ar_16(_read_vmcs(service, Vmcs::TR_AR)),
-			                       _read_vmcs_32(service, Vmcs::TR_LIMIT),
-			                       _read_vmcs(service, Vmcs::TR_BASE)});
+			if (charge & Charge::LDTR)
+				state.ldtr.charge({ _read_vmcs_16(service, Vmcs::LDTR_SEL),
+			                        _convert_ar_16(_read_vmcs(service, Vmcs::LDTR_AR)),
+			                        _read_vmcs_32(service, Vmcs::LDTR_LIMIT),
+			                        _read_vmcs(service, Vmcs::LDTR_BASE)});
 
-			state.ldtr.charge(Segment{_read_vmcs_16(service, Vmcs::LDTR_SEL),
-			                         _convert_ar_16(_read_vmcs(service, Vmcs::LDTR_AR)),
-			                         _read_vmcs_32(service, Vmcs::LDTR_LIMIT),
-			                         _read_vmcs(service, Vmcs::LDTR_BASE)});
+			if (charge & Charge::IDTR)
+				state.idtr.charge({ .limit = _read_vmcs_32(service, Vmcs::IDTR_LIMIT),
+				                    .base  = _read_vmcs(service, Vmcs::IDTR_BASE) });
 
-			state.idtr.charge(Range{ .limit = _read_vmcs_32(service, Vmcs::IDTR_LIMIT),
-			                         .base  = _read_vmcs(service, Vmcs::IDTR_BASE) });
+			if (charge & Charge::GDTR)
+				state.gdtr.charge({ .limit = _read_vmcs_32(service, Vmcs::GDTR_LIMIT),
+				                    .base  = _read_vmcs(service, Vmcs::GDTR_BASE) });
 
-			state.gdtr.charge(Range{ .limit = _read_vmcs_32(service, Vmcs::GDTR_LIMIT),
-			                         .base  = _read_vmcs(service, Vmcs::GDTR_BASE) });
-
-			state.sysenter_cs.charge(_read_vmcs(service, Vmcs::SYSENTER_CS));
-			state.sysenter_sp.charge(_read_vmcs(service, Vmcs::SYSENTER_SP));
-			state.sysenter_ip.charge(_read_vmcs(service, Vmcs::SYSENTER_IP));
-
-			/* no support by seL4 to read this value */
-			state.ctrl_secondary.charge(state.ctrl_secondary.value());
-			//state.ctrl_secondary.charge(_read_vmcs(service, Vmcs::CTRL_1));
+			if (charge & Charge::SYS) {
+				state.sysenter_cs.charge(_read_vmcs(service, Vmcs::SYSENTER_CS));
+				state.sysenter_sp.charge(_read_vmcs(service, Vmcs::SYSENTER_SP));
+				state.sysenter_ip.charge(_read_vmcs(service, Vmcs::SYSENTER_IP));
+			}
 
 			if (state.exit_reason == VMEXIT_INVALID ||
 			    state.exit_reason == VMEXIT_RECALL)
 			{
-				state.inj_info .charge((uint32_t)_read_vmcs(service, Vmcs::INTR_INFO));
-				state.inj_error.charge((uint32_t)_read_vmcs(service, Vmcs::INTR_ERROR));
+				if (charge & Charge::INJ) {
+					state.inj_info .charge((uint32_t)_read_vmcs(service, Vmcs::INTR_INFO));
+					state.inj_error.charge((uint32_t)_read_vmcs(service, Vmcs::INTR_ERROR));
+				}
 			} else {
-				state.inj_info .charge((uint32_t)_read_vmcs(service, Vmcs::IDT_INFO));
-				state.inj_error.charge((uint32_t)_read_vmcs(service, Vmcs::IDT_ERROR));
+				if (charge & Charge::INJ) {
+					state.inj_info .charge((uint32_t)_read_vmcs(service, Vmcs::IDT_INFO));
+					state.inj_error.charge((uint32_t)_read_vmcs(service, Vmcs::IDT_ERROR));
+				}
 			}
 
-			state.intr_state.charge((uint32_t)_read_vmcs(service, Vmcs::STATE_INTR));
-			state.actv_state.charge((uint32_t)_read_vmcs(service, Vmcs::STATE_ACTV));
-
-			state.pdpte_0.charge(_read_vmcs(service, Vmcs::PDPTE_0));
-			state.pdpte_1.charge(_read_vmcs(service, Vmcs::PDPTE_1));
-			state.pdpte_2.charge(_read_vmcs(service, Vmcs::PDPTE_2));
-			state.pdpte_3.charge(_read_vmcs(service, Vmcs::PDPTE_3));
+			if (charge & Charge::PDPTE) {
+				state.pdpte_0.charge(_read_vmcs(service, Vmcs::PDPTE_0));
+				state.pdpte_1.charge(_read_vmcs(service, Vmcs::PDPTE_1));
+				state.pdpte_2.charge(_read_vmcs(service, Vmcs::PDPTE_2));
+				state.pdpte_3.charge(_read_vmcs(service, Vmcs::PDPTE_3));
+			}
 
 			/* tsc and tsc_offset not supported by seL4 */
-			state.tsc.charge(Trace::timestamp());
-			state.tsc_offset.charge(_tsc_offset);
+			if (charge & Charge::TSC) {
+				state.tsc.charge(Trace::timestamp());
+				state.tsc_offset.charge(_tsc_offset);
+			}
 
-			state.efer.charge(_read_vmcs(service, Vmcs::EFER));
+			if (charge & Charge::CEFER)
+				state.efer.charge(_read_vmcs(service, Vmcs::EFER));
+
 
 			/* XXX star, lstar, cstar, fmask, kernel_gs_base not supported by seL4 */
 
@@ -748,12 +801,13 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
 	public:
 
 		Sel4_vcpu(Env &env, Vm_connection &vm,
-		          Vcpu_handler_base &handler, Exit_config const &)
+		          Vcpu_handler_base &handler, Exit_config const &exit_config)
 		:
 			Thread(env, "vcpu_thread", STACK_SIZE, _location(handler),
 			       Weight(), env.cpu()),
 			_vcpu_handler(handler),
-	 	 	_exit_handler(handler.ep(), *this, &Sel4_vcpu::_wrapper_dispatch)
+			_exit_handler(handler.ep(), *this, &Sel4_vcpu::_wrapper_dispatch),
+			_exit_config(exit_config)
 		{
 			Thread::start();
 

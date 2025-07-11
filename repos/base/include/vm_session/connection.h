@@ -47,7 +47,40 @@ struct Genode::Vm_connection : Connection<Vm_session>, Rpc_client<Vm_session>
 	 */
 	struct Exit_config
 	{
-		/* for example OMIT_FPU_ON_IRQ */
+		enum Config_flags {
+			ALL     = 0u <<  0,
+			ACDB    = 1u <<  0,
+			EBSD    = 1u <<  1,
+			FLAGS   = 1u <<  2,
+			SP      = 1u <<  3,
+			IP      = 1u <<  4,
+			DR      = 1u <<  5,
+			CR      = 1u <<  6,
+			CSSS    = 1u <<  7,
+			ESDS    = 1u <<  8,
+			FSGS    = 1u <<  9,
+			TR      = 1u << 10,
+			LDTR    = 1u << 11,
+			GDTR    = 1u << 12,
+			IDTR    = 1u << 13,
+			SYS     = 1u << 14,
+			CTRL    = 1u << 15,
+			INJ     = 1u << 16,
+			STATE   = 1u << 17,
+			TSC     = 1u << 18,
+			QUAL    = 1u << 19,
+			CEFER   = 1u << 20,
+			PDPTE   = 1u << 21,
+			SWAPGS  = 1u << 22,
+			R8_R15  = 1u << 23,
+			TPR     = 1u << 24,
+			TSC_AUX = 1u << 25,
+			XSAVE   = 1u << 26,
+			FPU     = 1u << 27,
+			CNONE   = ~0u,
+		};
+
+		unsigned exits[256];
 	};
 
 	using With_state = Callable<bool, Vcpu_state &>;

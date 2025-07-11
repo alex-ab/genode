@@ -54,10 +54,6 @@ namespace Vmm {
 		PAUSED  = 0xff
 	};
 
-	Vm_connection::Exit_config const exit_config {
-		/* ... */
-	};
-
 	static uint32_t rdtscp()
 	{
 		uint32_t lo = 0, hi = 0, tsc_aux = 0;
@@ -106,7 +102,7 @@ class Vmm::Vcpu
 			_id(id), _svm(svm), _vmx(vmx),
 			_vm(vm), _vm_con(vm_con),
 			_handler(ep, *this, &Vcpu::_handle_vcpu_exit),
-			_vcpu(_vm_con, alloc, _handler, exit_config)
+			_vcpu(_vm_con, alloc, _handler, Vm_connection::Exit_config())
 		{
 			log("vcpu ", _id, " : created");
 		}
