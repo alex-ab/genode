@@ -101,40 +101,46 @@ struct Nova_vcpu : Rpc_client<Vm_session::Native_vcpu>, Noncopyable
 
 		Nova::Mtd _portal_mtd(unsigned exit, Exit_config const &config)
 		{
-			/* TODO define and implement omissions */
-			(void)exit;
-			(void)config;
+			typedef Exit_config::Config_flags Charge;
+
+			auto const charge = config.exits[exit];
+
+			if (charge == Charge::ALL)
+				return Nova::Mtd::ALL;
+
+			if (charge == Charge::CNONE)
+				return 0;
 
 			Genode::addr_t mtd = 0;
 
-			mtd |= Nova::Mtd::ACDB;
-			mtd |= Nova::Mtd::EBSD;
-			mtd |= Nova::Mtd::EFL;
-			mtd |= Nova::Mtd::ESP;
-			mtd |= Nova::Mtd::EIP;
-			mtd |= Nova::Mtd::DR;
-			mtd |= Nova::Mtd::R8_R15;
-			mtd |= Nova::Mtd::CR;
-			mtd |= Nova::Mtd::CSSS;
-			mtd |= Nova::Mtd::ESDS;
-			mtd |= Nova::Mtd::FSGS;
-			mtd |= Nova::Mtd::TR;
-			mtd |= Nova::Mtd::LDTR;
-			mtd |= Nova::Mtd::GDTR;
-			mtd |= Nova::Mtd::IDTR;
-			mtd |= Nova::Mtd::SYS;
-			mtd |= Nova::Mtd::CTRL;
-			mtd |= Nova::Mtd::INJ;
-			mtd |= Nova::Mtd::STA;
-			mtd |= Nova::Mtd::TSC;
-			mtd |= Nova::Mtd::TSC_AUX;
-			mtd |= Nova::Mtd::EFER;
-			mtd |= Nova::Mtd::PDPTE;
-			mtd |= Nova::Mtd::SYSCALL_SWAPGS;
-			mtd |= Nova::Mtd::TPR;
-			mtd |= Nova::Mtd::QUAL;
-			mtd |= Nova::Mtd::XSAVE;
-			mtd |= Nova::Mtd::FPU;
+			if (charge & Charge::ACDB)    mtd |= Nova::Mtd::ACDB;
+			if (charge & Charge::EBSD)    mtd |= Nova::Mtd::EBSD;
+			if (charge & Charge::FLAGS)   mtd |= Nova::Mtd::EFL;
+			if (charge & Charge::SP)      mtd |= Nova::Mtd::ESP;
+			if (charge & Charge::IP)      mtd |= Nova::Mtd::EIP;
+			if (charge & Charge::DR)      mtd |= Nova::Mtd::DR;
+			if (charge & Charge::CR)      mtd |= Nova::Mtd::CR;
+			if (charge & Charge::CSSS)    mtd |= Nova::Mtd::CSSS;
+			if (charge & Charge::ESDS)    mtd |= Nova::Mtd::ESDS;
+			if (charge & Charge::FSGS)    mtd |= Nova::Mtd::FSGS;
+			if (charge & Charge::TR)      mtd |= Nova::Mtd::TR;
+			if (charge & Charge::LDTR)    mtd |= Nova::Mtd::LDTR;
+			if (charge & Charge::GDTR)    mtd |= Nova::Mtd::GDTR;
+			if (charge & Charge::IDTR)    mtd |= Nova::Mtd::IDTR;
+			if (charge & Charge::SYS)     mtd |= Nova::Mtd::SYS;
+			if (charge & Charge::CTRL)    mtd |= Nova::Mtd::CTRL;
+			if (charge & Charge::INJ)     mtd |= Nova::Mtd::INJ;
+			if (charge & Charge::STATE)   mtd |= Nova::Mtd::STA;
+			if (charge & Charge::TSC)     mtd |= Nova::Mtd::TSC;
+			if (charge & Charge::QUAL)    mtd |= Nova::Mtd::QUAL;
+			if (charge & Charge::CEFER)   mtd |= Nova::Mtd::EFER;
+			if (charge & Charge::PDPTE)   mtd |= Nova::Mtd::PDPTE;
+			if (charge & Charge::SWAPGS)  mtd |= Nova::Mtd::SYSCALL_SWAPGS;
+			if (charge & Charge::R8_R15)  mtd |= Nova::Mtd::R8_R15;
+			if (charge & Charge::TPR)     mtd |= Nova::Mtd::TPR;
+			if (charge & Charge::TSC_AUX) mtd |= Nova::Mtd::TSC_AUX;
+			if (charge & Charge::XSAVE)   mtd |= Nova::Mtd::XSAVE;
+			if (charge & Charge::FPU)     mtd |= Nova::Mtd::FPU;
 
 			return Nova::Mtd(mtd);
 		}
