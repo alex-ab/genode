@@ -599,12 +599,14 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
 			if (charge == Charge::ALL)
 				charge = ~0u;
 
-			if (charge & Charge::IP) {
+//			if (charge & Charge::IP) {
+			{
 				state.ip.charge(seL4_GetMR(SEL4_VMENTER_CALL_EIP_MR));
 				state.ip_len.charge(seL4_GetMR(SEL4_VMENTER_FAULT_INSTRUCTION_LEN_MR));
 			}
 
-			if (charge & Charge::CTRL) {
+//			if (charge & Charge::CTRL) {
+			{
 				state.ctrl_primary.charge((uint32_t)seL4_GetMR(SEL4_VMENTER_CALL_CONTROL_PPC_MR));
 				/* no support by seL4 to read this value */
 				state.ctrl_secondary.charge(state.ctrl_secondary.value());
@@ -625,7 +627,11 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
 			if (charge & Charge::CR)
 				state.cr3.charge(seL4_GetMR(SEL4_VMENTER_FAULT_CR3_MR));
 
+#ifdef ALEX_DEBUG
 			if (charge & Charge::ACDB) {
+#else
+	         {
+#endif
 				state.ax.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EAX));
 				state.bx.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EBX));
 				state.cx.charge(seL4_GetMR(SEL4_VMENTER_FAULT_ECX));
@@ -637,7 +643,11 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
 				_recent_gpr.edx = state.dx.value();
 			}
 
+#ifdef ALEX_DEBUG
 			if (charge & Charge::EBSD) {
+#else
+	         {
+#endif
 				state.si.charge(seL4_GetMR(SEL4_VMENTER_FAULT_ESI));
 				state.di.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EDI));
 				state.bp.charge(seL4_GetMR(SEL4_VMENTER_FAULT_EBP));
@@ -661,6 +671,7 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
 			/* r8 - r15 not supported on seL4 */
 
 			if (charge & Charge::CR) {
+//{
 				addr_t const cr0        = _read_vmcs(service, Vmcs::CR0);
 				addr_t const cr0_shadow = _read_vmcs(service, Vmcs::CR0_SHADOW);
 				state.cr0.charge((cr0 & ~cr0_mask) | (cr0_shadow & cr0_mask));
@@ -674,6 +685,7 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
 				state.cr2.charge(state.cr2.value());
 
 			if (charge & Charge::CR) {
+//{
 				addr_t const cr4        = _read_vmcs(service, Vmcs::CR4);
 				addr_t const cr4_shadow = _read_vmcs(service, Vmcs::CR4_SHADOW);
 				state.cr4.charge((cr4 & ~cr4_mask) | (cr4_shadow & cr4_mask));
@@ -747,12 +759,20 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
 			if (state.exit_reason == VMEXIT_INVALID ||
 			    state.exit_reason == VMEXIT_RECALL)
 			{
+#ifdef ALEX_DEBUG
 				if (charge & Charge::INJ) {
+#else
+				{
+#endif
 					state.inj_info .charge((uint32_t)_read_vmcs(service, Vmcs::INTR_INFO));
 					state.inj_error.charge((uint32_t)_read_vmcs(service, Vmcs::INTR_ERROR));
 				}
 			} else {
+#ifdef ALEX_DEBUG
 				if (charge & Charge::INJ) {
+#else
+				{
+#endif
 					state.inj_info .charge((uint32_t)_read_vmcs(service, Vmcs::IDT_INFO));
 					state.inj_error.charge((uint32_t)_read_vmcs(service, Vmcs::IDT_ERROR));
 				}
