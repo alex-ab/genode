@@ -1,4 +1,4 @@
-build { core init lib/ld test/nova }
+build { core init lib/ld test/nova app/top timer }
 
 set check_pat 1
 if {[have_include power_on/qemu]} {
@@ -13,23 +13,40 @@ if {[have_cmd_switch --autopilot] && [have_spec x86_32]} {
 create_boot_directory
 
 set config {
-	<config>
+	<config prio_levels="2">
 		<parent-provides>
 			<service name="ROM"/>
 			<service name="CPU"/>
 			<service name="RM"/>
 			<service name="PD"/>
 			<service name="LOG"/>
+			<service name="TRACE"/>
 		</parent-provides>
 		<default-route>
 			<any-service> <parent/> </any-service>
 		</default-route>
-		<start name="test-nova" caps="12350" ram="128M" ld="no">}
+
+		<start name="timer" caps="100" ram="2M">
+			<provides>
+				<service name="Timer"/>
+			</provides>
+		</start>
+
+		<start name="test-nova" caps="12350" ram="128M" ld="no" priority="-1">}
 
 append config "
 			<config check_pat=\"$check_pat\"/\>"
 
 append config {
+		</start>
+
+		<start name="top" caps="200" ram="4M" priority="-1">
+			<config period_ms="10000"/>
+			<route>
+				<service name="TRACE"> <parent label=""/> </service>
+				<service name="Timer"> <child name="timer"/> </service>
+				<any-service> <parent/> </any-service>
+			</route>
 		</start>
 	</config>
 }

@@ -20,6 +20,9 @@
 #include <util/retry.h>
 #include <rm_session/connection.h>
 #include <region_map/client.h>
+#include <base/sleep.h>
+
+#include <cpu_session/connection.h>
 
 #include <base/attached_rom_dataspace.h>
 #include <base/attached_ram_dataspace.h>
@@ -654,6 +657,26 @@ class Greedy : public Genode::Thread {
 };
 
 
+class Prio_thread : public Genode::Thread {
+
+	private:
+
+	public:
+
+		Prio_thread(Genode::Env &env, char const * name,
+		            Location location, Cpu_session &cpu)
+		: Thread(env, name, 0x1000, location, Weight(), cpu)
+		{ }
+
+		void entry() override
+		{
+			log("thread ", name, ": hello");
+
+			Genode::sleep_forever();
+			//while (true) { }
+		}
+};
+
 void check(uint8_t res, auto &&... args)
 {
 	String<128> msg(args...);
@@ -679,6 +702,33 @@ struct Main
 Main::Main(Env &env) : env(env)
 {
 	log("testing base-nova platform");
+
+	{
+		Affinity::Space cpus = env.cpu().affinity_space();
+		Cpu_connection cpu_low_prio (env, "cpu_low_prio", Genode::Cpu_session::PRIORITY_LIMIT / 16);
+
+#if 0
+		Prio_thread t1(env, "A_cpu_0_low", cpus.location_of_index(0), cpu_low_prio);
+		t1.start();
+#endif
+
+		Prio_thread t2(env, "B_cpu_1_low", cpus.location_of_index(1), cpu_low_prio);
+		t2.start();
+
+		t2.with_native_thread([&] (Native_thread &nt) {
+			error("Start trying to help remote thread - forever");
+			while (true) {
+				auto tls = 0xaffeULL;
+				auto res = Nova::ec_ctrl(Nova::EC_DONATE_SC, nt.ec_sel, tls);
+				(void)res;
+				//error("result helping ", res);
+			}
+		});
+
+		Genode::sleep_forever();
+	}
+
+	return;
 
 	{
 		Attached_rom_dataspace config(env, "config");
