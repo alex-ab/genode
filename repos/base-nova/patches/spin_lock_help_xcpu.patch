@@ -1,0 +1,247 @@
+--- a/include/ec.hpp
++++ b/include/ec.hpp
+@@ -78,6 +78,8 @@ class Ec : public Kobject, public Refcount, public Queue<Sc>
+         uint64      time { 0 };
+         uint64      time_m { 0 };
+ 
++        uint64_t    spin_lock { };
++
+         static uint64 killed_time[NUM_CPU];
+ 
+         static Sm * auth_suspend;
+@@ -422,6 +424,9 @@ class Ec : public Kobject, public Refcount, public Queue<Sc>
+         NORETURN
+         static void ret_xcpu_reply_oom();
+ 
++        NORETURN
++        static void ret_xcpu_help();
++
+         template <Sys_regs::Status S, bool T = false>
+ 
+         NOINLINE NORETURN
+@@ -473,6 +478,9 @@ class Ec : public Kobject, public Refcount, public Queue<Sc>
+         NORETURN
+         static void sys_ec_ctrl();
+ 
++        NORETURN
++        static void xcpu_ec_ctrl();
++
+         NORETURN
+         static void sys_sc_ctrl();
+ 
+@@ -494,6 +502,8 @@ class Ec : public Kobject, public Refcount, public Queue<Sc>
+         NORETURN
+         static void sys_xcpu_call();
+ 
++        static void prepare_xcpu(Ec &, void (*)());
++
+         template <void (*)()>
+         NORETURN
+         static void sys_xcpu_call_oom();
+@@ -504,6 +514,9 @@ class Ec : public Kobject, public Refcount, public Queue<Sc>
+         NORETURN
+         static void xcpu_return();
+ 
++        NORETURN
++        static void xcpu_return_help();
++
+         Sm * xcpu_revert();
+ 
+         void xcpu_clone(Ec &, uint16);
+--- a/src/ec.cpp
++++ b/src/ec.cpp
+@@ -567,7 +567,7 @@ void Ec::die (char const *reason, Exc_regs *r)
+     if (ec)
+         ec->cont = (ec->cont == ret_user_sysexit || ec->cont == xcpu_return)
+                  ? static_cast<void (*)()>(sys_finish<Sys_regs::COM_ABT>)
+-                 : dead;
++                 : (ec->cont == xcpu_return_help) ? ec->cont : dead;
+ 
+     reply (dead);
+ }
+@@ -589,13 +589,19 @@ void Ec::xcpu_clone(Ec & from, uint16 const tcpu)
+     from.pd->Space_mem::init (from.pd->quota, cpu);
+ }
+ 
++void Ec::xcpu_return_help()
++{
++    current->cont = xcpu_ec_ctrl;
++    xcpu_return();
++}
++
+ void Ec::xcpu_return()
+ {
+     assert (current->xcpu_sm);
+-    assert (current->rcap);
+     assert (current->utcb);
+     assert (Sc::current->ec == current);
+ 
++    auto cc = current->cont;
+     auto sm = current->xcpu_revert();
+ 
+     /* if last ref it will be handled by schedule_wo_activate */
+@@ -610,7 +616,7 @@ void Ec::xcpu_return()
+ 
+     /* wake original caller of remote CPU */
+     if (sm)
+-        sm->up (ret_xcpu_reply);
++        sm->up (cc == xcpu_ec_ctrl ? ret_xcpu_help : ret_xcpu_reply);
+ 
+     cur->ec->activate();
+ }
+--- a/src/syscall.cpp
++++ b/src/syscall.cpp
+@@ -737,9 +737,15 @@ void Ec::sys_misc()
+     }
+ }
+ 
++void Ec::xcpu_ec_ctrl()
++{
++    Ec::sys_ec_ctrl();
++}
++
+ void Ec::sys_ec_ctrl()
+ {
+-    check<sys_ec_ctrl>(1);
++    if (current->cont != xcpu_ec_ctrl)
++        check<sys_ec_ctrl>(1);
+ 
+     Sys_ec_ctrl *r = static_cast<Sys_ec_ctrl *>(current->sys_regs());
+ 
+@@ -824,13 +830,44 @@ void Ec::sys_ec_ctrl()
+ 
+             Ec *ec = static_cast<Ec *>(obj);
+ 
+-            if (EXPECT_FALSE(ec->cpu != current->cpu))
+-                sys_finish<Sys_regs::BAD_CPU>();
++            if (EXPECT_FALSE(ec->vcpu() || ec->blocked() || ec->partner || ec->pd != Ec::current->pd || !ec->utcb || (r->cnt() != ec->utcb->tls))) {
++                //if (current->xcpu_sm || current->cont == xcpu_ec_ctrl)
++                //    trace (0, "cross %u %u %u %u %u %u (%lu?=%lu) - %u %u", ec->vcpu(), ec->blocked(), !!ec->partner, ec->pd != Ec::current->pd, !ec->utcb, (r->cnt() != ec->utcb->tls), r->cnt(), ec->utcb->tls, !!current->xcpu_sm, current->cont == xcpu_ec_ctrl);
++                sys_finish<Sys_regs::BAD_PAR>();
++            }
++
++            if (EXPECT_FALSE(ec->cpu != current->cpu)) {
++
++                if (current->xcpu_sm) {
++                    trace(0, "SC:%p EC:%p should not happen case", Sc::current, Ec::current);
++                    sys_finish<Sys_regs::BAD_CPU>();
++                }
+ 
+-            if (EXPECT_FALSE(ec->vcpu() || ec->blocked() || ec->partner || ec->pd != Ec::current->pd || !ec->utcb || (r->cnt() != ec->utcb->tls)))
++                if (current->spin_lock++ % 10 == 0)
++                    trace(0, "SC:%p EC:%p %llu ---> Ec:%p cpu=%u", Sc::current, Ec::current, current->spin_lock, ec, ec->cpu);
++
++                prepare_xcpu(*ec, Ec::xcpu_ec_ctrl);
++
++                current->cont = ret_xcpu_help;
++
++                current->sc_xcpu->remote_enqueue();
++
++                current->xcpu_sm->dn (false, 0);
++
++                ret_xcpu_help();
++            }
++
++            if (EXPECT_FALSE(r->cnt() != ec->utcb->tls)) {
++                //trace (0, "%u %u %u %u %u %u (%lu?=%lu)", ec->vcpu(), ec->blocked(), !!ec->partner, ec->pd != Ec::current->pd, !ec->utcb, (r->cnt() != ec->utcb->tls), r->cnt(), ec->utcb->tls);
+                 sys_finish<Sys_regs::BAD_PAR>();
++            }
++
++            if (current->cont == xcpu_ec_ctrl) {
++                trace(0, "SC:%p EC:%p got help %llu", Sc::current, Ec::current, current->spin_lock++);
++                current->cont = xcpu_return_help;
++            } else
++                current->cont = sys_finish<Sys_regs::SUCCESS>;
+ 
+-            current->cont = sys_finish<Sys_regs::SUCCESS>;
+             ec->make_current();
+ 
+             break;
+@@ -1227,29 +1264,13 @@ void Ec::sys_assign_gsi()
+     sys_finish<Sys_regs::SUCCESS>();
+ }
+ 
+-void Ec::sys_xcpu_call()
++void Ec::prepare_xcpu(Ec &ec, void (*c)())
+ {
+-    Sys_call *s = static_cast<Sys_call *>(current->sys_regs());
+-
+-    Capability cap = Space_obj::lookup (s->pt());
+-    if (EXPECT_FALSE (cap.obj()->type() != Kobject::PT)) {
+-        trace (TRACE_ERROR, "%s: Bad PT CAP (%#lx)", __func__, s->pt());
+-        sys_finish<Sys_regs::BAD_CAP>();
+-    }
+-
+-    Pt *pt = static_cast<Pt *>(cap.obj());
+-    Ec *ec = pt->ec;
+-
+-    if (EXPECT_FALSE (current->cpu == ec->cpu || !(cap.prm() & Pt::PERM_XCPU))) {
+-        trace (TRACE_ERROR, "%s: Bad CPU", __func__);
+-        sys_finish<Sys_regs::BAD_CPU>();
+-    }
+-
+     enum { UNUSED = 0, CNT = 0 };
+ 
+     if (!current->sc_xcpu) {
+         current->xcpu_sm = new (*Pd::current) Sm (Pd::current, UNUSED, CNT);
+-        current->ec_xcpu = new (*Pd::current) Ec (Pd::current, Pd::current, Ec::sys_call, ec->cpu, current);
++        current->ec_xcpu = new (*Pd::current) Ec (Pd::current, Pd::current, c, ec.cpu, current);
+ 
+         if (!current->ec_xcpu->rcap) {
+             trace (0, "xCPU construction failure");
+@@ -1274,11 +1295,33 @@ void Ec::sys_xcpu_call()
+         }
+ 
+         current->xcpu_sm = new (*Pd::current) Sm (Pd::current, UNUSED, CNT);
+-        current->ec_xcpu->xcpu_clone(*current, ec->cpu);
+-        current->sc_xcpu->xcpu_clone(*Sc::current, ec->cpu);
++        current->ec_xcpu->xcpu_clone(*current, ec.cpu);
++        current->ec_xcpu->cont = c;
++        current->sc_xcpu->xcpu_clone(*Sc::current, ec.cpu);
+ 
+         current->sc_xcpu->add_ref();
+     }
++}
++
++void Ec::sys_xcpu_call()
++{
++    Sys_call *s = static_cast<Sys_call *>(current->sys_regs());
++
++    Capability cap = Space_obj::lookup (s->pt());
++    if (EXPECT_FALSE (cap.obj()->type() != Kobject::PT)) {
++        trace (TRACE_ERROR, "%s: Bad PT CAP (%#lx)", __func__, s->pt());
++        sys_finish<Sys_regs::BAD_CAP>();
++    }
++
++    Pt *pt = static_cast<Pt *>(cap.obj());
++    Ec *ec = pt->ec;
++
++    if (EXPECT_FALSE (current->cpu == ec->cpu || !(cap.prm() & Pt::PERM_XCPU))) {
++        trace (TRACE_ERROR, "%s: Bad CPU", __func__);
++        sys_finish<Sys_regs::BAD_CPU>();
++    }
++
++    prepare_xcpu(*ec, Ec::sys_call);
+ 
+     current->cont = ret_xcpu_reply;
+ 
+@@ -1305,6 +1348,19 @@ void Ec::ret_xcpu_reply()
+     current->make_current();
+ }
+ 
++void Ec::ret_xcpu_help()
++{
++    if (current->xcpu_sm) {
++        Rcu::call(current->xcpu_sm);
++        current->xcpu_sm = nullptr;
++    }
++
++    current->regs.set_status (Sys_regs::SUCCESS, false);
++    current->cont = ret_user_sysexit;
++
++    current->make_current();
++}
++
+ extern "C"
+ void (*const syscall[])() =
+ {

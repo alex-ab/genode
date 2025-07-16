@@ -672,8 +672,10 @@ class Prio_thread : public Genode::Thread {
 		{
 			log("thread ", name, ": hello");
 
-			Genode::sleep_forever();
-			//while (true) { }
+			Nova::Utcb &u = *reinterpret_cast<Nova::Utcb *>(utcb());
+			u.tls = 50;
+			//Genode::sleep_forever();
+			while (true) { }
 		}
 };
 
@@ -705,20 +707,20 @@ Main::Main(Env &env) : env(env)
 
 	{
 		Affinity::Space cpus = env.cpu().affinity_space();
-		Cpu_connection cpu_low_prio (env, "cpu_low_prio", Genode::Cpu_session::PRIORITY_LIMIT / 16);
+//		Cpu_connection cpu_low_prio (env, "cpu_low_prio", Genode::Cpu_session::PRIORITY_LIMIT / 16);
 
 #if 0
 		Prio_thread t1(env, "A_cpu_0_low", cpus.location_of_index(0), cpu_low_prio);
 		t1.start();
 #endif
 
-		Prio_thread t2(env, "B_cpu_1_low", cpus.location_of_index(1), cpu_low_prio);
+		Prio_thread t2(env, "B_cpu_1_low", cpus.location_of_index(1), env.cpu());
 		t2.start();
 
 		t2.with_native_thread([&] (Native_thread &nt) {
 			error("Start trying to help remote thread - forever");
+			auto tls = 50;
 			while (true) {
-				auto tls = 0xaffeULL;
 				auto res = Nova::ec_ctrl(Nova::EC_DONATE_SC, nt.ec_sel, tls);
 				(void)res;
 				//error("result helping ", res);
