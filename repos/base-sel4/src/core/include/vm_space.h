@@ -165,7 +165,7 @@ class Core::Vm_space
 
 		struct Map_attr
 		{
-			bool cached, write_combined, writeable, executable, flush_support;
+			bool cached, write_combined, writeable, executable, flush_support, large;
 		};
 
 	private:
@@ -301,8 +301,8 @@ class Core::Vm_space
 			 */
 			long ret = _map_page(Cap_sel(pte_idx), to_dest, attr, guest);
 			if (ret != seL4_NoError) {
-				error("seL4_*_Page_Map ", Hex(from_phys), "->",
-				      Hex(to_dest), " returned ", ret);
+				error(__func__, " ", Hex(from_phys), "->",
+				      Hex(to_dest), " returned ", ret, guest ? " guest" : "");
 				return Result(Alloc_error::DENIED);
 			}
 
@@ -536,6 +536,72 @@ class Core::Vm_space
 			});
 		}
 
+		bool _unmap_large_page(addr_t const to_dest)
+		{
+			_pt_registry.flush_one_level1(to_dest, 21, [&](Cap_sel const &idx, addr_t const paddr) {
+				error("flush large ", idx, " ", " phys=", Hex(paddr));
+				_unmap_and_free(idx, paddr);
+			});
+			return true;
+		}
+
+		bool _map_large_page(addr_t const from_phys, addr_t const to_dest,
+		                     Map_attr const attr, bool guest)
+		{
+			(void)attr;
+			unsigned const log2_size_large = 21; /* XXX */
+
+			/* allocate page-table-entry selector */
+			return _sel_alloc.alloc().convert<bool>([&] (addr_t const idx) {
+				auto const pte_idx = uint32_t(idx);
+
+				/*
+				 * Copy page selector to pte_idx
+				 *
+				 * This is needed because each page-frame selector can be
+				 * inserted into only a single page table.
+				 */
+				if (!_leaf_cnode(pte_idx, [&](auto &leaf_cnode) {
+					Cnode_index from { uint32_t(from_phys >> get_page_size_log2()) };
+					Cnode_index to   { _leaf_cnode_entry(pte_idx) };
+error("A ", Hex(from_phys), "-", Hex(to_dest));
+					if (leaf_cnode.copy(_phys_cnode, from, to))
+						return true;
+
+error("FA");
+					_sel_alloc.free(pte_idx);
+					return false;
+				})) {
+					_sel_alloc.free(pte_idx);
+					return false;
+				}
+
+				/* XXX - only required if there is something already XXX */
+				_pt_registry.flush_one_level1(to_dest, log2_size_large,
+					[&](Cap_sel const &idx, addr_t const paddr) {
+						error("flush large k ", idx, " ", " phys=", Hex(paddr));
+						_unmap_and_free(idx, paddr);
+					});
+
+				/* remember relationship between pte_sel and the virtual address */
+				auto res = _pt_registry.insert_large_page(to_dest,
+				                                          Cap_sel(pte_idx),
+				                                          from_phys,
+				                                          log2_size_large);
+
+				if (res.failed()) {
+					error(__func__, " failed");
+					return false;
+				}
+
+				long ret = _map_page(Cap_sel(pte_idx), to_dest, attr, guest);
+				if (ret != seL4_NoError)
+					error(__func__, " failed");
+
+				return (ret == seL4_NoError);
+			}, [&] (auto) { return false; });
+		}
+
 		bool map(addr_t const from_phys, addr_t const to_virt,
 		         size_t const num_pages, Map_attr const attr)
 		{
@@ -565,6 +631,30 @@ class Core::Vm_space
 			};
 
 			Mutex::Guard guard(_mutex);
+
+			if (attr.large) {
+				if (num_pages * 4096 % (1u << 21)) {
+					error("large page can't be mapped in parts - sorry");
+					return false;
+				}
+				auto count = (num_pages * 4096) / (1u << 21);
+				for (auto i = 0ul; i < count; i++) {
+					auto offset = i << 21;
+
+					bool ok = _map_large_page(from_phys + offset,
+					                          to_virt + offset, attr, false);
+					if (ok)
+						continue;
+
+					/* XXX - what about reverting the previous mappings ??? */
+
+					warning("mapping large page failed");
+
+					return ok;
+				}
+
+				return true;
+			}
 
 			bool ok = true;
 
@@ -608,6 +698,31 @@ class Core::Vm_space
 
 			Mutex::Guard guard(_mutex);
 
+			if (attr.large) {
+				if (num_pages * 4096 % (1u << 21)) {
+					error("large page can't be mapped in parts - sorry");
+					return false;
+				}
+
+				auto count = (num_pages * 4096) / (1u << 21);
+				for (auto i = 0ul; i < count; i++) {
+					auto offset = i << 21;
+
+					bool ok = _map_large_page(from_phys  + offset,
+					                          guest_phys + offset, attr, true);
+					if (ok)
+						continue;
+
+					/* XXX - what about reverting the previous mappings ??? */
+
+					warning("mapping large page guest failed");
+
+					return ok;
+				}
+
+				return true;
+			}
+
 			for (size_t i = 0; i < num_pages; i++) {
 				addr_t const offset = i << get_page_size_log2();
 
@@ -616,6 +731,18 @@ class Core::Vm_space
 				                         true /* guest page table */, fn_unmap);
 				if (result.failed())
 					return result;
+			}
+
+			return true;
+		}
+
+		bool unmap_large(addr_t const virt, size_t const num_pages)
+		{
+			auto count = (num_pages * 4096) / (1u << 21);
+
+			for (size_t i = 0; i < count; i++) {
+				addr_t const offset = i << 21;
+				_unmap_large_page(virt + offset);
 			}
 
 			return true;

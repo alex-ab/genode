@@ -35,7 +35,7 @@ class Core::Page_table_registry
 
 	private:
 
-		enum Level { FRAME, PAGE_TABLE, LEVEL2, LEVEL3 };
+		enum Level { FRAME, LARGE_FRAME, PAGE_TABLE, LEVEL2, LEVEL3 };
 
 		class Frame : public Avl_node<Frame>
 		{
@@ -177,6 +177,7 @@ class Core::Page_table_registry
 
 				switch(level) {
 				case PAGE_TABLE : _level1.insert(table); return true;
+				case LARGE_FRAME: _level1.insert(table); return true;
 				case LEVEL2     : _level2.insert(table); return true;
 				case LEVEL3     : _level3.insert(table); return true;
 				case FRAME      : return false;
@@ -234,6 +235,9 @@ class Core::Page_table_registry
 		Result insert_page_table(addr_t const vaddr, Cap_sel const sel,
 		                         addr_t const paddr, unsigned level_log2) {
 			return _insert(vaddr, sel, Level::PAGE_TABLE, paddr, level_log2); }
+		Result insert_large_page(addr_t const vaddr, Cap_sel const sel,
+		                         addr_t const paddr, unsigned level_log2) {
+			return _insert(vaddr, sel, Level::LARGE_FRAME, paddr, level_log2); }
 		Result insert_page_directory(addr_t const vaddr, Cap_sel const sel,
 		                             addr_t const paddr, unsigned level_log2) {
 			return _insert(vaddr, sel, Level::LEVEL2, paddr, level_log2); }
@@ -295,6 +299,19 @@ class Core::Page_table_registry
 			_flush_high(level, _level1, _alloc_high);
 			_flush_high(level, _level2, _alloc_high);
 			_flush_high(level, _level3, _alloc_high);
+		}
+
+		void flush_one_level1(auto const vaddr, auto const size, auto const &fn)
+		{
+			auto * entry = Table::lookup(_level1, vaddr, size);
+
+			if (!entry)
+				return;
+
+			fn(entry->sel(), entry->paddr());
+
+			_level1.remove(entry);
+			destroy(_alloc_high, entry);
 		}
 };
 
