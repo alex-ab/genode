@@ -66,7 +66,7 @@ struct Genode::Pd_session : Session, Pd_account
 	 * the component bootstrapping.
 	 */
 	static constexpr unsigned CAP_QUOTA = 6 + 7;
-	static constexpr size_t   RAM_QUOTA = 40*1024*sizeof(long);
+	static constexpr size_t   RAM_QUOTA = 24*1024*sizeof(long);
 
 	using Client = Pd_session_client;
 
