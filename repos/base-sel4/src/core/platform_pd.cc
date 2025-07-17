@@ -78,7 +78,8 @@ bool Platform_pd::map_ipc_buffer(Ipc_buffer_phys const &from,
 		                                .write_combined = false,
 		                                .writeable      = true,
 		                                .executable     = false,
-		                                .flush_support  = true };
+		                                .flush_support  = true,
+		                                .large          = false };
 		enum { ONE_PAGE = 1 };
 
 		if (!_vm_space->alloc_page_tables(to.addr, get_page_size()))
@@ -135,7 +136,8 @@ bool Platform_pd::install_mapping(Mapping const &mapping,
 	                                .write_combined = mapping.write_combined,
 	                                .writeable      = mapping.writeable,
 	                                .executable     = mapping.executable,
-	                                .flush_support  = true };
+	                                .flush_support  = true,
+	                                .large          = mapping.large };
 
 	if (_vm_space->map(mapping.src_addr, mapping.dst_addr, num_pages, attr))
 		return true;
