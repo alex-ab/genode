@@ -15,7 +15,6 @@ GEN_SRC_CC += \
               main.cc \
               pd_session_component.cc \
               platform_thread.cc \
-              ram_dataspace_factory.cc \
               region_map_component.cc \
               rom_session_component.cc \
               signal_transmitter_proxy.cc \
@@ -33,6 +32,7 @@ REP_SRC_CC += \
               platform_pd.cc \
               platform_thread.cc \
               ram_dataspace_support.cc \
+              ram_dataspace_factory.cc \
               rpc_cap_factory.cc \
               signal_source_component.cc \
               stack_area.cc \

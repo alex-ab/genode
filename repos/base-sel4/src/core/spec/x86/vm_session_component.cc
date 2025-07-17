@@ -297,7 +297,8 @@ Vm_session_component::attach(Dataspace_capability const cap, addr_t const guest_
 			.write_combined = (cacheable == WRITE_COMBINED),
 			.writeable      = write,
 			.executable     = exec,
-			.flush_support  = true };
+			.flush_support  = true,
+			.large          = false };
 
 		Flexpage_iterator flex(phys_addr, size, vm_addr, size, vm_addr);
 
@@ -347,6 +348,71 @@ Vm_session_component::attach(Dataspace_capability const cap, addr_t const guest_
 	                           bool exec, bool write, Cache cacheable) {
 		return map_fn(vm_addr, phys_addr, size, exec, write, cacheable); });
 }
+
+#if 0
+void Vm_session_component::_attach_vm_memory(Dataspace_component &dsc,
+                                             addr_t const guest_phys,
+                                             Attach_attr const attribute)
+{
+	Vm_space::Map_attr const attr_flush {
+		.cached         = (dsc.cacheability() == CACHED),
+		.write_combined = (dsc.cacheability() == WRITE_COMBINED),
+		.writeable      = dsc.writeable() && attribute.writeable,
+		.executable     = attribute.executable,
+		.flush_support  = true,
+		.large          = dsc.large() };
+
+	if (dsc.large())
+		error("dsc.size() ", dsc.size(), " ", dsc.size() / (1u << 21),
+		      " ", dsc.size() % (1u << 21), " ",
+		      Hex(dsc.phys_addr()), "+", Hex(attribute.offset),
+		      " size=", Hex(attribute.size), "->", Hex(guest_phys));
+
+	auto xxx_phys  = dsc.phys_addr() + attribute.offset;
+	auto xxx_size  = attribute.size;
+	auto xxx_guest = guest_phys;
+
+	if (dsc.large()) {
+		xxx_size  = 1ul << 21;
+		xxx_phys  = (dsc.phys_addr() + attribute.offset) & ~((1ul << 21) - 1);
+		xxx_guest = guest_phys & ~((1ul << 21) - 1);
+	}
+
+	Flexpage_iterator flex(xxx_phys, xxx_size, xxx_guest, xxx_size, xxx_guest);
+
+	Flexpage page = flex.page();
+	while (page.valid()) {
+
+		auto result_vm = _vm_space->alloc_guest_page_tables(page.hotspot,
+		                                                    1 << page.log2_order);
+		result_vm.with_result([](auto ok) {
+			if (!ok) throw Invalid_dataspace();
+		}, [](auto e) {
+			switch(e) {
+			case Alloc_error::OUT_OF_RAM:  throw Out_of_ram();
+			case Alloc_error::OUT_OF_CAPS: throw Out_of_caps();
+			case Alloc_error::DENIED:      throw Invalid_dataspace();
+			}
+		});
+
+		auto result_map = _vm_space->map_guest(page.addr, page.hotspot,
+		                                       (1 << page.log2_order) / 4096,
+		                                       attr_flush);
+
+		result_map.with_result([](auto ok) {
+			if (!ok) throw Invalid_dataspace();
+		}, [](auto e) {
+			switch(e) {
+			case Alloc_error::OUT_OF_RAM:  throw Out_of_ram();
+			case Alloc_error::OUT_OF_CAPS: throw Out_of_caps();
+			case Alloc_error::DENIED:      throw Invalid_dataspace();
+			}
+		});
+
+		page = flex.page();
+	}
+}
+#endif
 
 
 void Vm_session_component::_detach(addr_t guest_phys, size_t size)
