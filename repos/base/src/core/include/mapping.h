@@ -31,6 +31,7 @@ struct Core::Mapping
 	bool   write_combined;   /* write-combined IO_MEM dataspace */
 	bool   writeable;
 	bool   executable;
+	bool   large;
 
 	void prepare_map_operation() const;
 };
