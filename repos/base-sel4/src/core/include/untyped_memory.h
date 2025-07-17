@@ -137,15 +137,20 @@ struct Core::Untyped_memory
 	/**
 	 * Create page frames from untyped memory
 	 */
-	static inline bool convert_to_large_page_frame(addr_t phys_addr)
+	static inline bool convert_to_large_page_frame(addr_t const phys_addr,
+	                                               size_t const num)
 	{
-			seL4_Untyped const service     = Untyped_memory::_core_local_sel(Core_cspace::TOP_CNODE_UNTYPED_LARGE, phys_addr, 21).value();
+		for (size_t i = 0; i < num; i++) {
+
+			auto const phys = phys_addr + (i << 21);
+
+			seL4_Untyped const service     = Untyped_memory::_core_local_sel(Core_cspace::TOP_CNODE_UNTYPED_LARGE, phys, 21).value();
 			seL4_Word    const type        = seL4_X86_LargePageObject;
 			seL4_Word    const size_bits   = 0;
 			seL4_CNode   const root        = Core_cspace::top_cnode_sel();
 			seL4_Word    const node_index  = Core_cspace::TOP_CNODE_PHYS_IDX;
 			seL4_Word    const node_depth  = Core_cspace::NUM_TOP_SEL_LOG2;
-			seL4_Word    const node_offset = phys_addr >> get_page_size_log2();
+			seL4_Word    const node_offset = phys >> get_page_size_log2();
 			seL4_Word    const num_objects = 1;
 
 			long const ret = seL4_Untyped_Retype(service,
@@ -158,12 +163,15 @@ struct Core::Untyped_memory
 			                                     num_objects);
 
 			if (ret == seL4_NoError)
-				return true;
+				continue;
 
 			error(__FUNCTION__, ": seL4_Untyped_RetypeAtOffset "
 			      "returned ", ret);
 
 			return false;
+		}
+
+		return true;
 	}
 
 

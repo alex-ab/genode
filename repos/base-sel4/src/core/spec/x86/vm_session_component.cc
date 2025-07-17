@@ -299,10 +299,26 @@ void Vm_session_component::_attach_vm_memory(Dataspace_component &dsc,
 		.write_combined = (dsc.cacheability() == WRITE_COMBINED),
 		.writeable      = dsc.writeable() && attribute.writeable,
 		.executable     = attribute.executable,
-		.flush_support  = true };
+		.flush_support  = true,
+		.large          = dsc.large() };
 
-	Flexpage_iterator flex(dsc.phys_addr() + attribute.offset, attribute.size,
-	                       guest_phys, attribute.size, guest_phys);
+	if (dsc.large())
+		error("dsc.size() ", dsc.size(), " ", dsc.size() / (1u << 21),
+		      " ", dsc.size() % (1u << 21), " ",
+		      Hex(dsc.phys_addr()), "+", Hex(attribute.offset),
+		      " size=", Hex(attribute.size), "->", Hex(guest_phys));
+
+	auto xxx_phys  = dsc.phys_addr() + attribute.offset;
+	auto xxx_size  = attribute.size;
+	auto xxx_guest = guest_phys;
+
+	if (dsc.large()) {
+		xxx_size  = 1ul << 21;
+		xxx_phys  = (dsc.phys_addr() + attribute.offset) & ~((1ul << 21) - 1);
+		xxx_guest = guest_phys & ~((1ul << 21) - 1);
+	}
+
+	Flexpage_iterator flex(xxx_phys, xxx_size, xxx_guest, xxx_size, xxx_guest);
 
 	Flexpage page = flex.page();
 	while (page.valid()) {

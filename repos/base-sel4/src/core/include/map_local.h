@@ -39,12 +39,12 @@ namespace Core {
 		                                .write_combined = false,
 		                                .writeable      = true,
 		                                .executable     = false,
-		                                .flush_support  = false };
+		                                .flush_support  = false,
+		                                .large          = false };
 
 		platform = platform ? platform : &platform_specific();
 		return platform->core_vm_space().map(from_phys, to_virt, num_pages, attr);
 	}
-
 
 	/**
 	 * Flush memory mappings from core-local virtual address range
