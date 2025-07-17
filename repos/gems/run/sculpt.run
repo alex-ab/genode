@@ -1150,6 +1150,7 @@ close $fd
 ## Create boot image
 ##
 
+build kernel
 build [ingredients_of_type build]
 
 append boot_modules [build_artifacts]
