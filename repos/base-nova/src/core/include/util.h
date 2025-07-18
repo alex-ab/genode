@@ -34,7 +34,7 @@ namespace Core {
 
 	inline addr_t map_src_addr(addr_t /* core_local */, addr_t phys) { return phys; }
 
-	inline Log2 kernel_constrained_map_size(Log2 size)
+	inline Log2 kernel_constrained_map_size(Log2 size, bool)
 	{
 		/* Nova::Mem_crd order has 5 bits available and is in 4K page units */
 		return { min(size.log2, uint8_t((1 << 5) - 1 + 12)) };
