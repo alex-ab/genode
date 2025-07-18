@@ -73,7 +73,7 @@ namespace Core {
 	inline addr_t map_src_addr(addr_t core_local_addr, addr_t) {
 		return core_local_addr; }
 
-	inline Log2 kernel_constrained_map_size(Log2 size) { return size; }
+	inline Log2 kernel_constrained_map_size(Log2 size, bool) { return size; }
 }
 
 #endif /* _CORE__INCLUDE__UTIL_H_ */

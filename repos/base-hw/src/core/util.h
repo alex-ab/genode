@@ -42,7 +42,7 @@ namespace Core {
 	 * as 4K and 4M, this function should select one of those smaller or
 	 * equal to the argument.
 	 */
-	static constexpr Log2 kernel_constrained_map_size(Log2 size)
+	static constexpr Log2 kernel_constrained_map_size(Log2 size, bool)
 	{
 		return { (size.log2 < 20) ? uint8_t(12) : uint8_t(20) };
 	}
