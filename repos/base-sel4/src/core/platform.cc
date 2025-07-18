@@ -669,6 +669,27 @@ Core::Platform::Platform()
 			warning("failed to reserve core virtual memory for dynamic use"); }
 	);
 
+	/* XXX - make initial virtual region of ROM modules unavailable to large page allocations */
+	{
+		addr_t const modules_start = reinterpret_cast<addr_t>(&_boot_modules_binaries_begin);
+		addr_t const modules_end   = reinterpret_cast<addr_t>(&_boot_modules_binaries_end);
+
+		auto &alloc = _core_mem_alloc.virt_alloc();
+
+		while (true) {
+			auto ptr = alloc.alloc_aligned(4096, 21, { modules_start, modules_end }).convert<void *>([&](auto const &a) {
+				return a.ptr; }, [](auto) { return nullptr; });
+
+			error("region ", ptr, "+", Hex(1u << 21), " unavailable for large page allocation");
+			if (!ptr)
+				break;
+
+			if (alloc.remove_range(addr_t(ptr), 4096).failed()) {
+				error("destruction alignment failed");
+			}
+		}
+	}
+
 	log("Physical memory per PD at most: ",
 	    Number_of_bytes(_core_vm_space.max_page_frames() * get_page_size()));
 
