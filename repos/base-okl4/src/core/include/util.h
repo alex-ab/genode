@@ -111,7 +111,7 @@ namespace Core {
 
 	inline addr_t map_src_addr(addr_t, addr_t phys) { return phys; }
 
-	inline Log2 kernel_constrained_map_size(Log2 size) { return size; }
+	inline Log2 kernel_constrained_map_size(Log2 size, bool) { return size; }
 }
 
 #endif /* _CORE__INCLUDE__UTIL_H_ */

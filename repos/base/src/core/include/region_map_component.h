@@ -602,7 +602,7 @@ class Core::Region_map_component : private Weak_object<Region_map_component>,
 
 						Log2 const common_size = Log2_range::common_log2(dst_range,
 						                                                 src_range);
-						Log2 const map_size = kernel_constrained_map_size(common_size);
+						Log2 const map_size = kernel_constrained_map_size(common_size, dataspace.large());
 
 						src_range = src_range.constrained(map_size);
 						dst_range = dst_range.constrained(map_size);
