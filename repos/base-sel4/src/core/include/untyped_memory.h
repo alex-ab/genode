@@ -46,6 +46,12 @@ struct Core::Untyped_memory
 	}
 
 
+	static inline Allocator::Alloc_result alloc_8k(Range_allocator &phys)
+	{
+		return phys.alloc_aligned(2 * 4096, 13);
+	}
+
+
 	static inline void free_page(Range_allocator &phys_alloc, addr_t addr)
 	{
 		phys_alloc.free(reinterpret_cast<void *>(addr));
@@ -64,6 +70,15 @@ struct Core::Untyped_memory
 		unsigned const lower_bits = unsigned(phys_addr >> size_log2) & mask;
 
 		return Cap_sel(upper_bits | lower_bits);
+	}
+
+
+	/**
+	 * Return core-local selector for untyped page at given physical address
+	 */
+	static inline Cap_sel untyped_sel_8k(addr_t phys_addr)
+	{
+		return _core_local_sel(Core_cspace::TOP_CNODE_UNTYPED_8K, phys_addr, 13);
 	}
 
 
