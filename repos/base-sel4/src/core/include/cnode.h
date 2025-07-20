@@ -161,15 +161,17 @@ class Core::Cnode : public Cnode_base, Noncopyable
 		 * \deprecated
 		 */
 		Cnode(Cap_sel parent_sel, Index dst_idx, uint8_t size_log2,
-		      Range_allocator &phys_alloc)
+		      Range_allocator &phys_alloc, bool cnode_size_8k = false)
 		:
 			Cnode_base(dst_idx, size_log2),
-			_phys(Untyped_memory::alloc_page(phys_alloc))
+			_phys(cnode_size_8k ? Untyped_memory::alloc_8k(phys_alloc)
+			                    : Untyped_memory::alloc_page(phys_alloc))
 		{
 			bool ok = false;
 
 			_phys.with_result([&](auto &res) {
-				auto const service = Untyped_memory::untyped_sel(addr_t(res.ptr)).value();
+				auto const service = cnode_size_8k ? Untyped_memory::untyped_sel_8k(addr_t(res.ptr)).value()
+				                                   : Untyped_memory::untyped_sel   (addr_t(res.ptr)).value();
 				ok = create<Cnode_kobj>(service, parent_sel, dst_idx, size_log2);
 			}, [&](auto) { /* ok stays false */ });
 

@@ -17,6 +17,8 @@
 #include <util.h>
 #include <kernel_object.h>
 
+#include <arch_kernel_object.h>
+
 /* base-internal includes */
 #include <base/internal/capability_space_sel4.h>
 
@@ -38,13 +40,15 @@ struct Pd_id_alloc : Platform_pd::Pd_id_allocator
 		ASSERT (ok);
 		ok = _reserve(Core_cspace::CORE_VM_ID             , 1); /* 0x001 */
 		ASSERT (ok);
-		ok = _reserve(Core_cspace::TOP_CNODE_UNTYPED_LARGE, 1); /* 0x7fc */
+		ok = _reserve(Core_cspace::TOP_CNODE_UNTYPED_LARGE, 1); /* 0x3fb */
 		ASSERT (ok);
-		ok = _reserve(Core_cspace::TOP_CNODE_UNTYPED_16K  , 1); /* 0x7fd */
+		ok = _reserve(Core_cspace::TOP_CNODE_UNTYPED_16K  , 1); /* 0x3fc */
 		ASSERT (ok);
-		ok = _reserve(Core_cspace::TOP_CNODE_UNTYPED_4K   , 1); /* 0x7fe */
+		ok = _reserve(Core_cspace::TOP_CNODE_UNTYPED_8K   , 1); /* 0x3fd */
 		ASSERT (ok);
-		ok = _reserve(Core_cspace::TOP_CNODE_PHYS_IDX     , 1); /* 0x7ff */
+		ok = _reserve(Core_cspace::TOP_CNODE_UNTYPED_4K   , 1); /* 0x3fe */
+		ASSERT (ok);
+		ok = _reserve(Core_cspace::TOP_CNODE_PHYS_IDX     , 1); /* 0x3ff */
 		ASSERT (ok);
 	}
 };
@@ -187,6 +191,7 @@ Platform_pd::Platform_pd(Allocator &md_alloc, char const *label)
 	_vm_space.construct(_page_directory_sel,
 	                    platform_specific().core_sel_alloc(),
 	                    platform().ram_alloc(),
+	                    Core::phys_alloc_8k(),
 	                    platform_specific().top_cnode(),
 	                    platform_specific().core_cnode(),
 	                    platform_specific().phys_cnode(),
