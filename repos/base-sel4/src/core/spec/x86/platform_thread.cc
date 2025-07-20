@@ -17,6 +17,13 @@
 using namespace Core;
 
 
+Phys_allocator &Core::phys_alloc_8k(Allocator *core_mem_alloc)
+{
+	static Phys_allocator phys_alloc_8k(core_mem_alloc);
+	return phys_alloc_8k;
+}
+
+
 Phys_allocator &Core::phys_alloc_16k(Allocator *core_mem_alloc)
 {
 	static Phys_allocator phys_alloc_16k(core_mem_alloc);

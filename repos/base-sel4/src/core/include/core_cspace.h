@@ -25,10 +25,10 @@ class Core::Core_cspace
 
 		/* CNode dimensions */
 		enum {
-			NUM_TOP_SEL_LOG2  = 11UL,
+			NUM_TOP_SEL_LOG2  = 10UL,
 			/* CONFIG_ROOT_CNODE_SIZE_BITS from seL4 autoconf.h */
 			NUM_CORE_SEL_LOG2 = CONFIG_ROOT_CNODE_SIZE_BITS,
-			NUM_PHYS_SEL_LOG2 = 21UL,
+			NUM_PHYS_SEL_LOG2 = 22UL,
 
 			NUM_CORE_PAD_SEL_LOG2 = 32UL - NUM_TOP_SEL_LOG2 - NUM_CORE_SEL_LOG2,
 		};
@@ -39,7 +39,8 @@ class Core::Core_cspace
 		static unsigned core_cnode_sel()      { return core_pad_cnode_sel()  + 1; }
 		static unsigned phys_cnode_sel()      { return core_cnode_sel()      + 1; }
 		static unsigned untyped_cnode_4k()    { return phys_cnode_sel()      + 1; }
-		static unsigned untyped_cnode_16k()   { return untyped_cnode_4k()    + 1; }
+		static unsigned untyped_cnode_8k()    { return untyped_cnode_4k()    + 1; }
+		static unsigned untyped_cnode_16k()   { return untyped_cnode_8k()    + 1; }
 		static unsigned untyped_cnode_large() { return untyped_cnode_16k()   + 1; }
 		static unsigned io_port_sel()         { return untyped_cnode_large() + 1; }
 		static unsigned core_static_sel_end() { return io_port_sel()         + 1; }
@@ -48,13 +49,14 @@ class Core::Core_cspace
 		enum Top_cnode_idx {
 			TOP_CNODE_CORE_IDX    = 0,
 
-			TOP_CNODE_UNTYPED_LARGE = 0x7fc, /* untyped objects large */
-			TOP_CNODE_UNTYPED_16K   = 0x7fd, /* untyped objects 16K   */
-			TOP_CNODE_UNTYPED_4K    = 0x7fe, /* untyped objects  4K   */
-			TOP_CNODE_PHYS_IDX      = 0x7ff  /* physical page frames  */
+			TOP_CNODE_UNTYPED_LARGE = 0x3fb, /* untyped objects large */
+			TOP_CNODE_UNTYPED_16K   = 0x3fc, /* untyped objects 16K   */
+			TOP_CNODE_UNTYPED_8K    = 0x3fd, /* untyped objects  8K   */
+			TOP_CNODE_UNTYPED_4K    = 0x3fe, /* untyped objects  4K   */
+			TOP_CNODE_PHYS_IDX      = 0x3ff  /* physical page frames  */
 		};
 
-		enum { CORE_VM_ID = 1 };
+		enum { CORE_VM_ID = 1, MAX_COMPONENTS = 128 }; //TOP_CNODE_UNTYPED_LARGE / 6 };
 };
 
 #endif /* _CORE__INCLUDE__CORE_CSPACE_H_ */

@@ -21,6 +21,7 @@ namespace Core {
 
 	Phys_allocator &phys_alloc_large(Allocator * core_mem_alloc = nullptr);
 	Phys_allocator &phys_alloc_16k(Allocator * core_mem_alloc = nullptr);
+	Phys_allocator &phys_alloc_8k(Allocator * core_mem_alloc = nullptr);
 
 	enum {
 		PAGE_TABLE_LOG2_SIZE  = 21, /*   2M  region */

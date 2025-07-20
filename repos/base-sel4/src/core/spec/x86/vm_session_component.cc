@@ -121,6 +121,7 @@ try
 	_vm_space.construct(_vm_page_table,
 	                    platform_specific().core_sel_alloc(),
 	                    phys_alloc,
+	                    Core::phys_alloc_8k(),
 	                    platform_specific().top_cnode(),
 	                    platform_specific().core_cnode(),
 	                    platform_specific().phys_cnode(),
