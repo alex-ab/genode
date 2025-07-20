@@ -78,9 +78,45 @@ void Platform::_init_core_page_table_registry()
 		virt_addr += 512 * get_page_size();
 	}
 
-	/* initialize 16k memory allocator */
+	/* initialize memory allocator of various size */
+	phys_alloc_8k   (&core_mem_alloc());
 	phys_alloc_16k  (&core_mem_alloc());
 	phys_alloc_large(&core_mem_alloc());
+
+	enum { MAX_8K_COUNT = Core::Core_cspace::MAX_COMPONENTS, LOG2_SIZE_8K = 13 };
+	addr_t const max_pd_mem_8k = MAX_8K_COUNT * (1UL << LOG2_SIZE_8K);
+
+	_initial_untyped_pool.turn_into_untyped_object(Core_cspace::TOP_CNODE_UNTYPED_8K,
+		[&] (addr_t const phys, addr_t const size, bool const device_memory) {
+
+			if (device_memory)
+				return false;
+
+			if (_unused_phys_alloc.remove_range(phys, size).failed()) {
+				warning("unable to register range as RAM: ", Hex_range(phys, size));
+				return false;
+			}
+
+			if (phys_alloc_8k().add_range(phys, size).failed()) {
+				if (_unused_phys_alloc.add_range(phys, size).failed())
+					warning("unable to remove range as RAM: ", Hex_range(phys, size));
+				warning("unable to register range as RAM: ", Hex_range(phys, size));
+				return false;
+			}
+
+			return true;
+		},
+		[&] (addr_t const phys, addr_t const size, bool const device_memory) {
+			if (device_memory)
+				return;
+
+			if (phys_alloc_8k().remove_range(phys, size).failed() ||
+			    _unused_phys_alloc.add_range   (phys, size).failed())
+				warning("unable to re-add phys RAM: ", Hex_range(phys, size));
+		},
+		LOG2_SIZE_8K, max_pd_mem_8k);
+
+	log(":phys_mem_8k:     ",  phys_alloc_8k());
 
 	/* reserve some memory for VCPUs - must be 16k */
 	enum { MAX_VCPU_COUNT = 16 };

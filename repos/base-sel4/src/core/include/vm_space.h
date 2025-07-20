@@ -103,13 +103,14 @@ class Core::Vm_space
 				void construct(Cap_sel_alloc   &cap_sel_alloc,
 				               Cap_sel          core_cnode_sel,
 				               Range_allocator &phys_alloc,
-				               auto const       size_log2)
+				               auto const       size_log2,
+				               bool const       cnode_8k = false)
 				{
 					_cnode_sel = cap_sel_alloc.alloc();
 
 					_cnode_sel.with_result([&](auto result) {
 						_cnode.construct(core_cnode_sel, Cnode_index(unsigned(result)),
-						                 size_log2, phys_alloc);
+						                 size_log2, phys_alloc, cnode_8k);
 					}, [](auto){ /* checked by constructed() */ });
 				}
 
@@ -412,6 +413,7 @@ class Core::Vm_space
 		Vm_space(Cap_sel              pd_sel,
 		         Cap_sel_alloc       &cap_sel_alloc,
 		         Range_allocator     &phys_alloc,
+		         Range_allocator     &phys_alloc_8k,
 		         Cnode               &top_level_cnode,
 		         Cnode               &core_cnode,
 		         Cnode               &phys_cnode,
@@ -429,8 +431,11 @@ class Core::Vm_space
 		{
 			static_assert(NUM_CNODE_3RD_LOG2 <= VM_2ND_CNODE_LOG2);
 
+error(__LINE__);
 			_vm_pad_cnode.construct(_cap_sel_alloc, core_cnode.sel(),
-			                        phys_alloc, VM_2ND_CNODE_LOG2);
+			                        phys_alloc_8k,
+			                        VM_2ND_CNODE_LOG2, true);
+error(__LINE__);
 
 			_vm_pad_cnode.with_cnode([&](auto &vm_pad_cnode) {
 				Cnode_base const cspace(Cap_sel(seL4_CapInitThreadCNode), 32);

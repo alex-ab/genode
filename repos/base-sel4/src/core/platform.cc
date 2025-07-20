@@ -26,6 +26,8 @@
 #include <untyped_memory.h>
 #include <thread_sel4.h>
 
+#include <arch_kernel_object.h>
+
 /* base-internal includes */
 #include <base/internal/globals.h>
 #include <base/internal/stack_area.h>
@@ -298,6 +300,10 @@ void Core::Platform::_switch_to_core_cspace()
 	/* insert 2nd-level untyped-pages CNode into 1st-level CNode */
 	_top_cnode.copy(initial_cspace, Cnode_index(Core_cspace::untyped_cnode_4k()),
 	                                Cnode_index(Core_cspace::TOP_CNODE_UNTYPED_4K));
+
+	/* insert 2nd-level untyped-pages CNode into 1st-level CNode */
+	_top_cnode.move(initial_cspace, Cnode_index(Core_cspace::untyped_cnode_8k()),
+	                                Cnode_index(Core_cspace::TOP_CNODE_UNTYPED_8K));
 
 	/* insert 2nd-level untyped-pages CNode into 1st-level CNode */
 	_top_cnode.move(initial_cspace, Cnode_index(Core_cspace::untyped_cnode_16k()),
@@ -595,6 +601,7 @@ Core::Platform::Platform()
 	_core_vm_space(Cap_sel(seL4_CapInitThreadPD),
 	               _core_sel_alloc,
 	               _phys_alloc,
+	               Core::phys_alloc_8k(),
 	               _top_cnode,
 	               _core_cnode,
 	               _phys_cnode,
