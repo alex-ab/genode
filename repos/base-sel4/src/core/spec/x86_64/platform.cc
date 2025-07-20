@@ -118,7 +118,7 @@ void Platform::_init_core_page_table_registry()
 
 	log(":phys_mem_16k:     ",  phys_alloc_16k());
 
-	enum { MAX_LARGE_COUNT = 16 };
+	enum { MAX_LARGE_COUNT = 2024 };
 	addr_t const max_pd_mem_large = MAX_LARGE_COUNT * (1UL << PAGE_TABLE_LOG2_SIZE);
 
 	_initial_untyped_pool.turn_into_untyped_object(Core_cspace::TOP_CNODE_UNTYPED_LARGE,
