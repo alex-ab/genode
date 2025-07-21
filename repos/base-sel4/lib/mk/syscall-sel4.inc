@@ -36,7 +36,7 @@ INCLUDES := objecttype.h types.h bootinfo.h bootinfo_types.h errors.h \
             syscall.h invocation.h shared_types_gen.h debug_assert.h \
             shared_types.h deprecated.h autoconf.h syscalls.h faults.h \
             benchmark_utilisation_types.h \
-            syscalls_master.h virtual_client.h
+            syscalls_master.h virtual_client.h config.h
 
 PLAT_API_INCLUDES := constants.h
 
@@ -112,7 +112,7 @@ include/sel4/mode_include/$(SEL4_WORDBITS)/sel4/shared_types.pbf: $(LIBSEL4_DIR)
 include/sel4/sel4_arch/types.pbf: $(LIBSEL4_DIR)/sel4_arch_include/$(SEL4_ARCH)/sel4/sel4_arch/types.bf include/sel4/autoconf.h
 	$(MSG_CONVERT)$(notdir $@)
 	$(VERBOSE)mkdir -p $(dir $@)
-	$(VERBOSE)$(CPP) -Iinclude/sel4 -I$(LIBSEL4_DIR)/arch_include/$(ARCH) -P $< >$@
+	$(VERBOSE)$(CPP) -Iinclude/sel4 -I$(LIBSEL4_DIR)/include -I$(LIBSEL4_DIR)/arch_include/$(ARCH) -P $< >$@
 
 include/sel4/shared_types_gen.h: include/sel4/mode_include/$(SEL4_WORDBITS)/sel4/shared_types.pbf
 	$(MSG_CONVERT)$(notdir $@)
@@ -158,6 +158,6 @@ include/interfaces/sel4_client.h: $(SEL4_CLIENT_H_SRC)
 	$(MSG_CONVERT)$(notdir $@)
 	$(VERBOSE)mkdir -p $(dir $@)
 	$(VERBOSE)python -B $(LIBSEL4_DIR)/tools/syscall_stub_gen.py \
-	                 --buffer -a $(SEL4_ARCH) --word-size $(SEL4_WORDBITS) -o $@ $(SEL4_CLIENT_H_SRC)
+	                 --buffer -a $(SEL4_ARCH) -o $@ $(SEL4_CLIENT_H_SRC)
 
 endif
