@@ -544,7 +544,7 @@ error(__LINE__);
 		bool _unmap_large_page(addr_t const to_dest)
 		{
 			_pt_registry.flush_one_level1(to_dest, 21, [&](Cap_sel const &idx, addr_t const paddr) {
-				error("flush large ", idx, " ", " phys=", Hex(paddr));
+				//error("flush large ", idx, " ", " phys=", Hex(paddr));
 				_unmap_and_free(idx, paddr);
 			});
 			return true;
@@ -569,11 +569,11 @@ error(__LINE__);
 				if (!_leaf_cnode(pte_idx, [&](auto &leaf_cnode) {
 					Cnode_index from { uint32_t(from_phys >> get_page_size_log2()) };
 					Cnode_index to   { _leaf_cnode_entry(pte_idx) };
-error("A ", Hex(from_phys), "-", Hex(to_dest));
+//error("A ", Hex(from_phys), "-", Hex(to_dest));
 					if (leaf_cnode.copy(_phys_cnode, from, to))
 						return true;
 
-error("FA");
+//error("FA");
 					_sel_alloc.free(pte_idx);
 					return false;
 				})) {
@@ -584,7 +584,7 @@ error("FA");
 				/* XXX - only required if there is something already XXX */
 				_pt_registry.flush_one_level1(to_dest, log2_size_large,
 					[&](Cap_sel const &idx, addr_t const paddr) {
-						error("flush large k ", idx, " ", " phys=", Hex(paddr));
+//						error("flush large k ", idx, " ", " phys=", Hex(paddr));
 						_unmap_and_free(idx, paddr);
 					});
 
