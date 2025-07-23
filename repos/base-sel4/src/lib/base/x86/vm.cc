@@ -871,7 +871,7 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
 			_wake_up.up();
 		}
 
-		void with_state(auto const &fn, unsigned long &)
+		void with_state(auto const &fn)
 		{
 			if (_dispatching) {
 
@@ -912,9 +912,9 @@ struct Sel4_vcpu : Genode::Thread, Noncopyable
  ** vCPU API **
  **************/
 
-void Vm_connection::Vcpu::_with_state(With_state::Ft const &fn, unsigned long &line)
+void Vm_connection::Vcpu::_with_state(With_state::Ft const &fn)
 {
-	static_cast<Sel4_native_rpc &>(_native_vcpu).vcpu.with_state(fn, line);
+	static_cast<Sel4_native_rpc &>(_native_vcpu).vcpu.with_state(fn);
 }
 
 

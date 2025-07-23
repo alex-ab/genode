@@ -777,7 +777,7 @@ Nova_vcpu::Nova_vcpu(Env &env, Vm_connection &vm, Allocator &alloc,
  ** vCPU API **
  **************/
 
-void Vm_connection::Vcpu::_with_state(With_state::Ft const &fn, unsigned long &)
+void Vm_connection::Vcpu::_with_state(With_state::Ft const &fn)
 {
 	static_cast<Nova_vcpu &>(_native_vcpu).with_state(fn);
 }
