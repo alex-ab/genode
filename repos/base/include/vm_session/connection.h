@@ -93,9 +93,9 @@ struct Genode::Vm_connection : Connection<Vm_session>, Rpc_client<Vm_session>
 	 */
 	struct Vcpu : Genode::Noncopyable
 	{
-		void _with_state(With_state::Ft const &);
+		void _with_state(With_state::Ft const &, unsigned long &);
 
-		void with_state(auto const &fn) { _with_state(With_state::Fn { fn }); }
+		void with_state(auto const &fn, unsigned long &line) { _with_state(With_state::Fn { fn }, line); }
 
 		Native_vcpu &_native_vcpu;
 
