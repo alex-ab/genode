@@ -15,25 +15,11 @@
 #include <base/component.h>
 #include <base/log.h>
 #include <log_session/connection.h>
-#include <base/attached_ram_dataspace.h>
+
 
 void Component::construct(Genode::Env &env)
 {
 	using namespace Genode;
-
-	auto size = 512ul * 4096 * 2;
-	Attached_ram_dataspace k(env.ram(), env.rm(), size);
-
-	log("--- alloc ", size);
-
-	uint64_t hash = 0;
-	for (unsigned i = 0; i < size / 8; i++) {
-		hash += k.local_addr<uint64_t>()[i];
-	}
-
-	log("--- alloc ", size, " ", Hex(hash));
-
-	return;
 
 	log("hex range:          ", Hex_range<uint16_t>(0xe00, 0x880));
 	log("empty hex range:    ", Hex_range<uint32_t>(0xabc0000, 0));
