@@ -49,7 +49,7 @@ Ram_dataspace_factory::alloc_ram(size_t ds_size, Cache cache)
 	if (ds_size == 8 << 21) {
 		allocated_range = Core::phys_alloc_large().alloc_aligned(ds_size, 21);
 		if (allocated_range.ok()) {
-			log("got large size ", ds_size);
+//			log("got large size ", ds_size);
 			large = true;
 		}
 		else
