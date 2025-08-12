@@ -542,7 +542,7 @@ class Core::Vm_space
 		bool _unmap_large_page(addr_t const to_dest)
 		{
 			_pt_registry.flush_one_level1(to_dest, 21, [&](Cap_sel const &idx, addr_t const paddr) {
-				log("flush large ", idx, " ", " phys=", Hex(paddr));
+				//log("flush large ", idx, " ", " phys=", Hex(paddr));
 				_unmap_and_free(idx, paddr);
 			});
 			return true;
@@ -581,7 +581,7 @@ class Core::Vm_space
 				/* XXX - only required if there is something already XXX */
 				_pt_registry.flush_one_level1(to_dest, log2_size_large,
 					[&](Cap_sel const &idx, addr_t const paddr) {
-						log("flush large k ", idx, " ", " phys=", Hex(paddr));
+						//log("flush large k ", idx, " ", " phys=", Hex(paddr));
 						_unmap_and_free(idx, paddr);
 					});
 

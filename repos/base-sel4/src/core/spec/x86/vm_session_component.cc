@@ -303,11 +303,13 @@ void Vm_session_component::_attach_vm_memory(Dataspace_component &dsc,
 		.flush_support  = true,
 		.large          = dsc.large() };
 
+#if 0
 	if (dsc.large())
 		error("dsc.size() ", dsc.size(), " ", dsc.size() / (1u << 21),
 		      " ", dsc.size() % (1u << 21), " ",
 		      Hex(dsc.phys_addr()), "+", Hex(attribute.offset),
 		      " size=", Hex(attribute.size), "->", Hex(guest_phys));
+#endif
 
 	auto xxx_phys  = dsc.phys_addr() + attribute.offset;
 	auto xxx_size  = attribute.size;
