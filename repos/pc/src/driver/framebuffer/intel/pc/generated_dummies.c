@@ -1146,13 +1146,6 @@ u64 intel_context_get_total_runtime_ns(struct intel_context * ce)
 }
 
 
-extern void intel_dpt_configure(struct intel_crtc * crtc);
-void intel_dpt_configure(struct intel_crtc * crtc)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 extern void intel_dsb_chain(struct intel_atomic_state * state,struct intel_dsb * dsb,struct intel_dsb * chained_dsb,bool wait_for_vblank);
 void intel_dsb_chain(struct intel_atomic_state * state,struct intel_dsb * dsb,struct intel_dsb * chained_dsb,bool wait_for_vblank)
 {
