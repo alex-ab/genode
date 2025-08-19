@@ -62,7 +62,7 @@
 		</config>
 	</start>
 
-	<start name="falkon_qt6-jemalloc" priority="-3" pkg="cproc/pkg/falkon_qt6-jemalloc/2025-04-11">
+	<start name="falkon-jemalloc" priority="-3" pkg="alex-ab/pkg/falkon-jemalloc/2025-07-02">
 		<route>
 			<service name="Nic">     <child name="nic_router"/>   </service>
 			<service name="Rtc">     <child name="system_clock"/> </service>
