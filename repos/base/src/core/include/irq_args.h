@@ -49,15 +49,12 @@ class Core::Irq_args
 			switch (irq_trg) {
 			case -1:
 			case Irq_session::TRIGGER_UNCHANGED:
-				error("irq ", _irq_number, " unchanged");
 				_irq_trigger = Irq_session::TRIGGER_UNCHANGED;
 				break;
 			case Irq_session::TRIGGER_EDGE:
-				error("irq ", _irq_number, " edge");
 				_irq_trigger = Irq_session::TRIGGER_EDGE;
 				break;
 			case Irq_session::TRIGGER_LEVEL:
-				error("irq ", _irq_number, " level");
 				_irq_trigger = Irq_session::TRIGGER_LEVEL;
 				break;
 			default:
