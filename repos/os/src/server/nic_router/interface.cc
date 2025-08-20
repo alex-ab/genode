@@ -1688,9 +1688,7 @@ void Interface::_handle_pkt_stream_signal()
 				 * Ensure that this handler is called again in order to handle
 				 * the packets left unhandled due to the configured limit.
 				 */
-	error(__func__, " submit");
 				Signal_transmitter(_pkt_stream_signal_handler).submit();
-	error(__func__, " submit done");
 				break;
 			}
 			_handle_pkt();
