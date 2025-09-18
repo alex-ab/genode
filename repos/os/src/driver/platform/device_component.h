@@ -69,16 +69,19 @@ class Driver::Device_component : public Rpc_object<Platform::Device_interface,
 			unsigned                         idx;
 			Range                            range;
 			bool                             prefetchable;
+			bool                             shared;
 			Constructible<Io_mem_connection> io_mem {};
+			Io_mem_session_capability        io_mem_cap {};
 
 			Io_mem(Registry<Io_mem>  &registry,
 			       Pci_bar            bar,
 			       unsigned           idx,
 			       Range              range,
-			       bool               pf)
+			       bool               pf,
+			       bool               sh)
 			:
 				Registry<Io_mem>::Element(registry, *this),
-				bar(bar), idx(idx), range(range), prefetchable(pf) {}
+				bar(bar), idx(idx), range(range), prefetchable(pf), shared(sh) {}
 		};
 
 		struct Io_port_range : Registry<Io_port_range>::Element
@@ -119,7 +122,8 @@ class Driver::Device_component : public Rpc_object<Platform::Device_interface,
 		                 Env                        &env,
 		                 Session_component          &session,
 		                 Device_model               &model,
-		                 Driver::Device             &device);
+		                 Driver::Device             &device,
+		                 Registry<Shared_io_memory> &shared_io_mem);
 		~Device_component();
 
 		Driver::Device::Name device() const;
@@ -140,6 +144,7 @@ class Driver::Device_component : public Rpc_object<Platform::Device_interface,
 		Env                                &_env;
 		Session_component                  &_session;
 		Device_model                       &_device_model;
+		Registry<Shared_io_memory>         &_shared_io_memory;
 		Driver::Device::Name const          _device;
 		size_t                              _cap_quota { 0 };
 		size_t                              _ram_quota { 0 };

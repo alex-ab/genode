@@ -74,6 +74,7 @@ class Driver::Root : public Root_component<Session_component>,
 		bool                          _io_mmu_present { false };
 		bool const                    _kernel_iommu;
 		Registry<Session_component>   _sessions {};
+		Registry<Shared_io_memory>    _shared_io_memory {};
 };
 
 #endif /* _SRC__DRIVERS__PLATFORM__ROOT_H_ */

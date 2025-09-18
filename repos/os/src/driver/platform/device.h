@@ -23,6 +23,7 @@
 #include <util/list_model.h>
 
 #include <shared_irq.h>
+#include <shared_io_mem.h>
 #include <clock.h>
 #include <reset.h>
 #include <power.h>

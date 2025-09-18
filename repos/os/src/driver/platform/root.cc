@@ -37,9 +37,9 @@ Driver::Root::Create_result Driver::Root::_create_session(const char *args)
 	return with_matching_policy(label_from_args(args), _config.node(),
 
 		[&] (Node const &policy) {
-			return _alloc_obj(_env, _config, _devices, _sessions, _io_mmu_devices,
-			                  _irq_controller_registry,
-			                  label_from_args(args),
+			return _alloc_obj(_env, _config, _devices, _sessions,
+			                  _io_mmu_devices, _irq_controller_registry,
+			                  _shared_io_memory, label_from_args(args),
 			                  session_resources_from_args(args),
 			                  session_diag_from_args(args),
 			                  policy.attribute_value("info", false),

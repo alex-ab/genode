@@ -54,6 +54,7 @@ class Driver::Session_component
 		                  Session_registry             &registry,
 		                  Io_mmu_devices               &io_mmu_devices,
 		                  Registry<Irq_controller>     &irq_controller_registry,
+		                  Registry<Shared_io_memory>   &,
 		                  Label            const       &label,
 		                  Resources        const       &resources,
 		                  Diag             const       &diag,
@@ -132,6 +133,7 @@ class Driver::Session_component
 		bool                          _info;
 		Policy_version                _version;
 		Dma_allocator                 _dma_allocator;
+		Registry<Shared_io_memory>   &_shared_io_memory;
 
 		Device_capability _acquire(Device &device);
 		void              _release_device(Device_component &dc);

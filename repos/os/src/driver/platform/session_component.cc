@@ -57,7 +57,8 @@ Session_component::_acquire(Device &device)
 	);
 
 	Device_component * dc = new (heap())
-		Device_component(_device_registry, _env, *this, _devices, device);
+		Device_component(_device_registry, _env, *this, _devices, device,
+		                 _shared_io_memory);
 
 	device.acquire(*this);
 	return _env.ep().rpc_ep().manage(dc);
@@ -293,10 +294,22 @@ Session_component::acquire_device(Platform::Session::Device_name const &name)
 	{
 		if (dev.name() != name || !matches(dev))
 			return;
-		if (dev.owner().valid())
-			warning("Cannot aquire device ", name, " already in use");
-		else
+
+		if (!dev.owner().valid()) {
 			cap = _acquire(dev);
+			return;
+		}
+
+		if (dev.type() != "shared") {
+			warning("Cannot acquire device ", name, " already in use");
+			return;
+		}
+
+		auto * dc = new (heap()) Device_component(_device_registry, _env,
+		                                          *this, _devices, dev,
+		                                          _shared_io_memory);
+
+		cap = _env.ep().rpc_ep().manage(dc);
 	});
 
 	return cap;
@@ -434,6 +447,7 @@ Session_component::Session_component(Env                          &env,
                                      Session_registry             &registry,
                                      Io_mmu_devices               &io_mmu_devices,
                                      Registry<Irq_controller>     &irq_controller_registry,
+                                     Registry<Shared_io_memory>   &shared_memory,
                                      Label          const         &label,
                                      Resources      const         &resources,
                                      Diag           const         &diag,
@@ -449,7 +463,8 @@ Session_component::Session_component(Env                          &env,
 	_io_mmu_devices(io_mmu_devices),
 	_irq_controller_registry(irq_controller_registry),
 	_info(info), _version(version),
-	_dma_allocator(_md_alloc, dma_remapping)
+	_dma_allocator(_md_alloc, dma_remapping),
+	_shared_io_memory(shared_memory)
 {
 	/*
 	 * FIXME: As the ROM session does not propagate Out_of_*
