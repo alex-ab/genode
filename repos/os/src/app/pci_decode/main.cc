@@ -65,6 +65,7 @@ struct Main
 	void parse_pci_config_spaces (Node const &, Generator &);
 	void parse_acpi_device_info  (Node const &, Generator &);
 	void parse_tpm2_table        (Node const &, Generator &);
+	void parse_intel_opregion    (Generator &, Bdf, Pci::Config const &);
 
 	template <typename FN>
 	void for_bridge(Pci::bus_t bus, FN const &fn)
@@ -334,6 +335,8 @@ bus_t Main::parse_pci_function(Bdf        bdf,
 			});
 		}
 	});
+
+	parse_intel_opregion(g, bdf, cfg);
 
 	return subordinate_bus;
 }
@@ -606,6 +609,76 @@ void Main::parse_acpi_device_info(Node const &node, Generator &g)
 			g.attribute("size",    "0x1000");
 		});
 	});
+}
+
+
+void Main::parse_intel_opregion(Generator &g, Bdf const bdf,
+                                Pci::Config const &device)
+{
+	struct Opregion : Mmio<0x3c6>
+	{
+		struct Minor : Register<0x16, 8> { };
+		struct Major : Register<0x17, 8> { };
+		struct MBox  : Register<0x58, 32> {
+			struct Asle : Bitfield<2, 1> { };
+		};
+		struct Asle_ardy : Register<0x300, 32> { };
+		struct Asle_rvda : Register<0x3ba, 64> { };
+		struct Asle_rvds : Register<0x3c2, 32> { };
+
+		Opregion(Byte_range_ptr const &range) : Mmio(range) { }
+	};
+
+	if (bdf != Bdf(0,2,0) ||
+	    (device.read<Pci::Config::Vendor>() != 0x8086 /* INTEL */) ||
+	    (device.read<Pci::Config::Base_class_code>()  != 3 /* DISPLAY */))
+		return;
+
+	addr_t const phys_asls = device.read<Mmio<0x100>::Register<0xfc, 32>>(); /* ASLS */
+	if (!phys_asls)
+		return;
+
+	addr_t asls_size = 2 * 4096 /* OPREGION_SIZE */;
+
+	try {
+		Attached_io_mem_dataspace map_asls(env, phys_asls, asls_size);
+
+		if (!map_asls.cap().valid())
+			return;
+
+		Opregion opregion({map_asls.local_addr<char>(), asls_size});
+
+		auto const rvda = opregion.read<Opregion::Asle_rvda>();
+		auto const rvds = opregion.read<Opregion::Asle_rvds>();
+
+		if (opregion.read<Opregion::MBox::Asle>() &&
+		    opregion.read<Opregion::Major>() >= 2 && rvda && rvds) {
+
+			/* 2.0 rvda is physical, 2.1+ rvda is relative offset */
+			if (opregion.read<Opregion::Major>() > 2 ||
+			    opregion.read<Opregion::Minor>() >= 1) {
+
+				if (rvda > asls_size)
+					asls_size += rvda - asls_size;
+				asls_size += opregion.read<Opregion::Asle_rvds>();
+			} else {
+				warning("rvda/rvds unsupported case");
+			}
+		}
+
+		g.node("device", [&]
+		{
+			g.attribute("name", "intel_opregion");
+			g.attribute("type", "shared"); /* Intel graphic and ACPICA */
+			g.node("io_mem", [&]
+			{
+				g.attribute("address", String<20>(Hex(phys_asls)));
+				g.attribute("size",    asls_size);
+			});
+		});
+	} catch (Attached_dataspace::Invalid_dataspace()) {
+	} catch (Attached_dataspace::Region_conflict()) {
+	} catch (Opregion::Range_violation) { }
 }
 
 
