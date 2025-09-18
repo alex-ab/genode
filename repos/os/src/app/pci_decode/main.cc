@@ -65,6 +65,7 @@ struct Main
 	void parse_pci_config_spaces (Node const &, Generator &);
 	void parse_acpi_device_info  (Node const &, Generator &);
 	void parse_tpm2_table        (Node const &, Generator &);
+	void parse_intel_opregion    (Node const &, Generator &, unsigned bus);
 
 	template <typename FN>
 	void for_bridge(Pci::bus_t bus, FN const &fn)
@@ -600,6 +601,88 @@ void Main::parse_acpi_device_info(Node const &node, Generator &g)
 }
 
 
+void Main::parse_intel_opregion(Node const &node, Generator &g, unsigned bus)
+{
+	struct Config_space : Mmio<0x100>
+	{
+		struct Vendor : Register<0x00, 16> { enum { INTEL = 0x8086 }; };
+		struct Class  : Register<0x0b,  8> { enum { DISPLAY = 0x3 }; };
+		struct Asls   : Register<0xfc, 32> { };
+
+		Config_space(Byte_range_ptr const &range) : Mmio(range) { }
+	};
+
+	struct Opregion : Mmio<0x3c6>
+	{
+		struct Minor : Register<0x16, 8> { };
+		struct Major : Register<0x17, 8> { };
+		struct MBox  : Register<0x58, 32> {
+			struct Asle : Bitfield<2, 1> { };
+		};
+		struct Asle_ardy : Register<0x300, 32> { };
+		struct Asle_rvda : Register<0x3ba, 64> { };
+		struct Asle_rvds : Register<0x3c2, 32> { };
+
+		Opregion(Byte_range_ptr const &range) : Mmio(range) { }
+	};
+
+	addr_t const base  = node.attribute_value("base",   0UL);
+	size_t const count = node.attribute_value("count",  0UL);
+
+	auto const func = 8u * 2; /* BDF 0:2.0 */
+	auto const config_size   = 4096;
+
+	if (bus != 0 || !base || count < func)
+		return;
+
+	Attached_io_mem_dataspace pci_config { env, base + func * config_size,
+	                                       config_size };
+	Config_space device({pci_config.local_addr<char>(), config_size});
+
+	if ((device.read<Config_space::Vendor>() != Config_space::Vendor::INTEL) ||
+	    (device.read<Config_space::Class>()  != Config_space::Class::DISPLAY))
+		return;
+
+	addr_t const phys_asls = device.read<Config_space::Asls>();
+	if (!phys_asls)
+		return;
+
+	addr_t asls_size = 2 * 4096 /* OPREGION_SIZE */;
+
+	Attached_io_mem_dataspace map_asls(env, phys_asls, asls_size);
+	Opregion opregion({map_asls.local_addr<char>(), asls_size});
+
+	auto const rvda = opregion.read<Opregion::Asle_rvda>();
+	auto const rvds = opregion.read<Opregion::Asle_rvds>();
+
+	if (opregion.read<Opregion::MBox::Asle>() &&
+	    opregion.read<Opregion::Major>() >= 2 && rvda && rvds) {
+
+		/* 2.0 rvda is physical, 2.1+ rvda is relative offset */
+		if (opregion.read<Opregion::Major>() > 2 ||
+		    opregion.read<Opregion::Minor>() >= 1) {
+
+			if (rvda > asls_size)
+				asls_size += rvda - asls_size;
+			asls_size += opregion.read<Opregion::Asle_rvds>();
+		} else {
+			warning("rvda/rvds unsupported case");
+		}
+	}
+
+	g.node("device", [&]
+	{
+		g.attribute("name", "intel_opregion");
+		g.attribute("type", "shared"); /* Intel graphic and ACPICA */
+		g.node("io_mem", [&]
+		{
+			g.attribute("address", String<20>(Hex(phys_asls)));
+			g.attribute("size",    asls_size);
+		});
+	});
+}
+
+
 void Main::parse_pci_config_spaces(Node const &node, Generator &g)
 {
 	unsigned msi_number      = msi_start;
@@ -614,6 +697,15 @@ void Main::parse_pci_config_spaces(Node const &node, Generator &g)
 		bus_t const bus_off  = (bus_t) (start / FUNCTION_PER_BUS_MAX);
 		bus_t const last_bus = (bus_t)
 			(max(1UL, (count / FUNCTION_PER_BUS_MAX)) - 1);
+
+		/* integrated Intel graphic device is at bus 0 */
+		if (bus_off == 0) {
+			try {
+				parse_intel_opregion(node, g, bus_off);
+			} catch (...) {
+				error("Intel opregion lookup failure");
+			}
+		}
 
 		if (host_bridge_num++) {
 			error("We do not support multiple host bridges by now!");
