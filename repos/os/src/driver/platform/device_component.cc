@@ -106,15 +106,36 @@ Device_component::io_mem(unsigned idx, Range &range)
 			return;
 
 		try {
-			if (!iomem.io_mem.constructed())
+			if (!iomem.io_mem_cap.valid() && iomem.shared) {
+				bool create_shared = true;
+
+				_shared_io_memory.for_each([&](auto const &o) {
+					if (!o.matches(iomem.range))
+						return;
+
+					create_shared = false;
+					iomem.io_mem_cap = o.io_mem_cap();
+				});
+
+				if (create_shared) {
+					auto &shm = *new (_session.heap())
+						 Shared_io_memory(_shared_io_memory, _env, iomem.range,
+						                  iomem.prefetchable);
+					iomem.io_mem_cap = shm.io_mem_cap();
+				}
+			}
+
+			if (!iomem.io_mem_cap.valid()) {
 				iomem.io_mem.construct(_env,
 				                       iomem.range.start,
 				                       iomem.range.size,
 				                       iomem.writecombined);
+				iomem.io_mem_cap = iomem.io_mem->cap();
+			}
 
 			range = iomem.range;
 			range.start &= 0xfff;
-			cap = iomem.io_mem->cap();
+			cap = iomem.io_mem_cap;
 		} catch (Genode::Service_denied) { }
 	});
 
@@ -270,11 +291,13 @@ Device_component::Device_component(Registry<Device_component> &registry,
                                    Env                        &env,
                                    Driver::Session_component  &session,
                                    Driver::Device_model       &model,
-                                   Driver::Device             &device)
+                                   Driver::Device             &device,
+                                   Registry<Shared_io_memory> &shared_mem)
 :
 	_env(env),
 	_session(session),
 	_device_model(model),
+	_shared_io_memory(shared_mem),
 	_device(device.name()),
 	_reg_elem(registry, *this)
 {
@@ -312,7 +335,9 @@ Device_component::Device_component(Registry<Device_component> &registry,
 		{
 			_with_reserved_quota_for_session<Io_mem_session>(session, [&] {
 				new (session.heap())
-					Io_mem(_io_mem_registry, bar, idx, range, pf, wc); });
+					Io_mem(_io_mem_registry, bar, idx, range, pf, wc,
+					       device.type() == "shared");
+			});
 		});
 
 		device.for_each_io_port_range([&] (unsigned idx, Io_port_range::Range range,
@@ -334,7 +359,8 @@ Device_component::Device_component(Registry<Device_component> &registry,
 		{
 			_with_reserved_quota_for_session<Io_mem_session>(session, [&] {
 				Io_mem &iomem = *(new (session.heap())
-					Io_mem(_reserved_mem_registry, {0}, idx, range, false, false));
+					Io_mem(_reserved_mem_registry, {0}, idx, range, false,
+					       false, false));
 				iomem.io_mem.construct(_env, iomem.range.start,
 				                       iomem.range.size, false);
 			});
