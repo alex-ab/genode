@@ -75,7 +75,6 @@ append config {
 		</provides>
 		<config>
 			<policy label="pci_decode -> system"    report="acpi -> acpi"/>
-			<policy label="intel_fb -> intel_opregion" report="acpi -> intel_opregion"/>
 			<policy label="platform -> devices" report="pci_decode -> devices"/>
 		</config>
 		<route>
@@ -159,9 +158,6 @@ append config {
 			<service name="Report"> <child name="report_rom"/> </service>
 			<service name="Platform" label="usb"> <child name="platform" label="usb"/> </service>
 			<service name="Platform"> <child name="platform" label="intel_fb"/> </service>
-			<service name="ROM" label="intel_fb -> intel_opregion">
-				<child name="report_rom" label="intel_fb -> intel_opregion"/>
-			</service>
 			<any-service> <parent/> <any-child/> </any-service>
 		</route>
 		<config prio_levels="2">

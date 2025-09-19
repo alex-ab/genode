@@ -55,7 +55,6 @@
 	<start name="acpi" caps="350" ram="7M">
 		<route>
 			<service name="Report" label="acpi"> <child name="report_rom"/> </service>
-			<service name="Report" label="intel_opregion"> <parent label="intel_opregion"/> </service>
 			<service name="Report" label="smbios_table">   <parent label="smbios_table"/> </service>
 			<service name="IO_MEM"> <parent/> </service>
 			<service name="LOG">    <parent/> </service>

@@ -29,7 +29,6 @@
 
 #include "acpi.h"
 #include "memory.h"
-#include "intel_opregion.h"
 
 using namespace Genode;
 
@@ -462,95 +461,6 @@ class Pci_config_space : public List<Pci_config_space>::Element
 		{
 			static List<Pci_config_space> _list;
 			return &_list;
-		}
-
-		struct Config_space : Mmio<0x100>
-		{
-			struct Vendor : Register<0x00, 16> { enum { INTEL = 0x8086 }; };
-			struct Class  : Register<0x0b,  8> { enum { DISPLAY = 0x3 }; };
-			struct Asls   : Register<0xfc, 32> { };
-
-			Config_space(Byte_range_ptr const &range) : Mmio(range) { }
-		};
-
-		struct Opregion : Mmio<0x3c6>
-		{
-			struct Minor : Register<0x16, 8> { };
-			struct Major : Register<0x17, 8> { };
-			struct MBox  : Register<0x58, 32> {
-				struct Asle : Bitfield<2, 1> { };
-			};
-			struct Asle_ardy : Register<0x300, 32> { };
-			struct Asle_rvda : Register<0x3ba, 64> { };
-			struct Asle_rvds : Register<0x3c2, 32> { };
-
-			Opregion(Byte_range_ptr const &range) : Mmio(range) { }
-		};
-
-		static void intel_opregion(Env &env)
-		{
-			for (auto *e = list()->first(); e; e = e->next()) {
-				if (e->_bdf_start != 0u) /* BDF 0:0.0 */
-					continue;
-
-				auto const config_offset = 8u * 2; /* BDF 0:2.0 */
-				auto const config_size   = 4096;
-
-				if (e->_func_count <= config_offset)
-					continue;
-
-				Attached_io_mem_dataspace pci_config(env, e->_base +
-				                                     config_offset * config_size,
-				                                     config_size);
-				Config_space device({pci_config.local_addr<char>(), config_size});
-
-				if ((device.read<Config_space::Vendor>() != Config_space::Vendor::INTEL) ||
-				    (device.read<Config_space::Class>()  != Config_space::Class::DISPLAY))
-					continue;
-
-				enum {
-					OPREGION_SIZE = 2 * 4096
-				};
-
-				addr_t const phys_asls = device.read<Config_space::Asls>();
-				if (!phys_asls)
-					continue;
-
-				addr_t asls_size = OPREGION_SIZE;
-
-				{
-					Attached_io_mem_dataspace map_asls(env, phys_asls, asls_size);
-					Opregion opregion({map_asls.local_addr<char>(), asls_size});
-
-					auto const rvda = opregion.read<Opregion::Asle_rvda>();
-					auto const rvds = opregion.read<Opregion::Asle_rvds>();
-
-					if (opregion.read<Opregion::MBox::Asle>() &&
-					    opregion.read<Opregion::Major>() >= 2 && rvda && rvds) {
-
-						/* 2.0 rvda is physical, 2.1+ rvda is relative offset */
-						if (opregion.read<Opregion::Major>() > 2 ||
-						    opregion.read<Opregion::Minor>() >= 1) {
-
-							if (rvda > asls_size)
-								asls_size += rvda - asls_size;
-							asls_size += opregion.read<Opregion::Asle_rvds>();
-						} else {
-							warning("rvda/rvds unsupported case");
-						}
-					}
-				}
-
-				/*
-				 * Intel_opregion requires access to the opregion memory later
-				 * on used by acpica. Therefore the code must be executed here
-				 * and finished, before the acpi report is sent.
-				 * With a valid acpi report the acpica driver starts to run
-				 * and would collide with Intel_opregion.
-				 */
-				static Acpi::Intel_opregion opregion_report { env, phys_asls,
-				                                              asls_size };
-			}
 		}
 };
 
@@ -1852,16 +1762,6 @@ void Acpi::generate_report(Genode::Env &env, Genode::Allocator &alloc,
 					});
 				}
 			}
-		}
-
-		/*
-		 * Intel opregion lookup & parsing must be finished before acpi
-		 * report is sent, therefore the invocation is placed exactly here.
-		 */
-		try {
-			Pci_config_space::intel_opregion(env);
-		} catch (...) {
-			error("Intel opregion handling failed");
 		}
 	});
 }

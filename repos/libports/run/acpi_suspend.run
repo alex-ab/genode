@@ -618,7 +618,6 @@ append config {
 				<policy label="platform -> devices" report="pci_decode -> devices"/>
 				<policy label="pci_decode -> system" report="acpi -> acpi"/>
 				<policy label="platform -> sleep_states" report="acpica -> sleep_states"/>
-				<policy label="intel_fb -> intel_opregion" report="acpi -> intel_opregion"/>
 			</config>
 		</start>
 
@@ -696,9 +695,6 @@ append config {
 				</service>
 				<service name="Platform" label_prefix="intel_fb ->">
 					<child name="gpu"/>
-				</service>
-				<service name="ROM" label="intel_fb -> intel_opregion">
-					<child name="drivers_reports" label="intel_fb -> intel_opregion"/>
 				</service>
 				<service name="ROM" label="config">
 					<child name="drivers_init_config"/>
