@@ -277,8 +277,11 @@ class Platform::Session_component : public Rpc_object<Session>,
 			_acquired = false;
 		}
 
-		Device_capability acquire_device(Device_name const & /* string */) override
+		Device_capability acquire_device(Device_name const &name) override
 		{
+			if (name == "intel_opregion")
+				return _platform.acquire_device(name);
+
 			return acquire_single_device();
 		}
 
@@ -340,11 +343,17 @@ class Platform::Session_component : public Rpc_object<Session>,
 
 				bool intel_dev   = false;
 				bool graphic_dev = false;
+				bool opregion    = dev.attribute_value("name", Platform::Session::Device_name()) == "intel_opregion";
 
 				dev.with_optional_sub_node("pci-config", [&] (Node const &node) {
 					  intel_dev = node.attribute_value("vendor_id", 0u) == 0x8086;
 					graphic_dev = node.attribute_value("class",     0u) == 0x30000;
 				});
+
+				if (opregion) {
+					copy_node(g, dev);
+					return;
+				}
 
 				if (!intel_dev)
 					return;
@@ -419,7 +428,7 @@ class Platform::Resources : Noncopyable, public Hw_ready_state
 		Signal_context_capability const             _irq_cap;
 
 		Platform::Connection                        _platform  { _env           };
-		Reconstructible<Platform::Device>           _device    { _platform      };
+		Reconstructible<Platform::Device>           _device    { _platform, Platform::Device::Type("pci") };
 		Reconstructible<Platform::Device::Irq>      _irq       { *_device       };
 		Reconstructible<Igd::Mmio>                  _mmio      { *_device, _env };
 		Constructible<Platform::Device::Mmio<0> >   _gmadr     { };
