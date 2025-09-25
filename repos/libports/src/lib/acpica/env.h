@@ -16,11 +16,12 @@
 
 #include <base/env.h>
 #include <base/allocator.h>
-#include <platform_session/client.h>
+#include <platform_session/device.h>
 
 namespace Acpica {
-	Genode::Env       & env();
-	Genode::Allocator & heap();
+	Genode::Env          &env();
+	Genode::Allocator    &heap();
+	Platform::Connection &platform();
 }
 
 #endif /* _ACPICA__ENV_H_ */

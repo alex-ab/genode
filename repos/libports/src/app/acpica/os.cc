@@ -195,7 +195,7 @@ struct Acpica::Main
 
 	Expanding_reporter report_sleep_states { env, "sleep_states", "sleep_states" };
 
-	void init_acpica(bool const);
+	void init_acpica(Platform::Connection &, bool const);
 
 	Main(Env &env)
 	:
@@ -216,7 +216,7 @@ struct Acpica::Main
 		if (verbose)
 			init_printf(env);
 
-		init_acpica(config.node().attribute_value("use_gpe", true));
+		init_acpica(platform, config.node().attribute_value("use_gpe", true));
 
 		if (enable_reset || enable_poweroff || enable_sleep)
 			new (heap) Acpica::Statechange(env, enable_reset, enable_poweroff,
@@ -306,9 +306,9 @@ ACPI_STATUS init_pic_mode()
 }
 
 
-void Acpica::Main::init_acpica(bool const use_gpe)
+void Acpica::Main::init_acpica(Platform::Connection &p, bool const use_gpe)
 {
-	Acpica::init(env, heap);
+	Acpica::init(env, heap, p);
 
 	/* enable debugging: */
 	if (false) {

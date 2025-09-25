@@ -654,8 +654,9 @@ append config {
 					<pci class="ISABRIDGE"/>
 					<device name="intel_opregion"/>
 				</policy>
-				<policy label_prefix="acpica">
+				<policy label_prefix="acpica" info="yes">
 					<device name="acpi"/>
+					<device name="intel_opregion"/>
 				</policy>
 				<policy label="ahci -> ">            <pci class="AHCI"/> </policy>
 				<policy label="nvme -> " info="yes"> <pci class="NVME"/> </policy>

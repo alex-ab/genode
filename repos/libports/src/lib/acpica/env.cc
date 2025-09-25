@@ -12,6 +12,7 @@
  */
 
 /* Genode includes */
+#include <platform_session/connection.h>
 #include <util/reconstructible.h>
 #include <acpica/acpica.h>
 
@@ -25,20 +26,23 @@ struct Acpica::Env
 {
 	Genode::Env       &env;
 	Genode::Allocator &heap;
+	Platform::Connection &platform;
 
-	Env(Genode::Env &env, Genode::Allocator &heap) : env(env), heap(heap) { }
+	Env(Genode::Env &env, Genode::Allocator &heap, Platform::Connection &p)
+	: env(env), heap(heap), platform(p) { }
 };
 
 static Acpica::Env * instance;
 
 
-Genode::Allocator & Acpica::heap()     { return instance->heap; }
-Genode::Env       & Acpica::env()      { return instance->env; }
+Genode::Allocator    & Acpica::heap()     { return instance->heap; }
+Genode::Env          & Acpica::env()      { return instance->env; }
+Platform::Connection & Acpica::platform() { return instance->platform; }
 
 
-void Acpica::init(Genode::Env &env, Genode::Allocator &heap)
+void Acpica::init(Genode::Env &env, Genode::Allocator &heap, Platform::Connection &p)
 {
-	static Acpica::Env _instance { env, heap };
+	static Acpica::Env _instance { env, heap, p };
 
 	instance = &_instance;
 }
