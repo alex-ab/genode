@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (C) 2016-2017 Genode Labs GmbH
+ * Copyright (C) 2016-2025 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
@@ -121,19 +121,30 @@ class Acpica::Io_mem
 {
 	private:
 
-		ACPI_PHYSICAL_ADDRESS      _phys   = 0;
-		ACPI_SIZE                  _size   = 0;
-		Genode::uint8_t           *_virt   = nullptr;
-		Genode::Io_mem_connection *_io_mem = nullptr;
-		unsigned                   _ref    = 0;
+		typedef Genode::Capability<Platform::Device_interface> Platform_cap;
+
+		ACPI_PHYSICAL_ADDRESS      _phys { };
+		ACPI_SIZE                  _size { };
+		Genode::uint8_t           *_virt { };
+		unsigned                   _ref  { };
+
+		Genode::Io_mem_connection           *_io_mem          { };
+		Genode::Io_mem_dataspace_capability  _io_ds_cap       { };
+		Platform_cap                         _platform_device { };
 
 		static Genode::Rm_connection *rm_conn;
-		static Acpica::Io_mem _ios[32];
+
+		static auto &_io_mems() { static Acpica::Io_mem io[32]; return io; }
 
 	public:
 
-		bool unused() const { return _phys == 0 && _size == 0 && _io_mem == nullptr; }
-		bool stale() const { return !unused() && _io_mem == nullptr; }
+		bool unused() const {
+			return !_phys && !_size && !_io_mem && !_platform_device.valid(); }
+		bool stale() const {
+			return !unused() && !_io_mem && !_platform_device.valid(); }
+		bool valid_iomem() const {
+			return _io_mem || _platform_device.valid(); }
+
 		bool contains_virt (const Genode::uint8_t * v, const ACPI_SIZE s) const
 		{
 			return _virt <= v && v + s <= _virt + _size;
@@ -146,6 +157,15 @@ class Acpica::Io_mem
 		Genode::addr_t to_virt(ACPI_PHYSICAL_ADDRESS p) {
 			_ref ++;
 			return reinterpret_cast<Genode::addr_t>(_virt + (p - _phys));
+		}
+
+		void release()
+		{
+			if (_io_mem)
+				Genode::destroy(Acpica::heap(), _io_mem);
+
+			if (_platform_device.valid())
+				Acpica::platform().release_device(_platform_device);
 		}
 
 		static void force_free_overlap(ACPI_PHYSICAL_ADDRESS const phys,
@@ -210,11 +230,29 @@ class Acpica::Io_mem
 
 		bool ref_dec() { return --_ref; }
 
-		template <typename FUNC>
-		static void apply_to_all(FUNC const &func = [] () { } )
+		static void apply_to_all(auto const &fn) {
+			for (auto & e : _io_mems()) fn(e); }
+
+		static Genode::addr_t apply_u(auto const &fn)
 		{
-			for (unsigned i = 0; i < sizeof(_ios) / sizeof(_ios[0]); i++)
-				func(_ios[i]);
+			for (auto & e : _io_mems()) {
+				auto const r = fn(e);
+				if (r) return r;
+			}
+
+			return 0UL;
+		}
+
+		static auto with_unused_slot(auto const &fn, auto const &err)
+		{
+			for (auto & e : _io_mems()) {
+				if (!e.unused())
+					continue;
+
+				return fn(e);
+			}
+
+			return err();
 		}
 
 		void invalidate()
@@ -228,6 +266,7 @@ class Acpica::Io_mem
 				 * Required to decrement ref count.
 				 */
 				apply_to_all([&] (Acpica::Io_mem &io_mem) {
+
 					if (&io_mem == this)
 						return;
 
@@ -247,57 +286,21 @@ class Acpica::Io_mem
 
 			if (!stale()) {
 				Acpica::env().rm().detach(Genode::addr_t(_virt));
-				Genode::destroy(Acpica::heap(), _io_mem);
+				release();
 			}
 
-			_phys   = _size = 0;
-			_virt   = nullptr;
-			_io_mem = nullptr;
+			_phys = _size    = { };
+			_virt            = { };
+			_io_mem          = { };
+			_io_ds_cap       = { };
+			_platform_device = { };
 		}
 
-		template <typename FUNC>
-		static Genode::addr_t apply_u(FUNC const &func = [] () { } )
-		{
-			for (unsigned i = 0; i < sizeof(_ios) / sizeof(_ios[0]); i++)
-			{
-				Genode::addr_t r = func(_ios[i]);
-				if (r) return r;
-			}
-			return 0UL;
-		}
+		static Acpica::Io_mem * allocate(ACPI_PHYSICAL_ADDRESS, ACPI_SIZE,
+		                                 unsigned ref);
 
-		static Acpica::Io_mem * unused_slot()
-		{
-			for (unsigned i = 0; i < sizeof(_ios) / sizeof(_ios[0]); i++)
-			{
-				if (_ios[i].unused())
-					return &_ios[i];
-			}
-			return nullptr;
-		}
-
-		static Acpica::Io_mem * allocate(ACPI_PHYSICAL_ADDRESS p, ACPI_SIZE s,
-		                                 unsigned r)
-		{
-			Acpica::Io_mem * io_mem = unused_slot();
-			if (!io_mem)
-				return nullptr;
-
-			ACPI_PHYSICAL_ADDRESS const phys = p & ~0xFFFUL;
-			ACPI_SIZE             const size = Genode::align_addr(p + s - phys, 12);
-			try {
-				io_mem->_io_mem = new (Acpica::heap()) Genode::Io_mem_connection(Acpica::env(), phys, size);
-			} catch (...) {
-				return nullptr;
-			}
-
-			io_mem->_phys = phys;
-			io_mem->_size = size;
-			io_mem->_ref  = r;
-			io_mem->_virt = 0;
-
-			return io_mem;
-		}
+		static bool allocate_via_platform(Acpica::Io_mem &,
+		                                  Platform::Device_interface::Range const &);
 
 		static Genode::addr_t insert(ACPI_PHYSICAL_ADDRESS p, ACPI_SIZE s)
 		{
@@ -305,7 +308,7 @@ class Acpica::Io_mem
 			if (!io_mem)
 				return 0UL;
 
-			io_mem->_virt = Acpica::env().rm().attach(io_mem->_io_mem->dataspace(), {
+			io_mem->_virt = Acpica::env().rm().attach(io_mem->_io_ds_cap, {
 				.size       = io_mem->_size,  .offset    = { },
 				.use_at     = { },            .at        = { },
 				.executable = { },            .writeable = true
@@ -321,9 +324,9 @@ class Acpica::Io_mem
 
 		Genode::addr_t pre_expand(ACPI_PHYSICAL_ADDRESS p, ACPI_SIZE s)
 		{
-			if (_io_mem) {
+			if (valid_iomem()) {
 				Acpica::env().rm().detach(Genode::addr_t(_virt));
-				Genode::destroy(Acpica::heap(), _io_mem);
+				release();
 			}
 
 			Genode::addr_t xsize = _phys - p + _size;
@@ -335,9 +338,9 @@ class Acpica::Io_mem
 
 		Genode::addr_t post_expand(ACPI_PHYSICAL_ADDRESS p, ACPI_SIZE s)
 		{
-			if (_io_mem) {
+			if (valid_iomem()) {
 				Acpica::env().rm().detach(Genode::addr_t(_virt));
-				Genode::destroy(Acpica::heap(), _io_mem);
+				release();
 			}
 
 			ACPI_SIZE xsize = p + s - _phys;
@@ -350,7 +353,9 @@ class Acpica::Io_mem
 		Genode::addr_t _expand(ACPI_PHYSICAL_ADDRESS const p, ACPI_SIZE const s)
 		{
 			/* mark this element as a stale reference */
-			_io_mem = nullptr;
+			_io_mem          = { };
+			_platform_device = { };
+			_io_ds_cap       = { };
 
 			/* find new created entry */
 			Genode::addr_t res = Acpica::Io_mem::apply_u([&] (Acpica::Io_mem &io_mem) {
@@ -358,7 +363,7 @@ class Acpica::Io_mem
 				    !io_mem.contains_phys(p, s))
 					return 0UL;
 
-				Genode::Io_mem_dataspace_capability const io_ds = io_mem._io_mem->dataspace();
+				auto const io_ds = io_mem._io_ds_cap;
 
 				/* re-attach mem of stale entries partially using this iomem */
 				Acpica::Io_mem::apply_to_all([&] (Acpica::Io_mem &io2) {
@@ -413,8 +418,101 @@ class Acpica::Io_mem
 		}
 };
 
-Acpica::Io_mem Acpica::Io_mem::_ios[32];
-Genode::Rm_connection * Acpica::Io_mem::rm_conn { nullptr };
+
+Acpica::Io_mem * Acpica::Io_mem::allocate(ACPI_PHYSICAL_ADDRESS p,
+                                          ACPI_SIZE s, unsigned ref)
+{
+	using namespace Genode;
+
+	return with_unused_slot([&](auto &io_mem) {
+
+		ACPI_PHYSICAL_ADDRESS const phys = p & ~0xFFFUL;
+		ACPI_SIZE             const size = align_addr(p + s - phys, 12);
+
+		if (!allocate_via_platform(io_mem, { phys, size })) {
+			auto conn = new (Acpica::heap()) Io_mem_connection(Acpica::env(), phys, size);
+
+			if (!conn->dataspace().valid()) {
+				destroy(Acpica::heap(), conn);
+				error("io mem not available ", Hex_range(phys, size));
+
+				return static_cast<Acpica::Io_mem *>(nullptr);
+			}
+
+			io_mem._io_mem    = conn;
+			io_mem._io_ds_cap = conn->dataspace();
+		}
+
+		io_mem._phys = phys;
+		io_mem._size = size;
+		io_mem._ref  = ref;
+		io_mem._virt = 0;
+
+		return &io_mem;
+	}, []() { return static_cast<Acpica::Io_mem *>(nullptr); });
+}
+
+
+Genode::Rm_connection * Acpica::Io_mem::rm_conn { };
+
+
+bool Acpica::Io_mem::allocate_via_platform(Acpica::Io_mem &io_mem,
+                                           Platform::Device_interface::Range const &phys_range)
+{
+	using namespace Genode;
+
+	bool found = false;
+
+	Rom_session_client rsc(Acpica::platform().devices_rom());
+	auto rom_ds = rsc.dataspace();
+	if (!rom_ds.valid())
+		return false;
+
+	Attached_dataspace rom(Acpica::env().rm(), rom_ds);
+	if (!rom.size())
+		return false;
+
+	Node const devs(Const_byte_range_ptr(rom.local_addr<char>(), rom.size()));
+
+	devs.for_each_sub_node("device", [&](auto const &dev) {
+		if (found)
+			return;
+
+		dev.for_each_sub_node("io_mem", [&](auto const &io) {
+			if (found)
+				return;
+
+			auto p = io.attribute_value("phys_addr", 0ull);
+			auto s = io.attribute_value("size", 0ull);
+			auto bar = io.attribute_value("pci_bar", 0ull);
+
+			if (!p && !s)
+				return;
+
+			s += p & 0xffful;
+			s  = align_addr(s, 12);
+			p &= ~0xffful;
+
+			if (!((p <= phys_range.start) && ((p + s) >= (phys_range.start + phys_range.size))))
+				return;
+
+			auto name = dev.attribute_value("name", Platform::Session::Device_name());
+
+			Platform::Device_interface::Range range { };
+
+			io_mem._platform_device = Acpica::platform().acquire_device(name.string());
+			auto io_mem_cap = io_mem._platform_device.call<Platform::Device_interface::Rpc_io_mem>( bar, range);
+
+			io_mem._io_mem    = { };
+			io_mem._io_ds_cap = Io_mem_session_client(io_mem_cap).dataspace();
+
+			found = true;
+		});
+	});
+
+	return found;
+}
+
 
 static ACPI_TABLE_RSDP faked_rsdp;
 enum { FAKED_PHYS_RSDP_ADDR = 1 };

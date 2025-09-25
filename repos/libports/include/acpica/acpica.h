@@ -19,9 +19,11 @@ namespace Genode {
 	struct Allocator;
 }
 
+namespace Platform { class Connection; }
+
 namespace Acpica {
 
-	void init(Genode::Env &, Genode::Allocator &);
+	void init(Genode::Env &, Genode::Allocator &, Platform::Connection &);
 }
 
 #endif /* _INCLUDE__ACPICA__ACPICA_H_ */
