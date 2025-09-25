@@ -30,18 +30,18 @@ if {[have_spec nova]} {
 # serial is not ever usable on hardware after resume, avoid hang by now
 if {![have_include "power_on/qemu"]} {
 	# switch off serial device usage by kernel and core
-	proc boot_output { } { return "" }
+#	proc boot_output { } { return "" }
 }
 
 
 # non Intel machines have no GPU support, e.g. Qemu and AMD
 set board_non_intel [expr [have_include "power_on/qemu"]]
 
-set use_gpu_client 1
+set use_gpu_client 0
 set use_gpe "no"
 set use_ahci 0
 set use_nvme 0
-set use_wifi 1
+set use_wifi 0
 
 proc priority_timer    { } { return {priority="0"} }
 proc priority_base     { } { return {priority="-1"} }
@@ -206,7 +206,7 @@ proc input_config { } {
 		</route>
 	</start>
 
-	<start name="event_filter" caps="100" ram="1280M">
+	<start name="event_filter" caps="200" ram="2M">
 		<provides> <service name="Event"/> </provides>
 		<route>
 			<service name="ROM" label="config"> <parent label="event_filter.config"/> </service>
@@ -678,7 +678,7 @@ append config {
 	} [ ahci_config] {
 	} [ nvme_config] {
 
-		<start name="drivers_init" caps="10000" ram="128M" } [priority_drivers] {>
+		<start name="drivers_init" caps="10000" ram="196M" } [priority_drivers] {>
 			<binary name="init"/>
 			<route>
 				<service name="Report">
@@ -760,6 +760,7 @@ append config {
 					</inline>
 					<sleep milliseconds="10000"/>
 
+<!--
 					<inline description="disable display connectors">
 						<system state="blanking"/>
 					</inline>
@@ -769,7 +770,7 @@ append config {
 						<system state="driver_stop"/>
 					</inline>
 					<sleep milliseconds="4000"/>
-
+-->
 					<!--
 					     TODO: for a real OS scenario, e.g. Sculpt OS - you
 					     have now to wait until all devices are unused and
@@ -777,18 +778,18 @@ append config {
 					     report of the platform driver until it is in the
 					     right state !!!!!!!
 					-->
-
+<!--
 					<inline description="prepare suspending">
 						<system state="s3_prepare"/>
 					</inline>
 					<sleep milliseconds="10000"/>
-
+-->
 					<!--
 					     TODO: for a real OS scenario, e.g. Sculpt OS -
 					     waits until s3_prepare is done, e.g. evaluate the
 					     ACPICA sleep_state report!
 					-->
-
+<!--
 					<inline description="suspend system">
 						<system state="suspend"/>
 					</inline>
@@ -798,7 +799,7 @@ append config {
 						<system state="s3_resume"/>
 					</inline>
 					<sleep milliseconds="10000"/>
-
+-->
 				</rom>
 			</config>
 		</start>
