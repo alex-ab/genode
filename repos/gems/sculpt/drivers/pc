@@ -108,6 +108,7 @@
 			<policy label_prefix="runtime -> intel_gpu" info="yes">
 				<pci class="VGA"/>
 				<pci class="ISABRIDGE"/>
+				<device name="intel_opregion"/>
 			</policy>
 			<policy label="runtime -> touchpad" info="yes">
 				<device name="00:15.3" type="pci"/>

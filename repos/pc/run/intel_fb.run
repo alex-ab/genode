@@ -130,10 +130,12 @@ append config {
 			<policy label_prefix="intel_fb" info="yes">
 				<pci class="VGA"/>
 				<pci class="ISABRIDGE"/>
+				<device name="intel_opregion"/>
 			</policy>
 			<policy label_prefix="intel_gpu" info="yes">
 				<pci class="VGA"/>
 				<pci class="ISABRIDGE"/>
+				<device name="intel_opregion"/>
 			</policy>
 			<policy label_prefix="usb" info="yes">
 				<pci class="USB"/>
