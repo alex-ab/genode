@@ -652,6 +652,7 @@ append config {
 				<policy label_prefix="fb" info="yes">
 					<pci class="VGA"/>
 					<pci class="ISABRIDGE"/>
+					<device name="intel_opregion"/>
 				</policy>
 				<policy label_prefix="acpica">
 					<device name="acpi"/>
