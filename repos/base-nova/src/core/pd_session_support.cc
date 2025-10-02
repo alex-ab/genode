@@ -211,6 +211,7 @@ static State acpi_suspend(State const &request)
 	 * \note trapno/ip/sp registers are chosen because they exist in
 	 *       Managing_system_state for x86_32 and x86_64.
 	 */
+#if 0
 	uint8_t const sleep_type_a = uint8_t(request.ip);
 	uint8_t const sleep_type_b = uint8_t(request.sp);
 
@@ -220,6 +221,10 @@ static State acpi_suspend(State const &request)
 
 	if (result == Nova::NOVA_OK)
 		respond.trapno = 1 /* success, which means we resumed already */;
+#else
+	(void)request;
+	error(__func__, " skip");
+#endif
 
 	return respond;
 }
