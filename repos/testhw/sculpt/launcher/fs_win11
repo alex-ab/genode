@@ -1,0 +1,9 @@
+<launcher priority="-2" pkg="chroot">
+	<route>
+		<service name="File_system"> <child name="default_fs_rw"/> </service>
+<!--
+		<service name="File_system"> <child name="nvme-1.5.fs"/> </service>
+-->
+	</route>
+	<config> <default-policy path="/vm/win11" writeable="yes"/> </config>
+</launcher>

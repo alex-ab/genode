@@ -2,17 +2,23 @@
 drivers: pc
 system:  pc
 gpu:     intel
+#manager: use_ram_fs
+#ram_fs:  depot
+deploy:  win11
 
 # supplemental depot content added to the system image
 import: pkg/sculpt_drivers-pc
 
 # selection of launcher-menu entries
-launcher: vm_fs shared_fs download_debug_info black_hole trace_logger
-launcher: audio mixer system_clock acpi_support recall_fs touchpad
+launcher: shared_fs black_hole trace_logger touchpad
+launcher: audio mixer system_clock acpi_support recall_fs
 
 # selection of accepted depot-package providers
-depot: genodelabs cnuke alex-ab mstein nfeske cproc chelmuth jschlatow
-depot: ssumpf skalk atopia
+depot: genodelabs cnuke alex-ab nfeske cproc chelmuth jschlatow
+depot: ssumpf skalk
 
 # preconfigured example scenarios
-presets: empty nano3d window_manager falkon_web_browser goa_testbed
+presets: empty nano3d window_manager
+
+launcher: mesa_gpu-intel
+launcher: fs_win11 vbox6_win11

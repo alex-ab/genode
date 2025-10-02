@@ -1,0 +1,7 @@
+<launcher pkg="mesa_gpu-intel" priority="-2">
+	<route>
+		<service name="RM">
+			<parent/>
+		</service>
+	</route>
+</launcher>
