@@ -105,6 +105,7 @@ proc run_boot_dir {binaries} {
 	exec [cross_dev_prefix]strip [run_dir]/image-hw.elf
 
 	exec mkdir -p [run_dir]/boot
+	exec cp [run_dir]/image-hw.elf [run_dir]/boot/image.elf
 	exec mv [run_dir]/image-hw.elf [run_dir]/boot/image-hw.elf
 
 	set options_bender "[boot_output] [bender_intel_hwp_mode_option]"
