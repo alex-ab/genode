@@ -30,18 +30,18 @@ if {[have_spec nova]} {
 # serial is not ever usable on hardware after resume, avoid hang by now
 if {![have_include "power_on/qemu"]} {
 	# switch off serial device usage by kernel and core
-	proc boot_output { } { return "" }
+#	proc boot_output { } { return "" }
 }
 
 
 # non Intel machines have no GPU support, e.g. Qemu and AMD
 set board_non_intel [expr [have_include "power_on/qemu"]]
 
-set use_gpu_client 1
+set use_gpu_client 0
 set use_gpe "no"
 set use_ahci 0
 set use_nvme 0
-set use_wifi 1
+set use_wifi 0
 
 proc priority_timer    { } { return {priority="0"} }
 proc priority_base     { } { return {priority="-1"} }
