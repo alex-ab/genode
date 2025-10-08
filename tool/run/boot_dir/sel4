@@ -119,13 +119,13 @@ proc run_boot_dir {binaries} {
 		if {[have_spec arm_64]} {
 			set ::env(SEL4_ARCH) aarch64
 		}
-		exec [sel4_elfloader_dir]/gen_boot_image.sh [pwd]/[run_dir]/boot/kernel.elf [pwd]/[run_dir]/boot/genode.elf [pwd]/[run_dir]/boot/image.elf
+		catch { exec [sel4_elfloader_dir]/gen_boot_image.sh [pwd]/[run_dir]/boot/kernel.elf [pwd]/[run_dir]/boot/genode.elf [pwd]/[run_dir]/boot/image.elf }
 	}
 
 	run_image
 
 	# install image.elf file in TFTP directory for PXE boot
-	if {[have_spec arm] && [have_include "load/tftp"]} {
+	if {([have_spec arm] || [have_spec arm_64]) && [have_include "load/tftp"]} {
 		exec {*}[load_tftp_inst_cmd] [pwd]/[run_dir]/boot/image.elf [load_tftp_base_dir][load_tftp_offset_dir]
 
 		if {[have_include "image/uboot"]} {

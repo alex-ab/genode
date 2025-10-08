@@ -3,8 +3,8 @@ VERSION   := git
 DOWNLOADS := sel4_tools.git
 
 URL(sel4_tools) := https://github.com/alex-ab/seL4_tools.git
-# Rev 10.0.x imx8mq genode branch
-REV(sel4_tools) := f10776d9b967e369b473298ec6f5bb138cdc9c88
+# Rev 13.0.x genode branch
+REV(sel4_tools) := f6602280978227593ea116bc5c0e6511e35c315e
 DIR(sel4_tools) := src/tool/sel4_tools
 
 $(call check_tool,python)
