@@ -19,9 +19,15 @@ SEL4_CCACHE=
 endif
 
 configured_kernel:
+	$(VERBOSE)mkdir sel4test \
+		&& cd sel4test \
+		&& repo init -u https://github.com/seL4/sel4test-manifest.git \
+		&& repo sync && mkdir cbuild && cd cbuild \
+		&&  ../init-build.sh -DCROSS_COMPILER_PREFIX=arm-linux-gnueabi- -DPLATFORM=$(PLAT) -DRELEASE=FALSE -DSIMULATION=TRUE -DAARCH32=1 \
+		&& ninja elfloader
 	$(VERBOSE) cmake -DCROSS_COMPILER_PREFIX=$(CROSS_DEV_PREFIX) \
 	                 -DCMAKE_TOOLCHAIN_FILE=$(SEL4_DIR)/gcc.cmake \
-	                 -DKernelARMPlatform=sabre \
+	                 -DKernelARMPlatform=$(ARM_PLATFORM) \
 	                 -G Ninja \
 	                 -C $(SEL4_DIR)/configs/ARM_verified.cmake \
 	                 $(SEL4_DIR) \
@@ -44,10 +50,15 @@ elfloader/elfloader.o: configured_kernel
 	$(VERBOSE)cp -r $(TOOLS_DIR)/elfloader-tool $(LIB_CACHE_DIR)/$(LIB)/elfloader
 	$(VERBOSE)mkdir -p $(LIB_CACHE_DIR)/$(LIB)/elfloader/tools/kbuild
 	$(VERBOSE)mkdir -p $(LIB_CACHE_DIR)/$(LIB)/elfloader/include/generated
-	$(VERBOSE)ln -s $(TOOLS_DIR)/common-tool/common.mk $(LIB_CACHE_DIR)/$(LIB)/elfloader/
-	$(VERBOSE)ln -s $(TOOLS_DIR)/common-tool/files_to_obj.sh $(LIB_CACHE_DIR)/$(LIB)/elfloader/
-	$(VERBOSE)ln -s $(TOOLS_DIR)/kbuild-tool/Kbuild.include $(LIB_CACHE_DIR)/$(LIB)/elfloader/tools/kbuild/
-	$(VERBOSE)ln -s $(LIB_CACHE_DIR)/$(LIB)/gen_config/kernel/gen_config.h $(LIB_CACHE_DIR)/$(LIB)/elfloader/include/generated/autoconf.h
+	$(VERBOSE)mkdir -p $(LIB_CACHE_DIR)/$(LIB)/elfloader/include/elfloader
+	$(VERBOSE)ln -sf $(TOOLS_DIR)/common-tool/common.mk $(LIB_CACHE_DIR)/$(LIB)/elfloader/
+	$(VERBOSE)ln -sf $(TOOLS_DIR)/common-tool/files_to_obj.sh $(LIB_CACHE_DIR)/$(LIB)/elfloader/
+	$(VERBOSE)ln -sf $(TOOLS_DIR)/kbuild-tool/Kbuild.include $(LIB_CACHE_DIR)/$(LIB)/elfloader/tools/kbuild/
+	$(VERBOSE)ln -sf $(LIB_CACHE_DIR)/$(LIB)/gen_config/kernel/gen_config.h $(LIB_CACHE_DIR)/$(LIB)/elfloader/include/generated/autoconf.h
+	$(VERBOSE)echo "#define IMAGE_START_ADDR 0x40900000" >$(LIB_CACHE_DIR)/$(LIB)/elfloader/src/arch-arm/image_start_addr.h
+	$(VERBOSE)ln -sf $(LIB_CACHE_DIR)/$(LIB)/sel4test/cbuild/elfloader/gen_headers/devices_gen.h $(LIB_CACHE_DIR)/$(LIB)/elfloader/include/arch-arm/devices_gen.h
+	$(VERBOSE)rm $(LIB_CACHE_DIR)/$(LIB)/elfloader/include/elfloader/gen_config.h
+	$(VERBOSE)ln -sf $(LIB_CACHE_DIR)/$(LIB)/sel4test/cbuild/elfloader/gen_config/elfloader/gen_config.h $(LIB_CACHE_DIR)/$(LIB)/elfloader/include/elfloader/gen_config.h
 	$(VERBOSE)$(MAKE) -C $(LIB_CACHE_DIR)/$(LIB)/elfloader \
 	          TOOLPREFIX=$(CROSS_DEV_PREFIX) \
 	          ARCH=arm PLAT=$(PLAT) ARMV=armv7-a __ARM_32__="y" \
