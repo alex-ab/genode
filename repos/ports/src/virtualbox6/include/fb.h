@@ -96,6 +96,14 @@ class Genodefb :
 
 	public:
 
+		struct Lock_guard
+		{
+			Genodefb &fb;
+
+			Lock_guard(Genodefb &fb) : fb(fb) { fb.Lock(); }
+			~Lock_guard() { fb.Unlock(); }
+		};
+
 		NS_DECL_ISUPPORTS
 
 		Genodefb(Genode::Env &env, Gui::Connection *gui,
@@ -117,7 +125,7 @@ class Genodefb :
 
 		void update_mode(Gui::Rect gui_win)
 		{
-			Lock();
+			Lock_guard guard(*this);
 
 			_gui_win = gui_win;
 
@@ -127,13 +135,11 @@ class Genodefb :
 			_adjust_buffer();
 
 			_fb_base = _attach();
-
-			Unlock();
 		}
 
 		void invalidate_gui()
 		{
-			Lock();
+			Lock_guard guard(*this);
 
 			_gui  = nullptr;
 			_view = nullptr;
@@ -142,18 +148,22 @@ class Genodefb :
 				_env.rm().detach(Genode::addr_t(_fb_base));
 				_fb_base = nullptr;
 			}
-
-			Unlock();
 		}
 
 		STDMETHODIMP Lock()
 		{
-			return Global::vboxStatusCodeToCOM(RTCritSectEnter(&_fb_lock));
+			auto rc = Global::vboxStatusCodeToCOM(RTCritSectEnter(&_fb_lock));
+			if (rc != 0)
+				Genode::warning(__func__, ":", __LINE__, " ", rc);
+			return rc;
 		}
-	
+
 		STDMETHODIMP Unlock()
 		{
-			return Global::vboxStatusCodeToCOM(RTCritSectLeave(&_fb_lock));
+			auto rc = Global::vboxStatusCodeToCOM(RTCritSectLeave(&_fb_lock));
+			if (rc != 0)
+				Genode::warning(__func__, ":", __LINE__, " ", rc);
+			return rc;
 		}
 
 		STDMETHODIMP NotifyChange(PRUint32 screen, PRUint32 ox, PRUint32 oy,
@@ -164,7 +174,7 @@ class Genodefb :
 			ComPtr<IDisplaySourceBitmap> tmp { };
 			_display->QuerySourceBitmap(screen, tmp.asOutParam());
 
-			Lock();
+			Lock_guard guard(*this);
 
 			/* save the new bitmap reference */
 			_display_bitmap = tmp;
@@ -197,8 +207,6 @@ class Genodefb :
 				            " (host: ", _gui_win.area, ") origin: ", ox, ",", oy);
 			}
 
-			Unlock();
-
 			/* request appropriate NotifyUpdate() */
 			_display->InvalidateAndUpdateScreen(screen);
 
@@ -224,7 +232,7 @@ class Genodefb :
 
 		HRESULT NotifyUpdate(ULONG o_x, ULONG o_y, ULONG width, ULONG height) override
 		{
-			Lock();
+			Lock_guard guard(*this);
 
 			if (!_fb_base || !_gui)
 				return S_OK;
@@ -234,7 +242,6 @@ class Genodefb :
 
 			if (display_bitmap.isNull()) {
 				_clear_screen();
-				Unlock();
 				return S_OK;
 			}
 
@@ -274,8 +281,6 @@ class Genodefb :
 
 			_gui->framebuffer.refresh(o_x, o_y, width, height);
 
-			Unlock();
-
 			return S_OK;
 		}
 
@@ -284,7 +289,7 @@ class Genodefb :
 		                               PRUint32 imageSize,
 		                               PRUint8 *image) override
 		{
-			Lock();
+			Lock_guard guard(*this);
 
 			if (!_fb_base || !_gui)
 				return S_OK;
@@ -308,8 +313,6 @@ class Genodefb :
 			                       false);
 
 			_gui->framebuffer.refresh(o_x, o_y, area_vm.w, area_vm.h);
-
-			Unlock();
 
 			return S_OK;
 		}
