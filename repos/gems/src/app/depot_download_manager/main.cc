@@ -655,11 +655,8 @@ void Depot_download_manager::Main::_handle_init_state()
 		if (fs_tool_state.exited && fs_tool_state.code != 0)
 			error("committing archives failed with exit code ", fs_tool_state.code);
 
-		if (fs_tool_state.exited && fs_tool_state.code == 0) {
+		if (fs_tool_state.exited && fs_tool_state.code == 0)
 			import.all_extracted_archives_committed();
-			reconfigure_init = true;
-		}
-
 	}
 
 	/* flag failed jobs to prevent re-attempts in subsequent import iterations */
