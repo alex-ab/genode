@@ -22,15 +22,16 @@ namespace Core { struct Mapping; }
 
 struct Core::Mapping
 {
-	addr_t dst_addr;
-	addr_t src_addr;
-	size_t size_log2;
-	bool   cached;           /* RAM caching policy */
-	bool   io_mem;           /* IO_MEM dataspace */
-	bool   dma_buffer;       /* must be mapped in IOMMU page tables */
-	bool   write_combined;   /* write-combined IO_MEM dataspace */
-	bool   writeable;
-	bool   executable;
+	addr_t  dst_addr;
+	addr_t  src_addr;
+	size_t  size_log2;
+	bool    cached;           /* RAM caching policy */
+	bool    io_mem;           /* IO_MEM dataspace */
+	bool    dma_buffer;       /* must be mapped in IOMMU page tables */
+	bool    write_combined;   /* write-combined IO_MEM dataspace */
+	bool    writeable;
+	bool    executable;
+	uint8_t key;
 
 	void prepare_map_operation() const;
 };

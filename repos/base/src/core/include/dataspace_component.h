@@ -40,12 +40,14 @@ class Core::Dataspace_component : public Rpc_object<Dataspace>
 	public:
 
 		struct Attr { addr_t base; size_t size; bool writeable; };
+		struct Key  { uint8_t id; };
 
 	private:
 
 		addr_t const _phys_addr       = 0;  /* address of dataspace in physical memory */
 		addr_t       _core_local_addr = 0;  /* address of core-local mapping           */
 		size_t const _size            = 0;  /* size of dataspace in bytes              */
+		Key    const _key { 0 };            /* encryption key id if supported by hw    */
 		bool   const _io_mem    = false;    /* dataspace is I/O mem, not to be touched */
 		bool   const _writeable = false;    /* false if dataspace is read-only         */
 
@@ -87,10 +89,10 @@ class Core::Dataspace_component : public Rpc_object<Dataspace>
 		 */
 		Dataspace_component(size_t size, addr_t core_local_addr,
 		                    Cache cache, bool writeable,
-		                    Dataspace_owner *owner)
+		                    Dataspace_owner *owner, Key key = { })
 		:
 			_phys_addr(core_local_addr), _core_local_addr(core_local_addr),
-			_size(round_page(size)), _io_mem(false),
+			_size(round_page(size)), _key(key), _io_mem(false),
 			_writeable(writeable), _cache(cache),
 			_owner(owner), _managed(false) { }
 
@@ -129,6 +131,7 @@ class Core::Dataspace_component : public Rpc_object<Dataspace>
 		Cache  cacheability()    const { return _cache; }
 		addr_t phys_addr()       const { return _phys_addr; }
 		bool   managed()         const { return _managed; }
+		Key    key()             const { return _key; }
 
 		/**
 		 * Return dataspace base address to be used for map operations

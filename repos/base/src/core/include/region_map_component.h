@@ -619,7 +619,8 @@ class Core::Region_map_component : private Weak_object<Region_map_component>,
 							.dma_buffer     = region.dma(),
 							.write_combined = dataspace.cacheability() == WRITE_COMBINED,
 							.writeable      = ram_relative_fault.rwx.w,
-							.executable     = ram_relative_fault.rwx.x
+							.executable     = ram_relative_fault.rwx.x,
+							.key            = dataspace.key().id
 						};
 
 						apply_fn(mapping);
