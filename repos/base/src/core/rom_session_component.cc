@@ -27,6 +27,7 @@ Rom_session_component::Rom_session_component(Rom_fs         &rom_fs,
 {
 	rom_fs.with_element(label_from_args(args).last_element(),
 		[&] (Rom_module const &rom) {
-			_ds.construct(ds_ep, rom.size, rom.addr, CACHED, false, nullptr); },
+			Dataspace_component::Key key { };
+			_ds.construct(ds_ep, rom.size, rom.addr, CACHED, false, nullptr, key); },
 		[&] { });
 }

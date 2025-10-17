@@ -341,7 +341,7 @@ void Vm_session_component::attach(Dataspace_capability const cap,
 	Result ret =
 		_memory.attach(cap, guest_phys, attribute,
 		               [&] (addr_t vm_addr, addr_t phys_addr, size_t size,
-		                    bool exec, bool write, Cache cacheable) {
+		                    bool exec, bool write, Cache cacheable, auto) {
 			return map_fn(vm_addr, phys_addr, size, exec, write, cacheable); });
 
 	switch(ret) {

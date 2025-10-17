@@ -297,7 +297,7 @@ class Core::Vm_session_component
 				_memory.attach(cap, guest_phys, attribute,
 				               [&] (addr_t vm_addr, addr_t phys_addr,
 				                    size_t size, bool exec, bool write,
-				                    Cache cacheable) {
+				                    Cache cacheable, auto) {
 					return _attach(vm_addr, phys_addr, size, exec,
 					               write, cacheable); });
 

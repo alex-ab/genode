@@ -29,6 +29,8 @@ Pd_session_component::alloc_ram(size_t ds_size, Cache cache)
 	/* dataspace allocation granularity is page size */
 	ds_size = align_addr(ds_size, AT_PAGE);
 
+	Dataspace_component::Key key { };
+
 	/* track quota use */
 	return _ram_quota_guard().reserve(Ram_quota{ds_size}).convert<Alloc_ram_result>(
 
@@ -55,7 +57,7 @@ Pd_session_component::alloc_ram(size_t ds_size, Cache cache)
 				[&] (Cap_quota_guard::Reservation &reserved_cap) -> Alloc_ram_result {
 					reserved_ram.deallocate = false;
 					reserved_cap.deallocate = false;
-					return _ram_ds_factory.alloc_ram(ds_size, cache);
+					return _ram_ds_factory.alloc_ram(ds_size, cache, key);
 				},
 				[&] (Cap_quota_guard::Error) { return Alloc_error::OUT_OF_CAPS; }
 			);

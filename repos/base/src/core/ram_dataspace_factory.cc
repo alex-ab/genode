@@ -18,7 +18,7 @@ using namespace Core;
 
 
 Ram_dataspace_factory::Alloc_ram_result
-Ram_dataspace_factory::alloc_ram(size_t ds_size, Cache cache)
+Ram_dataspace_factory::alloc_ram(size_t ds_size, Cache cache, Dataspace_component::Key key)
 {
 	using Range_allocation = Range_allocator::Allocation;
 
@@ -107,7 +107,7 @@ Ram_dataspace_factory::alloc_ram(size_t ds_size, Cache cache)
 	Dataspace_component *ds_ptr = nullptr;
 	allocated_range.with_result(
 		[&] (Range_allocation &range) {
-			_ds_alloc.create(ds_size, (addr_t)range.ptr, cache, true, this)
+			_ds_alloc.create(ds_size, (addr_t)range.ptr, cache, true, this, key)
 				.with_result(
 					[&] (Ds_alloc::Allocation &a) {
 						a.deallocate = false;

@@ -372,9 +372,9 @@ class Core::Region_map_component : private Weak_object<Region_map_component>,
 				/**
 				 * Constructor
 				 */
-				Rm_dataspace_component(size_t size)
+				Rm_dataspace_component(size_t size, Key key)
 				:
-					Dataspace_component(size, 0, CACHED, false, 0)
+					Dataspace_component(size, 0, CACHED, false, 0, key)
 				{
 					_managed = true;
 				}

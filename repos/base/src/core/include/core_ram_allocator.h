@@ -29,7 +29,9 @@ struct Core::Core_ram_allocator : Ram_allocator
 
 	Result try_alloc(size_t size, Cache cache) override
 	{
-		return _factory.alloc_ram(size, cache).convert<Result>(
+		Dataspace_component::Key key { };
+
+		return _factory.alloc_ram(size, cache, key).convert<Result>(
 			[&] (Ram_dataspace_capability cap) -> Result {
 				return Result { *this, { cap, size } };
 			},

@@ -527,7 +527,7 @@ Region_map_component::Region_map_component(Rpc_entrypoint &ep,
 :
 	_diag(diag), _ds_ep(ep), _thread_ep(ep), _session_ep(ep),
 	_md_alloc(md_alloc), _map(&_md_alloc),
-	_ds(align_addr(vm_size, AT_PAGE)),
+	_ds(align_addr(vm_size, AT_PAGE), Dataspace_component::Key { }),
 	_ds_cap(_type_deduction_helper(_ds_ep.manage(&_ds)))
 {
 	/* configure managed VM area */

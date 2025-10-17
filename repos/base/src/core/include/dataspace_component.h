@@ -89,7 +89,7 @@ class Core::Dataspace_component : public Rpc_object<Dataspace>
 		 */
 		Dataspace_component(size_t size, addr_t core_local_addr,
 		                    Cache cache, bool writeable,
-		                    Dataspace_owner *owner, Key key = { })
+		                    Dataspace_owner *owner, Key key)
 		:
 			_phys_addr(core_local_addr), _core_local_addr(core_local_addr),
 			_size(round_page(size)), _key(key), _io_mem(false),

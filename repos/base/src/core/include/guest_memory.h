@@ -191,7 +191,7 @@ class Core::Guest_memory
 				ret = map_fn(guest_phys, dsc->phys_addr() + attr.offset,
 				             attr.size, attr.executable,
 				             attr.writeable && dsc->writeable(),
-				             dsc->cacheability());
+				             dsc->cacheability(), dsc->key());
 			});
 
 			return ret;
