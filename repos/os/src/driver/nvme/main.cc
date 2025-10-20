@@ -656,6 +656,8 @@ struct Nvme::Io_queue : Noncopyable
 	Util::Dma_buffer _dma_buffer;
 	Util::Dma_buffer _prp_list_helper;
 
+	addr_t _override_dma_addr = 0;
+
 	Io_queue(Io_queue_space          &space,
 	         Io_queue_space::Id       id,
 	         Platform::Connection    &platform,
@@ -666,7 +668,8 @@ struct Nvme::Io_queue : Noncopyable
 		_prp_list_helper { platform, Nvme::PRP_DS_SIZE }
 	{ }
 
-	addr_t               dma_addr() const { return _dma_buffer.dma_addr(); }
+	addr_t               dma_addr() const { return _override_dma_addr ? _override_dma_addr
+	                                                                  : _dma_buffer.dma_addr(); }
 	Dataspace_capability dma_cap()        { return _dma_buffer.cap(); }
 
 	addr_t prp_dma_addr() const { return _prp_list_helper.dma_addr(); }
@@ -2489,6 +2492,37 @@ struct Nvme::Main : Rpc_object<Typed_root<Block::Session>>
 
 	Genode::Attached_rom_dataspace _config_rom { _env, "config" };
 
+	struct Override
+	{
+		unsigned long queue_id;
+
+		addr_t dma_addr;
+		size_t dma_size;
+
+		Block::Operation block_operation;
+
+		void print(Genode::Output &out) const
+		{
+			Genode::print(out, "dma_addr: ", Genode::Hex(dma_addr), " "
+			                   "dma_size: ", Genode::Hex(dma_size), " "
+			                   "queue_id: ", queue_id, " "
+			                   "operation: ", block_operation);
+		}
+
+		bool valid() const { return dma_addr && dma_size && block_operation.valid(); }
+	};
+
+	Override _override {
+		.queue_id = 0,
+		.dma_addr = 0,
+		.dma_size = 0,
+		.block_operation = {
+			.type = Block::Operation::Type::INVALID,
+			.block_number = 0,
+			.count        = 0
+		}
+	};
+
 	Signal_handler<Main> _request_handler { _env.ep(), *this, &Main::_handle_requests };
 	Signal_handler<Main> _irq_handler     { _env.ep(), *this, &Main::_handle_irq };
 
@@ -2527,8 +2561,12 @@ struct Nvme::Main : Rpc_object<Typed_root<Block::Session>>
 
 	void _handle_irq()
 	{
-		if (!_force_sq) _handle_requests();
-		else            _handle_requests_sq();
+		if (_override.valid())
+			_handle_override();
+		else {
+			if (!_force_sq) _handle_requests();
+			else            _handle_requests_sq();
+		}
 
 		_driver.with_controller([&] (auto &ctrlr) {
 			ctrlr.ack_irq(); });
@@ -2795,8 +2833,95 @@ struct Nvme::Main : Rpc_object<Typed_root<Block::Session>>
 			});
 	}
 
+	void _handle_override()
+	{
+		Io_queue_space::Id const queue_id { .value = _override.queue_id };
+
+		_driver.with_controller([&] (auto &ctrlr) {
+			_driver.with_io_queue(queue_id, [&] (Io_queue &io_queue) {
+
+				bool completed_pending = false;
+
+				_driver.with_any_completed_job(ctrlr, io_queue,
+					[&] (uint16_t const cid) {
+						io_queue.with_completed_request(cid,
+							[&] (Block::Request const &request) {
+								log("Override request: ", request.operation, " ",
+								    request.success ? "successful" : "failed");
+								completed_pending = true;
+							});
+					});
+
+				/* deferred acknowledge on the controller */
+				if (completed_pending)
+					ctrlr.ack_io_completions(queue_id);
+			});
+		});
+	}
+
+	bool _setup_override()
+	{
+		_config_rom.node().with_optional_sub_node("override", [&] (Node const &node) {
+			_override.dma_addr = node.attribute_value("dma_addr", (addr_t)0);
+			_override.dma_size = node.attribute_value("dma_size", (size_t)0);
+
+			bool const write_request = node.attribute_value("write", false);
+			_override.block_operation.type = write_request ? Block::Operation::Type::WRITE
+			                                               : Block::Operation::Type::READ;
+			_override.block_operation.block_number =
+				node.attribute_value("block_number", (Block::block_number_t)0);
+			_override.block_operation.count =
+				node.attribute_value("block_count", (Block::block_count_t)0);
+		});
+
+		if (!_override.valid())
+			return false;
+
+		_driver.with_controller([&] (Nvme::Controller &ctrlr) {
+			_driver.create_io_queue(ctrlr, _override.dma_size).with_result(
+				[&] (Io_queue_space::Id const queue_id) {
+					log("created I/O queue ", queue_id.value,
+					    " for override operation");
+
+					_override.queue_id = queue_id.value;
+
+					Block::Request const request {
+						.operation = _override.block_operation,
+						.success   = false,
+						.offset    = 0,
+						.tag       = 666
+					};
+
+					log("Override: ", _override);
+
+					_driver.with_io_queue(queue_id, [&] (Io_queue &io_queue) {
+
+						io_queue._override_dma_addr = _override.dma_addr;
+
+						Response const response =
+							_driver.submit(ctrlr, io_queue, request);
+
+						if (response != Response::ACCEPTED) {
+							error("could not submit request: ", request.operation);
+							return;
+						}
+
+						(void)_driver.commit_pending_submits(ctrlr, io_queue);
+					});
+
+				}, [&] (Driver::Io_queue_creation_error) {
+					error("override I/O queue creation failed"); });
+		});
+
+		/* always return true to inhibit normal operation */
+		return true;
+	}
+
 	Main(Genode::Env &env) : _env(env)
 	{
+		if (_setup_override())
+			return;
+
 		/*
 		 * Mark first id (0) as used so that it is never allocated
 		 * automatically and use it to denote an unset session id.

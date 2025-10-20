@@ -98,7 +98,7 @@ append config {
 		</config>
 	</start>
 
-	<start name="acpi" caps="350" ram="4M">
+	<start name="acpi" caps="350" ram="6M">
 		<route>
 			<service name="Report"> <child name="report_rom"/> </service>
 			<service name="IO_MEM"> <parent/> </service>
@@ -147,7 +147,10 @@ append config {
 
 	<start name="nvme" caps="120" ram="24M">
 		<provides> <service name="Block"/> </provides>
-		<config max_hmb_size="16M" verbose_regs="yes" verbose_identify="yes">
+		<config max_hmb_size="16M" verbose_regs="yes" verbose_identify="yes" verbose_io="yes">
+<!--
+			<override dma_addr="0x40000000" dma_size="0x200000" block_number="2097152" block_count="1024" write="no"/>
+-->
 			<policy label_prefix="block_tester" writeable="} [writeable] {"/>
 		</config>
 		<route>
@@ -237,7 +240,7 @@ install_config $config
 
 build_boot_image [build_artifacts]
 
-append qemu_args " -nographic "
+append qemu_args " -nographic -m 512 "
 append qemu_args " -device pcie-root-port,id=root_port1 "
 append qemu_args " -drive id=nvme0,file=bin/nvme.raw,format=raw,if=none "
 append qemu_args " -device nvme,drive=nvme0,serial=fnord,id=nvme0n1,bus=root_port1 "
