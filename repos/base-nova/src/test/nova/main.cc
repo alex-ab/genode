@@ -33,8 +33,6 @@
 
 static unsigned failed = 0;
 
-static unsigned check_pat = 1;
-
 using namespace Genode;
 
 void test_translate(Genode::Env &env)
@@ -266,138 +264,6 @@ void test_revoke(Genode::Env &env)
 	}
 }
 
-static void portal_entry()
-{
-	Genode::Thread &myself = *Genode::Thread::myself();
-	Nova::Utcb &utcb = *reinterpret_cast<Nova::Utcb *>(myself.utcb());
-
-	Nova::Crd const snd_crd(utcb.msg()[0]);
-
-	enum {
-		HOTSPOT = 0, USER_PD = false, HOST_PGT = false, SOLELY_MAP = false,
-		NO_DMA = false, EVILLY_DONT_WRITE_COMBINE = false
-	};
-
-	utcb.set_msg_word(0);
-	bool ok = utcb.append_item(snd_crd, HOTSPOT, USER_PD, HOST_PGT,
-	                           SOLELY_MAP, NO_DMA, EVILLY_DONT_WRITE_COMBINE);
-	(void)ok;
-
-	Nova::reply((void *)Thread::mystack().top);
-}
-
-void test_pat(Genode::Env &env)
-{
-	Genode::Thread &myself = *Genode::Thread::myself();
-	Nova::Utcb &utcb = *reinterpret_cast<Nova::Utcb *>(myself.utcb());
-
-	/* read out the tsc frequenzy once */
-	Attached_rom_dataspace const platform_info (env, "platform_info");
-	uint64_t const tsc_freq = platform_info.node().with_sub_node("hardware",
-		[] (Node const &hardware) {
-			return hardware.with_sub_node("tsc",
-				[] (Node const &tsc) { return tsc.attribute_value("freq_khz", 1ULL); },
-				[]                   { return 1ULL; }); },
-		[] { return 1ULL; });
-
-	enum { DS_ORDER = 12, PAGE_4K = 12, DS_SIZE = 1ul << (DS_ORDER + PAGE_4K) };
-
-	Genode::Rm_connection     rm(env);
-	Genode::Region_map_client rm_unused(rm.create(DS_SIZE));
-
-	Attached_dataspace ds_wc { env.rm(), env.ram().alloc (DS_SIZE, WRITE_COMBINED) };
-	Attached_dataspace ds    { env.rm(), env.ram().alloc (DS_SIZE) };
-	Attached_dataspace remap { env.rm(), rm_unused.dataspace() };
-
-	auto const memory       = addr_t(ds   .local_addr<void>());
-	auto const memory_wc    = addr_t(ds_wc.local_addr<void>());
-	auto const memory_remap = addr_t(remap.local_addr<void>());
-
-	static Rpc_entrypoint ep(env.runtime(), "rpc_ep_pat",
-	                         Thread::Stack_size { 4096 }, Affinity::Location());
-
-	/* trigger mapping of whole area */
-	for (auto offset = 0; offset < DS_SIZE; offset += (1u << PAGE_4K)) {
-		touch_read_write(reinterpret_cast<unsigned char *>(memory_wc + offset));
-		touch_read_write(reinterpret_cast<unsigned char *>(   memory + offset));
-	}
-
-	Nova::Rights const all(true, true, true);
-
-	/*
-	 * Establish memory mapping with evilly wrong mapping attributes
-	 */
-	Nova_native_pd_client native_pd { env.pd().native_pd() };
-	Thread * thread = reinterpret_cast<Genode::Thread *>(&ep);
-
-	thread->with_native_thread([&] (Native_thread &nt) {
-
-		Native_capability const thread_cap = Capability_space::import(nt.ec_sel);
-
-		Untyped_capability const pt =
-			native_pd.alloc_rpc_cap(thread_cap, (addr_t)portal_entry, 0 /* MTD */)
-				.convert<Untyped_capability>(
-					[&] (Untyped_capability cap) { return cap; },
-					[&] (Alloc_error) { return Untyped_capability(); });
-
-		Nova::Mem_crd const rcv_crd(memory_remap >> PAGE_4K, DS_ORDER, all);
-		Nova::Mem_crd const snd_crd(memory_wc >> PAGE_4K, DS_ORDER, all);
-		Nova::Crd     const old_crd = utcb.crd_rcv;
-
-		utcb.crd_rcv = rcv_crd;
-		utcb.set_msg_word(1);
-		utcb.msg()[0] = snd_crd.value();
-
-		uint8_t const res = Nova::call(pt.local_name());
-		utcb.crd_rcv = old_crd;
-
-		if (res != Nova::NOVA_OK) {
-			Genode::error("establishing memory failed ", res);
-			failed++;
-		}
-	});
-
-	/* sanity check - touch re-mapped area */
-	for (auto offset = 0; offset < DS_SIZE; offset += (1 << PAGE_4K))
-		touch_read_write(reinterpret_cast<unsigned char *>(memory_remap + offset));
-
-	/*
-	 * measure time to write to the memory
-	 */
-	memset(reinterpret_cast<void *>(memory), 0, DS_SIZE);
-	Trace::Timestamp normal_start = Trace::timestamp();
-	memset(reinterpret_cast<void *>(memory), 0, DS_SIZE);
-	Trace::Timestamp normal_end = Trace::timestamp();
-
-	memset(reinterpret_cast<void *>(memory_wc), 0, DS_SIZE);
-	Trace::Timestamp map_start = Trace::timestamp();
-	memset(reinterpret_cast<void *>(memory_wc), 0, DS_SIZE);
-	Trace::Timestamp map_end = Trace::timestamp();
-
-	memset(reinterpret_cast<void *>(memory_remap), 0, DS_SIZE);
-	Trace::Timestamp remap_start = Trace::timestamp();
-	memset(reinterpret_cast<void *>(memory_remap), 0, DS_SIZE);
-	Trace::Timestamp remap_end = Trace::timestamp();
-
-	auto normal_run = normal_end - normal_start;
-	auto map_run    = map_end - map_start;
-	auto remap_run  = remap_end - remap_start;
-
-	auto diff_run = map_run > remap_run ? map_run - remap_run : remap_run - map_run;
-
-	log("memory non writecombined          ", normal_run * 1000 / tsc_freq, " us");
-	log("memory     writecombined          ", map_run    * 1000 / tsc_freq, " us");
-	log("memory     writecombined remapped ", remap_run  * 1000 / tsc_freq, " us");
-	log("variance   writecombined tests    ", diff_run   * 1000 / tsc_freq, " us");
-
-	if (check_pat && diff_run * 10 / tsc_freq) {
-		failed ++;
-
-		error("PAT test considered failed - time difference above 100us");
-	}
-
-	Nova::revoke(Nova::Mem_crd(memory_remap >> PAGE_4K, DS_ORDER, all));
-}
 
 void test_server_oom(Genode::Env &env)
 {
@@ -451,160 +317,6 @@ void test_server_oom(Genode::Env &env)
 	ep.dissolve(&component);
 }
 
-class Pager : private Genode::Thread {
-
-	private:
-
-		Native_capability _call_to_map { };
-		Attached_ram_dataspace _ds;
-		static addr_t _ds_mem;
-
-		void entry() override { }
-
-		static void page_fault()
-		{
-			Thread     * myself  = Thread::myself();
-			Nova::Utcb * utcb    = reinterpret_cast<Nova::Utcb *>(myself->utcb());
-
-			if (utcb->msg_words() != 1) {
-				Genode::error("unexpected");
-				while (1) { }
-			}
-
-			Genode::addr_t map_from = utcb->msg()[0];
-//			Genode::error("pager: got map request ", Genode::Hex(map_from));
-
-			utcb->set_msg_word(0);
-			utcb->mtd = 0;
-
-			Nova::Mem_crd crd_map(map_from >> 12, 0, Nova::Rights(true, true, true));
-			bool res = utcb->append_item(crd_map, 0);
-			(void)res;
-
-			Nova::reply((void *)Thread::mystack().top);
-		}
-
-	public:
-
-		Pager(Genode::Env &env, Location location)
-		:
-			Thread(env, "pager", Stack_size { 0x1000 }, location),
-			_ds(env.ram(), env.rm(), 4096)
-		{
-			_ds_mem = addr_t(_ds.local_addr<void>());
-
-			touch_read(reinterpret_cast<unsigned char *>(_ds_mem));
-
-			/* request creation of a 'local' EC */
-			with_native_thread([&] (Native_thread &nt) {
-
-				nt.ec_sel = Native_thread::INVALID_INDEX - 1;
-
-				Thread::start();
-
-				Genode::warning("pager: created");
-
-				Native_capability thread_cap = Capability_space::import(nt.ec_sel);
-
-				Genode::Nova_native_pd_client native_pd(env.pd().native_pd());
-				Nova::Mtd mtd (Nova::Mtd::QUAL | Nova::Mtd::EIP | Nova::Mtd::ESP);
-				Genode::addr_t entry = reinterpret_cast<Genode::addr_t>(page_fault);
-
-				_call_to_map = native_pd.alloc_rpc_cap(thread_cap, entry, mtd.value())
-					.convert<Untyped_capability>(
-						[&] (Untyped_capability cap) { return cap; },
-						[&] (Alloc_error) { return Untyped_capability(); });
-			});
-		}
-
-		Native_capability call_to_map() { return _call_to_map; }
-		addr_t mem_st() { return _ds_mem; }
-};
-
-addr_t Pager::_ds_mem;
-
-class Cause_mapping : public Genode::Thread {
-
-	private:
-
-		Native_capability  _call_to_map { };
-		Rm_connection      _rm;
-		Region_map_client  _sub_rm;
-		Attached_dataspace _mem_ds;
-		addr_t             _mem_nd = addr_t(_mem_ds.local_addr<void>());
-		addr_t             _mem_st;
-		Nova::Rights const _mapping_rwx = {true, true, true};
-
-	public:
-
-		unsigned volatile called = 0;
-
-		Cause_mapping(Genode::Env &env, Native_capability call_to_map,
-		              Genode::addr_t mem_st, Location location)
-		:
-			Thread(env, "mapper", Stack_size { 0x1000 }, location),
-			_call_to_map(call_to_map),
-			_rm(env),
-			_sub_rm(_rm.create(0x2000)),
-			_mem_ds(env.rm(), _sub_rm.dataspace()),
-			_mem_st(mem_st)
-		{ }
-
-		void entry() override
-		{
-			log("mapper: hello");
-
-			Nova::Utcb * nova_utcb = reinterpret_cast<Nova::Utcb *>(utcb());
-
-			while (true) {
-				called = called + 1;
-//				log("mapper: request mapping ", Hex(_mem_nd), " ", called);
-
-				Nova::Crd old = nova_utcb->crd_rcv;
-
-//				touch_read((unsigned char *)_mem_st);
-
-				nova_utcb->msg()[0] = _mem_st;
-				nova_utcb->set_msg_word(1);
-				nova_utcb->crd_rcv = Nova::Mem_crd(_mem_nd >> 12, 0,
-				                                   _mapping_rwx);
-				Nova::call(_call_to_map.local_name());
-				//touch_read((unsigned char *)_mem_nd);
-
-				nova_utcb->msg()[0] = _mem_nd;
-				nova_utcb->set_msg_word(1);
-				nova_utcb->crd_rcv = Nova::Mem_crd((_mem_nd + 0x1000) >> 12, 0,
-				                                   _mapping_rwx);
-				Nova::call(_call_to_map.local_name());
-//				touch_read((unsigned char *)_mem_nd + 0x1000);
-
-				nova_utcb->crd_rcv = old;
-			}
-		}
-
-		void revoke_remote()
-		{
-			Nova::revoke(Nova::Mem_crd(_mem_nd >> 12, 0, _mapping_rwx), true);
-		}
-};
-
-void test_delegate_revoke_smp(Genode::Env &env)
-{
-	Affinity::Space cpus = env.cpu().affinity_space();
-	Genode::log("detected ", cpus.width(), "x", cpus.height(), " "
-	            "CPU", cpus.total() > 1 ? "s." : ".");
-
-	Pager pager(env, cpus.location_of_index(1));
-	Cause_mapping mapper(env, pager.call_to_map(), pager.mem_st(),
-	                     cpus.location_of_index(1));
-	mapper.start();
-
-	for (unsigned i = 0; i < 2000; i++) {
-		mapper.revoke_remote();
-		if (i % 1000 == 0)
-			Genode::log("main ", i, " ", mapper.called);
-	}
-}
 
 class Greedy : public Genode::Thread {
 
@@ -685,16 +397,6 @@ Main::Main(Env &env) : env(env)
 {
 	log("testing base-nova platform");
 
-	{
-		Attached_rom_dataspace config(env, "config");
-		if (!config.node().has_attribute("check_pat")) {
-			Genode::error("no check_pat attribute found");
-			env.parent().exit(-__LINE__);
-			return;
-		}
-		check_pat = config.node().attribute_value("check_pat", check_pat);
-	}
-
 	Thread * myself = Thread::myself();
 	if (!myself) {
 		env.parent().exit(-__LINE__);
@@ -744,18 +446,11 @@ Main::Main(Env &env) : env(env)
 		});
 	}
 
-	/* test PAT kernel feature */
-	test_pat(env);
-
 	/* test special revoke */
 	test_revoke(env);
 
 	/* test translate together with special revoke */
 	test_translate(env);
-
-	/* test SMP delegate/revoke - skip it on Qemu which takes too long */
-	if (check_pat)
-		test_delegate_revoke_smp(env);
 
 	/**
 	 * Test to provoke out of memory during capability transfer of

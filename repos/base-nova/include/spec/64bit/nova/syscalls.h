@@ -92,7 +92,7 @@ namespace Nova {
 
 
 	ALWAYS_INLINE
-	inline uint8_t syscall_3(Syscall s, uint8_t flags, unsigned sel,
+	inline uint8_t syscall_3(Syscall s, uint8_t flags, mword_t sel,
 	                         mword_t p1, mword_t p2, mword_t p3)
 	{
 		mword_t status = rdi(s, flags, sel);
@@ -178,7 +178,7 @@ namespace Nova {
 	inline uint8_t create_pd(mword_t pd0, mword_t pd, Crd crd,
 	                         unsigned lower_limit, unsigned long upper_limit)
 	{
-		return syscall_3(NOVA_CREATE_PD, 0, (unsigned)pd0, pd, crd.value(),
+		return syscall_3(NOVA_CREATE_PD, 0, pd0, pd, crd.value(),
 		                 upper_limit << 32 | lower_limit);
 	}
 
@@ -258,7 +258,7 @@ namespace Nova {
 	ALWAYS_INLINE
 	inline uint8_t create_sc(mword_t sc, mword_t pd, mword_t ec, Qpd qpd)
 	{
-		return syscall_3(NOVA_CREATE_SC, 0, (unsigned)sc, pd, ec, qpd.value());
+		return syscall_3(NOVA_CREATE_SC, 0, sc, pd, ec, qpd.value());
 	}
 
 
@@ -285,14 +285,14 @@ namespace Nova {
 	ALWAYS_INLINE
 	inline uint8_t create_sm(mword_t sm, mword_t pd, mword_t cnt)
 	{
-		return syscall_3(NOVA_CREATE_SM, 0, (unsigned)sm, pd, cnt, 0);
+		return syscall_3(NOVA_CREATE_SM, 0, sm, pd, cnt, 0);
 	}
 
 
 	ALWAYS_INLINE
 	inline uint8_t create_si(mword_t si, mword_t pd, mword_t value, mword_t sm)
 	{
-		return syscall_3(NOVA_CREATE_SM, 0, (unsigned)si, pd, value, sm);
+		return syscall_3(NOVA_CREATE_SM, 0, si, pd, value, sm);
 	}
 
 
@@ -350,9 +350,9 @@ namespace Nova {
 
 
 	ALWAYS_INLINE
-	inline uint8_t delegate(mword_t pd_snd, mword_t pd_dst, Crd crd_dst)
+	inline uint8_t delegate(mword_t pd_snd, mword_t pd_dst, Crd crd_dst, mword_t key)
 	{
-		return syscall_2(NOVA_MISC, 1, pd_snd, crd_dst.value(), pd_dst);
+		return syscall_3(NOVA_MISC, 1, pd_snd, crd_dst.value(), pd_dst, key);
 	}
 
 
@@ -362,6 +362,7 @@ namespace Nova {
 	{
 		return syscall_2(NOVA_MISC, 2, sm_auth_acpi, sleep_state_a, sleep_state_b);
 	}
+
 
 	ALWAYS_INLINE
 	inline uint8_t sm_ctrl(mword_t sm, Sem_op op, unsigned long long timeout = 0)

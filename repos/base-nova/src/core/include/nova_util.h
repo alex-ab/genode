@@ -24,6 +24,9 @@
 #include <util.h>
 
 
+enum { CORE_ENC_KEY_ID = 0 };
+
+
 /**
  * Return boot CPU number. It is required if threads in core should be placed
  * on the same CPU as the main thread.
@@ -57,7 +60,8 @@ inline Genode::addr_t boot_cpu()
 static int map_local(Genode::addr_t const pd, Nova::Utcb &utcb,
                      Nova::Crd const src_crd, Nova::Crd const dst_crd,
                      bool const kern_pd = false, bool const dma_mem = false,
-                     bool const write_combined = false)
+                     bool const write_combined = false,
+                     Genode::addr_t const key = CORE_ENC_KEY_ID)
 {
 	/* asynchronously map capabilities */
 	utcb.set_msg_word(0);
@@ -67,7 +71,7 @@ static int map_local(Genode::addr_t const pd, Nova::Utcb &utcb,
 	                                 dma_mem, write_combined);
 	(void)ok;
 
-	Nova::uint8_t res = Nova::delegate(pd, pd, dst_crd);
+	Nova::uint8_t res = Nova::delegate(pd, pd, dst_crd, key);
 	if (res != Nova::NOVA_OK) {
 
 		using Hex = Genode::Hex;
@@ -131,6 +135,7 @@ inline int map_local(Genode::addr_t const pd, Nova::Utcb &utcb,
                      Genode::addr_t from_start, Genode::addr_t to_start,
                      Genode::size_t num_pages,
                      Nova::Rights const &permission,
+                     Genode::addr_t const key,
                      bool kern_pd = false, bool dma_mem = false,
                      bool write_combined = false)
 {
@@ -169,7 +174,7 @@ inline int map_local(Genode::addr_t const pd, Nova::Utcb &utcb,
 		int const res = map_local(pd, utcb,
 		                          Mem_crd((from_curr >> 12), order - get_page_size_log2(), permission),
 		                          Mem_crd((to_curr   >> 12), order - get_page_size_log2(), permission),
-		                          kern_pd, dma_mem, write_combined);
+		                          kern_pd, dma_mem, write_combined, key);
 		if (res) return res;
 
 		/* advance offset by current flexpage size */
@@ -244,10 +249,9 @@ inline Nova::uint8_t async_map(Core::Pager_object &pager,
 	bool const ok = utcb.append_item(source_initial_caps, 0);
 	(void)ok;
 
-	return syscall_retry(pager,
-		[&] {
-			return Nova::delegate(source_pd, target_pd, target_initial_caps);
-		});
+	return syscall_retry(pager, [&] {
+		return Nova::delegate(source_pd, target_pd, target_initial_caps,
+		                      CORE_ENC_KEY_ID); });
 }
 
 inline Nova::uint8_t map_vcpu_portals(Core::Pager_object &pager,

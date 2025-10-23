@@ -11,8 +11,8 @@
  * under the terms of the GNU Affero General Public License version 3.
  */
 
-#ifndef _INCLUDE__SPEC__X86_64__CLFLUSH_H_
-#define _INCLUDE__SPEC__X86_64__CLFLUSH_H_
+#ifndef _INCLUDE__SPEC__X86__CLFLUSH_H_
+#define _INCLUDE__SPEC__X86__CLFLUSH_H_
 
 namespace Genode {
 	inline void clflush(volatile void *addr)
@@ -21,4 +21,4 @@ namespace Genode {
 	}
 }
 
-#endif /* _INCLUDE__SPEC__X86_64__CLFLUSH_H_ */
+#endif /* _INCLUDE__SPEC__X86__CLFLUSH_H_ */

@@ -27,6 +27,7 @@
 #include <util.h>
 
 #include <nova/cap_map.h>
+#include <nova_util.h>
 
 /* NOVA includes */
 #include <nova/syscalls.h>
@@ -53,7 +54,7 @@ static Nova::uint8_t map_async_caps(Nova::Obj_crd const src,
 	(void)ok;
 
 	/* asynchronously map capabilities */
-	return Nova::delegate(src_pd, dst_pd, dst);
+	return Nova::delegate(src_pd, dst_pd, dst, CORE_ENC_KEY_ID);
 }
 
 
@@ -272,7 +273,7 @@ void Vm_session_component::attach(Dataspace_capability const cap,
 	using Attach_result = Guest_memory::Attach_result;
 
 	auto map_fn = [&] (addr_t guest_phys, addr_t phys_addr, size_t size,
-	                   bool exec, bool write, Cache)
+	                   bool exec, bool write, Cache, auto const key)
 	{
 		using Nova::Utcb;
 		Utcb &utcb = *reinterpret_cast<Utcb *>(Thread::myself()->utcb());
@@ -297,7 +298,7 @@ void Vm_session_component::attach(Dataspace_capability const cap,
 
 			/* asynchronously map memory */
 			uint8_t res = _with_kernel_quota_upgrade(_pd.value, [&] {
-				return Nova::delegate(src_pd, _pd.value, crd_mem); });
+				return Nova::delegate(src_pd, _pd.value, crd_mem, key.id); });
 
 			if (res != Nova::NOVA_OK) {
 				error("could not map VM memory ", res);
@@ -314,8 +315,8 @@ void Vm_session_component::attach(Dataspace_capability const cap,
 	Attach_result ret =
 	_memory.attach(cap, guest_phys, attribute,
 	               [&] (addr_t vm_addr, addr_t phys_addr, size_t size,
-	                    bool exec, bool write, Cache cacheable, auto) {
-		return map_fn(vm_addr, phys_addr, size, exec, write, cacheable); });
+	                    bool exec, bool write, Cache cacheable, auto key) {
+		return map_fn(vm_addr, phys_addr, size, exec, write, cacheable, key); });
 
 	switch(ret) {
 	case Attach_result::OK             : return;

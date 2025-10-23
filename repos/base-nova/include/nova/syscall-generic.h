@@ -127,7 +127,9 @@ namespace Nova {
 		uint32_t const page_sizes;  /* supported page sizes                    */
 		uint32_t const utcb_sizes;  /* supported utcb sizes                    */
 		uint32_t const tsc_freq;    /* time-stamp counter frequency in kHz     */
-		uint32_t const bus_freq;    /* bus frequency in kHz                    */
+		uint8_t  const tme_kmax;    /* TME encryption key count */
+		uint8_t  const reserved;
+		uint16_t const tme_algo;    /* TME encryption algorithm */
 
 		bool has_feature_iommu() const { return feature_flags & (1 << 0); }
 		bool has_feature_vmx()   const { return feature_flags & (1 << 1); }

@@ -412,9 +412,9 @@ namespace Nova {
 
 
 	ALWAYS_INLINE
-	inline uint8_t delegate(mword_t pd_snd, mword_t pd_dst, Crd crd_dst)
+	inline uint8_t delegate(mword_t pd_snd, mword_t pd_dst, Crd crd_dst, mword_t key)
 	{
-		return syscall_2(NOVA_MISC, 1, pd_snd, crd_dst.value(), pd_dst);
+		return syscall_3(NOVA_MISC, 1, pd_snd, crd_dst.value(), pd_dst, key);
 	}
 
 

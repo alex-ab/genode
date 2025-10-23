@@ -90,7 +90,8 @@ addr_t Core::Platform::_map_pages(addr_t const phys_addr, addr_t const pages,
 
 			int res = map_local(_core_pd_sel, *__main_thread_utcb, phys_addr,
 			                    core_local_addr, pages,
-			                    Nova::Rights(true, true, false), true);
+			                    Nova::Rights(true, true, false),
+			                    CORE_ENC_KEY_ID, true);
 			if (res)
 				return 0UL;
 
@@ -290,6 +291,7 @@ static bool cpuid_invariant_tsc()
 	return edx & 0x100;
 }
 
+
 /* boot framebuffer resolution */
 struct Resolution : Register<64>
 {
@@ -374,9 +376,9 @@ Core::Platform::Platform()
 	 * the main_thread_utcb very early to establish mappings
 	 */
 	if (map_local(_core_pd_sel, *__main_thread_utcb, (addr_t)__main_thread_utcb,
-	              (addr_t)main_thread_utcb(), 1, Rights(true, true, false))) {
+	              (addr_t)main_thread_utcb(), 1, Rights(true, true, false),
+	              CORE_ENC_KEY_ID))
 		error("could not remap utcb of main thread");
-	}
 
 	/*
 	 * Mark successful boot of hypervisor for automatic tests. This must be
@@ -385,6 +387,13 @@ Core::Platform::Platform()
 	 */
 	log("\nHypervisor ", String<sizeof(hip.signature)+1>((char const *)&hip.signature),
 	    " (API v", hip.api_version, ")");
+
+	if (hip.tme_kmax)
+		log(" TME is active, keys: ", hip.tme_kmax, ", algorithm:",
+		    hip.tme_algo == 1 ? " AES-XTS 128" :
+		    hip.tme_algo == 2 ? " AES-XTS 128 + integrity" :
+		    hip.tme_algo == 4 ? " AES-XTS-256" :
+		    hip.tme_algo == 8 ? " AES-XTS-256 + integrity" : " unknown");
 
 	/* init genode cpu ids based on kernel cpu ids (used for syscalls) */
 	warn_reorder = !hip.remap_cpu_ids(map_cpu_ids,
@@ -721,6 +730,8 @@ Core::Platform::Platform()
 					g.node("features", [&] {
 						g.attribute("svm", hip.has_feature_svm());
 						g.attribute("vmx", hip.has_feature_vmx());
+						if (hip.tme_kmax)
+							g.attribute("tme", "yes");
 					});
 					g.node("tsc", [&] {
 						g.attribute("invariant", cpuid_invariant_tsc());
@@ -753,6 +764,12 @@ Core::Platform::Platform()
 							});
 						});
 					});
+					if (hip.tme_kmax) {
+						g.node("tme", [&] {
+							g.attribute("keys", hip.tme_kmax);
+							g.attribute("algorithm", hip.tme_algo);
+						});
+					}
 				});
 			}).with_error([] (Buffer_error) {
 				error("platform_info exceeds maximum buffer size");
@@ -1027,14 +1044,12 @@ unsigned Core::Platform::pager_index(Affinity::Location location) const
 bool Mapped_mem_allocator::_map_local(addr_t virt_addr, addr_t phys_addr, size_t size)
 {
 	/* platform_specific()->core_pd_sel() deadlocks if called from platform constructor */
-	Hip const &hip  = *(Hip const *)__initial_sp;
+	Hip    const &hip        = *(Hip const *)__initial_sp;
 	addr_t const core_pd_sel = hip.sel_exc;
 
-	map_local(core_pd_sel,
-	          *(Utcb *)Thread::myself()->utcb(), phys_addr,
-	          virt_addr, size / get_page_size(),
-	          Rights(true, true, false), true);
-	return true;
+	return (map_local(core_pd_sel, *(Utcb *)Thread::myself()->utcb(),
+	                  phys_addr, virt_addr, size / get_page_size(),
+	                  Rights(true, true, false), CORE_ENC_KEY_ID, true) == 0);
 }
 
 

@@ -42,7 +42,8 @@ bool Pd_session_component::assign_pci(addr_t pci_config_memory, uint16_t bdf)
 }
 
 
-uint8_t Pd_session_component::dataspace_colors() const { return 1; }
+uint8_t Pd_session_component::dataspace_colors() const {
+	return kernel_hip().tme_kmax ? : 1; }
 
 
 Pd_session::Map_result Pd_session_component::map(Pd_session::Virt_range const virt_range)
@@ -66,7 +67,8 @@ Pd_session::Map_result Pd_session_component::map(Pd_session::Virt_range const vi
 			/* one item ever fits on the UTCB */
 			(void)res;
 
-			return Nova::delegate(pd_core, pd_dst, nova_dst_crd(mapping));
+			return Nova::delegate(pd_core, pd_dst, nova_dst_crd(mapping),
+			                      mapping.key);
 		});
 
 		if (err != Nova::NOVA_OK) {

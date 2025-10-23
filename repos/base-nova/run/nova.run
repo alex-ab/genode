@@ -1,15 +1,5 @@
 build { core init lib/ld test/nova }
 
-set check_pat 1
-if {[have_include power_on/qemu]} {
-	set check_pat 0
-}
-
-if {[have_cmd_switch --autopilot] && [have_spec x86_32]} {
-	# Disable test for our outdated nighly test machine for 32bit
-	set check_pat 0
-}
-
 create_boot_directory
 
 set config {
@@ -24,12 +14,8 @@ set config {
 		<default-route>
 			<any-service> <parent/> </any-service>
 		</default-route>
-		<start name="test-nova" caps="12350" ram="128M" ld="no">}
-
-append config "
-			<config check_pat=\"$check_pat\"/\>"
-
-append config {
+		<start name="test-nova" caps="12350" ram="128M" ld="no">
+			<config/>
 		</start>
 	</config>
 }

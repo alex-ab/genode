@@ -60,7 +60,8 @@ void Ipc_pager::set_reply_mapping(Mapping const mapping)
 	(void)res;
 
 	/* asynchronously map memory */
-	_syscall_res = Nova::delegate(_pd_core, _pd_dst, nova_dst_crd(mapping));
+	_syscall_res = Nova::delegate(_pd_core, _pd_dst, nova_dst_crd(mapping),
+	                              mapping.key);
 }
 
 

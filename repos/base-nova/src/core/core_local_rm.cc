@@ -82,7 +82,8 @@ Core_local_rm::attach(Dataspace_capability ds_cap, Attach_attr const &attr)
 
 		if (map_local(platform_specific().core_pd_sel(), utcb,
 		              ds.phys_addr(), reinterpret_cast<addr_t>(virt_ptr),
-		              page_rounded_size >> get_page_size_log2(), rights, true)) {
+		              page_rounded_size >> get_page_size_log2(), rights,
+		              ds.key().id, true)) {
 			platform().region_alloc().free(virt_ptr, page_rounded_size);
 
 			return Error::OUT_OF_RAM;
