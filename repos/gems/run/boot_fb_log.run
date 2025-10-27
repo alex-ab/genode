@@ -14,7 +14,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/nano3d \
                   [depot_user]/src/log_core
 
-build { driver/framebuffer/boot }
+build { driver/framebuffer/boot kernel core lib/ld }
 
 proc priority_timer    { } { return {priority="0"} }
 proc priority_base     { } { return {priority="-1"} }
@@ -22,6 +22,7 @@ proc priority_gui      { } { return {priority="-1"} }
 proc priority_wm       { } { return {priority="-2"} }
 proc priority_log      { } { return {priority="-2"} }
 proc priority_app      { } { return {priority="-2"} }
+proc priority_debug    { } { return {priority="-3"} }
 
 
 proc log_output { } {
@@ -49,6 +50,7 @@ proc log_output { } {
 		<provides> <service name="LOG"/> </provides>
 		<config/>
 		<route>
+			<service name="Timer">    <child name="timer"/>    </service>
 			<service name="Terminal"> <child name="terminal"/> </service>
 			<any-service> <parent/> </any-service>
 		</route>
@@ -153,8 +155,7 @@ proc gui_config { } {
 		</config>
 	</start>
 
-	<start name="wm" caps="1000" } [priority_wm] {>
-		<resource name="RAM" quantum="32M"/>
+	<start name="wm" caps="1500" ram="64M" } [priority_wm] {>
 		<binary name="init"/>
 		<provides>
 			<service name="Gui"/> <service name="Report"/> <service name="ROM"/>
@@ -211,6 +212,19 @@ append config {
 		<route>
 			<service name="Gui">   <child name="wm"/>    </service>
 			<service name="Timer"> <child name="timer"/> </service>
+			<any-service> <parent/> </any-service>
+		</route>
+	</start>
+
+	<start name="drivers" caps="1500" managing_system="yes" } [priority_debug] {>
+		<resource name="RAM" quantum="64M"/>
+		<binary name="init"/>
+		<route>
+			<service name="ROM" label="config"> <parent label="drivers.config"/> </service>
+			<service name="ROM" label_suffix="vesa_fb"> <parent label="nono_fb"/> </service>
+			<service name="Timer">   <child name="timer"/> </service>
+			<service name="Capture"> <child name="nitpicker"/> </service>
+			<service name="Event">   <child name="nitpicker"/> </service>
 			<any-service> <parent/> </any-service>
 		</route>
 	</start>
