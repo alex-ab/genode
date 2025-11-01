@@ -87,7 +87,7 @@ void Thread::_init_native_thread(Stack &stack)
 	addr_t utcb = reinterpret_cast<addr_t>(&_stack->utcb());
 	revoke(Mem_crd(utcb >> 12, 0, rwx));
 	#else
-		error("no early UTCB revoke");
+//		error("no early UTCB revoke");
 	#endif
 
 	nt.exc_pt_sel = cap_map().insert(Novae::NUM_INITIAL_PT_LOG2);
