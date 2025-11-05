@@ -293,7 +293,8 @@ GCC_CONFIG += $(COMMON_CONFIG) \
                                  -DUSE_PT_GNU_EH_FRAME \
                                  -Dinhibit_libc \
                                  -fPIC \
-                                 -fno-tree-vectorize" \
+                                 -fno-tree-vectorize \
+                                 -mstrict-align" \
               CXXFLAGS_FOR_TARGET="-fPIC \
                                    -fno-tree-vectorize"
 
