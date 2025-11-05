@@ -3,6 +3,7 @@ CONFIGURE_ARGS = --disable-werror \
                  --program-prefix=$(PROGRAM_PREFIX) \
                  --target=$(BINUTILS_TARGET) \
                  --disable-nls
+#                --disable-gprofng
 
 #
 # Pass CFLAGS and friends to the invokation of 'make' because

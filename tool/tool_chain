@@ -196,7 +196,8 @@ endif
 
 COMMON_BOOTSTRAP_CONFIG = $(CONFIG_QUIET) \
                           --prefix=$(LOCAL_BOOTSTRAP_INSTALL_LOCATION) \
-                          --disable-multilib
+                          --disable-multilib \
+                          --disable-gprofng
 
 BINUTILS_BOOTSTRAP_CONFIG += $(COMMON_BOOTSTRAP_CONFIG)
 
