@@ -389,6 +389,16 @@ class Sandbox::Child : Child_policy, Routed_service::Wakeup
 			_start_node->attribute_value("managing_system", false) };
 
 		/**
+		 * If set to true, the child is allowed to specify color during
+		 * PD connection establishment, e.g. for sub-init component.
+		 */
+		bool const _permit_coloring {
+			_start_node->attribute_value("coloring", false) };
+
+		String<16> const _color {
+			_start_node->attribute_value("color", String<16>("default")) };
+
+		/**
 		 * Resource request initiated by the child
 		 */
 		struct Requested_resources

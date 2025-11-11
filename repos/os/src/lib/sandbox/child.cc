@@ -704,6 +704,53 @@ void Sandbox::Child::filter_session_args(Service::Name const &service,
 		if (!permitted)
 			Arg_string::remove_arg(args, "managing_system");
 	}
+
+	if (service == Pd_session::service_name()) {
+
+		int const default_color = 0;
+		int const max_colors    = 9; /* XXX - depends upon hw features ?! */
+
+		/* decode colors as configured - support dynamic color names ? */
+		int color_id = _color == "default" ? default_color :
+		               _color == "red"     ? 1 :
+		               _color == "blue"    ? 2 :
+		               _color == "green"   ? 3 :
+		               _color == "black"   ? 4 :
+		               _color == "white"   ? 5 :
+		               _color == "orange"  ? 6 :
+		               _color == "yellow"  ? 7 :
+		               _color == "grey"    ? 8 : -1;
+
+		if (color_id < 0 || color_id >= max_colors) {
+			warning("unknown color -> using default color for ", name());
+			color_id = default_color;
+		}
+
+		if (_permit_coloring) {
+			/* client is permitted to select colors in args, e.g. sub-init */
+
+			/* sanitize potential insane colors */
+			unsigned long arg_color = Arg_string::find_arg(args, "color").ulong_value(0);
+			if (arg_color >= max_colors) {
+				warning("unknown color -> using default color for ", name());
+				Arg_string::remove_arg(args, "color");
+			}
+
+			/* overwrite default colors in PD args with the component ones */
+			if (!arg_color && _color != "default") {
+				Arg_string::remove_arg(args, "color");
+				Arg_string::set_arg(args, args_len, "color", color_id);
+			}
+
+		} else {
+			/* client is not permitted to select colors by themself in args */
+			Arg_string::remove_arg(args, "color");
+
+			/* use the color of the config */
+			if (color_id)
+				Arg_string::set_arg(args, args_len, "color", color_id);
+		}
+	}
 }
 
 

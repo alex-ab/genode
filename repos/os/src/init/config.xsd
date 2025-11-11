@@ -215,6 +215,8 @@
       <xs:attribute name="ram"             type="Number_of_bytes" />
       <xs:attribute name="priority"        type="xs:int" />
       <xs:attribute name="managing_system" type="Boolean" />
+      <xs:attribute name="coloring"        type="Boolean" />
+      <xs:attribute name="color"           type="xs:string" />
      </xs:complexType>
     </xs:element> <!-- "start" -->
 
