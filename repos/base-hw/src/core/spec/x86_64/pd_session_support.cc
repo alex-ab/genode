@@ -88,3 +88,6 @@ bool Pd_session_component::assign_pci(addr_t, uint16_t) { return true; }
 
 
 Pd_session::Map_result Pd_session_component::map(Pd_session::Virt_range) { return Map_result::OK; }
+
+
+uint8_t Pd_session_component::dataspace_colors() const { return 1; }

@@ -26,10 +26,13 @@ Pd_session_component::alloc_ram(size_t ds_size, Cache cache)
 	if (!ds_size)
 		return Alloc_error::DENIED;
 
+	if (_color.value >= dataspace_colors())
+		return Alloc_error::DENIED;
+
 	/* dataspace allocation granularity is page size */
 	ds_size = align_addr(ds_size, AT_PAGE);
 
-	Dataspace_component::Key key { };
+	Dataspace_component::Key key { _color.value };
 
 	/* track quota use */
 	return _ram_quota_guard().reserve(Ram_quota{ds_size}).convert<Alloc_ram_result>(

@@ -19,6 +19,9 @@
 using namespace Core;
 
 
+uint8_t Pd_session_component::dataspace_colors() const { return 1; }
+
+
 bool Pd_session_component::assign_pci(addr_t, uint16_t) { return true; }
 
 

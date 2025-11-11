@@ -55,6 +55,8 @@ class Core::Pd_session_component : public Session_object<Pd_session>
 
 	private:
 
+		struct Color { uint8_t value; };
+
 		Constructible<Account<Cap_quota> > _cap_account { };
 		Constructible<Account<Ram_quota> > _ram_account { };
 
@@ -76,6 +78,7 @@ class Core::Pd_session_component : public Session_object<Pd_session>
 		Region_map_component    _address_space;
 		Region_map_component    _stack_area;
 		Region_map_component    _linker_area;
+		Color                   _color;
 
 		Managing_system _managing_system;
 
@@ -83,6 +86,11 @@ class Core::Pd_session_component : public Session_object<Pd_session>
 
 		friend class Native_pd_component;
 
+		Color _color_from_args(char const * const args) const
+		{
+			addr_t value = Arg_string::find_arg(args, "color").ulong_value(0);
+			return { uint8_t((value >= dataspace_colors()) ? 0 : value) };
+		}
 
 		/*****************************************
 		 ** Utilities for capability accounting **
@@ -167,6 +175,7 @@ class Core::Pd_session_component : public Session_object<Pd_session>
 			_address_space(ep, _sliced_heap, virt_range.start, virt_range.size, diag),
 			_stack_area   (ep, _sliced_heap, 0, stack_area_virtual_size(), diag),
 			_linker_area  (ep, _sliced_heap, 0, LINKER_AREA_SIZE, diag),
+			_color(_color_from_args(args)),
 			_managing_system(managing_system)
 		{
 			_address_space.address_space(_pd);
@@ -221,6 +230,7 @@ class Core::Pd_session_component : public Session_object<Pd_session>
 
 		Map_result map(Pd_session::Virt_range) override;
 
+		uint8_t dataspace_colors() const;
 
 		/****************
 		 ** Signalling **

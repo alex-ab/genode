@@ -72,3 +72,5 @@ Pd_session::Map_result Pd_session_component::map(Pd_session::Virt_range)
 	return Map_result::OK;
 }
 
+
+uint8_t Pd_session_component::dataspace_colors() const { return 1; }

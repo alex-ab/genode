@@ -42,6 +42,9 @@ bool Pd_session_component::assign_pci(addr_t pci_config_memory, uint16_t bdf)
 }
 
 
+uint8_t Pd_session_component::dataspace_colors() const { return 1; }
+
+
 Pd_session::Map_result Pd_session_component::map(Pd_session::Virt_range const virt_range)
 {
 	Platform_pd &target_pd = _pd;
