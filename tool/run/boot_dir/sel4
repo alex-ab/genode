@@ -6,7 +6,6 @@ proc binary_name_timer     { } {
 	if {[have_board imx6q_sabrelite]}   { return "imx6_timer" }
 	if {[have_board imx7d_sabre]}       { return "imx7_timer" }
 	if {[have_board imx8q_evk]}         { return "imx8_timer" }
-	if {[have_board virt_qemu_arm_v8a]} { return "sel4_dummy_timer" }
 	if {[have_board pc]}                { return "hpet_timer" }
 	puts "unknown platform - no timer driver"
 	exit -1
@@ -102,8 +101,6 @@ proc run_boot_dir {binaries} {
 			set ::env(PLAT) imx7
 		} elseif {[have_board imx8q_evk]} {
 			set ::env(PLAT) imx8mq-evk
-		} elseif {[have_board virt_qemu_arm_v8a]} {
-			set ::env(PLAT) qemu-arm-virt
 		} else {
 			puts "abort - unknown ARM board"
 			exit 1
