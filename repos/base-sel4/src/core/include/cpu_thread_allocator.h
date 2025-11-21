@@ -15,27 +15,71 @@
 #define _CORE__INCLUDE__CPU_THREAD_ALLOCATOR_H_
 
 /* Genode includes */
-#include <base/tslab.h>
-#include <base/heap.h>
+#include <base/allocator.h>
 
 /* core includes */
-#include <types.h>
+#include <assertion.h>
 
-/* base-internal includes */
-#include <base/internal/page_size.h>
+namespace Core { class Cpu_thread_allocator; }
 
-namespace Core {
 
-	class Cpu_thread_component;
+/**
+ * Thread allocator for cores CPU service
+ *
+ * Normally one would use a SLAB for threads because usually they
+ * are tiny objects, but in 'base-sel4' on armv8 they are too large.
+ * Thus we use the given allocator directly.
+ */
+class Core::Cpu_thread_allocator : public Allocator
+{
+	private:
 
-	/**
-	 * Allocator to manage CPU threads associated with a CPU session
-	 *
-	 * We take the knowledge about the used backing-store allocator (sliced
-	 * heap) into account to make sure that slab blocks fill whole pages.
-	 */
-	using Cpu_thread_allocator =
-		Tslab<Cpu_thread_component, get_page_size() - Sliced_heap::meta_data_size(), 1>;
-}
+		/*
+		 * Noncopyable
+		 */
+		Cpu_thread_allocator(Cpu_thread_allocator const &);
+		Cpu_thread_allocator &operator = (Cpu_thread_allocator const &);
+
+		Allocator &_alloc;
+
+	public:
+
+		/**
+		 * Constructor
+		 *
+		 * \param alloc  allocator backend
+		 */
+		Cpu_thread_allocator(Allocator &alloc) : _alloc(alloc) { }
+
+
+		/*********************************
+		 ** Memory::Allocator interface **
+		 *********************************/
+
+		Alloc_result try_alloc(size_t size) override
+		{
+			return _alloc.try_alloc(size).convert<Alloc_result>(
+				[&] (Allocation &a) -> Alloc_result {
+					a.deallocate = false; return { *this, a }; },
+				[&] (Alloc_error e) { return e; });
+		}
+
+		void _free(Allocation &a) override { _alloc.free(a.ptr, a.num_bytes); }
+
+
+		/****************************************
+		 ** Legacy Genode::Allocator interface **
+		 ****************************************/
+
+		void free(void *addr, size_t size) override {
+			_alloc.free(addr, size); }
+
+		size_t consumed() const override { ASSERT_NEVER_CALLED; }
+
+		size_t overhead(size_t) const override { ASSERT_NEVER_CALLED; }
+
+		bool need_size_for_free() const override {
+			return _alloc.need_size_for_free(); }
+};
 
 #endif /* _CORE__INCLUDE__CPU_THREAD_ALLOCATOR_H_ */
