@@ -199,8 +199,8 @@ Irq_session_component::Irq_session_component(Range_allocator &irqs,
 	auto const bdf = Arg_string::find_arg(args, "bdf").long_value(0x10000u);
 
 	if (irq_args.type() == Irq_session::TYPE_LEGACY) {
-		if (irq >= kernel_hip().gsi_pin()) {
-			error("GSI out of range ", irq, ">", kernel_hip().gsi_pin());
+		if (irq >= kernel_hip().pin_num()) {
+			error("GSI out of range ", irq, ">", kernel_hip().pin_num());
 			throw Service_denied();
 		}
 
@@ -216,8 +216,8 @@ Irq_session_component::Irq_session_component(Range_allocator &irqs,
 	} else {
 
 		auto result = irqs.alloc_aligned(1, 0,
-		                                 { .start = kernel_hip().gsi_pin(),
-		                                   .end   = kernel_hip().gsi_max() + 1 });
+		                                 { .start = kernel_hip().pin_num(),
+		                                   .end   = kernel_hip().gsi_num() + 1 });
 
 		if (result.failed()) {
 			error("Out of MSIs");
@@ -252,16 +252,16 @@ static Range_allocator::Result allocate(Range_allocator &irq_alloc, Irq_args con
 	unsigned n = unsigned(args.irq_number());
 
 	if (args.type() == Irq_session::TYPE_LEGACY) {
-		if (n >= kernel_hip().gsi_pin()) {
-			error("GSI out of range ", n, ">", kernel_hip().gsi_pin());
+		if (n >= kernel_hip().pin_num()) {
+			error("GSI out of range ", n, ">", kernel_hip().pin_num());
 			return Alloc_error::DENIED;
 		}
 
 		return irq_alloc.alloc_addr(1, n);
 	} else
 		return irq_alloc.alloc_aligned(1, 0,
-		                               { .start = kernel_hip().gsi_pin(),
-		                                 .end   = kernel_hip().gsi_max() + 1 });
+		                               { .start = kernel_hip().pin_num(),
+		                                 .end   = kernel_hip().gsi_num() + 1 });
 }
 
 

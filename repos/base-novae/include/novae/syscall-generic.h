@@ -54,14 +54,15 @@ namespace Novae {
 		NOVA_CREATE_SC  = 0x4,
 		NOVA_CREATE_PT  = 0x5,
 		NOVA_CREATE_SM  = 0x6,
-		NOVA_PD_CTRL    = 0x7,
-		NOVA_EC_CTRL    = 0x8,
-		NOVA_SC_CTRL    = 0x9,
-		NOVA_PT_CTRL    = 0xa,
-		NOVA_SM_CTRL    = 0xb,
-		NOVA_HW_CTRL    = 0xc,
-		NOVA_ASSIGN_INT = 0xd,
+		NOVA_CREATE_DC  = 0x7,
+		NOVA_PD_CTRL    = 0x8,
+		NOVA_EC_CTRL    = 0x9,
+		NOVA_SC_CTRL    = 0xa,
+		NOVA_PT_CTRL    = 0xb,
+		NOVA_SM_CTRL    = 0xc,
+		NOVA_HW_CTRL    = 0xd,
 		NOVA_ASSIGN_DEV = 0xe,
+		NOVA_ASSIGN_INT = 0xf,
 	};
 
 	/**
@@ -69,18 +70,18 @@ namespace Novae {
 	 */
 	enum Status
 	{
-		NOVA_OK             = 0,
-		NOVA_TIMEOUT        = 1,
-		NOVA_ABORTED        = 2,
-		NOVA_OVERFLOW       = 3,
-		NOVA_INV_HYPERCALL  = 4,
-		NOVA_INV_SELECTOR   = 5,
-		NOVA_INV_PARAMETER  = 6,
-		NOVA_INV_FEATURE    = 7,
-		NOVA_INV_CPU        = 8,
-		NOVA_INVD_DEVICE_ID = 9,
-		NOVA_MEM_OBJ        = 10,
-		NOVA_MEM_CAP        = 11,
+		NOVA_OK             = 0x0,
+		NOVA_TIMEOUT        = 0x1,
+		NOVA_ABORTED        = 0x2,
+		NOVA_OVERFLOW       = 0x3,
+		NOVA_INV_HYPERCALL  = 0x4,
+		NOVA_INV_SELECTOR   = 0x5,
+		NOVA_INV_PARAMETER  = 0x6,
+		NOVA_INV_FEATURE    = 0x7,
+		NOVA_INV_CPU        = 0x8,
+		NOVA_INVD_DEVICE_ID = 0x9,
+		NOVA_MEM_OBJ        = 0xa,
+		NOVA_MEM_CAP        = 0xb,
 	};
 
 	/**
@@ -101,15 +102,21 @@ namespace Novae {
 
 		auto timer_freq()      const { return         (raw[0x50 / 8]); }
 
-		auto sel_num () const { return 1u << uint8_t (raw[0x58 / 8] >>  0); }
-		auto cpu_bsp () const { return       uint16_t(raw[0x58 / 8] >> 48); }
-		auto gsi_pin () const { return       uint16_t(raw[0x60 / 8] >> 48); }
-		auto gsi_max () const { return          1u + ((raw[0x68 / 8] >> 16) & 0xfffful);  }
-		auto cpu_max () const { return uint32_t(1u + ((raw[0x68 / 8] >> 32) & 0xfffful)); }
-		auto vec_max () const { return uint16_t(      (raw[0x68 / 8] >> 48)); }
+		auto sel_num() const { return 1u << uint8_t (raw[0x58 / 8] >>  0); }
+		auto cpu_bsp() const { return       uint16_t(raw[0x68 / 8] >>  0); }
+		auto cpu_max() const { return       uint16_t(raw[0x68 / 8] >> 16) + 1; }
 
 		auto sel_hst_arch() const { return uint16_t(raw[0x70 / 8] >>  0); }
 		auto sel_hst_nova() const { return uint16_t(raw[0x70 / 8] >> 16); }
+
+#ifdef __x86_64__
+		auto pin_num() const { return uint16_t(raw[0x80 / 8] >> 16); }
+		auto gsi_num() const { return uint32_t(raw[0x80 / 8] >> 32); }
+#else
+		/* XXX - high level code currently is not ARM aware, e.g SPI/ESPI */
+		auto pin_num() const { return uint16_t(raw[0x80 / 8] >> 16); }
+		auto gsi_num() const { return uint32_t(pin_num()); }
+#endif
 
 		auto features()     const { return uint64_t(raw[0x78 / 8]); }
 

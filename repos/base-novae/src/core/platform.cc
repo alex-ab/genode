@@ -876,7 +876,7 @@ Core::Platform::Platform()
 	(void)_io_port_alloc.add_range(0, 0x10000);
 
 	/* IRQ allocator */
-	(void)_irq_alloc.add_range(0, hip.gsi_max());
+	(void)_irq_alloc.add_range(0, hip.gsi_num());
 
 	if (verbose_boot_info)
 		log(_rom_fs);
