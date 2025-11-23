@@ -28,8 +28,10 @@ Rpc_cap_factory::alloc(Runtime &rt, Native_capability ep, addr_t entry,
                        addr_t mtd)
 {
 	addr_t const pt_sel = cap_map().insert();
-	addr_t const pd_sel = platform_specific().core_pd_sel();
 	addr_t const ec_sel = ep.local_name();
+
+	/* overwritten below if target PD is not core */
+	addr_t pd_sel = platform_specific().core_pd_sel();
 
 	using namespace Novae;
 
@@ -69,6 +71,13 @@ Rpc_cap_factory::alloc(Runtime &rt, Native_capability ep, addr_t entry,
 				        "dst_pd_sel=", Hex(pd.pd_sel_obj()));
 
 			Pager_object::track_rpc_cap(pd.pd_sel_obj(), pt_sel);
+
+			/*
+			 * Use pd_sel of target component. Invalid/Non pd_sel() means that
+			 * it is core, due to empty Genode::Runtime in core/main.cc.
+			 */
+			if (pd.pd_sel())
+				pd_sel = pd.pd_sel();
 		});
 	}
 
