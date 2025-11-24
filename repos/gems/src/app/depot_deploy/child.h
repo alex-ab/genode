@@ -462,6 +462,30 @@ void Depot_deploy::Child::gen_start_node(Generator              &g,
 		if (permit_managing_system())
 			g.attribute("managing_system", "yes");
 
+		{
+			auto color = start_node.attribute_value("color", String<16>());
+			_with_launcher_node([&] (Node const &launcher_node) {
+				color = launcher_node.attribute_value("color", color); });
+			if (color.valid())
+				g.attribute("color", color);
+		}
+
+		auto permit_coloring = [&]
+		{
+			bool result = false;
+
+			if (start_node.attribute_value("coloring", false))
+				result = true;
+
+			_with_launcher_node([&] (Node const &launcher_node) {
+				if (launcher_node.attribute_value("coloring", false))
+					result = true; });
+
+			return result;
+		};
+		if (permit_coloring())
+			g.attribute("coloring", "yes");
+
 		bool shim_reroute = false;
 
 		/* lookup if PD/CPU service is configured and use shim in such cases */

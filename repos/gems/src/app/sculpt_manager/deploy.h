@@ -170,6 +170,8 @@ struct Sculpt::Deploy
 					copy_attribute("priority");
 					copy_attribute("pkg");
 					copy_attribute("managing_system");
+					copy_attribute("coloring");
+					copy_attribute("color");
 
 					/* copy start-node content */
 					if (!g.append_node_content(node, Generator::Max_depth { 20 }))

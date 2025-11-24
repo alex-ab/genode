@@ -654,7 +654,7 @@ install_config {
 		</provides>
 	</start>
 
-	<start name="runtime" caps="50000" ram="32G" priority="-1" managing_system="yes">
+	<start name="runtime" caps="50000" ram="32G" priority="-1" managing_system="yes" coloring="yes">
 		<binary name="monitor"/>
 		<route>
 			<service name="ROM" label="config">
