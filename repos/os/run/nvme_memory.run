@@ -1,0 +1,279 @@
+#
+# Scenario which uses the NVME driver to read from or write to
+# the specified physical memory to/from the specified region of the
+# NVME disc.
+#
+# This does only work if IOMMU support is disabled!
+#
+
+assert {[have_spec x86]}
+assert {[have_spec nova]}
+
+#
+# Build
+#
+set build_components {
+	kernel core init timer lib/ld
+	server/part_block
+	server/report_rom
+	app/pci_decode
+	driver/acpi
+	driver/platform
+	driver/nvme
+	test/memory
+	test/vmm_x86
+}
+
+build $build_components
+
+
+#
+# Create boot directory
+#
+create_boot_directory
+
+
+#
+# Create raw image
+#
+set nvme_file bin/nvme_memory.raw
+
+if {[have_include power_on/qemu]} {
+	#
+	# Check used commands
+	#
+	set dd     [installed_command dd]
+	set sgdisk [installed_command sgdisk]
+
+	exec rm -f $nvme_file
+
+	catch { exec $dd if=/dev/zero of=$nvme_file bs=1M count=64 }
+	#catch { exec $dd if=/dev/random of=$nvme_file bs=1M count=64 }
+
+	exec $sgdisk -n:1:2048:+16M $nvme_file
+	set part_info [exec $sgdisk -i 1 $nvme_file]
+
+	puts $part_info
+}
+
+
+#
+# Configuration target
+#
+
+# disable kernel iommu
+proc kernel_iommu { } { return "" }
+
+# default: read from nvme and write to RAM
+set write_to_nvme false
+
+set nvme_block_start 0
+set nvme_block_count 1024
+
+set target_phys_size 0x200000
+
+# !!! be careful !!!
+# switch to start the DMA read/write by the NVME to the specified memory
+set use_nvme_dma_attack false
+
+if {[have_include power_on/qemu]} {
+	set target_phys_addr 0x800000
+
+	#set write_to_nvme true
+} else {
+	# FUJI 6
+	set target_phys_addr 0x100a00000
+	# partition number="5" name="GENODE-DATA"
+	set nvme_block_start 411019264
+
+	#set write_to_nvme true
+}
+
+# for diagnostics, e.g. to read out partition table
+set use_part_block false
+
+
+#
+# Generate config
+#
+append config {
+<config verbose="yes" prio_levels="4">
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+		<service name="VM"/>
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+
+	<default caps="200" ram="2M"/>
+
+	<start name="timer">
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="report_rom" ram="2M" priority="-1" color="black">
+		<provides> <service name="Report"/> <service name="ROM"/> </provides>
+		<config>
+			<policy label="pci_decode -> system" report="acpi -> acpi"/>
+			<policy label="platform -> devices"  report="pci_decode -> devices"/>
+		</config>
+	</start>
+
+	<start name="block_report" ram="2M" priority="-1" color="black">
+		<binary name="report_rom"/>
+		<provides> <service name="Report"/> <service name="ROM"/> </provides>
+		<config verbose="yes">
+		</config>
+	</start>
+
+	<start name="acpi" caps="350" ram="6M" priority="-1">
+		<route>
+			<service name="Report"> <child name="report_rom"/> </service>
+			<service name="IO_MEM"> <parent/> </service>
+			<service name="LOG">    <parent/> </service>
+			<service name="PD">     <parent/> </service>
+			<service name="RM">     <parent/> </service>
+			<service name="CPU">    <parent/> </service>
+			<service name="ROM">    <parent/> </service>
+		</route>
+	</start>
+
+	<start name="pci_decode" caps="350" ram="2M" priority="-1">
+		<route>
+			<service name="Report">             <child name="report_rom"/> </service>
+			<service name="ROM" label="system"> <child name="report_rom"/> </service>
+			<service name="IO_MEM"> <parent/> </service>
+			<service name="LOG">    <parent/> </service>
+			<service name="PD">     <parent/> </service>
+			<service name="RM">     <parent/> </service>
+			<service name="CPU">    <parent/> </service>
+			<service name="ROM">    <parent/> </service>
+		</route>
+	</start>
+
+	<start name="platform" caps="100" ram="2M" managing_system="yes" priority="-1">
+		<provides>
+			<service name="Platform"/>
+		</provides>
+		<route>
+			<service name="ROM" label="devices"> <child name="report_rom"/> </service>
+			<service name="Report"> <child name="report_rom"/> </service>
+			<service name="IRQ">     <parent/> </service>
+			<service name="IO_MEM">  <parent/> </service>
+			<service name="IO_PORT"> <parent/> </service>
+			<service name="ROM">     <parent/> </service>
+			<service name="PD">      <parent/> </service>
+			<service name="CPU">     <parent/> </service>
+			<service name="LOG">     <parent/> </service>
+			<service name="Timer"> <child name="timer"/> </service>
+		</route>
+		<config>
+			<report devices="yes"/>
+			<policy label="nvme -> " info="yes"> <pci class="NVME"/> </policy>
+		</config>
+	</start>
+
+	<start name="memory" caps="200" ram="32M" priority="-2" managing_system="no" color="black">
+		<binary name="test-memory"/>
+		<config stop_on_failure="no" period_us="1000000" ld_verbose="yes"/>
+	</start>
+
+	<start name="vmm" caps="2048" ram="256M" priority="-2" color="red">
+		<binary name="test-vmm_x86"/>
+	</start>
+
+	<start name="nvme" caps="120" ram="24M" priority="-3">
+		<provides> <service name="Block"/> </provides>
+		<config max_hmb_size="16M" verbose_regs="yes" verbose_identify="yes" verbose_io="yes">}
+
+append_if [expr $use_nvme_dma_attack && !$use_part_block] config {
+			<override dma_addr="} $target_phys_addr {" dma_size="} $target_phys_size {" block_number="} $nvme_block_start {" block_count="} $nvme_block_count {" write="} $write_to_nvme {"/>}
+
+append_if $use_part_block config {
+			<policy label_prefix="part_block" writeable="false"/>}
+
+append config {
+		</config>
+		<route>
+			<service name="Platform"><child name="platform"/> </service>
+			<service name="Timer">   <child name="timer"/>    </service>
+			<service name="CPU">     <parent/>                </service>
+			<service name="ROM">     <parent/>                </service>
+			<service name="PD">      <parent/>                </service>
+			<service name="LOG">     <parent/>                </service>
+		</route>
+	</start>}
+
+append_if $use_part_block config {
+	<!-- just for diagnostics to read out partition information -->
+	<start name="part_block" caps="100" ram="10M" priority="-3">
+		<provides><service name="Block" /></provides>
+
+		<route>
+			<service name="Report"> <child name="block_report"/> </service>
+			<service name="Block">  <child name="nvme"/>         </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+
+		<config>
+			<report partitions="yes"/>
+		</config>
+	</start>}
+
+# disabled - just for testing color forwarding to subinits
+append config_sub_init {
+	<start name="subinit" caps="500" ram="100M" coloring="yes" color="blue">
+		<binary name="init"/>
+		<config>
+			<parent-provides>
+				<service name="ROM"/>
+				<service name="PD"/>
+				<service name="RM"/>
+				<service name="CPU"/>
+				<service name="LOG"/>
+				<service name="Timer"/>
+			</parent-provides>
+			<default-route>
+				<any-service> <parent/> <any-child/> </any-service>
+			</default-route>
+
+			<default caps="100"/>
+
+			<start name="memory" caps="200" ram="32M" color="black">
+				<binary name="test-memory"/>
+				<config stop_on_failure="no" period_us="1000000" ld_verbose="yes"/>
+			</start>
+
+			<start name="memory2" caps="200" ram="32M">
+				<binary name="test-memory"/>
+				<config stop_on_failure="no" period_us="1000000" ld_verbose="yes"/>
+			</start>
+		</config>
+		<route>
+			<service name="Timer">   <child name="timer"/>    </service>
+			<any-service> <parent/> <any-child/> </any-service>
+		</route>
+	</start>}
+
+append config {
+</config>}
+
+install_config $config
+
+build_boot_image [build_artifacts]
+
+append qemu_args { -nographic -m 2048 }
+append qemu_args { -device pcie-root-port,id=root_port1 }
+append qemu_args { -drive id=nvme0,file=} $nvme_file {,format=raw,if=none }
+append qemu_args { -device nvme,drive=nvme0,serial=fnord,id=nvme0n1,bus=root_port1 }
+#append qemu_args " -accel kvm -cpu host"
+
+run_genode_until forever
