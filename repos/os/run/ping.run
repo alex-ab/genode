@@ -55,6 +55,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/report_rom \
                   [depot_user]/src/nic_router
 
+build { driver/platform driver/usb_host core lib/ld }
 build { app/ping }
 
 proc dst_ip { } {

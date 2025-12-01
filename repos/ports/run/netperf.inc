@@ -438,6 +438,8 @@ if { $use_usb_driver } {
 	close $fd
 }
 
+build { driver/platform driver/usb_host core lib/ld }
+
 build_boot_image [build_artifacts]
 
 #
