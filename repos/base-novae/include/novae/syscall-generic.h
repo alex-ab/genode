@@ -99,30 +99,30 @@ namespace Novae {
 		auto mbuf_addr_end()   const { return         (raw[0x20 / 8]); }
 		auto root_addr_start() const { return         (raw[0x28 / 8]); }
 		auto root_addr_end()   const { return         (raw[0x30 / 8]); }
-		auto uefi_mmap_addr()  const { return         (raw[0x40 / 8]); }
-		auto uefi_mmap_size()  const { return uint32_t(raw[0x48 / 8]); }
-		auto uefi_desc_size()  const { return uint16_t(raw[0x48 / 8] >> 32); }
-		auto uefi_desc_ver()   const { return uint16_t(raw[0x48 / 8] >> 48); }
+		auto uefi_mmap_addr()  const { return         (raw[0x60 / 8]); }
+		auto uefi_mmap_size()  const { return uint32_t(raw[0x68 / 8]); }
+		auto uefi_desc_size()  const { return uint16_t(raw[0x68 / 8] >> 32); }
+		auto uefi_desc_ver()   const { return uint16_t(raw[0x68 / 8] >> 48); }
 
-		auto timer_freq()      const { return         (raw[0x50 / 8]); }
+		auto timer_freq()      const { return         (raw[0x70 / 8]); }
 
-		auto sel_num() const { return 1u << uint8_t (raw[0x58 / 8] >>  0); }
-		auto cpu_bsp() const { return       uint16_t(raw[0x68 / 8] >>  0); }
-		auto cpu_max() const { return       uint16_t(raw[0x68 / 8] >> 16) + 1; }
+		auto sel_num() const { return 1u << uint8_t (raw[0x78 / 8] >>  0); }
+		auto cpu_bsp() const { return       uint16_t(raw[0x88 / 8] >>  0); }
+		auto cpu_max() const { return       uint16_t(raw[0x88 / 8] >> 16) + 1; }
 
-		auto sel_hst_arch() const { return uint16_t(raw[0x70 / 8] >>  0); }
-		auto sel_hst_nova() const { return uint16_t(raw[0x70 / 8] >> 16); }
+		auto sel_hst_arch() const { return uint16_t(raw[0x90 / 8] >>  0); }
+		auto sel_hst_nova() const { return uint16_t(raw[0x90 / 8] >> 16); }
 
 #ifdef __x86_64__
-		auto pin_num() const { return uint16_t(raw[0x80 / 8] >> 16); }
-		auto gsi_num() const { return uint32_t(raw[0x80 / 8] >> 32); }
+		auto pin_num() const { return uint16_t(raw[0xa0 / 8] >> 16); }
+		auto gsi_num() const { return uint32_t(raw[0xa0 / 8] >> 32); }
 #else
 		/* XXX - high level code currently is not ARM aware, e.g SPI/ESPI */
-		auto pin_num() const { return uint16_t(raw[0x80 / 8] >> 16); }
+		auto pin_num() const { return uint16_t(raw[0xa0 / 8] >> 16); }
 		auto gsi_num() const { return uint32_t(pin_num()); }
 #endif
 
-		auto features()     const { return uint64_t(raw[0x78 / 8]); }
+		auto features()     const { return uint64_t(raw[0x98 / 8]); }
 
 		bool has_feature_iommu() const { return !!(features() & (1 << 0)); }
 		bool has_feature_vmx()   const { return !!(features() & (1 << 1)); }

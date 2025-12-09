@@ -439,7 +439,7 @@ static bool parse_mbi2_memory_map(auto &mem_io, auto &mem_ram, auto &region_allo
 	}, [&] (auto) { /* !map is checked below */ });
 
 	if (!map)
-		return true;
+		return false;
 
 	Mem_crd src_tmp1(    phys_mbi >> 12     , 0, Rights::read_only());
 	Mem_crd dst_tmp1( addr_t(map) >> 12     , 0, Rights::read_only());
@@ -465,7 +465,7 @@ static bool parse_mbi2_memory_map(auto &mem_io, auto &mem_ram, auto &region_allo
 	}, [&] (auto) { map = nullptr; });
 
 	if (!map)
-		return true;
+		return false;
 
 	Mem_crd src(   phys_mbi >> 12, 0, Rights::read_only());
 	Mem_crd dst(addr_t(map) >> 12, 0, Rights::read_only());
@@ -626,7 +626,7 @@ static bool parse_mbi2_memory_map(auto &mem_io, auto &mem_ram, auto &region_allo
 	}
 	region_alloc.free(map);
 
-	return false;
+	return true;
 }
 
 
