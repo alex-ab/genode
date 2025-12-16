@@ -327,8 +327,9 @@ class Genode::Rpc_entrypoint : Thread, public Object_pool<Rpc_object_base>
 
 		struct Exit : Genode::Interface
 		{
+			GENODE_RPC(Rpc_cleanup, void, _cleanup);
 			GENODE_RPC(Rpc_exit, void, _exit);
-			GENODE_RPC_INTERFACE(Rpc_exit);
+			GENODE_RPC_INTERFACE(Rpc_exit, Rpc_cleanup);
 		};
 
 		struct Exit_handler : Rpc_object<Exit, Exit_handler>
@@ -338,6 +339,8 @@ class Genode::Rpc_entrypoint : Thread, public Object_pool<Rpc_object_base>
 			Exit_handler() : exit(false) { }
 
 			void _exit() { exit = true; }
+
+			void _cleanup() { }
 		};
 
 	protected:
