@@ -719,13 +719,13 @@ Main::Intel_opregion Main::parse_intel_opregion(Pci::Config const &device)
 }
 
 
-void Main::parse_pci_config_spaces(Node const &node, Generator &g)
+void Main::parse_pci_config_spaces(Node const &parent_node, Generator &g)
 {
 	unsigned msi_number      = msi_start;
 	unsigned host_bridge_num = 0;
 
-	node.for_each_sub_node("bdf", [&] (Node const &node)
-	{
+	parent_node.for_each_sub_node("bdf", [&] (Node const &node) {
+
 		addr_t const start = node.attribute_value("start",  0UL);
 		addr_t const base  = node.attribute_value("base",   0UL);
 		size_t const count = node.attribute_value("count",  0UL);
@@ -744,6 +744,15 @@ void Main::parse_pci_config_spaces(Node const &node, Generator &g)
 
 		bus_t bus = 0;
 		bus_t max_subordinate_bus = bus;
+
+		parent_node.for_each_sub_node("root_bridge", [&] (Node const &node) {
+			auto const bdf        = node.attribute_value("bdf", 0UL);
+			auto const bridge_bus = bus_t((bdf >> 8) & 0xff);
+
+			if (bridge_bus > max_subordinate_bus && bridge_bus <= last_bus)
+				max_subordinate_bus = bridge_bus;
+		});
+
 		do {
 			enum { BUS_SIZE = DEVICES_PER_BUS_MAX * FUNCTION_PER_DEVICE_MAX
 			                  * FUNCTION_CONFIG_SPACE_SIZE };
