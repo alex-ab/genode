@@ -442,6 +442,27 @@ class Ioapic : public List<Ioapic>::Element
 };
 
 
+struct Root_bridge : public List<Root_bridge>::Element
+{
+	uint32_t const bdf;
+
+	Root_bridge(uint32_t r) : bdf (r) { }
+
+	static void for_each(auto const &func)
+	{
+		for (Root_bridge *entry = list()->first(); entry; entry = entry->next()) {
+			func(*entry);
+		}
+	}
+
+	static List<Root_bridge> *list()
+	{
+		static List<Root_bridge> _list;
+		return &_list;
+	}
+};
+
+
 /**
  * List that holds the result of the mcfg table parsing which are pointers
  * to the extended pci config space - 4k for each device.
@@ -789,9 +810,6 @@ class Pci_routing : public List<Pci_routing>::Element
 		}
 };
 
-/* set during ACPI Table walk to valid value */
-enum { INVALID_ROOT_BRIDGE = 0x10000U };
-static unsigned root_bridge_bdf = INVALID_ROOT_BRIDGE;
 
 /**
  * A table element (method, device, scope or name)
@@ -1386,7 +1404,7 @@ class Element : private List<Element>::Element
 					uint32_t const cid= e->_value("_CID");
 					if (hid == 0x80ad041 || cid == 0x80ad041 || // "PNP0A08" PCI Express root bridge
 					    hid == 0x30ad041 || cid == 0x30ad041) { // "PNP0A03" PCI root bridge
-						root_bridge_bdf = e->_bdf;
+						Root_bridge::list()->insert(new (&alloc) Root_bridge(e->_bdf));
 					}
 
 					if (verbose)
@@ -1743,11 +1761,11 @@ void Acpi::generate_report(Genode::Env &env, Genode::Allocator &alloc,
 
 		acpi_table.generate_info(g);
 
-		if (root_bridge_bdf != INVALID_ROOT_BRIDGE) {
+		Root_bridge::for_each([&](auto const &entry) {
 			g.node("root_bridge", [&] () {
-				attribute_hex(g, "bdf", root_bridge_bdf);
+				attribute_hex(g, "bdf", entry.bdf);
 			});
-		}
+		});
 
 		for (Pci_config_space *e = Pci_config_space::list()->first(); e;
 		     e = e->next())
