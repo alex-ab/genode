@@ -18,6 +18,7 @@
 #include <base/heap.h>
 #include <os/reporter.h>
 #include <base/attached_io_mem_dataspace.h>
+#include <util/bit_array.h>
 
 #include <irq.h>
 #include <rmrr.h>
@@ -48,6 +49,10 @@ struct Main
 		bool valid() { return size != 0; }
 	} intel_opregion { };
 
+	enum { MAX_BUS = 256 };
+
+	typedef Bit_array<MAX_BUS> Bus_array;
+
 	/*
 	 * We count beginning from 1 not 0, because some clients (Linux drivers)
 	 * do not ignore the pseudo MSI number announced, but interpret zero as
@@ -66,8 +71,8 @@ struct Main
 	bus_t parse_pci_function(Bdf, Config &,
 	                         addr_t cfg_phys_base,
 	                         Generator &, unsigned &msi);
-	bus_t parse_pci_bus(bus_t bus, Byte_range_ptr const &, addr_t phys_base,
-	                    Generator &, unsigned &msi);
+	void parse_pci_bus(bus_t, Byte_range_ptr const &, addr_t phys_base,
+	                   Generator &, unsigned &msi, Bus_array &);
 
 	void parse_irq_override_rules(Node const &);
 	void parse_pci_config_spaces (Node const &, Generator &);
@@ -383,14 +388,13 @@ bus_t Main::parse_pci_function(Bdf        bdf,
 }
 
 
-bus_t Main::parse_pci_bus(bus_t                 bus,
-                          Byte_range_ptr const &range,
-                          addr_t                phys_base,
-                          Generator            &g,
-                          unsigned             &msi_number)
+void Main::parse_pci_bus(bus_t                 scan_bus,
+                         Byte_range_ptr const &range,
+                         addr_t                phys_base,
+                         Generator            &g,
+                         unsigned             &msi_number,
+                         Bus_array            &bus)
 {
-	bus_t max_subordinate_bus = bus;
-
 	auto per_function = [&] (Byte_range_ptr const &config_range, addr_t config_phys_base,
 	                         dev_t dev, func_t fn) {
 		Config cfg(config_range);
@@ -398,10 +402,14 @@ bus_t Main::parse_pci_bus(bus_t                 bus,
 			return true;
 
 		bus_t const subordinate_bus =
-			parse_pci_function({(bus_t)bus, dev, fn}, cfg,
+			parse_pci_function({scan_bus, dev, fn}, cfg,
 			                   config_phys_base, g, msi_number);
 
-		max_subordinate_bus = max(max_subordinate_bus, subordinate_bus);
+		/* add new bus for scan */
+		if (subordinate_bus != scan_bus) {
+			if (bus.set(subordinate_bus, 1).failed())
+				warning("bus ", subordinate_bus, " skipped");
+		}
 
 		return !(fn == 0 && !cfg.read<Config::Header_type::Multi_function>());
 	};
@@ -416,8 +424,6 @@ bus_t Main::parse_pci_bus(bus_t                 bus,
 				break;
 		}
 	}
-
-	return max_subordinate_bus;
 }
 
 
@@ -719,19 +725,33 @@ Main::Intel_opregion Main::parse_intel_opregion(Pci::Config const &device)
 }
 
 
-void Main::parse_pci_config_spaces(Node const &parent_node, Generator &g)
+void Main::parse_pci_config_spaces(Node const &node, Generator &g)
 {
 	unsigned msi_number      = msi_start;
 	unsigned host_bridge_num = 0;
 
-	parent_node.for_each_sub_node("bdf", [&] (Node const &node) {
+	Bus_array bus { };
+
+	if (node.has_sub_node("root_bridge"))
+		node.for_each_sub_node("root_bridge", [&] (Node const &node) {
+			auto const bdf        = node.attribute_value("bdf", 0UL);
+			auto const bridge_bus = bus_t((bdf >> 8) & 0xff);
+
+			if (bus.set(bridge_bus, 1).failed())
+				warning("root bridge at bus ", bridge_bus, " ignored");
+		});
+	else
+		if (bus.set(0, 1).failed()) /* fallback, should not happen case */
+			warning("root bridge could not be set");
+
+	node.for_each_sub_node("bdf", [&] (Node const &node) {
 
 		addr_t const start = node.attribute_value("start",  0UL);
 		addr_t const base  = node.attribute_value("base",   0UL);
 		size_t const count = node.attribute_value("count",  0UL);
 
-		bus_t const bus_off  = (bus_t) (start / FUNCTION_PER_BUS_MAX);
-		bus_t const last_bus = (bus_t)
+		bus_t const start_bus = bus_t(start / FUNCTION_PER_BUS_MAX);
+		bus_t const last_bus  = (bus_t)
 			(max(1UL, (count / FUNCTION_PER_BUS_MAX)) - 1);
 
 		if (host_bridge_num++) {
@@ -739,32 +759,38 @@ void Main::parse_pci_config_spaces(Node const &parent_node, Generator &g)
 			return;
 		}
 
-		new (heap) Bridge(bridge_registry, { bus_off, 0, 0 },
-		                  bus_off, last_bus);
+		new (heap) Bridge(bridge_registry, { start_bus, 0, 0 },
+		                  start_bus, last_bus);
 
-		bus_t bus = 0;
-		bus_t max_subordinate_bus = bus;
-
-		parent_node.for_each_sub_node("root_bridge", [&] (Node const &node) {
-			auto const bdf        = node.attribute_value("bdf", 0UL);
-			auto const bridge_bus = bus_t((bdf >> 8) & 0xff);
-
-			if (bridge_bus > max_subordinate_bus && bridge_bus <= last_bus)
-				max_subordinate_bus = bridge_bus;
-		});
+		/* sanity guard to abort (potential) endless loop */
+		unsigned rounds = 0;
 
 		do {
 			enum { BUS_SIZE = DEVICES_PER_BUS_MAX * FUNCTION_PER_DEVICE_MAX
 			                  * FUNCTION_CONFIG_SPACE_SIZE };
-			addr_t offset = base + bus * BUS_SIZE;
-			pci_config_ds.construct(env, offset, BUS_SIZE);
-			bus_t const subordinate_bus =
-				parse_pci_bus((bus_t)bus + bus_off,
-				              {pci_config_ds->local_addr<char>(), BUS_SIZE},
-				              offset, g, msi_number);
 
-			max_subordinate_bus = max(max_subordinate_bus, subordinate_bus);
-		} while (bus++ < max_subordinate_bus);
+			for (unsigned scan_bus = start_bus; scan_bus <= last_bus; scan_bus++) {
+				bool const set = bus.get(scan_bus, 1).convert<bool>(
+					[] (bool v) { return v; }, [] (auto) { return false; });
+
+				if (!set)
+					continue;
+
+				if (bus.clear(scan_bus, 1).failed())
+					continue;
+
+				addr_t offset = base + scan_bus * BUS_SIZE;
+				pci_config_ds.construct(env, offset, BUS_SIZE);
+
+				parse_pci_bus((bus_t)scan_bus,
+				              {pci_config_ds->local_addr<char>(), BUS_SIZE},
+				              offset, g, msi_number, bus);
+			}
+
+			auto another_bus = bus.get(start_bus, last_bus - start_bus + 1);
+			if (!another_bus.convert<bool>([] (bool v) { return v; }, [] (auto) { return false; }))
+				break;
+		} while (rounds++ < MAX_BUS);
 
 		pci_config_ds.destruct();
 	});
