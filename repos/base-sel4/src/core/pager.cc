@@ -61,7 +61,7 @@ bool Ipc_pager::install_mapping()
 }
 
 
-void Ipc_pager::reply_and_wait_for_fault()
+bool Ipc_pager::reply_and_wait_for_fault()
 {
 	seL4_Word badge = Rpc_obj_key::INVALID;
 
@@ -104,8 +104,20 @@ void Ipc_pager::reply_and_wait_for_fault()
 		return "unknown";
 	};
 
+	if (fault_type == seL4_Fault_NullFault &&
+	    seL4_MessageInfo_get_length(page_fault_msg_info) == 1 &&
+	    seL4_GetMR(0) == 0xcafebabe) {
+
+		auto const reply_msg = seL4_MessageInfo_new(0, 0, 0, 0);
+		seL4_Reply(reply_msg);
+
+		return false;
+	}
+
 	if (fault_type != seL4_Fault_VMFault)
 		error("unexpected exception during fault '", fault_name(fault_type), "'");
+
+	return true;
 }
 
 
@@ -176,6 +188,30 @@ void Pager_entrypoint::dissolve(Pager_object &obj)
 {
 	using Pool = Object_pool<Pager_object>;
 
+	/* check whether running not in context of pager entrypoint */
+	if (Thread::myself() != static_cast<Thread *>(this)) {
+#if 0
+		error("dissolve pager ", Thread::myself()->name, " ", name, " ",
+		      Thread::myself(), " ", this, " ", static_cast<Thread *>(this));
+#endif
+
+		/* trigger destruction of cap at kernel */
+		auto cap = obj.cap();
+		Capability_space::destroy_rpc_obj_cap(cap);
+
+		/* call pager entrypoint and help it to finish potential in use obj */
+		this->with_native_thread([&] (Native_thread &nt) {
+
+			seL4_SetMR(0, 0xcafebabe);
+			auto const request    = seL4_MessageInfo_new(0, 0, 0, 1);
+			auto const reply_msg  = seL4_Call(nt.attr.ep_sel, request);
+			auto const fault_type = seL4_MessageInfo_get_label(reply_msg);
+
+			if (fault_type != seL4_Fault_NullFault)
+				error("unexpected pager dissolve result");
+		});
+	}
+
 	Pool::remove(&obj);
 }
 
@@ -201,9 +237,10 @@ void Pager_entrypoint::entry()
 
 	while (1) {
 
-		if (reply_pending)
-			_pager.reply_and_wait_for_fault();
-		else
+		if (reply_pending) {
+			if (!_pager.reply_and_wait_for_fault())
+				continue;
+		} else
 			_pager.wait_for_fault();
 
 		reply_pending = false;
