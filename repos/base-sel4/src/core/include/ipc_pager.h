@@ -53,7 +53,7 @@ class Core::Ipc_pager : public Native_capability
 		/**
 		 * Reply current page-fault and wait for a new one
 		 */
-		void reply_and_wait_for_fault();
+		bool reply_and_wait_for_fault();
 
 		/**
 		 * Request instruction pointer of current page fault
