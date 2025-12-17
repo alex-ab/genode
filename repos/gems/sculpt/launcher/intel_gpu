@@ -1,4 +1,4 @@
-<launcher pkg="intel_gpu" priority="-1">
+<launcher pkg="alex-ab/pkg/intel_gpu/2025-12-11" priority="-1">
 
 	<provides>
 		<service name="Platform"/>
@@ -15,8 +15,10 @@
 		<service name="Report">  <parent/> </service>
 		<service name="RM">      <parent/> </service>
 
+<!--
 		<service name="ROM" label_last="intel_gpu">
 			<parent label="intel_gpu"/>
 		</service>
+-->
 	</route>
 </launcher>

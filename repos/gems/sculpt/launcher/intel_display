@@ -1,4 +1,4 @@
-<launcher pkg="intel_display" priority="-1">
+<launcher pkg="alex-ab/pkg/intel_display/2025-12-17" priority="-1">
 	<route>
 
 		<service name="ROM" label="config">
@@ -17,8 +17,10 @@
 		<service name="Report">  <parent/> </service>
 		<service name="RM">      <parent/> </service>
 
+<!--
 		<service name="ROM" label_last="pc_intel_fb">
 			<parent label="pc_intel_fb"/>
 		</service>
+-->
 	</route>
 </launcher>
