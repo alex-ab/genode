@@ -639,9 +639,6 @@ assert {[have_spec x86]     ||
 # ! find . -type d -wholename *recipes/pkg/test-* -printf '%f\n' | sort
 #
 set default_test_pkgs {
-	test-spark
-	test-spark_exception
-	test-spark_secondary_stack
 	test-alarm
 	test-black_hole
 	test-blit
