@@ -519,7 +519,6 @@ static void parse_acpica_info(Node const &node,
 
 /*
  * Parse the TPM2 ACPI table and report the device if available.
- * Only CRB devices are supported at this time.
  *
  * See the following document for further information:
  * https://trustedcomputinggroup.org/wp-content/uploads/TCG_ACPIGeneralSpec_v1p3_r8_pub.pdf
@@ -530,13 +529,14 @@ void Main::parse_tpm2_table(Node const &node, Generator &g)
 		TPM2_TABLE_CRB_ADDRESS_OFFSET = 40,
 		TPM2_TABLE_CRB_ADDRESS_MASK = (~0xfff),
 		TPM2_TABLE_START_METHOD_OFFSET = 48,
+		TPM2_TABLE_START_METHOD_MEMORY_MAPPED = 6,
 		TPM2_TABLE_START_METHOD_CRB = 7,
 		TPM2_TABLE_MIN_SIZE = 52UL,
 		TPM2_DEVICE_IO_MEM_SIZE = 0x1000U,
 	};
 
-	addr_t const addr = node.attribute_value("addr",   0UL);
-	size_t const size = node.attribute_value("size",  0UL);
+	addr_t const addr = node.attribute_value("addr", 0UL);
+	size_t const size = node.attribute_value("size", 0UL);
 
 	if ((addr < 1UL) || (size < TPM2_TABLE_MIN_SIZE)) {
 		error("TPM2 table info invalid");
@@ -551,22 +551,34 @@ void Main::parse_tpm2_table(Node const &node, Generator &g)
 		return;
 	}
 
-	uint32_t start_method =
-		*(reinterpret_cast<uint32_t*>(ptr + TPM2_TABLE_START_METHOD_OFFSET));
-	if (start_method != TPM2_TABLE_START_METHOD_CRB) {
-		warning("Unsupported TPM2 device found");
+	auto start_method = *reinterpret_cast<uint32_t*>(ptr + TPM2_TABLE_START_METHOD_OFFSET);
+
+	addr_t tpm_address = 0;
+
+	String<16> type { };
+
+	switch (start_method) {
+	case TPM2_TABLE_START_METHOD_CRB:
+		tpm_address = *reinterpret_cast<addr_t*>(ptr + TPM2_TABLE_CRB_ADDRESS_OFFSET) & TPM2_TABLE_CRB_ADDRESS_MASK;
+		type = "tpm2_crb";
+		break;
+	case TPM2_TABLE_START_METHOD_MEMORY_MAPPED:
+		/* Fix defined address, see specification
+		 * TCG PC Client Specific TPM Interface Specification (TIS)
+		 */
+		tpm_address = 0xfed4'0000;
+		type = "tpm2_fifo";
+		break;
+	default:
+		warning("Unsupported TPM2 device found ", start_method);
 		return;
 	}
 
-	addr_t crb_address =
-		*(reinterpret_cast<addr_t*>(ptr + TPM2_TABLE_CRB_ADDRESS_OFFSET)) &
-		TPM2_TABLE_CRB_ADDRESS_MASK;
-
 	g.node("device", [&]
 	{
-		g.attribute("name", "tpm2");
+		g.attribute("name", type);
 		g.node("io_mem", [&] {
-			g.attribute("address", crb_address);
+			g.attribute("address", tpm_address);
 			g.attribute("size", TPM2_DEVICE_IO_MEM_SIZE);
 		});
 	});
