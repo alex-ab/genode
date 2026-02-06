@@ -22,7 +22,10 @@ using Driver::Device_component;
 
 void Driver::Device_component::_release_resources()
 {
+	error(this, " Device_component: release resources : ", __LINE__, " '", _session.label(), "' device=", _device);
+
 	_io_mem_registry.for_each([&] (Io_mem &iomem) {
+		error(this, " Device_component: release resources : ", __LINE__, " '", _session.label(), "' device=", _device, " io_mem=", Hex_range(iomem.range.start, iomem.range.size));
 		destroy(_session.heap(), &iomem); });
 
 	_irq_registry.for_each([&] (Irq &irq) {
@@ -100,8 +103,12 @@ Device_component::io_mem(unsigned idx, Range &range)
 {
 	Io_mem_session_capability cap;
 
+	unsigned io_mems = 0;
+
 	_io_mem_registry.for_each([&] (Io_mem &iomem)
 	{
+		io_mems ++;
+
 		if (iomem.idx != idx)
 			return;
 
@@ -115,11 +122,16 @@ Device_component::io_mem(unsigned idx, Range &range)
 			range = iomem.range;
 			range.start &= 0xfff;
 			cap = iomem.io_mem->cap();
-		} catch (Genode::Service_denied) { }
+
+//			if (!cap.valid())
+				error(this, " Device_component::io_mem() : ", __LINE__, " '", _session.label(), "' cap=", cap, " idx=", idx, " io_mems=", io_mems, " device=", _device);
+		} catch (Genode::Service_denied) {
+			error(this, " Device_component::io_mem() : ", __LINE__, " '", _session.label(), "' service denied exception");
+		}
 	});
 
-	if (!cap.valid())
-		error(__func__, " ", _session.label(), " cap=", cap);
+//	if (!cap.valid())
+		error(this, " Device_component::io_mem() : ", __LINE__, " '", _session.label(), "' cap=", cap, " idx=", idx, " io_mems=", io_mems, " device=", _device);
 
 	return cap;
 }
@@ -287,8 +299,10 @@ Device_component::Device_component(Registry<Device_component> &registry,
 	_device(device.name()),
 	_reg_elem(registry, *this)
 {
-	if (!session.cap_quota_guard().try_withdraw(Cap_quota{1}))
+	if (!session.cap_quota_guard().try_withdraw(Cap_quota{1})) {
+		error(this, " Device_component: ", __LINE__, " '", _session.label(), "' device=", _device);
 		throw Out_of_caps();
+	}
 
 	_cap_quota += 1;
 
@@ -319,9 +333,13 @@ Device_component::Device_component(Registry<Device_component> &registry,
 		device.for_each_io_mem([&] (unsigned idx, Range range,
 		                            Device::Pci_bar bar, bool wc)
 		{
+			error(this, " Device_component(): create io_mem : ", __LINE__, " '", _session.label(), "' device=", _device, " ", Hex_range(range.start, range.size), " bar.number=", bar.number);
 			_with_reserved_quota_for_session<Io_mem_session>(session, [&] {
+				error(this, " Device_component(): create io_mem : ", __LINE__, " '", _session.label(), "' device=", _device);
 				new (session.heap())
-					Io_mem(_io_mem_registry, bar, idx, range, wc); });
+					Io_mem(_io_mem_registry, bar, idx, range, wc);
+				error(this, " Device_component(): create io_mem : ", __LINE__, " '", _session.label(), "' device=", _device);
+			});
 		});
 
 		device.for_each_io_port_range([&] (unsigned idx, Io_port_range::Range range,
@@ -374,7 +392,9 @@ Device_component::Device_component(Registry<Device_component> &registry,
 			default_domain_fn
 		);
 
-	} catch(...) {
+		error(this, " Device_component() done : ", __LINE__, " '", _session.label(), "' device=", _device);
+	} catch (...) {
+		error(this, " Device_component() exception : ", __LINE__, " '", _session.label(), "' device=", _device);
 		_release_resources();
 		throw;
 	}
