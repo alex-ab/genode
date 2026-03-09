@@ -49,6 +49,9 @@ Ipc_pager::Ipc_pager(Nova::Utcb &utcb, addr_t pd_dst, addr_t pd_core)
 
 void Ipc_pager::set_reply_mapping(Mapping const mapping)
 {
+	if (mapping.write_combined)
+		error(__func__, " set write combined ", Hex(mapping.src_addr), "-", Hex_range(mapping.dst_addr, 1ul << (mapping.size_log2)));
+
 	Nova::Utcb &utcb = *(Nova::Utcb *)Thread::myself()->utcb();
 
 	utcb.set_msg_word(0);

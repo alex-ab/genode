@@ -51,6 +51,9 @@ Pd_session::Map_result Pd_session_component::map(Pd_session::Virt_range const vi
 
 	auto map_memory = [&] (Mapping const &mapping)
 	{
+		if (mapping.write_combined)
+			error("Pd::map ---- map write combined ", Hex_range(virt_range.start, virt_range.num_bytes));
+
 		/* asynchronously map memory */
 		uint8_t err = retry_syscall(_pd.pd_sel(), [&] {
 			utcb.set_msg_word(0);
