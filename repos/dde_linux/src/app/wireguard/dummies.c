@@ -284,3 +284,10 @@ bool is_swiotlb_allocated(void)
 	return false;
 }
 #endif
+
+
+int cpu_has_xfeatures(u64 xfeatures_needed, const char ** feature_name)
+{
+	lx_emul_trace(__func__);
+	return 0;
+}
