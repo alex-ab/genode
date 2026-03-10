@@ -49,6 +49,7 @@ struct Lx_kit::Env
 	Timer::Connection    timer           { env };
 	Mem_allocator        memory          { env, heap, platform, CACHED   };
 	Mem_allocator        uncached_memory { env, heap, platform, UNCACHED };
+	Mem_allocator        writecombined   { env, heap, platform, WRITE_COMBINED };
 	Scheduler            scheduler       { env.ep() };
 	Device_list          devices         { env.ep(), heap, platform };
 	Lx_kit::Timeout      timeout         { timer, scheduler };

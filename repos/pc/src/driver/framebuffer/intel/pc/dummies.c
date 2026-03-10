@@ -721,10 +721,6 @@ void * vmap(struct page ** pages, unsigned int count, unsigned long flags, pgpro
 	unsigned long prev_addr  = 0;
 
 	/* set by pgprot_writecombine() - changing page cache mode is not supported */
-	if (prot.pgprot == _PAGE_CACHE_MODE_WC) {
-		printk("WARNING - %s - re-mapping pages as write-combined is not supported\n", __func__);
-	}
-
 	for (unsigned i = 0; i < count; i++) {
 		void * virt_addr = page_address(pages[i]);
 
@@ -743,6 +739,22 @@ void * vmap(struct page ** pages, unsigned int count, unsigned long flags, pgpro
 	if (!contiguous)
 		printk("%s -- failed, pages are non contiguous count=%u\n",
 		       __func__, count);
+
+	if (prot.pgprot == _PAGE_CACHE_MODE_WC) {
+		bool fail_wc_check = false;
+		for (unsigned i = 0; i < count;) {
+			unsigned long wc_size = lx_emul_mem_wc_size((void *)((unsigned long)vmap_addr + i * 4096));
+			if (wc_size < 4096) {
+				fail_wc_check = true;
+				break;
+			}
+			i += wc_size / 4096;
+		}
+
+		if (fail_wc_check)
+			printk("WARNING - %s - re-mapping pages as write-combined is not supported vmap_addr=%px+%x wc_size=%lx\n",
+			       __func__, vmap_addr, count * 4096, lx_emul_mem_wc_size((void *)vmap_addr));
+	}
 
 	return contiguous ? vmap_addr : 0;
 }

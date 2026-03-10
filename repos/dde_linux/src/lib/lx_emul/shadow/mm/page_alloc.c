@@ -118,6 +118,17 @@ static struct page * lx_alloc_pages(unsigned const nr_pages)
 }
 
 
+static struct page * lx_alloc_pages_wc(unsigned const nr_pages)
+{
+	void const  *ptr  = lx_emul_mem_alloc_aligned_wc(PAGE_SIZE*nr_pages, nr_pages*PAGE_SIZE);
+	struct page *page = lx_emul_virt_to_page(ptr);
+
+	init_page_count(page);
+
+	return page;
+}
+
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
 unsigned long __alloc_pages_bulk(gfp_t gfp,int preferred_nid,
                                  nodemask_t * nodemask, int nr_pages,
@@ -170,7 +181,12 @@ struct page * __alloc_pages_noprof(gfp_t gfp, unsigned int order, int preferred_
                                    nodemask_t * nodemask)
 #endif
 {
-	struct page *page = lx_alloc_pages(1u << order);
+	unsigned const wc_bit = 1u << 31;
+	struct page *page = (gfp & wc_bit)
+	                  ? lx_alloc_pages_wc(1u << order)
+	                  : lx_alloc_pages(1u << order);
+
+	gfp &= ~wc_bit;
 
 	if (!page)
 		return 0;
