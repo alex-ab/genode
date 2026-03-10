@@ -1,0 +1,294 @@
+--- src/linux/drivers/gpu/drm/i915/gem/i915_gem_internal.c
++++ src/linux/drivers/gpu/drm/i915/gem/i915_gem_internal.c
+@@ -29,7 +29,8 @@
+ 	kfree(st);
+ }
+ 
+-static int i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
++static int i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj,
++                                              enum i915_map_type type)
+ {
+ 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+ 	struct sg_table *st;
+@@ -71,8 +72,9 @@
+ 		struct page *page;
+ 
+ 		do {
+-			page = alloc_pages(gfp | (order ? QUIET : MAYFAIL),
++			page = alloc_pages(gfp | (order ? QUIET : MAYFAIL) | (I915_MAP_WC ? (1u << 31) : 0u),
+ 					   order);
++
+ 			if (page)
+ 				break;
+ 			if (!order--)
+--- src/linux/drivers/gpu/drm/i915/gem/i915_gem_object_types.h
++++ src/linux/drivers/gpu/drm/i915/gem/i915_gem_object_types.h
+@@ -34,6 +34,14 @@
+ 	u32 handle;
+ };
+ 
++enum i915_map_type {
++	I915_MAP_WB = 0,
++	I915_MAP_WC,
++#define I915_MAP_OVERRIDE BIT(31)
++	I915_MAP_FORCE_WB = I915_MAP_WB | I915_MAP_OVERRIDE,
++	I915_MAP_FORCE_WC = I915_MAP_WC | I915_MAP_OVERRIDE,
++};
++
+ struct drm_i915_gem_object_ops {
+ 	unsigned int flags;
+ #define I915_GEM_OBJECT_IS_SHRINKABLE			BIT(1)
+@@ -55,7 +63,8 @@
+ 	 * being released or under memory pressure (where we attempt to
+ 	 * reap pages for the shrinker).
+ 	 */
+-	int (*get_pages)(struct drm_i915_gem_object *obj);
++	int (*get_pages)(struct drm_i915_gem_object *obj, enum i915_map_type type);
++
+ 	void (*put_pages)(struct drm_i915_gem_object *obj,
+ 			  struct sg_table *pages);
+ 	int (*truncate)(struct drm_i915_gem_object *obj);
+@@ -204,14 +213,6 @@
+ 	I915_MAX_CACHE_LEVEL,
+ };
+ 
+-enum i915_map_type {
+-	I915_MAP_WB = 0,
+-	I915_MAP_WC,
+-#define I915_MAP_OVERRIDE BIT(31)
+-	I915_MAP_FORCE_WB = I915_MAP_WB | I915_MAP_OVERRIDE,
+-	I915_MAP_FORCE_WC = I915_MAP_WC | I915_MAP_OVERRIDE,
+-};
+-
+ enum i915_mmap_type {
+ 	I915_MMAP_TYPE_GTT = 0,
+ 	I915_MMAP_TYPE_WC,
+--- src/linux/drivers/gpu/drm/i915/gem/i915_gem_stolen.c
++++ src/linux/drivers/gpu/drm/i915/gem/i915_gem_stolen.c
+@@ -641,7 +641,7 @@
+ 	return st;
+ }
+ 
+-static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
++static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj, enum i915_map_type)
+ {
+ 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+ 	struct sg_table *pages =
+--- src/linux/drivers/gpu/drm/i915/display/intel_fb_pin.c
++++ src/linux/drivers/gpu/drm/i915/display/intel_fb_pin.c
+@@ -163,7 +163,7 @@
+ 	else if (!ret && HAS_LMEM(dev_priv))
+ 		ret = i915_gem_object_migrate(obj, &ww, INTEL_REGION_LMEM_0);
+ 	if (!ret)
+-		ret = i915_gem_object_pin_pages(obj);
++		ret = i915_gem_object_pin_pages_type(obj, I915_MAP_WC);
+ 	if (ret)
+ 		goto err;
+ 
+--- src/linux/drivers/gpu/drm/i915/gem/i915_gem_clflush.c
++++ src/linux/drivers/gpu/drm/i915/gem/i915_gem_clflush.c
+@@ -56,7 +56,7 @@
+ 	if (!clflush)
+ 		return NULL;
+ 
+-	if (__i915_gem_object_get_pages(obj) < 0) {
++	if (__i915_gem_object_get_pages(obj, I915_MAP_WB) < 0) {
+ 		kfree(clflush);
+ 		return NULL;
+ 	}
+--- src/linux/drivers/gpu/drm/i915/gem/i915_gem_ttm.c
++++ src/linux/drivers/gpu/drm/i915/gem/i915_gem_ttm.c
+@@ -213,7 +213,7 @@
+ 
+ 	st = &i915_tt->cached_rsgt.table;
+ 	err = shmem_sg_alloc_table(i915, st, size, mr, filp->f_mapping,
+-				   max_segment);
++				   max_segment, I915_MAP_WB);
+ 	if (err)
+ 		return err;
+ 
+@@ -833,7 +833,8 @@
+ 	return ret;
+ }
+ 
+-static int i915_ttm_get_pages(struct drm_i915_gem_object *obj)
++static int i915_ttm_get_pages(struct drm_i915_gem_object *obj,
++                              enum i915_map_type type)
+ {
+ 	struct ttm_place places[I915_TTM_MAX_PLACEMENTS + 1];
+ 	struct ttm_placement placement;
+--- src/linux/drivers/gpu/drm/i915/gem/i915_gem_pages.c
++++ src/linux/drivers/gpu/drm/i915/gem/i915_gem_pages.c
+@@ -97,7 +97,8 @@
+ 	}
+ }
+ 
+-int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
++int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj,
++                                  enum i915_map_type type)
+ {
+ 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+ 	int err;
+@@ -110,7 +111,7 @@
+ 		return -EFAULT;
+ 	}
+ 
+-	err = obj->ops->get_pages(obj);
++	err = obj->ops->get_pages(obj, type);
+ 	GEM_BUG_ON(!err && !i915_gem_object_has_pages(obj));
+ 
+ 	return err;
+@@ -123,7 +124,8 @@
+  * either as a result of memory pressure (reaping pages under the shrinker)
+  * or as the object is itself released.
+  */
+-int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
++int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj,
++                                enum i915_map_type type)
+ {
+ 	int err;
+ 
+@@ -134,7 +136,7 @@
+ 	if (unlikely(!i915_gem_object_has_pages(obj))) {
+ 		GEM_BUG_ON(i915_gem_object_has_pinned_pages(obj));
+ 
+-		err = ____i915_gem_object_get_pages(obj);
++		err = ____i915_gem_object_get_pages(obj, type);
+ 		if (err)
+ 			return err;
+ 
+@@ -507,7 +509,7 @@
+ 		if (unlikely(!i915_gem_object_has_pages(obj))) {
+ 			GEM_BUG_ON(i915_gem_object_has_pinned_pages(obj));
+ 
+-			err = ____i915_gem_object_get_pages(obj);
++			err = ____i915_gem_object_get_pages(obj, type);
+ 			if (err)
+ 				return ERR_PTR(err);
+ 
+--- src/linux/drivers/gpu/drm/i915/gem/i915_gem_shmem.c
++++ src/linux/drivers/gpu/drm/i915/gem/i915_gem_shmem.c
+@@ -63,7 +63,8 @@
+ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
+ 			 size_t size, struct intel_memory_region *mr,
+ 			 struct address_space *mapping,
+-			 unsigned int max_segment)
++			 unsigned int max_segment,
++			 enum i915_map_type type)
+ {
+ 	unsigned int page_count; /* restricted by sg_alloc_table */
+ 	unsigned long i;
+@@ -109,7 +110,7 @@
+ 
+ 		do {
+ 			cond_resched();
+-			folio = shmem_read_folio_gfp(mapping, i, gfp);
++			folio = shmem_read_folio_gfp(mapping, i, gfp | (type == I915_MAP_WC ? 1u << 31 : 0));
+ 			if (!IS_ERR(folio))
+ 				break;
+ 
+@@ -202,7 +203,8 @@
+ 	return ret;
+ }
+ 
+-static int shmem_get_pages(struct drm_i915_gem_object *obj)
++static int shmem_get_pages(struct drm_i915_gem_object *obj,
++                           enum i915_map_type type)
+ {
+ 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+ 	struct intel_memory_region *mem = obj->mm.region;
+@@ -225,7 +227,7 @@
+ 		return -ENOMEM;
+ 
+ 	ret = shmem_sg_alloc_table(i915, st, obj->base.size, mem, mapping,
+-				   max_segment);
++				   max_segment, type);
+ 	if (ret)
+ 		goto err_st;
+ 
+--- src/linux/drivers/gpu/drm/i915/gem/i915_gem_object.h
++++ src/linux/drivers/gpu/drm/i915/gem/i915_gem_object.h
+@@ -639,18 +639,24 @@
+ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
+ 				 struct sg_table *pages);
+ 
+-int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
+-int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
++int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj, enum i915_map_type type);
++int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj, enum i915_map_type type);
+ 
+ static inline int __must_check
+-i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
++i915_gem_object_pin_pages_type(struct drm_i915_gem_object *obj, enum i915_map_type type)
+ {
+ 	assert_object_held(obj);
+ 
+ 	if (atomic_inc_not_zero(&obj->mm.pages_pin_count))
+ 		return 0;
+ 
+-	return __i915_gem_object_get_pages(obj);
++	return __i915_gem_object_get_pages(obj, type);
++}
++
++static inline int __must_check
++i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
++{
++	return i915_gem_object_pin_pages_type(obj, I915_MAP_WB);
+ }
+ 
+ int i915_gem_object_pin_pages_unlocked(struct drm_i915_gem_object *obj);
+@@ -846,7 +852,8 @@
+ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
+ 			 size_t size, struct intel_memory_region *mr,
+ 			 struct address_space *mapping,
+-			 unsigned int max_segment);
++			 unsigned int max_segment,
++			 enum i915_map_type type);
+ void shmem_sg_free_table(struct sg_table *st, struct address_space *mapping,
+ 			 bool dirty, bool backup);
+ void __shmem_writeback(size_t size, struct address_space *mapping);
+--- src/linux/drivers/gpu/drm/i915/gem/i915_gem_userptr.c
++++ src/linux/drivers/gpu/drm/i915/gem/i915_gem_userptr.c
+@@ -95,7 +95,8 @@
+ 	}
+ }
+ 
+-static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
++static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj,
++                                      enum i915_map_type type)
+ {
+ 	unsigned int max_segment = i915_sg_segment_size(obj->base.dev->dev);
+ 	struct sg_table *st;
+@@ -289,7 +290,7 @@
+ 		obj->userptr.pvec = pvec;
+ 		obj->userptr.notifier_seq = notifier_seq;
+ 		pvec = NULL;
+-		ret = ____i915_gem_object_get_pages(obj);
++		ret = ____i915_gem_object_get_pages(obj, I915_MAP_WB);
+ 	}
+ 
+ 	obj->userptr.page_ref--;
+--- src/linux/drivers/gpu/drm/i915/gem/i915_gem_dmabuf.c
++++ src/linux/drivers/gpu/drm/i915/gem/i915_gem_dmabuf.c
+@@ -233,7 +233,8 @@
+ 	return drm_gem_dmabuf_export(gem_obj->dev, &exp_info);
+ }
+ 
+-static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
++static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj,
++                                            enum i915_map_type type)
+ {
+ 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+ 	struct sg_table *sgt;
+--- src/linux/drivers/gpu/drm/i915/gt/gen6_ppgtt.c
++++ src/linux/drivers/gpu/drm/i915/gt/gen6_ppgtt.c
+@@ -359,7 +359,8 @@
+ 	return err;
+ }
+ 
+-static int pd_dummy_obj_get_pages(struct drm_i915_gem_object *obj)
++static int pd_dummy_obj_get_pages(struct drm_i915_gem_object *obj,
++                                  enum i915_map_type type)
+ {
+ 	obj->mm.pages = ZERO_SIZE_PTR;
+ 	return 0;
