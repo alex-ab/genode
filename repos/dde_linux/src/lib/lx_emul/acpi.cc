@@ -203,8 +203,8 @@ void lx_emul_acpi_init()
 	});
 
 	/* FIXME add locally configured ACPI devices (e.g., touchpad "EPTP" */
-	new (env().heap) Acpi::Device(*Acpi::registry, env().heap,
-	                              "I2C3", (void *)handle++);
-	new (env().heap) Acpi::Device(*Acpi::registry, env().heap,
-	                              "EPTP", (void *)handle++);
+	// new (env().heap) Acpi::Device(*Acpi::registry, env().heap,
+	//                               "I2C3", (void *)handle++);
+	// new (env().heap) Acpi::Device(*Acpi::registry, env().heap,
+	//                               "EPTP", (void *)handle++);
 }
