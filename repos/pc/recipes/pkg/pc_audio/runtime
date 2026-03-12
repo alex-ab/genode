@@ -4,6 +4,9 @@ runtime | ram: 10M | caps: 200 | binary: pc_audio
   + report
   + timer
   + rm
++ provides
+  + audio_in
+  + audio_out
 + content
   + rom | label: ld.lib.so
   + rom | label: pc_audio

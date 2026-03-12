@@ -244,3 +244,49 @@ unsigned long raw_copy_from_user(void *to, const void * from, unsigned long n)
 	return 0;
 }
 #endif
+
+
+#include <linux/clkdev.h>
+
+#define MAX_DEV_ID  24
+#define MAX_CON_ID  16
+
+struct clk_lookup_alloc {
+	struct clk_lookup cl;
+	char    dev_id[MAX_DEV_ID];
+	char    con_id[MAX_CON_ID];
+};
+
+struct clk_lookup *clkdev_create(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
+{
+	struct clk_lookup_alloc *cla;
+
+	cla = kzalloc(sizeof(*cla), GFP_KERNEL);
+	if (!cla)
+		return NULL;
+
+	//  cla->cl.clk_hw = hw;
+	if (con_id) {
+		strscpy(cla->con_id, con_id, sizeof(cla->con_id));
+		cla->cl.con_id = cla->con_id;
+	}
+
+	if (dev_fmt) {
+		va_list ap;
+		va_start(ap, dev_fmt);
+		vscnprintf(cla->dev_id, sizeof(cla->dev_id), dev_fmt, ap);
+		va_end(ap);
+		cla->cl.dev_id = cla->dev_id;
+	}
+
+	return &cla->cl;
+}
+
+
+#include <linux/clk-provider.h>
+
+struct clk * clk_register_gate(struct device * dev,const char * name,const char * parent_name,unsigned long flags,void __iomem * reg,u8 bit_idx,u8 clk_gate_flags,spinlock_t * lock)
+{
+	lx_emul_trace(__func__);
+	return NULL;
+}

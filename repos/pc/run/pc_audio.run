@@ -22,7 +22,7 @@ import_from_depot \
 	[depot_user]/src/pc_audio \
 	[depot_user]/raw/sof_firmware
 
-build { driver/audio/pc test/audio_play }
+build { driver/audio/pc test/audio_play app/pci_decode }
 
 append config {
 config | prio_levels: 2
@@ -77,6 +77,7 @@ config | prio_levels: 2
     + report | devices: yes
     + policy | label_prefix: pc_audio | info: yes
       + device NHLT
+      + device 00:1e.2 | type: pci | . LPC/eSPI
       + pci | class: AUDIO
       + pci | class: HDAUDIO
   + route

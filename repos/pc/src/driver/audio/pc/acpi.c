@@ -65,18 +65,3 @@ acpi_get_table(char *signature,
 	printk("%s: ACPI table '%s' not found\n",  __func__, signature);
 	return AE_NOT_FOUND;
 }
-
-
-acpi_status acpi_resource_to_address64(struct acpi_resource *resource,
-                                       struct acpi_resource_address64 *out)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-acpi_status acpi_walk_resources(acpi_handle device_handle, char *name,
-                                acpi_walk_resource_callback user_function,
-                                void *context)
-{
-	return (AE_OK);
-}

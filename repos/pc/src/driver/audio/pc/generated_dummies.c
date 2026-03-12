@@ -15,14 +15,6 @@ int ___ratelimit(struct ratelimit_state * rs,const char * func)
 }
 
 
-#include <linux/acpi.h>
-
-int __acpi_node_get_property_reference(const struct fwnode_handle * fwnode,const char * propname,size_t index,size_t num_args,struct fwnode_reference_args * args)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 #include <linux/cpumask.h>
 
 struct cpumask __cpu_active_mask;
@@ -76,6 +68,14 @@ unsigned int __kfifo_out(struct __kfifo * fifo,void * buf,unsigned int len)
 }
 
 
+#include <asm-generic/delay.h>
+
+void __ndelay(unsigned long nsecs)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
 #include <linux/printk.h>
 
 void __printk_deferred_enter(void)
@@ -115,8 +115,65 @@ void ack_bad_irq(unsigned int irq)
 }
 
 
-extern acpi_status acpi_get_handle(acpi_handle parent,const char * pathname,acpi_handle * ret_handle);
-acpi_status acpi_get_handle(acpi_handle parent,const char * pathname,acpi_handle * ret_handle)
+#include <linux/acpi.h>
+
+int acpi_check_resource_conflict(const struct resource * res)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <acpi/acpi_bus.h>
+
+int acpi_dev_for_each_child(struct acpi_device * adev,int (* fn)(struct acpi_device *,void *),void * data)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/acpi.h>
+
+int acpi_dev_get_property(const struct acpi_device * adev,const char * name,acpi_object_type type,const union acpi_object ** obj)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <acpi/acpi_bus.h>
+
+const char * acpi_device_hid(struct acpi_device * device)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/acpi_dma.h>
+
+struct dma_chan * acpi_dma_request_slave_chan_by_name(struct device * dev,const char * name)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <acpi/acpi_bus.h>
+
+acpi_status acpi_execute_simple_method(acpi_handle handle,char * method,u64 arg)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <acpi/acpi_bus.h>
+
+struct acpi_device * acpi_fetch_acpi_dev(acpi_handle handle)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <acpi/acpi_bus.h>
+
+struct acpi_device * acpi_find_child_device(struct acpi_device * parent,u64 address,bool check_children)
 {
 	lx_emul_trace_and_stop(__func__);
 }
@@ -125,14 +182,6 @@ acpi_status acpi_get_handle(acpi_handle parent,const char * pathname,acpi_handle
 #include <linux/acpi.h>
 
 int acpi_get_override_irq(u32 gsi,int * is_level,int * active_low)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-#include <acpi/acpi_bus.h>
-
-bool acpi_has_method(acpi_handle handle,char * name)
 {
 	lx_emul_trace_and_stop(__func__);
 }
@@ -239,6 +288,38 @@ void cleanup_srcu_struct(struct srcu_struct * ssp)
 }
 
 
+#include <linux/clk.h>
+
+struct clk * clk_get_parent(struct clk * clk)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/clk-provider.h>
+
+unsigned long clk_hw_get_flags(const struct clk_hw * hw)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/clk-provider.h>
+
+void clk_hw_unregister(struct clk_hw * hw)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/clkdev.h>
+
+void clkdev_drop(struct clk_lookup * cl)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
 #include <linux/console.h>
 
 void console_flush_on_panic(enum con_flush_mode mode)
@@ -290,22 +371,6 @@ unsigned int cpumask_any_and_distribute(const struct cpumask * src1p,const struc
 #include <linux/sched/topology.h>
 
 bool cpus_share_cache(int this_cpu,int that_cpu)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-#include <linux/property.h>
-
-int device_create_managed_software_node(struct device * dev,const struct property_entry * properties,const struct software_node * parent)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-#include <linux/pinctrl/consumer.h>
-
-struct pinctrl * devm_pinctrl_get(struct device * dev)
 {
 	lx_emul_trace_and_stop(__func__);
 }
@@ -468,9 +533,33 @@ int i2c_acpi_client_count(struct acpi_device * adev)
 }
 
 
+#include <linux/i2c.h>
+
+struct i2c_client * i2c_acpi_new_device_by_fwnode(struct fwnode_handle * fwnode,int index,struct i2c_board_info * info)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/i2c.h>
+
+void i2c_unregister_device(struct i2c_client * client)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
 #include <linux/pseudo_fs.h>
 
 struct pseudo_fs_context * init_pseudo(struct fs_context * fc,unsigned long magic)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/srcu.h>
+
+int init_srcu_struct(struct srcu_struct * ssp)
 {
 	lx_emul_trace_and_stop(__func__);
 }
@@ -553,7 +642,23 @@ __no_kmsan_checks unsigned int ioread32(const void __iomem * addr)
 
 #include <asm-generic/iomap.h>
 
+__no_kmsan_checks unsigned int ioread32be(const void __iomem * addr)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <asm-generic/iomap.h>
+
 void iowrite32(u32 val,void __iomem * addr)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <asm-generic/iomap.h>
+
+void iowrite32be(u32 val,void __iomem * addr)
 {
 	lx_emul_trace_and_stop(__func__);
 }
@@ -570,6 +675,14 @@ bool irq_work_queue(struct irq_work * work)
 #include <linux/irq_work.h>
 
 bool irq_work_queue_on(struct irq_work * work,int cpu)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/irq_work.h>
+
+void irq_work_sync(struct irq_work * work)
 {
 	lx_emul_trace_and_stop(__func__);
 }
@@ -649,6 +762,22 @@ void mm_compute_batch(int overcommit_policy)
 }
 
 
+#include <linux/irqdomain.h>
+
+int msi_device_domain_alloc_wired(struct irq_domain * domain,unsigned int hwirq,unsigned int type)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/irqdomain.h>
+
+void msi_device_domain_free_wired(struct irq_domain * domain,unsigned int virq)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
 #include <linux/printk.h>
 
 void nbcon_atomic_flush_unsafe(void)
@@ -678,6 +807,14 @@ void note_interrupt(struct irq_desc * desc,irqreturn_t action_ret)
 }
 
 
+#include <linux/clk-provider.h>
+
+int of_clk_hw_register(struct device_node * node,struct clk_hw * hw)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
 #include <linux/printk.h>
 
 int oops_in_progress;	/* If set, an oops, panic(), BUG() or die() is in progress */
@@ -701,6 +838,14 @@ const struct kernel_param_ops param_ops_charp;
 #include <linux/moduleparam.h>
 
 const struct kernel_param_ops param_ops_int;
+
+
+#include <linux/pci.h>
+
+struct pci_dev * pci_get_slot(struct pci_bus * bus,unsigned int devfn)
+{
+	lx_emul_trace_and_stop(__func__);
+}
 
 
 #include <linux/pci.h>
@@ -766,14 +911,6 @@ int pin_user_pages_fast(unsigned long start,int nr_pages,unsigned int gup_flags,
 }
 
 
-#include <linux/pinctrl/consumer.h>
-
-struct pinctrl_state * pinctrl_lookup_state(struct pinctrl * p,const char * name)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 #include <linux/printk.h>
 
 void printk_legacy_allow_panic_sync(void)
@@ -817,6 +954,14 @@ int proc_doulongvec_minmax(const struct ctl_table * table,int write,void * buffe
 #include <linux/file.h>
 
 void put_unused_fd(unsigned int fd)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+#include <linux/rational.h>
+
+void rational_best_approximation(unsigned long given_numerator,unsigned long given_denominator,unsigned long max_numerator,unsigned long max_denominator,unsigned long * best_numerator,unsigned long * best_denominator)
 {
 	lx_emul_trace_and_stop(__func__);
 }
@@ -1084,13 +1229,6 @@ bool static_key_initialized;
 int suppress_printk;
 
 
-extern struct gpio_desc * swnode_find_gpio(struct fwnode_handle * fwnode,const char * con_id,unsigned int idx,unsigned long * flags);
-struct gpio_desc * swnode_find_gpio(struct fwnode_handle * fwnode,const char * con_id,unsigned int idx,unsigned long * flags)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 #include <linux/rcupdate.h>
 
 void synchronize_rcu(void)
@@ -1122,6 +1260,13 @@ void unpin_user_page(struct page * page)
 
 extern void unregister_handler_proc(unsigned int irq,struct irqaction * action);
 void unregister_handler_proc(unsigned int irq,struct irqaction * action)
+{
+	lx_emul_trace_and_stop(__func__);
+}
+
+
+extern void unregister_irq_proc(unsigned int irq,struct irq_desc * desc);
+void unregister_irq_proc(unsigned int irq,struct irq_desc * desc)
 {
 	lx_emul_trace_and_stop(__func__);
 }
@@ -1161,4 +1306,9 @@ struct page * vmalloc_to_page(const void * vmalloc_addr)
 {
 	lx_emul_trace_and_stop(__func__);
 }
+
+
+#include <linux/platform_data/x86/apple.h>
+
+bool x86_apple_machine;
 

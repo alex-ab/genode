@@ -1,7 +1,7 @@
 /*
  * \brief  Array defining order of Linux Kernel initcalls
  * \author Automatically generated file - do no edit
- * \date   2026-02-27
+ * \date   2026-03-12
  */
 
 #pragma once
@@ -75,6 +75,7 @@ static const char * lx_emul_initcall_order[] = {
 	"__initcall_devlink_class_init2",
 	"__initcall_software_node_init2",
 	"__initcall_regmap_initcall2",
+	"__initcall_spi_init2",
 	"__initcall_i2c_init2",
 	"__initcall_thermal_init2",
 	"__initcall_init_menu2",
@@ -90,6 +91,8 @@ static const char * lx_emul_initcall_order[] = {
 	"__initcall_ffh_cstate_init3",
 	"__initcall_kcmp_cookies_init3",
 	"__initcall_acpi_pci_init3",
+	"__initcall_dma_channel_table_init3",
+	"__initcall_dma_bus_init3",
 	"__initcall_serial_base_init3",
 	"__initcall_iommu_dma_init3",
 	"__initcall_pci_arch_init3",
@@ -123,6 +126,7 @@ static const char * lx_emul_initcall_order[] = {
 	"__initcall_iommu_subsys_init4",
 	"__initcall_register_cpu_capacity_sysctl4",
 	"__initcall_dma_buf_init4",
+	"__initcall_pxa2xx_spi_init4",
 	"__initcall_mdio_bus_init4",
 	"__initcall_phy_init4",
 	"__initcall_usb_common_init4",
@@ -252,6 +256,7 @@ static const char * lx_emul_initcall_order[] = {
 	"__initcall_acpi_battery_init6",
 	"__initcall_gpio_clk_driver_init6",
 	"__initcall_gated_fixed_clk_driver_init6",
+	"__initcall_idma64_platform_driver_init6",
 	"__initcall_n_null_init6",
 	"__initcall_pty_init6",
 	"__initcall_serial8250_init6",
@@ -271,6 +276,7 @@ static const char * lx_emul_initcall_order[] = {
 	"__initcall_mei_me_driver_init6",
 	"__initcall_intel_lpss_init6",
 	"__initcall_intel_lpss_pci_driver_init6",
+	"__initcall_pxa2xx_spi_pci_driver_init6",
 	"__initcall_blackhole_netdev_init6",
 	"__initcall_phylink_init6",
 	"__initcall_phy_module_init6",
@@ -318,6 +324,7 @@ static const char * lx_emul_initcall_order[] = {
 	"__initcall_mt_driver_init6",
 	"__initcall_i2c_hid_acpi_driver_init6",
 	"__initcall_wmi_bmof_driver_init6",
+	"__initcall_smi_driver_init6",
 	"__initcall_snd_ctl_led_init6",
 	"__initcall_alsa_timer_init6",
 	"__initcall_alsa_pcm_init6",
@@ -349,6 +356,7 @@ static const char * lx_emul_initcall_order[] = {
 	"__initcall_alc861vd_driver_init6",
 	"__initcall_alc880_driver_init6",
 	"__initcall_alc882_driver_init6",
+	"__initcall_cs35l56_hda_spi_driver_init6",
 	"__initcall_generic_driver_init6",
 	"__initcall_azx_driver_init6",
 	"__initcall_sock_diag_init6",

@@ -373,63 +373,6 @@ void skb_init()
 }
 
 
-extern void software_node_notify_remove(struct device * dev);
-void software_node_notify_remove(struct device * dev)
-{
-	lx_emul_trace(__func__);
-}
-
-
-#include <linux/property.h>
-
-int software_node_notify(struct device * dev,unsigned long action)
-{
-	lx_emul_trace(__func__);
-	return 0;
-}
-
-
-bool is_software_node(const struct fwnode_handle * fwnode)
-{
-	lx_emul_trace(__func__);
-	return false;
-}
-
-
-#include <linux/pinctrl/devinfo.h>
-
-int pinctrl_bind_pins(struct device * dev)
-{
-	lx_emul_trace(__func__);
-	return 0;
-}
-
-
-#include <linux/pinctrl/devinfo.h>
-
-int pinctrl_init_done(struct device * dev)
-{
-	lx_emul_trace(__func__);
-	return 0;
-}
-
-
-#include <linux/pinctrl/consumer.h>
-
-bool pinctrl_gpio_can_use_line(struct gpio_chip *, unsigned offset)
-{
-	return true;
-}
-
-
-#include <linux/pinctrl/consumer.h>
-
-int pinctrl_select_state(struct pinctrl *p, struct pinctrl_state *s)
-{
-	return 0;
-}
-
-
 #include <acpi/acpixf.h>
 
 acpi_status
@@ -500,3 +443,20 @@ int pcim_request_all_regions(struct pci_dev *pdev, const char *name)
 	return 0;
 }
 #endif
+
+
+#include <linux/clk.h>
+
+void clk_unregister(struct clk * clk)
+{
+	lx_emul_trace(__func__);
+}
+
+
+#include <linux/clk-provider.h>
+
+int clk_hw_register(struct device * dev,struct clk_hw * hw)
+{
+	lx_emul_trace(__func__);
+	return 0;
+}
