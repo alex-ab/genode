@@ -165,14 +165,6 @@ acpi_status acpi_execute_simple_method(acpi_handle handle,char * method,u64 arg)
 
 #include <acpi/acpi_bus.h>
 
-struct acpi_device * acpi_fetch_acpi_dev(acpi_handle handle)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-#include <acpi/acpi_bus.h>
-
 struct acpi_device * acpi_find_child_device(struct acpi_device * parent,u64 address,bool check_children)
 {
 	lx_emul_trace_and_stop(__func__);
@@ -259,22 +251,6 @@ void bust_spinlocks(int yes)
 #include <linux/srcu.h>
 
 void call_srcu(struct srcu_struct * ssp,struct rcu_head * rhp,rcu_callback_t func)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-#include <linux/cdev.h>
-
-int cdev_device_add(struct cdev * cdev,struct device * dev)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-#include <linux/cdev.h>
-
-void cdev_device_del(struct cdev * cdev,struct device * dev)
 {
 	lx_emul_trace_and_stop(__func__);
 }
@@ -527,14 +503,6 @@ const u8 guid_index[16] = {};
 
 #include <linux/i2c.h>
 
-int i2c_acpi_client_count(struct acpi_device * adev)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-#include <linux/i2c.h>
-
 struct i2c_client * i2c_acpi_new_device_by_fwnode(struct fwnode_handle * fwnode,int index,struct i2c_board_info * info)
 {
 	lx_emul_trace_and_stop(__func__);
@@ -552,14 +520,6 @@ void i2c_unregister_device(struct i2c_client * client)
 #include <linux/pseudo_fs.h>
 
 struct pseudo_fs_context * init_pseudo(struct fs_context * fc,unsigned long magic)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-#include <linux/srcu.h>
-
-int init_srcu_struct(struct srcu_struct * ssp)
 {
 	lx_emul_trace_and_stop(__func__);
 }

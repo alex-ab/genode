@@ -117,6 +117,23 @@ acpi_status acpi_walk_resources(acpi_handle device_handle, char *name,
 	if (!ACPI_COMPARE_NAMESEG(name, METHOD_NAME__CRS))
 		return (AE_NOT_FOUND);
 
+	if (!strcmp(lx_emul_acpi_name(device_handle), "CSC3556")) {
+		struct acpi_resource ares = {
+			.type = ACPI_RESOURCE_TYPE_SERIAL_BUS };
+		ares.data.spi_serial_bus.type = ACPI_RESOURCE_SERIAL_TYPE_SPI;
+
+		// READ FROM CONFIG
+		ares.data.spi_serial_bus.connection_speed = 4000000;
+		ares.data.spi_serial_bus.data_bit_length  = 8;
+		ares.data.spi_serial_bus.device_selection = 0;
+
+		/* call twice and set device_selection */
+		user_function(&ares, context);
+
+		ares.data.spi_serial_bus.device_selection = 1;
+		user_function(&ares, context);
+	}
+
 	return (AE_OK);
 }
 
@@ -239,4 +256,10 @@ int acpi_dev_uid_to_integer(struct acpi_device *adev, u64 *integer)
 {
 	printk("%s:%d not implemented!\n", __func__, __LINE__);
 	return -ENODATA;
+}
+
+
+struct acpi_device *acpi_fetch_acpi_dev(acpi_handle handle)
+{
+	return lx_emul_acpi_device(handle);
 }

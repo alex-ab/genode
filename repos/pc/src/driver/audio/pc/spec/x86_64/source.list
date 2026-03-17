@@ -20,6 +20,7 @@ drivers/base/regmap/regcache-flat.c
 drivers/base/regmap/regcache-maple.c
 drivers/base/regmap/regcache-rbtree.c
 drivers/base/regmap/regcache.c
+drivers/base/regmap/regmap-spi.c
 drivers/base/regmap/regmap.c
 drivers/base/swnode.c
 drivers/clk/clk-fixed-rate.c
@@ -27,8 +28,7 @@ drivers/clk/clk-fractional-divider.c
 drivers/dma/dmaengine.c
 drivers/dma/idma64.c
 drivers/dma/virt-dma.c
-drivers/gpio/gpiolib-acpi-core.c
-drivers/gpio/gpiolib-acpi-quirks.c
+drivers/firmware/cirrus/cs_dsp.c
 drivers/gpio/gpiolib-cdev.c
 drivers/gpio/gpiolib-devres.c
 drivers/gpio/gpiolib-swnode.c
@@ -157,6 +157,9 @@ sound/hda/codecs/realtek/alc861vd.c
 sound/hda/codecs/realtek/alc880.c
 sound/hda/codecs/realtek/alc882.c
 sound/hda/codecs/realtek/realtek.c
+sound/hda/codecs/side-codecs/cirrus_scodec.c
+sound/hda/codecs/side-codecs/cs35l56_hda.c
+sound/hda/codecs/side-codecs/cs35l56_hda_spi.c
 sound/hda/codecs/side-codecs/hda_component.c
 sound/hda/common/auto_parser.c
 sound/hda/common/bind.c
@@ -185,6 +188,8 @@ sound/last.c
 sound/pci/ac97/ac97_codec.c
 sound/pci/ac97/ac97_pcm.c
 sound/soc/codecs/ac97.c
+sound/soc/codecs/cs-amp-lib.c
+sound/soc/codecs/cs35l56-shared.c
 sound/soc/codecs/dmic.c
 sound/soc/codecs/hdac_hda.c
 sound/soc/codecs/rt712-sdca.c

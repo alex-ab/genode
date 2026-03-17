@@ -25,6 +25,16 @@ SRC_C  += lx_user.c
 SRC_C  += timeout.c
 SRC_C  += lx_emul_firmware.c
 
+# linux/efi.h
+CC_OPT_sound/hda/codecs/side-codecs/cs35l56_hda     += -Wno-incompatible-pointer-types
+CC_OPT_sound/hda/codecs/side-codecs/cs35l56_hda_spi += -Wno-incompatible-pointer-types
+CC_OPT_sound/soc/codecs/cs-amp-lib                  += -Wno-incompatible-pointer-types
+CC_OPT_sound/soc/codecs/cs35l56-shared              += -Wno-incompatible-pointer-types
+CC_OPT_dummies                                      += -Wno-incompatible-pointer-types
+
+CC_OPT_shadow/drivers/gpio/gpiolib-acpi-core += -I$(LX_SRC_DIR)/drivers/gpio
+SRC_C  += shadow/drivers/gpio/gpiolib-acpi-core.c
+
 # pull in 'dde_linux' acpi emulation rather than the stub one in 'pc'
 DDE_LINUX_ACPI := 1
 

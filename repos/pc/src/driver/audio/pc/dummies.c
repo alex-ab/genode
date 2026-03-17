@@ -460,3 +460,17 @@ int clk_hw_register(struct device * dev,struct clk_hw * hw)
 	lx_emul_trace(__func__);
 	return 0;
 }
+
+
+#include <linux/srcu.h>
+
+int init_srcu_struct(struct srcu_struct * ssp)
+{
+	lx_emul_trace(__func__);
+	return 0;
+}
+
+
+#include <linux/efi.h>
+struct efi efi;
+

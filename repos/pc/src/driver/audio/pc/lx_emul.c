@@ -290,3 +290,29 @@ struct clk * clk_register_gate(struct device * dev,const char * name,const char 
 	lx_emul_trace(__func__);
 	return NULL;
 }
+
+
+#include <linux/i2c.h>
+
+int i2c_acpi_client_count(struct acpi_device * adev)
+{
+	/*
+	 * Called from 'smi_probe()' and returning ENOENT
+	 * moves us along to SPI probing.
+	 */
+	return -ENOENT;
+}
+
+
+#include <linux/cdev.h>
+
+int cdev_device_add(struct cdev * cdev,struct device * dev)
+{
+    return device_add(dev);
+}
+
+
+void cdev_device_del(struct cdev * cdev,struct device * dev)
+{
+    device_del(dev);
+}
