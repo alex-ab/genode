@@ -207,4 +207,8 @@ void lx_emul_acpi_init()
 	//                               "I2C3", (void *)handle++);
 	// new (env().heap) Acpi::Device(*Acpi::registry, env().heap,
 	//                               "EPTP", (void *)handle++);
+	new (env().heap) Acpi::Device(*Acpi::registry, env().heap,
+	                              "SPI0", (void *)handle++);
+	new (env().heap) Acpi::Device(*Acpi::registry, env().heap,
+	                              "CSC3556", (void *)handle++);
 }
