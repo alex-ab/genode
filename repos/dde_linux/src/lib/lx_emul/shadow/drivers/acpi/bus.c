@@ -69,8 +69,10 @@ static bool __acpi_match_device(struct acpi_device *device,
 
 	list_for_each_entry(hwid, &device->pnp.ids, list) {
 		for (id = acpi_ids; id->id[0] || id->cls; id++) {
-			if (id->id[0] && !strcmp((char *)id->id, hwid->id))
+			if (id->id[0] && !strcmp((char *)id->id, hwid->id)) {
+				printk("%s:%d id: '%s' hwid: '%s'\n", __func__, __LINE__, id->id, hwid->id);
 				goto out_acpi_match;
+			}
 		}
 	}
 	return false;
@@ -111,16 +113,20 @@ const void *acpi_device_get_match_data(const struct device *dev)
 {
 	const struct acpi_device_id *match;
 
+	printk("%s:%d\n", __func__, __LINE__);
 	if (!dev->driver->acpi_match_table)
 		return NULL;
 
+	printk("%s:%d\n", __func__, __LINE__);
 	if (!is_acpi_device_node(dev->fwnode))
 		return NULL;
 
 	match = acpi_match_device(dev->driver->acpi_match_table, dev);
+	printk("%s:%d\n", __func__, __LINE__);
 	if (!match)
 		return NULL;
 
+	printk("%s:%d acpi_match_table: %px\n", __func__, __LINE__, dev->driver->acpi_match_table);
 	return (const void *)match->driver_data;
 }
 

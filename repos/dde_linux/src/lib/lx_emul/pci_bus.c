@@ -128,6 +128,8 @@ static void pci_add_single_device_callback(void       * data,
 
 	device_initialize(&dev->dev);
 
+	printk("%s:%d pci_dev: %px dev: %px dev.parent: %px\n", __func__, __LINE__, dev, &dev->dev, dev->dev.parent);
+
 	dev_set_name(&dev->dev, name);
 	dev->dev.dma_mask = &dev->dma_mask;
 

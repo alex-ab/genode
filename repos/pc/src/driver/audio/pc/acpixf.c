@@ -62,6 +62,9 @@ acpi_status acpi_evaluate_object(acpi_handle handle, acpi_string pathname,
 {
 	union acpi_object *obj;
 
+	printk("%s:%d handle: %px ('%s')\n", __func__, __LINE__, handle,
+	       lx_emul_acpi_name(handle));
+
 	// if (ACPI_COMPARE_NAMESEG(pathname, "_DSM")
 	//  && !strcmp(lx_emul_acpi_name(handle), "EPTP")) {
 	// 	obj = prepare_buffer(return_buffer, 1);
@@ -109,6 +112,9 @@ acpi_status acpi_walk_resources(acpi_handle device_handle, char *name,
                                 acpi_walk_resource_callback user_function,
                                 void *context)
 {
+	printk("%s:%d handle: %px ('%s') name: '%s'\n", __func__, __LINE__,
+	       device_handle, lx_emul_acpi_name(device_handle), name);
+
 	/* pretend absence of "5.6.5 GPIO-signaled ACPI Events" */
 	if (ACPI_COMPARE_NAMESEG(name, METHOD_NAME__AEI))
 		return (AE_NOT_FOUND);
@@ -153,6 +159,7 @@ static void * walk_namespace_cb(void *handle, char const *name,
 
 	struct handle_list_entry *e = kzalloc(sizeof(*e), GFP_KERNEL);
 
+	printk("%s:%d handle: %px name: '%s'\n", __func__, __LINE__, handle, name);
 	if (e) {
 		e->handle = handle;
 		list_add(&e->node, list);
@@ -171,9 +178,11 @@ acpi_status acpi_walk_namespace(acpi_object_type type, acpi_handle start_object,
 
 	LIST_HEAD(handle_list);
 
+	printk("%s:%d type: %u ACPI_TYPE_DEVICE: %u\n", __func__, __LINE__, type, ACPI_TYPE_DEVICE);
 	if (type != ACPI_TYPE_DEVICE)
 		return (AE_OK);
 
+	printk("%s:%d type: %u ACPI_TYPE_DEVICE: %u\n", __func__, __LINE__, type, ACPI_TYPE_DEVICE);
 	lx_emul_acpi_for_each_device(walk_namespace_cb, &handle_list);
 
 	list_for_each_entry(entry, &handle_list, node) {

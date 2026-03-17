@@ -164,6 +164,8 @@ static struct acpi_device * acpi_add_single_object(acpi_handle handle, char cons
 	if (result)
 		return NULL;
 
+	printk("%s:%d name: '%s'\n", __func__, __LINE__, name);
+
 	return device;
 }
 

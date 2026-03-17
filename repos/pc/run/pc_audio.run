@@ -77,7 +77,10 @@ config | prio_levels: 2
     + report | devices: yes
     + policy | label_prefix: pc_audio | info: yes
       + device NHLT
+      + device SPI0    | type: acpi | . hardcoded in ACPI - should be discovered
+      + device CSC3556 | type: acpi | . see above
       + device 00:1e.2 | type: pci | . LPC/eSPI
+      + device INTC1083 | . pinctrl
       + pci | class: AUDIO
       + pci | class: HDAUDIO
   + route
