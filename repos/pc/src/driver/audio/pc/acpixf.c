@@ -112,8 +112,8 @@ acpi_status acpi_walk_resources(acpi_handle device_handle, char *name,
                                 acpi_walk_resource_callback user_function,
                                 void *context)
 {
-	printk("%s:%d handle: %px ('%s') name: '%s'\n", __func__, __LINE__,
-	       device_handle, lx_emul_acpi_name(device_handle), name);
+	printk("%s:%d handle: %px ('%s') name: '%s' adev: %px\n", __func__, __LINE__,
+	       device_handle, lx_emul_acpi_name(device_handle), name, lx_emul_acpi_device(device_handle));
 
 	/* pretend absence of "5.6.5 GPIO-signaled ACPI Events" */
 	if (ACPI_COMPARE_NAMESEG(name, METHOD_NAME__AEI))
@@ -213,6 +213,8 @@ acpi_status acpi_attach_data(acpi_handle obj_handle, acpi_object_handler handler
 	obj_data->handler = handler;
 	obj_data->data    = data;
 
+	// XXX store cirrus,dev-index
+
 	if (head) {
 		/* TODO list head for multiple data pointers */
 		printk("%s: implement for more than one data pointer\n", __func__);
@@ -271,4 +273,13 @@ int acpi_dev_uid_to_integer(struct acpi_device *adev, u64 *integer)
 struct acpi_device *acpi_fetch_acpi_dev(acpi_handle handle)
 {
 	return lx_emul_acpi_device(handle);
+}
+
+
+const char *acpi_get_subsystem_id(acpi_handle handle)
+{
+	if (!strcmp(lx_emul_acpi_name(handle), "CSC3556")) {
+		return "103C8D91";
+	}
+	return ERR_PTR(-ENODATA);
 }
