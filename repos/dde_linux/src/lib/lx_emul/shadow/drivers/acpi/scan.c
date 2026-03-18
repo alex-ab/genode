@@ -12,6 +12,8 @@
  * version 2.
  */
 
+#define DEBUG 1
+
 #include <lx_emul.h>
 #include <lx_emul/acpi.h>
 
@@ -155,6 +157,14 @@ static struct acpi_device * acpi_add_single_object(acpi_handle handle, char cons
 	if (handle != ACPI_ROOT_OBJECT)
 		device->pnp.type.platform_id = 1;
 
+	if (!strcmp(name, "CSC3556")) {
+		printk("%s:%d CSC3556 PEW PEW\n", __func__, __LINE__);
+	}
+
+	if (!strcmp(name, "SPI")) {
+		printk("%s:%d SPI PEW PEW\n", __func__, __LINE__);
+	}
+
 	device->flags.match_driver = true;
 	device->flags.initialized = true;
 	device->flags.enumeration_by_parent = false;
@@ -164,7 +174,8 @@ static struct acpi_device * acpi_add_single_object(acpi_handle handle, char cons
 	if (result)
 		return NULL;
 
-	printk("%s:%d name: '%s'\n", __func__, __LINE__, name);
+	printk("%s:%d name: '%s' adev: %px fwnode: %px fwnode.dev: %px\n", __func__, __LINE__, name, device, &device->fwnode,
+	       device->fwnode.dev);
 
 	return device;
 }
@@ -247,8 +258,8 @@ static struct platform_device *create_platform_device(struct acpi_device *adev,
 			PTR_ERR(pdev));
 	else {
 		set_dev_node(&pdev->dev, acpi_get_node(adev->handle));
-		dev_dbg(&adev->dev, "created platform device %s\n",
-			dev_name(&pdev->dev));
+		dev_dbg(&adev->dev, "created platform device %s dev: %px adev: %px\n",
+			dev_name(&pdev->dev), &pdev->dev, adev);
 	}
 
 	kfree(resources);

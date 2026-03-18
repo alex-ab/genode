@@ -36,9 +36,54 @@ static const char *acpi_fwnode_get_name(const struct fwnode_handle *fwnode)
 }
 
 
+static int acpi_fwnode_property_read_int_array(const struct fwnode_handle *fwnode,
+                                               const char *propname,
+                                               unsigned int elem_size, void *val,
+                                               size_t nval)
+{
+	enum dev_prop_type type;
+	const struct acpi_device *adev = to_acpi_device_node(fwnode);
+	printk("%s:%d adev: %px propname: '%s'\n", __func__, __LINE__, adev, propname);
+	if (adev && !strcmp(adev->pnp.bus_id, "CSC3556")
+	         && !strcmp(propname, "cirrus,dev-index")) {
+		printk("%s:%d adev: %px propname: '%s DING DING'\n", __func__, __LINE__, adev, propname);
+		if (val && nval) {
+			unsigned *p = val;
+			p[0] = 0;
+			p[1] = 1;
+
+			return 0;
+		}
+
+		/* probe size */
+		return 2;
+	}
+
+	// switch (elem_size) {
+	// case sizeof(u8):
+	// 	type = DEV_PROP_U8;
+	// 	break;
+	// case sizeof(u16):
+	// 	type = DEV_PROP_U16;
+	// 	break;
+	// case sizeof(u32):
+	// 	type = DEV_PROP_U32;
+	// 	break;
+	// case sizeof(u64):
+	// 	type = DEV_PROP_U64;
+	// 	break;
+	// default:
+	// 	return -ENXIO;
+	// }
+
+	return -ENXIO;
+}
+
 const struct fwnode_operations acpi_device_fwnode_ops = {
-	.device_get_match_data = acpi_fwnode_device_get_match_data,
-	.get_name              = acpi_fwnode_get_name,
+	.device_get_match_data   = acpi_fwnode_device_get_match_data,
+	.get_name                = acpi_fwnode_get_name,
+	.property_read_int_array =
+		acpi_fwnode_property_read_int_array
 };
 
 
@@ -63,5 +108,3 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 	lx_emul_trace(__func__);
 	return -ENOENT;
 }
-
-

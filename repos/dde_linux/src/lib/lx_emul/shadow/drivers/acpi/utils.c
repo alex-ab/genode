@@ -86,8 +86,8 @@ void acpi_handle_printk(const char * level,acpi_handle handle,const char * fmt,.
 }
 
 
-const char *acpi_get_subsystem_id(acpi_handle handle)
-{
-	lx_emul_trace(__func__);
-	return ERR_PTR(-ENODATA);
-}
+// const char *acpi_get_subsystem_id(acpi_handle handle)
+// {
+// 	lx_emul_trace(__func__);
+// 	return ERR_PTR(-ENODATA);
+// }
