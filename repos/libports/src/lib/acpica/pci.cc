@@ -66,6 +66,7 @@ ACPI_STATUS AcpiOsReadPciConfiguration (ACPI_PCI_ID *pcidev, UINT32 reg,
 	Bdf bdf(pcidev->Bus, pcidev->Device, pcidev->Function);
 
 	bool const intel   = cpu_name("GenuineIntel");
+#if 1
 	bool const emulate = intel &&
 	                     !pcidev->Bus && !pcidev->Device && !pcidev->Function;
 
@@ -78,15 +79,25 @@ ACPI_STATUS AcpiOsReadPciConfiguration (ACPI_PCI_ID *pcidev, UINT32 reg,
 	 *     for those machines.
 	 */
 	if (emulate) {
-		if (reg == 0x60 && width == 32) {
-			*value = 0xe0000001;
+		bool match = true;
+		if (reg == 0x00 && width ==  8) *value = (0x8086 >> 0) & 0xff; else
+		if (reg == 0x01 && width ==  8) *value = (0x8086 >> 8) & 0xff; else
+		if (reg == 0x02 && width ==  8) *value = (0x7d06 >> 0) & 0xff; else
+		if (reg == 0x03 && width ==  8) *value = (0x7d06 >> 8) & 0xff; else
+		if (reg == 0x0b && width ==  8) *value =          6; else
+		if (reg == 0x0e && width ==  8) *value =          0; else
+		if (reg == 0x48 && width == 32) *value = 0xfedc0001; else
+		if (reg == 0x60 && width == 32) *value = 0xc0000001; else match = false;
+
+		if (match) {
 			warning(bdf, " emulate read ", Hex(reg), " -> ", Hex(*value));
 			return AE_OK;
 		}
 	}
+#endif
 
 	/* during startup suppress errors */
-	if (!(AcpiDbgLevel & ACPI_LV_INIT))
+//	if (!(AcpiDbgLevel & ACPI_LV_INIT))
 		error(__func__, " ", bdf, " ", Hex(reg), " width=", width);
 
 	*value = ~0U;
@@ -101,7 +112,7 @@ ACPI_STATUS AcpiOsWritePciConfiguration (ACPI_PCI_ID *pcidev, UINT32 reg,
 	Bdf bdf(pcidev->Bus, pcidev->Device, pcidev->Function);
 
 	/* during startup suppress errors */
-	if (!(AcpiDbgLevel & ACPI_LV_INIT))
+//	if (!(AcpiDbgLevel & ACPI_LV_INIT))
 		error(__func__, " ", bdf, " ", Hex(reg), "=", Hex(value), " width=", width);
 
 	return AE_OK;

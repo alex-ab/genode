@@ -311,7 +311,7 @@ void Acpica::Main::init_acpica(bool const use_gpe)
 	Acpica::init(env, heap);
 
 	/* enable debugging: */
-	if (false) {
+	if (true) {
 		AcpiDbgLevel |= ACPI_LV_IO | ACPI_LV_INTERRUPTS | ACPI_LV_INIT_NAMES;
 		AcpiDbgLayer |= ACPI_TABLES;
 		log("debugging level=", Hex(AcpiDbgLevel),
@@ -430,7 +430,7 @@ void Acpica::Main::init_acpica(bool const use_gpe)
 	});
 
 	/* use dbg level to steer error reporting in pci.cc */
-	AcpiDbgLevel &= ~ACPI_LV_INIT;
+//	AcpiDbgLevel &= ~ACPI_LV_INIT;
 }
 
 
