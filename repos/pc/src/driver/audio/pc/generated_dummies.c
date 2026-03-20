@@ -19,23 +19,6 @@ int ___ratelimit(struct ratelimit_state * rs,const char * func)
 
 struct cpumask __cpu_active_mask;
 
-
-#include <linux/dma-mapping.h>
-
-void __dma_sync_sg_for_cpu(struct device * dev,struct scatterlist * sg,int nelems,enum dma_data_direction dir)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-#include <linux/dma-mapping.h>
-
-void __dma_sync_sg_for_device(struct device * dev,struct scatterlist * sg,int nelems,enum dma_data_direction dir)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 #include <linux/kfifo.h>
 
 int __kfifo_alloc(struct __kfifo * fifo,unsigned int size,size_t esize,gfp_t gfp_mask)
@@ -63,14 +46,6 @@ unsigned int __kfifo_in(struct __kfifo * fifo,const void * buf,unsigned int len)
 #include <linux/kfifo.h>
 
 unsigned int __kfifo_out(struct __kfifo * fifo,void * buf,unsigned int len)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-#include <asm-generic/delay.h>
-
-void __ndelay(unsigned long nsecs)
 {
 	lx_emul_trace_and_stop(__func__);
 }
@@ -363,14 +338,6 @@ struct page * dma_alloc_pages(struct device * dev,size_t size,dma_addr_t * dma_h
 #include <linux/dma-mapping.h>
 
 void dma_free_pages(struct device * dev,size_t size,struct page * page,dma_addr_t dma_handle,enum dma_data_direction dir)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
-#include <linux/dma-mapping.h>
-
-int dma_map_sgtable(struct device * dev,struct sg_table * sgt,enum dma_data_direction dir,unsigned long attrs)
 {
 	lx_emul_trace_and_stop(__func__);
 }
@@ -707,11 +674,6 @@ void led_classdev_unregister(struct led_classdev * led_cdev)
 {
 	lx_emul_trace_and_stop(__func__);
 }
-
-
-#include <linux/delay.h>
-
-unsigned long loops_per_jiffy;
 
 
 #include <linux/mman.h>

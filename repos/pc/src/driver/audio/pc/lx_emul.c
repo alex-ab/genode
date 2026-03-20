@@ -228,6 +228,42 @@ void dma_vunmap_noncontiguous(struct device * dev, void * vaddr)
 }
 
 
+int dma_map_sgtable(struct device *dev, struct sg_table *sgt,
+                    enum dma_data_direction dir, unsigned long attrs)
+{
+    int nents = dma_map_sg_attrs(dev, sgt->sgl, sgt->orig_nents, dir, attrs);
+    if (nents < 0)
+        return nents;
+    sgt->nents = nents;
+    return 0;
+}
+
+
+void __dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sgl,
+                           int nelems, enum dma_data_direction dir)
+{
+	int i;
+	struct scatterlist *sg;
+
+	for_each_sg(sgl, sg, nelems, i) {
+		__dma_sync_single_for_cpu(dev, sg->dma_address, sg->length, dir);
+	}
+}
+
+
+void __dma_sync_sg_for_device(struct device *dev, struct scatterlist * sgl,
+                              int nelems, enum dma_data_direction dir)
+{
+	int i;
+	struct scatterlist *sg;
+
+	for_each_sg(sgl, sg, nelems, i) {
+		__dma_sync_single_for_device(dev, sg->dma_address, sg->length, dir);
+	}
+}
+
+
+
 #ifndef INLINE_COPY_TO_USER
 unsigned long raw_copy_to_user(void *to, const void *from, unsigned long n)
 {
@@ -292,6 +328,13 @@ struct clk * clk_register_gate(struct device * dev,const char * name,const char 
 }
 
 
+int clk_hw_register(struct device * dev,struct clk_hw * hw)
+{
+	printk("%s:%d dev: %px hw: %px\n", __func__, __LINE__, dev, hw);
+	return 0;
+}
+
+
 #include <linux/i2c.h>
 
 int i2c_acpi_client_count(struct acpi_device * adev)
@@ -316,3 +359,16 @@ void cdev_device_del(struct cdev * cdev,struct device * dev)
 {
     device_del(dev);
 }
+
+
+#include <asm-generic/delay.h>
+
+void __ndelay(unsigned long nsecs)
+{
+	__const_udelay(nsecs * 0x00005); /* 2**32 / 1000000000 (rounded up) */
+}
+
+#include <linux/delay.h>
+
+/* taken from pc_linux boot on ARL system */
+unsigned long loops_per_jiffy = 14745600;
