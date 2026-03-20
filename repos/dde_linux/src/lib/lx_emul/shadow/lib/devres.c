@@ -18,7 +18,10 @@
 void __iomem *devm_ioremap_resource(struct device *dev,
                                     const struct resource *res)
 {
-	return lx_emul_io_mem_map(res->start, resource_size(res), false);
+	printk("%s:%d dev: %px res: %px\n", __func__, __LINE__, dev, res);
+	void *p = lx_emul_io_mem_map(res->start, resource_size(res), false);
+	printk("%s:%d dev: %px res: %px p: %px\n", __func__, __LINE__, dev, res, p);
+	return p;
 }
 
 

@@ -39,6 +39,8 @@ struct clk * lx_emul_clock_get(const struct device_node * node,
 	struct clk * ret = nullptr;
 
 	env().devices.for_each([&] (Device &d) {
+
+		error("lx_emul_clock_get: '", d.name(), "'");
 		if (!_of_device_is_compatible(node, d.compatible()))
 			return;
 		ret = name ? d.clock(name) : d.clock(0U);

@@ -173,6 +173,9 @@ void * Device::io_mem_local_addr(addr_t phys_addr, size_t size)
 		if (!io.io_mem.constructed())
 			io.io_mem.construct(*_pdev, io.idx);
 
+		error("phys_addr: ", Hex(phys_addr), " size: ", Hex(size),
+		      " local_addr: ", io.io_mem->local_addr<void>(),
+			  " io.addr: ", Hex(io.addr));
 		ret = (void*)((addr_t)io.io_mem->local_addr<void>() + phys_addr - io.addr);
 	});
 	return ret;

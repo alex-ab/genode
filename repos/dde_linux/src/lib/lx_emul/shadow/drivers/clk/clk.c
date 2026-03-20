@@ -16,6 +16,7 @@
 
 unsigned long clk_get_rate(struct clk * clk)
 {
+	printk("%s:%d clk: %px\n", __func__, __LINE__, clk);
 	return lx_emul_clock_get_rate(clk);
 }
 

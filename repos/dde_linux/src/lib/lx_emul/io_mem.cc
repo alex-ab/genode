@@ -27,6 +27,8 @@ void * lx_emul_io_mem_map(unsigned long phys_addr, unsigned long size, int wc)
 			if (!io.match(phys_addr, size)) return;
 
 			ret = d.io_mem_local_addr(phys_addr, size);
+			error("lx_emul_io_mem_map: '", d.name(), "' phys_addr: ", Hex(phys_addr), " size: ", Hex(size), " p: ", ret);
+
 
 			if (io.wc != !!wc)
 				warning("can't map ", wc_uc(io.wc), " IOMEM ",

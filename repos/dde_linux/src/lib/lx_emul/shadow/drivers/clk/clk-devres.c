@@ -16,6 +16,7 @@
 
 struct clk *devm_clk_get(struct device *dev, const char *id)
 {
+	printk("%s:%d\n", __func__, __LINE__);
 	return clk_get(dev, id);
 }
 
