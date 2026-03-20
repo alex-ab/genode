@@ -33,7 +33,7 @@ namespace Pci {
 	};
 };
 
-struct Pci::Config : Genode::Mmio<0x45>
+struct Pci::Config : Genode::Mmio<0x70>
 {
 	struct Vendor : Register<0x0, 16>
 	{
@@ -41,6 +41,9 @@ struct Pci::Config : Genode::Mmio<0x45>
 	};
 
 	struct Device : Register<0x2, 16> {};
+
+	struct Dontknow2 : Register<0x48, 32> { };
+	struct Dontknow  : Register<0x60, 32> { };
 
 	struct Command : Register<0x4, 16>
 	{

@@ -189,6 +189,28 @@ bus_t Main::parse_pci_function(Bdf        bdf,
 
 	bus_t subordinate_bus = bdf.bus;
 
+	if (bdf == Bdf(0, 0, 0)) {
+		Genode::error(bdf);
+		Genode::error(" read 0x00: ", Genode::Hex(cfg.read<Config::Vendor>()));
+		Genode::error(" read 0x02: ", Genode::Hex(cfg.read<Config::Device>()));
+		Genode::error(" read 0x0b: ", Genode::Hex(cfg.read<Config::Base_class_code>()));
+		Genode::error(" read 0x0e: ", Genode::Hex(cfg.read<Config::Header_type>()));
+		Genode::error(" read 0x48: ", Genode::Hex(cfg.read<Config::Dontknow2>()));
+		Genode::error(" read 0x60: ", Genode::Hex(cfg.read<Config::Dontknow>()));
+	}
+	if (bdf == Bdf(0, 0x10, 0)) {
+		Genode::error(bdf);
+		Genode::error(" read 0x00: ", Genode::Hex(cfg.read<Config::Vendor>()));
+		Genode::error(" read 0x02: ", Genode::Hex(cfg.read<Config::Device>()));
+		Genode::error(" read 0x0e: ", Genode::Hex(cfg.read<Config::Header_type>()));
+	}
+	if (bdf == Bdf(0, 0x10, 1)) {
+		Genode::error(bdf);
+		Genode::error(" read 0x00: ", Genode::Hex(cfg.read<Config::Vendor>()));
+		Genode::error(" read 0x02: ", Genode::Hex(cfg.read<Config::Device>()));
+		Genode::error(" read 0x0e: ", Genode::Hex(cfg.read<Config::Header_type>()));
+	}
+
 	/* check for bridges */
 	if (cfg.read<Config::Header_type::Type>()) {
 		for_bridge(bdf.bus, [&] (Bridge &parent) {
