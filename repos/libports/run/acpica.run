@@ -149,6 +149,7 @@ config
   |        report_period_ms: 0
   |        verbose:          yes
   |        use_gpe:          yes
+  |        poll_reg:         yes
   + route
     + service ROM | label: system | + child dynamic_rom
     + service Report              | + child acpi_state
