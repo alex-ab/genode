@@ -15,4 +15,4 @@ option: nic wifi
 depot: genodelabs alex-ab chelmuth cnuke cproc jschlatow nfeske skalk ssumpf
 
 # preconfigured example scenarios
-presets: empty nano3d window_manager falkon_web_browser goa_testbed
+presets: empty nano3d window_manager
