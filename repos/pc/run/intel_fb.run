@@ -105,6 +105,7 @@ config | verbose: yes | prio_levels: 4
     + service ROM                 | + parent
 
 + start platform | caps: 100 | ram: 2M | managing_system: yes | priority: -1
+  + binary pc_platform
   + provides
   | + service Platform
   + route
@@ -246,7 +247,7 @@ append_if $use_gpu config {
 }
 
 append config {
-    + start intel_fb | caps: 1000 | ram: 128M
+    + start intel_fb | caps: 1000 | ram: 256M
       + binary pc_intel_fb
       + route }
 append_if $use_gpu config {
@@ -342,7 +343,21 @@ append config {
 
 install_config $config
 
-build_boot_image [build_artifacts]
+# dummy ROMs for pc_platform driver
+	set fd [open [file join bin/system] w]
+	puts $fd "-"
+	close $fd
+
+	set fd [open [file join bin/sleep_states] w]
+	puts $fd "-"
+	close $fd
+
+set boot_modules { system sleep_states }
+
+lappend boot_modules {*}[build_artifacts]
+build_boot_image $boot_modules
+
+#build_boot_image [build_artifacts]
 
 if {[have_cmd_switch --autopilot]} {
 	run_genode_until {\[init -\> init_dynamic -\> report_rom\]     + connector HDMI-A-3 | connected: yes} 30
