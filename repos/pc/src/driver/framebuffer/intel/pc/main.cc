@@ -54,7 +54,7 @@ struct Framebuffer::Driver
 	                                            &Driver::handle_scheduler };
 
 	bool                    merge_label_changed { false };
-	bool                    verbose             { false };
+	bool                    verbose             { true  };
 
 	Capture::Connection::Label merge_label { "mirror" };
 
