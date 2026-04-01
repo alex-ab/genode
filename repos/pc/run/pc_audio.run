@@ -19,7 +19,6 @@ import_from_depot \
 	[depot_user]/src/platform \
 	[depot_user]/src/record_play_mixer \
 	[depot_user]/src/vfs \
-	[depot_user]/src/pc_audio \
 	[depot_user]/raw/sof_firmware
 
 build { driver/audio/pc test/audio_play app/pci_decode }
