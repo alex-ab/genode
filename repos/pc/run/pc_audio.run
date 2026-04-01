@@ -101,10 +101,10 @@ config | prio_levels: 2
     + service Play
   + config | jitter_ms: 10
     + mix left
-      + play | label_suffix: -> mic_left | volume: 1.0
+      x play | label_suffix: -> mic_left | volume: 1.0
       + play | label_suffix: -> left     | volume: 0.5
     + mix right
-      + play | label_suffix: -> mic_right | volume: 1.0
+      x play | label_suffix: -> mic_right | volume: 1.0
       + play | label_suffix: -> right     | volume: 0.5
     + policy | label_suffix: left  | record: left  | volume: 1.0
     + policy | label_suffix: right | record: right | volume: 1.0
@@ -116,7 +116,7 @@ config | prio_levels: 2
 
 + start pc_audio | priority: -1 | ram: 10M
   + config | report_mixer: yes | report_devices: yes | speaker_priority: external | mic_priority: external
-           | . profile: u7411
+           | profile: u7411
     + vfs
       + dir firmware | + tar sof_firmware.tar
     + profile s937 | . HDA
