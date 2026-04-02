@@ -43,12 +43,15 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 {
 	struct acpi_device *adev;
 
+	printk("%s:%d\n", __func__, __LINE__);
 	if (!chip || !chip->parent)
 		return;
 
+	printk("%s:%d\n", __func__, __LINE__);
 	adev = ACPI_COMPANION(chip->parent);
 	if (!adev)
 		return;
+	printk("%s:%d\n", __func__, __LINE__);
 }
 
 
@@ -79,11 +82,14 @@ int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *name, in
 	unsigned long lflags = GPIO_ACTIVE_LOW | GPIO_PERSISTENT;
 	enum gpiod_flags dflags = GPIOD_IN;
 
+	printk("%s:%d ------------- index=%d\n", __func__, __LINE__, index);
+
 	if (index != 0)
 		return -ENOENT;
 
 	/* most interesting part happens in gpiod_to_irq(desc) */
 	// READ FROM CONFIG
+	/* INTC105e =!? INTC1083 */
 	if (!(gdev = gpio_device_find("INTC1083", find_match_name))) {
 		printk("GPIO chip '%s' not available\n", "INTC1083");
 		return -ENOENT;
@@ -114,10 +120,23 @@ struct gpio_desc * acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_
                                   unsigned int idx, enum gpiod_flags *dflags,
                                   unsigned long *lookupflags)
 {
-	printk("%s:%d\n", __func__, __LINE__);
+	printk("%s:%d idx=%x\n", __func__, __LINE__, idx);
 
-	/* called from designware i2c - trace always resulted in -ENOENT */
-	return ERR_PTR(-ENOENT);
+	struct gpio_device * gdev;
+
+	if (!(gdev = gpio_device_find("INTC1083", find_match_name))) {
+		printk("GPIO chip '%s' not available\n", "INTC1083");
+		return ERR_PTR(-ENOENT);
+	}
+
+/*
+static inline int gpio_chip_hwgpio(const struct gpio_desc *desc)
+	return desc - &desc->gdev->descs[0];
+*/
+	printk("%s:%u gdev=%px gdev->desc %px gdev=%px\n", __func__, __LINE__, gdev, gdev->descs, gdev->descs ? gdev->descs[0].gdev : NULL);
+
+	/* XXX 4f value from pc_linux ... required for gpio_chip_hwgpio .... */
+	return &gdev->descs[0x4f];
 }
 
 
