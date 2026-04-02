@@ -1,0 +1,1697 @@
+diff -ru contrib/linux/src/linux/drivers/base/core.c contrib/linux/src-sich/linux/drivers/base/core.c
+--- contrib/linux/src/linux/drivers/base/core.c	2026-04-02 15:14:12.786982130 +0200
++++ contrib/linux/src-sich/linux/drivers/base/core.c	2026-04-01 13:57:44.620751144 +0200
+@@ -8,6 +8,7 @@
+  * Copyright (c) 2006 Novell, Inc.
+  */
+ 
++#define DEBUG 1
+ #include <linux/acpi.h>
+ #include <linux/blkdev.h>
+ #include <linux/cleanup.h>
+@@ -5335,6 +5336,7 @@
+ 
+ int device_match_acpi_dev(struct device *dev, const void *adev)
+ {
++	printk("%s:%d dev: %px adev: %px ACPI_COMPANION: %px\n", __func__, __LINE__, dev, adev, ACPI_COMPANION(dev));
+ 	return adev && ACPI_COMPANION(dev) == adev;
+ }
+ EXPORT_SYMBOL(device_match_acpi_dev);
+diff -ru contrib/linux/src/linux/drivers/base/dd.c contrib/linux/src-sich/linux/drivers/base/dd.c
+--- contrib/linux/src/linux/drivers/base/dd.c	2026-04-02 15:14:12.786982130 +0200
++++ contrib/linux/src-sich/linux/drivers/base/dd.c	2026-04-01 13:57:44.620751144 +0200
+@@ -16,6 +16,7 @@
+  * Copyright (c) 2007-2009 Novell Inc.
+  */
+ 
++#define DEBUG 1
+ #include <linux/debugfs.h>
+ #include <linux/device.h>
+ #include <linux/delay.h>
+diff -ru contrib/linux/src/linux/drivers/base/platform.c contrib/linux/src-sich/linux/drivers/base/platform.c
+--- contrib/linux/src/linux/drivers/base/platform.c	2026-04-02 15:14:12.791982115 +0200
++++ contrib/linux/src-sich/linux/drivers/base/platform.c	2026-04-01 13:57:44.620751144 +0200
+@@ -101,7 +101,13 @@
+ {
+ 	struct resource *r;
+ 
++	printk("%s:%d name: '%s'\n", __func__, __LINE__, dev_name(&pdev->dev));
+ 	r = platform_get_resource(pdev, IORESOURCE_MEM, index);
++	printk("%s:%d name: '%s' r: %px\n", __func__, __LINE__, dev_name(&pdev->dev), r);
++	if (r) {
++		printk("%s:%d start: 0x%lx end: 0x%lx 0x%lx\n", __func__, __LINE__,
++		       r->start, r->end, r->flags);
++	}
+ 	if (res)
+ 		*res = r;
+ 	return devm_ioremap_resource(&pdev->dev, r);
+diff -ru contrib/linux/src/linux/drivers/base/property.c contrib/linux/src-sich/linux/drivers/base/property.c
+--- contrib/linux/src/linux/drivers/base/property.c	2026-04-02 15:14:12.794982105 +0200
++++ contrib/linux/src-sich/linux/drivers/base/property.c	2026-04-01 13:57:44.621751140 +0200
+@@ -188,6 +188,7 @@
+ int device_property_read_u32_array(const struct device *dev, const char *propname,
+ 				   u32 *val, size_t nval)
+ {
++	printk("%s:%d dev: %px fwnode: %px\n", __func__, __LINE__, dev, dev_fwnode(dev));
+ 	return fwnode_property_read_u32_array(dev_fwnode(dev), propname, val, nval);
+ }
+ EXPORT_SYMBOL_GPL(device_property_read_u32_array);
+@@ -299,11 +300,22 @@
+ {
+ 	int ret;
+ 
++	printk("%s:%d fwnode: %px propname: '%s'\n", __func__, __LINE__, fwnode, propname);
+ 	if (IS_ERR_OR_NULL(fwnode))
+ 		return -EINVAL;
+ 
+-	ret = fwnode_call_int_op(fwnode, property_read_int_array, propname,
+-				 elem_size, val, nval);
++	// ret = fwnode_call_int_op(fwnode, property_read_int_array, propname,
++	// 			 elem_size, val, nval);
++	if (fwnode->ops) {
++		printk("%s:%d fwnode->ops: %px\n", __func__, __LINE__, fwnode->ops);
++		if (fwnode->ops->property_read_int_array) {
++			printk("%s:%d fwnode->ops->property_read_int_array: %px\n", __func__, __LINE__, fwnode->ops->property_read_int_array);
++			printk("%s:%d\n", __func__, __LINE__);
++			ret = fwnode->ops->property_read_int_array(fwnode, propname, elem_size, val, nval);
++		}
++	}
++
++	printk("%s:%d fwnode: %px propname: '%s' ret: %d\n", __func__, __LINE__, fwnode, propname, ret);
+ 	if (ret != -EINVAL)
+ 		return ret;
+ 
+@@ -393,6 +405,7 @@
+ int fwnode_property_read_u32_array(const struct fwnode_handle *fwnode,
+ 				   const char *propname, u32 *val, size_t nval)
+ {
++	printk("%s:%d fwnode: %px propname: '%s'\n", __func__, __LINE__, fwnode, propname);
+ 	return fwnode_property_read_int_array(fwnode, propname, sizeof(u32),
+ 					      val, nval);
+ }
+diff -ru contrib/linux/src/linux/drivers/base/swnode.c contrib/linux/src-sich/linux/drivers/base/swnode.c
+--- contrib/linux/src/linux/drivers/base/swnode.c	2026-04-02 15:14:12.799982089 +0200
++++ contrib/linux/src-sich/linux/drivers/base/swnode.c	2026-04-01 13:57:44.621751140 +0200
+@@ -405,6 +405,7 @@
+ {
+ 	struct swnode *swnode = to_swnode(fwnode);
+ 
++	printk("%s:%d propname: '%s'\n", __func__, __LINE__, propname);
+ 	return property_entry_read_int_array(swnode->node->properties, propname,
+ 					     elem_size, val, nval);
+ }
+diff -ru contrib/linux/src/linux/drivers/clk/clk.c contrib/linux/src-sich/linux/drivers/clk/clk.c
+--- contrib/linux/src/linux/drivers/clk/clk.c	2026-04-02 15:14:12.924981695 +0200
++++ contrib/linux/src-sich/linux/drivers/clk/clk.c	2026-04-01 13:57:44.623751132 +0200
+@@ -4121,6 +4121,8 @@
+ {
+ 	struct clk *clk;
+ 
++	printk("%s:%d core: %px dev_id: '%s' con_id: '%s'\n", __func__, __LINE__,
++	       core, dev_id, con_id);
+ 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+ 	if (!clk)
+ 		return ERR_PTR(-ENOMEM);
+@@ -4168,6 +4170,7 @@
+ 	if (IS_ERR_OR_NULL(hw))
+ 		return ERR_CAST(hw);
+ 
++	printk("%s:%d dev: %px hw: %ps dev_id: '%s' con_id: '%s'\n", __func__, __LINE__, dev, hw, dev_id, con_id);
+ 	core = hw->core;
+ 	clk = alloc_clk(core, dev_id, con_id);
+ 	if (IS_ERR(clk))
+@@ -4328,6 +4331,7 @@
+ 	 */
+ 	hw->init = NULL;
+ 
++	printk("%s:%d dev: %px np: %px hw: %px\n", __func__, __LINE__, dev, np, hw);
+ 	core = kzalloc(sizeof(*core), GFP_KERNEL);
+ 	if (!core) {
+ 		ret = -ENOMEM;
+@@ -4348,6 +4352,7 @@
+ 	}
+ 	core->ops = init->ops;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	core->dev = dev;
+ 	clk_pm_runtime_init(core);
+ 	core->of_node = np;
+@@ -4359,12 +4364,14 @@
+ 	core->min_rate = 0;
+ 	core->max_rate = ULONG_MAX;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ret = clk_core_populate_parent_map(core, init);
+ 	if (ret)
+ 		goto fail_parents;
+ 
+ 	INIT_HLIST_HEAD(&core->clks);
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	/*
+ 	 * Don't call clk_hw_create_clk() here because that would pin the
+ 	 * provider module to itself and prevent it from ever being removed.
+@@ -4377,6 +4384,7 @@
+ 
+ 	clk_core_link_consumer(core, hw->clk);
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ret = __clk_core_init(core);
+ 	if (!ret)
+ 		return hw->clk;
+@@ -4457,6 +4465,7 @@
+  */
+ int clk_hw_register(struct device *dev, struct clk_hw *hw)
+ {
++	printk("%s:%d dev: %px hw: %px\n", __func__, __LINE__);
+ 	return PTR_ERR_OR_ZERO(__clk_register(dev, dev_or_parent_of_node(dev),
+ 			       hw));
+ }
+diff -ru contrib/linux/src/linux/drivers/clk/clkdev.c contrib/linux/src-sich/linux/drivers/clk/clkdev.c
+--- contrib/linux/src/linux/drivers/clk/clkdev.c	2026-04-02 15:14:12.925981692 +0200
++++ contrib/linux/src-sich/linux/drivers/clk/clkdev.c	2026-04-01 13:57:44.623751132 +0200
+@@ -88,6 +88,7 @@
+ {
+ 	struct clk_hw *hw = clk_find_hw(dev_id, con_id);
+ 
++	printk("%s:%d dev: %px dev_id: '%s' con_id: '%s' hw: %px\n", __func__, __LINE__, dev, dev_id, con_id, hw);
+ 	return clk_hw_create_clk(dev, hw, dev_id, con_id);
+ }
+ 
+diff -ru contrib/linux/src/linux/drivers/clk/clk-fixed-rate.c contrib/linux/src-sich/linux/drivers/clk/clk-fixed-rate.c
+--- contrib/linux/src/linux/drivers/clk/clk-fixed-rate.c	2026-04-02 15:14:12.912981733 +0200
++++ contrib/linux/src-sich/linux/drivers/clk/clk-fixed-rate.c	2026-04-01 13:57:44.622751136 +0200
+@@ -73,6 +73,8 @@
+ 	struct clk_init_data init = {};
+ 	int ret = -EINVAL;
+ 
++	printk("%s:%d dev: %px\n", __func__, __LINE__, dev);
++
+ 	/* allocate fixed-rate clock */
+ 	if (devm)
+ 		fixed = devres_alloc(devm_clk_hw_register_fixed_rate_release,
+@@ -99,18 +101,25 @@
+ 	fixed->fixed_accuracy = fixed_accuracy;
+ 	fixed->hw.init = &init;
+ 
++	printk("%s:%d dev: %px np: %px\n", __func__, __LINE__, dev, np);
+ 	/* register the clock */
+ 	hw = &fixed->hw;
+-	if (dev || !np)
++	if (dev || !np) {
++		printk("%s:%d clk_hw_register %d\n", __func__, __LINE__, dev, ret);
+ 		ret = clk_hw_register(dev, hw);
+-	else
++		printk("%s:%d dev: %px ret: %d\n", __func__, __LINE__, dev, ret);
++	}
++	else {
+ 		ret = of_clk_hw_register(np, hw);
++		printk("%s:%d ret: %d\n", __func__, __LINE__, ret);
++	}
+ 	if (ret) {
+ 		if (devm)
+ 			devres_free(fixed);
+ 		else
+ 			kfree(fixed);
+ 		hw = ERR_PTR(ret);
++		printk("%s:%d ret: %d hw: %px\n", __func__, __LINE__, ret, hw);
+ 	} else if (devm)
+ 		devres_add(dev, fixed);
+ 
+@@ -126,6 +135,7 @@
+ 
+ 	hw = clk_hw_register_fixed_rate_with_accuracy(dev, name, parent_name,
+ 						      flags, fixed_rate, 0);
++	printk("%s:%d dev: %px name: '%s' parent_name: '%s' hw: %px hw->clk: %px\n", __func__, __LINE__, dev, name, parent_name, hw, hw->clk);
+ 	if (IS_ERR(hw))
+ 		return ERR_CAST(hw);
+ 	return hw->clk;
+diff -ru contrib/linux/src/linux/drivers/clk/clk-fractional-divider.c contrib/linux/src-sich/linux/drivers/clk/clk-fractional-divider.c
+--- contrib/linux/src/linux/drivers/clk/clk-fractional-divider.c	2026-04-02 15:14:12.912981733 +0200
++++ contrib/linux/src-sich/linux/drivers/clk/clk-fractional-divider.c	2026-04-01 13:57:44.622751136 +0200
+@@ -275,6 +275,7 @@
+ 	struct clk_hw *hw;
+ 	int ret;
+ 
++	printk("%s:%d dev: %s\n", __func__, __LINE__);
+ 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
+ 	if (!fd)
+ 		return ERR_PTR(-ENOMEM);
+diff -ru contrib/linux/src/linux/drivers/gpio/gpiolib-acpi-core.c contrib/linux/src-sich/linux/drivers/gpio/gpiolib-acpi-core.c
+--- contrib/linux/src/linux/drivers/gpio/gpiolib-acpi-core.c	2026-04-02 15:14:13.383980248 +0200
++++ contrib/linux/src-sich/linux/drivers/gpio/gpiolib-acpi-core.c	2026-04-02 13:09:06.228095781 +0200
+@@ -7,6 +7,8 @@
+  *          Mika Westerberg <mika.westerberg@linux.intel.com>
+  */
+ 
++#define DEBUG 1
++
+ #include <linux/acpi.h>
+ #include <linux/dmi.h>
+ #include <linux/errno.h>
+@@ -952,10 +954,14 @@
+ 	struct acpi_gpio_info info = {};
+ 	struct gpio_desc *desc;
+ 
++	printk("%s:%u\n", __func__, __LINE__);
++
+ 	desc = __acpi_find_gpio(fwnode, con_id, idx, can_fallback, &info);
+ 	if (IS_ERR(desc))
+ 		return desc;
+ 
++	printk("%s:%u\n", __func__, __LINE__);
++
+ 	if (info.gpioint &&
+ 	    (*dflags == GPIOD_OUT_LOW || *dflags == GPIOD_OUT_HIGH)) {
+ 		dev_dbg(&adev->dev, "refusing GpioInt() entry when doing GPIOD_OUT_* lookup\n");
+@@ -967,6 +973,8 @@
+ 
+ 	acpi_gpio_set_debounce_timeout(desc, info.debounce);
+ 
++	printk("%s:%u desc=%px\n", __func__, __LINE__, desc);
++
+ 	return desc;
+ }
+ 
+@@ -1001,6 +1009,8 @@
+ 	unsigned int irq_flags;
+ 	int ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	for (i = 0, idx = 0; idx <= index; i++) {
+ 		struct acpi_gpio_info info = {};
+ 		struct gpio_desc *desc;
+@@ -1010,11 +1020,13 @@
+ 		if (IS_ERR(desc) && PTR_ERR(desc) != -EPROBE_DEFER)
+ 			return PTR_ERR(desc);
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 		if (info.gpioint && idx++ == index) {
+ 			unsigned long lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
+ 			enum gpiod_flags dflags = GPIOD_ASIS;
+ 			char label[32];
+ 			int irq;
++	printk("%s:%d\n", __func__, __LINE__);
+ 
+ 			if (IS_ERR(desc))
+ 				return PTR_ERR(desc);
+@@ -1027,16 +1039,22 @@
+ 			acpi_gpio_update_gpiod_lookup_flags(&lflags, &info);
+ 
+ 			snprintf(label, sizeof(label), "%pfwP GpioInt(%d)", fwnode, index);
++	printk("%s:%d\n", __func__, __LINE__);
+ 			ret = gpiod_set_consumer_name(desc, con_id ?: label);
++	printk("%s:%d\n", __func__, __LINE__);
+ 			if (ret)
+ 				return ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 			ret = gpiod_configure_flags(desc, label, lflags, dflags);
++	printk("%s:%d\n", __func__, __LINE__);
+ 			if (ret < 0)
+ 				return ret;
+ 
+ 			/* ACPI uses hundredths of milliseconds units */
++	printk("%s:%d\n", __func__, __LINE__);
+ 			ret = gpio_set_debounce_timeout(desc, info.debounce * 10);
++	printk("%s:%d\n", __func__, __LINE__);
+ 			if (ret)
+ 				return ret;
+ 
+@@ -1063,6 +1081,8 @@
+ 		}
+ 
+ 	}
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	return -ENOENT;
+ }
+ EXPORT_SYMBOL_GPL(acpi_dev_gpio_irq_wake_get_by);
+diff -ru contrib/linux/src/linux/drivers/gpio/gpiolib.c contrib/linux/src-sich/linux/drivers/gpio/gpiolib.c
+--- contrib/linux/src/linux/drivers/gpio/gpiolib.c	2026-04-02 15:14:13.387980235 +0200
++++ contrib/linux/src-sich/linux/drivers/gpio/gpiolib.c	2026-04-02 14:39:04.083518226 +0200
+@@ -1,5 +1,6 @@
+ // SPDX-License-Identifier: GPL-2.0
+ 
++#define DEBUG 1
+ #include <linux/acpi.h>
+ #include <linux/array_size.h>
+ #include <linux/bitmap.h>
+@@ -2280,10 +2281,14 @@
+ int gpiochip_generic_config(struct gpio_chip *gc, unsigned int offset,
+ 			    unsigned long config)
+ {
++	printk("%s:%d offset=%x\n", __func__, __LINE__, offset);
+ #ifdef CONFIG_PINCTRL
++	printk("%s:%d\n", __func__, __LINE__);
+ 	if (list_empty(&gc->gpiodev->pin_ranges))
+ 		return -ENOTSUPP;
++	printk("%s:%d\n", __func__, __LINE__);
+ #endif
++	printk("%s:%d\n", __func__, __LINE__);
+ 
+ 	return pinctrl_gpio_set_config(gc, offset, config);
+ }
+@@ -2482,6 +2487,7 @@
+ 
+ 	VALIDATE_DESC(desc);
+ 
++	printk("%s:%d desc=%px desc->gdev=%px desc->gdev->owner=%px\n", __func__, __LINE__, desc, desc ? desc->gdev : NULL, desc->gdev ? desc->gdev->owner : NULL);
+ 	if (try_module_get(desc->gdev->owner)) {
+ 		ret = gpiod_request_commit(desc, label);
+ 		if (ret)
+@@ -2661,17 +2667,23 @@
+ {
+ 	int ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	CLASS(gpio_chip_guard, guard)(desc);
++	printk("%s:%d\n", __func__, __LINE__);
+ 	if (!guard.gc)
+ 		return -ENODEV;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	if (!guard.gc->set_config)
+ 		return -ENOTSUPP;
+ 
++	printk("%s:%d call set_config=%px offset=%x\n", __func__, __LINE__, guard.gc->set_config, gpio_chip_hwgpio(desc));
+ 	ret = guard.gc->set_config(guard.gc, gpio_chip_hwgpio(desc), config);
++	printk("%s:%d ret=%d\n", __func__, __LINE__, ret);
+ 	if (ret > 0)
+ 		ret = -EBADE;
+ 
++	printk("%s:%d ret=%d\n", __func__, __LINE__, ret);
+ #ifdef CONFIG_GPIO_CDEV
+ 	/*
+ 	 * Special case - if we're setting debounce period, we need to store
+@@ -2681,6 +2693,7 @@
+ 		WRITE_ONCE(desc->debounce_period_us,
+ 			   pinconf_to_config_argument(config));
+ #endif
++	printk("%s:%d ret=%d\n", __func__, __LINE__, ret);
+ 	return ret;
+ }
+ 
+@@ -2690,7 +2703,9 @@
+ {
+ 	unsigned long config;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	config = pinconf_to_config_packed(mode, argument);
++	printk("%s:%d\n", __func__, __LINE__);
+ 	return gpio_do_set_config(desc, config);
+ }
+ 
+@@ -2702,7 +2717,9 @@
+ 	int gpio = gpio_chip_hwgpio(desc);
+ 	int ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ret = gpio_set_config_with_argument(desc, mode, argument);
++	printk("%s:%d ret=%d\n", __func__, __LINE__, ret);
+ 	if (ret != -ENOTSUPP)
+ 		return ret;
+ 
+@@ -2750,6 +2767,7 @@
+ 		break;
+ 	}
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	return gpio_set_config_with_argument_optional(desc, bias, arg);
+ }
+ 
+@@ -2768,6 +2786,7 @@
+ {
+ 	int ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ret = gpio_set_config_with_argument_optional(desc,
+ 						     PIN_CONFIG_INPUT_DEBOUNCE,
+ 						     debounce);
+@@ -3209,6 +3228,7 @@
+ 	 */
+ 	assign_bit(GPIOD_FLAG_TRANSITORY, &desc->flags, transitory);
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	/* If the driver supports it, set the persistence state now */
+ 	return gpio_set_config_with_argument_optional(desc,
+ 						      PIN_CONFIG_PERSIST_STATE,
+@@ -4007,6 +4027,7 @@
+ 	offset = gpio_chip_hwgpio(desc);
+ 	if (gc->to_irq) {
+ 		ret = gc->to_irq(gc, offset);
++		printk("%s:%d to_irq: %px gc: %px offset: %d ret: %d\n", __func__, __LINE__, gc->to_irq, gc, offset, ret);
+ 		if (ret)
+ 			return ret;
+ 
+@@ -4622,10 +4643,15 @@
+ {
+ 	struct gpio_desc *desc;
+ 
++	printk("%s:%u\n", __func__, __LINE__);
+ 	desc = gpiod_find_by_fwnode(fwnode, consumer, con_id, idx, flags, lookupflags);
+-	if (gpiod_not_found(desc) && !IS_ERR_OR_NULL(fwnode))
++	printk("%s:%u\n", __func__, __LINE__);
++	if (gpiod_not_found(desc) && !IS_ERR_OR_NULL(fwnode)) {
++		printk("%s:%u\n", __func__, __LINE__);
+ 		desc = gpiod_find_by_fwnode(fwnode->secondary, consumer, con_id,
+ 					    idx, flags, lookupflags);
++		printk("%s:%u\n", __func__, __LINE__);
++	}
+ 
+ 	return desc;
+ }
+@@ -4650,6 +4676,7 @@
+ 	scoped_guard(srcu, &gpio_devices_srcu) {
+ 		desc = gpiod_fwnode_lookup(fwnode, consumer, con_id, idx,
+ 					   &flags, &lookupflags);
++		printk("%s:%u desc=%px\n", __func__, __LINE__, desc);
+ 		if (gpiod_not_found(desc) && platform_lookup_allowed) {
+ 			/*
+ 			 * Either we are not using DT or ACPI, or their lookup
+@@ -4670,9 +4697,12 @@
+ 		 * If a connection label was passed use that, else attempt to use
+ 		 * the device name as label
+ 		 */
++		printk("%s:%u\n", __func__, __LINE__);
+ 		ret = gpiod_request(desc, label);
++		printk("%s:%u ret=%d\n", __func__, __LINE__, ret);
+ 	}
+ 	if (ret) {
++		printk("%s:%u ret=%d\n", __func__, __LINE__, ret);
+ 		if (!(ret == -EBUSY && flags & GPIOD_FLAGS_BIT_NONEXCLUSIVE))
+ 			return ERR_PTR(ret);
+ 
+@@ -4688,8 +4718,11 @@
+ 		return desc;
+ 	}
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ret = gpiod_configure_flags(desc, con_id, lookupflags, flags);
++	printk("%s:%u ret=%d\n", __func__, __LINE__, ret);
+ 	if (ret < 0) {
++		printk("%s:%u ret=%d\n", __func__, __LINE__, ret);
+ 		gpiod_put(desc);
+ 		dev_err(consumer, "setup of GPIO %s failed: %d\n", name, ret);
+ 		return ERR_PTR(ret);
+@@ -4745,16 +4778,26 @@
+ 	const struct fwnode_handle *fwnode = dev ? dev_fwnode(dev) : NULL;
+ 	int count = -ENOENT;
+ 
+-	if (is_of_node(fwnode))
++	printk("%s:%d fwnode: %px\n", __func__, __LINE__, fwnode);
++	if (is_of_node(fwnode)) {
+ 		count = of_gpio_count(fwnode, con_id);
+-	else if (is_acpi_node(fwnode))
++	printk("%s:%d fwnode: %px count: %d\n", __func__, __LINE__, fwnode, count);
++	}
++	else if (is_acpi_node(fwnode)) {
+ 		count = acpi_gpio_count(fwnode, con_id);
+-	else if (is_software_node(fwnode))
++	printk("%s:%d fwnode: %px count: %d\n", __func__, __LINE__, fwnode, count);
++	}
++	else if (is_software_node(fwnode)) {
+ 		count = swnode_gpio_count(fwnode, con_id);
++	printk("%s:%d fwnode: %px count: %d\n", __func__, __LINE__, fwnode, count);
++	}
+ 
+-	if (count < 0)
++	if (count < 0) {
+ 		count = platform_gpio_count(dev, con_id);
++	printk("%s:%d fwnode: %px count: %d\n", __func__, __LINE__, fwnode, count);
++	}
+ 
++	printk("%s:%d fwnode: %px count: %d\n", __func__, __LINE__, fwnode, count);
+ 	return count;
+ }
+ EXPORT_SYMBOL_GPL(gpiod_count);
+@@ -4820,6 +4863,7 @@
+ 	const char *name = function_name_or_default(con_id);
+ 	int ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	if (lflags & GPIO_ACTIVE_LOW)
+ 		set_bit(GPIOD_FLAG_ACTIVE_LOW, &desc->flags);
+ 
+Only in contrib/linux/src-sich/linux/drivers/gpio: gpiolib.c.orig
+diff -ru contrib/linux/src/linux/drivers/mfd/intel-lpss.c contrib/linux/src-sich/linux/drivers/mfd/intel-lpss.c
+--- contrib/linux/src/linux/drivers/mfd/intel-lpss.c	2026-04-02 15:14:16.420970669 +0200
++++ contrib/linux/src-sich/linux/drivers/mfd/intel-lpss.c	2026-04-01 13:57:44.625751125 +0200
+@@ -302,12 +302,14 @@
+ 	struct clk *tmp = *clk;
+ 	int ret;
+ 
++	printk("%s:%d lpss: %px devname: '%s' clk: %px clk_rate: %lu\n", __func__, __LINE__, lpss, devname, tmp, clk_get_rate(tmp));
+ 	snprintf(name, sizeof(name), "%s-enable", devname);
+ 	tmp = clk_register_gate(NULL, name, __clk_get_name(tmp), 0,
+ 				lpss->priv, 0, 0, NULL);
+ 	if (IS_ERR(tmp))
+ 		return PTR_ERR(tmp);
+ 
++	printk("%s:%d lpss: %px devname: '%s' clk: %px clk_rate: %lu\n", __func__, __LINE__, lpss, devname, tmp, clk_get_rate(tmp));
+ 	snprintf(name, sizeof(name), "%s-div", devname);
+ 	tmp = clk_register_fractional_divider(NULL, name, __clk_get_name(tmp),
+ 					      0, lpss->priv, 1, 15, 16, 15,
+@@ -317,12 +319,15 @@
+ 		return PTR_ERR(tmp);
+ 	*clk = tmp;
+ 
++	printk("%s:%d lpss: %px devname: '%s' clk: %px clk_rate: %lu\n", __func__, __LINE__, lpss, devname, tmp, clk_get_rate(tmp));
+ 	if (lpss->info->quirks & QUIRK_CLOCK_DIVIDER_UNITY) {
+ 		ret = clk_set_rate(tmp, lpss->info->clk_rate);
++	printk("%s:%d lpss: %px devname: '%s' clk: %px clk_rate: %lu\n", __func__, __LINE__, lpss, devname, tmp, clk_get_rate(tmp));
+ 		if (ret)
+ 			return ret;
+ 	}
+ 
++	printk("%s:%d lpss: %px devname: '%s' clk: %px clk_rate: %lu\n", __func__, __LINE__, lpss, devname, tmp, clk_get_rate(tmp));
+ 	snprintf(name, sizeof(name), "%s-update", devname);
+ 	tmp = clk_register_gate(NULL, name, __clk_get_name(tmp),
+ 				CLK_SET_RATE_PARENT, lpss->priv, 31, 0, NULL);
+@@ -330,6 +335,7 @@
+ 		return PTR_ERR(tmp);
+ 	*clk = tmp;
+ 
++	printk("%s:%d lpss: %px devname: '%s' clk: %px clk_rate: %lu\n", __func__, __LINE__, lpss, devname, tmp, clk_get_rate(tmp));
+ 	return 0;
+ }
+ 
+@@ -340,12 +346,14 @@
+ 	char devname[24];
+ 	int ret;
+ 
++	printk("%s:%d lpss: %px info->clk_rate: %u\n", __func__, __LINE__, lpss, lpss->info->clk_rate);
+ 	if (!lpss->info->clk_rate)
+ 		return 0;
+ 
+ 	/* Root clock */
+ 	clk = clk_register_fixed_rate(NULL, dev_name(lpss->dev), NULL, 0,
+ 				      lpss->info->clk_rate);
++	printk("%s:%d lpss: %px clk: %px clk_rate: %lu\n", __func__, __LINE__, lpss, clk, clk_get_rate(clk));
+ 	if (IS_ERR(clk))
+ 		return PTR_ERR(clk);
+ 
+@@ -363,11 +371,13 @@
+ 
+ 	ret = -ENOMEM;
+ 
++	printk("%s:%d lpss: %px clk: %px clk_rate: %lu\n", __func__, __LINE__, lpss, clk, clk_get_rate(clk));
+ 	/* Clock for the host controller */
+ 	lpss->clock = clkdev_create(clk, lpss->info->clk_con_id, "%s", devname);
+ 	if (!lpss->clock)
+ 		goto err_clk_register;
+ 
++	printk("%s:%d lpss: %px clk: %px clk_rate: %lu\n", __func__, __LINE__, lpss, clk, clk_get_rate(clk));
+ 	lpss->clk = clk;
+ 
+ 	return 0;
+@@ -445,6 +455,7 @@
+ 				 LPSS_IDMA64_DRIVER_NAME);
+ 	}
+ 
++	printk("%s:%d dev: %px dev.parent: %px\n", __func__, __LINE__, dev, dev->parent);
+ 	ret = mfd_add_devices(dev, lpss->devid, lpss->cell,
+ 			      1, info->mem, info->irq, NULL);
+ 	if (ret)
+diff -ru contrib/linux/src/linux/drivers/mfd/intel-lpss-pci.c contrib/linux/src-sich/linux/drivers/mfd/intel-lpss-pci.c
+--- contrib/linux/src/linux/drivers/mfd/intel-lpss-pci.c	2026-04-02 15:14:16.420970669 +0200
++++ contrib/linux/src-sich/linux/drivers/mfd/intel-lpss-pci.c	2026-04-01 13:57:44.625751125 +0200
+@@ -80,6 +80,8 @@
+ 	if (ret)
+ 		return ret;
+ 
++	printk("%s:%d pdev: %px dev: %px\n", __func__, __LINE__, pdev, &pdev->dev);
++
+ 	pm_runtime_put(&pdev->dev);
+ 	pm_runtime_allow(&pdev->dev);
+ 
+diff -ru contrib/linux/src/linux/drivers/mfd/mfd-core.c contrib/linux/src-sich/linux/drivers/mfd/mfd-core.c
+--- contrib/linux/src/linux/drivers/mfd/mfd-core.c	2026-04-02 15:14:16.427970647 +0200
++++ contrib/linux/src-sich/linux/drivers/mfd/mfd-core.c	2026-04-01 13:57:44.625751125 +0200
+@@ -7,6 +7,8 @@
+  * Copyright (c) 2007,2008 Dmitry Baryshkov
+  */
+ 
++#define DEBUG 1
++
+ #include <linux/kernel.h>
+ #include <linux/platform_device.h>
+ #include <linux/acpi.h>
+@@ -60,6 +62,8 @@
+ 	struct acpi_device *parent;
+ 
+ 	parent = ACPI_COMPANION(pdev->dev.parent);
++	printk("%s:%d pdev: %px dev: %px dev.parent: %px parent: %px match: %px\n", __func__, __LINE__,
++	       pdev, &pdev->dev, pdev->dev.parent, parent, match);
+ 	if (!parent)
+ 		return;
+ 
+@@ -88,6 +92,7 @@
+ 		}
+ 	}
+ 
++	printk("%s:%d dev: %px adev: %px parent: %px\n", __func__, __LINE__, &pdev->dev, adev, parent);
+ 	device_set_node(&pdev->dev, acpi_fwnode_handle(adev ?: parent));
+ }
+ #else
+@@ -217,6 +222,7 @@
+ 				cell->name, platform_id);
+ 	}
+ 
++	printk("%s:%d name: '%s' pdev: %px dev: %px\n", __func__, __LINE__, cell->name, pdev, &pdev->dev);
+ 	mfd_acpi_add_device(cell, pdev);
+ 
+ 	if (cell->pdata_size) {
+Only in contrib/linux/src-sich/linux/drivers/mfd: mfd-core.c.orig
+diff -ru contrib/linux/src/linux/drivers/pinctrl/core.c contrib/linux/src-sich/linux/drivers/pinctrl/core.c
+--- contrib/linux/src/linux/drivers/pinctrl/core.c	2026-04-02 15:14:18.319964679 +0200
++++ contrib/linux/src-sich/linux/drivers/pinctrl/core.c	2026-04-02 14:30:12.965522069 +0200
+@@ -923,8 +923,10 @@
+ 	struct pinctrl_gpio_range *range;
+ 	struct pinctrl_dev *pctldev;
+ 	int ret, pin;
++	printk("%s:%d\n", __func__, __LINE__);
+ 
+ 	ret = pinctrl_get_device_gpio_range(gc, offset, &pctldev, &range);
++	printk("%s:%d ret=%d offset=%x\n", __func__, __LINE__, ret, offset);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -933,6 +935,8 @@
+ 	ret = pinconf_set_config(pctldev, pin, configs, ARRAY_SIZE(configs));
+ 	mutex_unlock(&pctldev->mutex);
+ 
++	printk("%s:%d ret=%d\n", __func__, __LINE__, ret);
++
+ 	return ret;
+ }
+ EXPORT_SYMBOL_GPL(pinctrl_gpio_set_config);
+diff -ru contrib/linux/src/linux/drivers/platform/x86/serial-multi-instantiate.c contrib/linux/src-sich/linux/drivers/platform/x86/serial-multi-instantiate.c
+--- contrib/linux/src/linux/drivers/platform/x86/serial-multi-instantiate.c	2026-04-02 15:14:18.512964070 +0200
++++ contrib/linux/src-sich/linux/drivers/platform/x86/serial-multi-instantiate.c	2026-04-01 13:57:44.625751125 +0200
+@@ -6,6 +6,8 @@
+  * Copyright 2018 Hans de Goede <hdegoede@redhat.com>
+  */
+ 
++#define DEBUG 1
++
+ #include <linux/acpi.h>
+ #include <linux/bits.h>
+ #include <linux/i2c.h>
+@@ -55,11 +57,17 @@
+ 	switch (inst->flags & IRQ_RESOURCE_TYPE) {
+ 	case IRQ_RESOURCE_AUTO:
+ 		ret = acpi_dev_gpio_irq_get(adev, inst->irq_idx);
++		printk("%s:%d ret: %d\n", __func__, __LINE__, ret);
++		if (ret == 256) {
++			printk("%s:%d override IRQ with: %u\n", __func__, __LINE__, 124);
++			ret = 124;
++		}
+ 		if (ret > 0) {
+ 			dev_dbg(&pdev->dev, "Using gpio irq\n");
+ 			break;
+ 		}
+ 		ret = platform_get_irq(pdev, inst->irq_idx);
++		printk("%s:%d ret: %d\n", __func__, __LINE__, ret);
+ 		if (ret > 0) {
+ 			dev_dbg(&pdev->dev, "Using platform irq\n");
+ 			break;
+@@ -112,6 +120,7 @@
+ 	char name[50];
+ 	int i, ret, count;
+ 
++	printk("%s:%d adev: %px\n", __func__, __LINE__, adev);
+ 	ret = acpi_spi_count_resources(adev);
+ 	if (ret < 0)
+ 		return ret;
+@@ -124,9 +133,11 @@
+ 	if (!smi->spi_devs)
+ 		return -ENOMEM;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	for (i = 0; i < count && inst_array[i].type; i++) {
+ 
+ 		spi_dev = acpi_spi_device_alloc(NULL, adev, i);
++		printk("%s:%d adev: %px spi_dev: %px\n", __func__, __LINE__, adev, spi_dev);
+ 		if (IS_ERR(spi_dev)) {
+ 			ret = dev_err_probe(dev, PTR_ERR(spi_dev), "failed to allocate SPI device %s from ACPI\n",
+ 					    dev_name(&adev->dev));
+@@ -138,6 +149,7 @@
+ 		strscpy(spi_dev->modalias, inst_array[i].type);
+ 
+ 		ret = smi_get_irq(pdev, adev, &inst_array[i]);
++		printk("%s:%d ret: %d\n", __func__, __LINE__, ret);
+ 		if (ret < 0) {
+ 			spi_dev_put(spi_dev);
+ 			goto error;
+@@ -149,6 +161,7 @@
+ 		spi_dev->dev.init_name = name;
+ 
+ 		ret = spi_add_device(spi_dev);
++		printk("%s:%d name: '%s' ret: %d\n", __func__, __LINE__, name, ret);
+ 		if (ret) {
+ 			dev_err_probe(&ctlr->dev, ret, "failed to add SPI device %s from ACPI\n",
+ 				      dev_name(&adev->dev));
+@@ -173,6 +186,7 @@
+ 
+ 	return 0;
+ error:
++	printk("%s:%d\n", __func__, __LINE__);
+ 	smi_devs_unregister(smi);
+ 
+ 	return ret;
+@@ -248,18 +262,21 @@
+ 	struct smi *smi;
+ 	int ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	node = device_get_match_data(dev);
+ 	if (!node) {
+ 		dev_dbg(dev, "Error ACPI match data is missing\n");
+ 		return -ENODEV;
+ 	}
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	smi = devm_kzalloc(dev, sizeof(*smi), GFP_KERNEL);
+ 	if (!smi)
+ 		return -ENOMEM;
+ 
+ 	platform_set_drvdata(pdev, smi);
+ 
++	printk("%s:%d bus_type: %u\n", __func__, __LINE__, node->bus_type);
+ 	switch (node->bus_type) {
+ 	case SMI_I2C:
+ 		if (IS_REACHABLE(CONFIG_I2C))
+@@ -291,6 +308,7 @@
+ 
+ 		return -ENODEV;
+ 	default:
++	printk("%s:%d\n", __func__, __LINE__);
+ 		return -EINVAL;
+ 	}
+ }
+diff -ru contrib/linux/src/linux/drivers/spi/spi.c contrib/linux/src-sich/linux/drivers/spi/spi.c
+--- contrib/linux/src/linux/drivers/spi/spi.c	2026-04-02 15:14:19.125962136 +0200
++++ contrib/linux/src-sich/linux/drivers/spi/spi.c	2026-04-01 13:57:44.627751117 +0200
+@@ -4,6 +4,8 @@
+ // Copyright (C) 2005 David Brownell
+ // Copyright (C) 2008 Secret Lab Technologies Ltd.
+ 
++#define DEBUG 1
++
+ #include <linux/acpi.h>
+ #include <linux/cache.h>
+ #include <linux/clk/clk-conf.h>
+@@ -414,6 +416,7 @@
+ 	struct fwnode_handle		*fwnode = dev_fwnode(dev);
+ 	int ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ret = of_clk_set_defaults(dev->of_node, false);
+ 	if (ret)
+ 		return ret;
+@@ -422,19 +425,23 @@
+ 		spi->irq = of_irq_get(dev->of_node, 0);
+ 	else if (is_acpi_device_node(fwnode) && spi->irq < 0)
+ 		spi->irq = acpi_dev_gpio_irq_get(to_acpi_device_node(fwnode), 0);
+-	if (spi->irq == -EPROBE_DEFER)
++	if (spi->irq == -EPROBE_DEFER) {
++		printk("%s:%d\n", __func__, __LINE__);
+ 		return dev_err_probe(dev, spi->irq, "Failed to get irq\n");
++	}
+ 	if (spi->irq < 0)
+ 		spi->irq = 0;
+ 
+ 	ret = dev_pm_domain_attach(dev, PD_FLAG_ATTACH_POWER_ON |
+ 					PD_FLAG_DETACH_POWER_OFF);
++	printk("%s:%d\n", __func__, __LINE__);
+ 	if (ret)
+ 		return ret;
+ 
+ 	if (sdrv->probe)
+ 		ret = sdrv->probe(spi);
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	return ret;
+ }
+ 
+@@ -676,6 +683,8 @@
+ 		return -EOVERFLOW;
+ 	}
+ 
++	printk("%s:%d num_chipselect: %d\n", __func__, __LINE__, ctlr->num_chipselect);
++
+ 	for (idx = 0; idx < spi->num_chipselect; idx++) {
+ 		/* Chipselects are numbered 0..max; validate. */
+ 		cs = spi_get_chipselect(spi, idx);
+@@ -2612,6 +2621,7 @@
+ 	struct acpi_resource_spi_serialbus *sb;
+ 	int *count = data;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	if (ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS)
+ 		return 1;
+ 
+@@ -2637,7 +2647,9 @@
+ 	int count = 0;
+ 	int ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ret = acpi_dev_get_resources(adev, &r, acpi_spi_count, &count);
++	printk("%s:%d ret: %d count: %d\n", __func__, __LINE__, ret, count);
+ 	if (ret < 0)
+ 		return ret;
+ 
+@@ -2699,23 +2711,32 @@
+ 			if (ACPI_FAILURE(status))
+ 				return -ENODEV;
+ 
++			printk("%s:%d ctlr: %px\n", __func__, __LINE__, ctlr);
+ 			if (ctlr) {
+ 				if (!device_match_acpi_handle(ctlr->dev.parent, parent_handle))
+ 					return -ENODEV;
+ 			} else {
+ 				struct acpi_device *adev;
++				printk("%s:%d parent_handle: %px\n",
++				       __func__, __LINE__, parent_handle);
+ 
+ 				adev = acpi_fetch_acpi_dev(parent_handle);
++				printk("%s:%d parent_handle: %px adev: %px\n",
++				       __func__, __LINE__, parent_handle, adev);
+ 				if (!adev)
+ 					return -ENODEV;
+ 
+ 				ctlr = acpi_spi_find_controller_by_adev(adev);
++				printk("%s:%d adev: %px ctlr: %px\n",
++				       __func__, __LINE__, adev, ctlr);
+ 				if (!ctlr)
+ 					return -EPROBE_DEFER;
+ 
++				printk("%s:%d adev: %px ctlr: %px\n", __func__, __LINE__, adev, ctlr);
+ 				lookup->ctlr = ctlr;
+ 			}
+ 
++			printk("%s:%d sb->device_selection: %u \n", __func__, __LINE__, sb->device_selection);
+ 			/*
+ 			 * ACPI DeviceSelection numbering is handled by the
+ 			 * host controller driver in Windows and can vary
+@@ -2724,8 +2745,10 @@
+ 			 * translate between the two schemes.
+ 			 */
+ 			if (ctlr->fw_translate_cs) {
++				printk("%s:%d fw_translate_cs: %px\n", __func__, __LINE__, ctlr->fw_translate_cs);
+ 				int cs = ctlr->fw_translate_cs(ctlr,
+ 						sb->device_selection);
++				printk("%s:%d cs: %d\n", __func__, __LINE__, cs);
+ 				if (cs < 0)
+ 					return cs;
+ 				lookup->chip_select = cs;
+@@ -2746,10 +2769,13 @@
+ 	} else if (lookup->irq < 0) {
+ 		struct resource r;
+ 
+-		if (acpi_dev_resource_interrupt(ares, 0, &r))
++		if (acpi_dev_resource_interrupt(ares, 0, &r)) {
+ 			lookup->irq = r.start;
++			printk("%s:%d irq: %d\n", __func__, __LINE__, lookup->irq);
++		}
+ 	}
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	/* Always tell the ACPI core to skip this resource */
+ 	return 1;
+ }
+@@ -2788,11 +2814,14 @@
+ 	lookup.index		= index;
+ 	lookup.n		= 0;
+ 
++	printk("%s:%d ctlr: %px lookup.irq: %d\n", __func__, __LINE__, ctlr, lookup.irq);
++
+ 	INIT_LIST_HEAD(&resource_list);
+ 	ret = acpi_dev_get_resources(adev, &resource_list,
+ 				     acpi_spi_add_resource, &lookup);
+ 	acpi_dev_free_resource_list(&resource_list);
+ 
++	printk("%s:%d ret: %d\n", __func__, __LINE__, ret);
+ 	if (ret < 0)
+ 		/* Found SPI in _CRS but it points to another controller */
+ 		return ERR_PTR(ret);
+@@ -2807,6 +2836,22 @@
+ 	if (!lookup.max_speed_hz)
+ 		return ERR_PTR(-ENODEV);
+ 
++	printk("%s:%d ctlr: %px max_speed_hz: %u"
++		   " mode: %u"
++		   " irq: %d"
++		   " bits_per_word: %u"
++		   " chip_select: %u"
++		   " n: %d"
++		   " index: %d"
++		   "\n", __func__, __LINE__, lookup.ctlr,
++		   lookup.max_speed_hz,
++		   lookup.mode,
++		   lookup.irq,
++		   lookup.bits_per_word,
++		   lookup.chip_select,
++		   lookup.n,
++		   lookup.index
++		   );
+ 	spi = spi_alloc_device(lookup.ctlr);
+ 	if (!spi) {
+ 		dev_err(&lookup.ctlr->dev, "failed to allocate SPI device for %s\n",
+@@ -2840,6 +2885,7 @@
+ 	    acpi_device_enumerated(adev))
+ 		return AE_OK;
+ 
++	printk("%s:%d ctlr: %px adev: %px\n", __func__, __LINE__, ctlr, adev);
+ 	spi = acpi_spi_device_alloc(ctlr, adev, -1);
+ 	if (IS_ERR(spi)) {
+ 		if (PTR_ERR(spi) == -ENOMEM)
+@@ -2851,6 +2897,7 @@
+ 	acpi_set_modalias(adev, acpi_device_hid(adev), spi->modalias,
+ 			  sizeof(spi->modalias));
+ 
++	printk("%s:%d ctlr: %px adev: %px spi: %px\n", __func__, __LINE__, ctlr, adev, spi);
+ 	/*
+ 	 * This gets re-tried in spi_probe() for -EPROBE_DEFER handling in case
+ 	 * the GPIO controller does not have a driver yet. This needs to be done
+@@ -2885,6 +2932,7 @@
+ 	if (!adev)
+ 		return AE_OK;
+ 
++	// printk("%s:%d adev: %px cltr: %px\n", __func__, __LINE__, adev, ctlr);
+ 	return acpi_register_spi_device(ctlr, adev);
+ }
+ 
+@@ -2896,9 +2944,11 @@
+ 	acpi_handle handle;
+ 
+ 	handle = ACPI_HANDLE(ctlr->dev.parent);
++	printk("%s:%d ctlr: %px dev: %px dev.parent: %px handle: %px\n", __func__, __LINE__, ctlr, &ctlr->dev, ctlr->dev.parent, handle);
+ 	if (!handle)
+ 		return;
+ 
++	printk("%s:%d acpi_walk_namespace: %px\n", __func__, __LINE__, acpi_walk_namespace);
+ 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+ 				     SPI_ACPI_ENUMERATE_MAX_DEPTH,
+ 				     acpi_spi_add_device, NULL, ctlr, NULL);
+@@ -3136,13 +3186,18 @@
+ 	unsigned int num_cs_gpios = 0;
+ 
+ 	nb = gpiod_count(dev, "cs");
++	printk("%s:%d nb: %d\n", __func__, __LINE__, nb);
+ 	if (nb < 0) {
+ 		/* No GPIOs at all is fine, else return the error */
+-		if (nb == -ENOENT)
+-			return 0;
+-		return nb;
++		if (nb == -ENOENT) {
++			printk("%s:%d override nb: %d with 2\n", __func__, __LINE__, nb);
++			nb = 2;
++		} else {
++			return nb;
++		}
+ 	}
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ctlr->num_chipselect = max_t(int, nb, ctlr->num_chipselect);
+ 
+ 	cs = devm_kcalloc(dev, ctlr->num_chipselect, sizeof(*cs),
+@@ -4850,22 +4905,29 @@
+ #if IS_ENABLED(CONFIG_ACPI)
+ static int spi_acpi_controller_match(struct device *dev, const void *data)
+ {
+-	return device_match_acpi_dev(dev->parent, data);
++	printk("%s:%d dev: %px parent: %px data: %px\n", __func__, __LINE__, dev, dev->parent, data);
++	printk("%s:%d RRRRRRRRRRRRRRreturn 1\n", __func__, __LINE__);
++	return 1; device_match_acpi_dev(dev->parent, data);
+ }
+ 
+ struct spi_controller *acpi_spi_find_controller_by_adev(struct acpi_device *adev)
+ {
+ 	struct device *dev;
++	struct spi_controller *cltr;
+ 
+ 	dev = class_find_device(&spi_controller_class, NULL, adev,
+ 				spi_acpi_controller_match);
++	printk("%s:%d adev: %px dev: %px\n", __func__, __LINE__, adev, dev);
+ 	if (!dev && IS_ENABLED(CONFIG_SPI_SLAVE))
+ 		dev = class_find_device(&spi_target_class, NULL, adev,
+ 					spi_acpi_controller_match);
+ 	if (!dev)
+ 		return NULL;
++	cltr = container_of(dev, struct spi_controller, dev);
+ 
+-	return container_of(dev, struct spi_controller, dev);
++	printk("%s:%d adev: %px dev: %px ctlr: %px\n", __func__, __LINE__, adev, dev, cltr);
++
++	return cltr;
+ }
+ EXPORT_SYMBOL_GPL(acpi_spi_find_controller_by_adev);
+ 
+diff -ru contrib/linux/src/linux/drivers/spi/spi-pxa2xx.c contrib/linux/src-sich/linux/drivers/spi/spi-pxa2xx.c
+--- contrib/linux/src/linux/drivers/spi/spi-pxa2xx.c	2026-04-02 15:14:19.112962177 +0200
++++ contrib/linux/src-sich/linux/drivers/spi/spi-pxa2xx.c	2026-04-01 13:57:44.626751121 +0200
+@@ -4,6 +4,7 @@
+  * Copyright (C) 2013, 2021 Intel Corporation
+  */
+ 
++#define DEBUG 1
+ #include <linux/atomic.h>
+ #include <linux/bitops.h>
+ #include <linux/bug.h>
+@@ -327,12 +328,16 @@
+ {
+ 	u32 new, curr;
+ 
++	// printk("%s:%d\n", __func__, __LINE__);
+ 	curr = __lpss_ssp_read_priv(drv_data, offset);
++	// printk("%s:%d\n", __func__, __LINE__);
+ 	new = (curr & ~mask) | (value & mask);
+ 	if (new == curr)
+ 		return false;
+ 
++	// printk("%s:%d\n", __func__, __LINE__);
+ 	__lpss_ssp_write_priv(drv_data, offset, new);
++	// printk("%s:%d\n", __func__, __LINE__);
+ 	return true;
+ }
+ 
+@@ -350,6 +355,7 @@
+ 
+ 	config = lpss_get_config(drv_data);
+ 	drv_data->lpss_base = drv_data->ssp->mmio_base + config->offset;
++	printk("%s:%d drv_data->ssp: %px lpss_base: %px mmio_base: %px offset: 0%x\n", __func__, __LINE__, drv_data->ssp, drv_data->lpss_base, drv_data->ssp->mmio_base, config->offset);
+ 
+ 	/* Enable software chip select control */
+ 	value = LPSS_CS_CONTROL_SW_MODE | LPSS_CS_CONTROL_CS_HIGH;
+@@ -373,10 +379,14 @@
+ 		spi_controller_get_devdata(spi->controller);
+ 	u32 cs;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	cs = spi_get_chipselect(spi, 0) << config->cs_sel_shift;
++	printk("%s:%d cs: %u\n", __func__, __LINE__, cs);
+ 	if (!__lpss_ssp_update_priv(drv_data, config->reg_cs_ctrl, config->cs_sel_mask, cs))
+ 		return;
+ 
++	printk("%s:%d drv_data->controller->max_speed_hz: %u\n", __func__, __LINE__, drv_data->controller->max_speed_hz);
+ 	/*
+ 	 * When switching another chip select output active the output must be
+ 	 * selected first and wait 2 ssp_clk cycles before changing state to
+@@ -384,6 +394,7 @@
+ 	 * select since output select is latched but state control is not.
+ 	 */
+ 	ndelay(1000000000 / (drv_data->controller->max_speed_hz / 2));
++	printk("%s:%d\n", __func__, __LINE__);
+ }
+ 
+ static void lpss_ssp_cs_control(struct spi_device *spi, bool enable)
+@@ -425,8 +436,10 @@
+ 		return;
+ 	}
+ 
+-	if (is_lpss_ssp(drv_data))
++	if (is_lpss_ssp(drv_data)) {
++		printk("%s:%d\n", __func__, __LINE__);
+ 		lpss_ssp_cs_control(spi, true);
++	}
+ }
+ 
+ static void cs_deassert(struct spi_device *spi)
+@@ -444,8 +457,10 @@
+ 	       !time_after(jiffies, timeout))
+ 		cpu_relax();
+ 
+-	if (is_lpss_ssp(drv_data))
++	if (is_lpss_ssp(drv_data)) {
++		printk("%s:%d\n", __func__, __LINE__);
+ 		lpss_ssp_cs_control(spi, false);
++	}
+ }
+ 
+ static void pxa2xx_spi_set_cs(struct spi_device *spi, bool level)
+@@ -955,11 +970,13 @@
+ 				     transfer->len, MAX_DMA_LEN);
+ 	}
+ 
++	printk("%s:%d BEFORE flush\n", __func__, __LINE__);
+ 	/* Setup the transfer state based on the type of transfer */
+ 	if (pxa2xx_spi_flush(drv_data) == 0) {
+ 		dev_err(&spi->dev, "Flush failed\n");
+ 		return -EIO;
+ 	}
++	printk("%s:%d AFTER flush\n", __func__, __LINE__);
+ 	drv_data->tx = (void *)transfer->tx_buf;
+ 	drv_data->tx_end = drv_data->tx + transfer->len;
+ 	drv_data->rx = transfer->rx_buf;
+@@ -1278,6 +1295,8 @@
+ 	int status;
+ 	u32 tmp;
+ 
++	printk("%s:%d ssp: %px\n", __func__, __LINE__, ssp);
++
+ 	if (platform_info->is_target)
+ 		controller = devm_spi_alloc_target(dev, sizeof(*drv_data));
+ 	else
+@@ -1360,6 +1379,11 @@
+ 		goto out_error_dma_irq_alloc;
+ 
+ 	controller->max_speed_hz = clk_get_rate(ssp->clk);
++	if (!controller->max_speed_hz) {
++		printk("%s:%d override max_speed_hz: %u\n", __func__, __LINE__, 3997924);
++		controller->max_speed_hz = 3997924;
++	}
++	printk("%s:%d ssp->clk: %px max_speed_hz: %u\n", __func__, __LINE__, ssp->clk, controller->max_speed_hz);
+ 	/*
+ 	 * Set minimum speed for all other platforms than Intel Quark which is
+ 	 * able do under 1 Hz transfers.
+@@ -1418,6 +1442,7 @@
+ 	if (!is_quark_x1000_ssp(drv_data))
+ 		pxa2xx_spi_write(drv_data, SSPSP, 0);
+ 
++	printk("%s:%d is_lpss_ssp: %px\n", __func__, __LINE__, is_lpss_ssp(drv_data));
+ 	if (is_lpss_ssp(drv_data)) {
+ 		lpss_ssp_setup(drv_data);
+ 		config = lpss_get_config(drv_data);
+@@ -1449,6 +1474,8 @@
+ 		goto out_error_clock_enabled;
+ 	}
+ 
++	printk("%s:%d nnnnnnnnnnnnnnnnnnnnnnnnnnnn  ctlr: %px\n", __func__, __LINE__, controller);
++
+ 	return status;
+ 
+ out_error_clock_enabled:
+diff -ru contrib/linux/src/linux/drivers/spi/spi-pxa2xx-pci.c contrib/linux/src-sich/linux/drivers/spi/spi-pxa2xx-pci.c
+--- contrib/linux/src/linux/drivers/spi/spi-pxa2xx-pci.c	2026-04-02 15:14:19.111962180 +0200
++++ contrib/linux/src-sich/linux/drivers/spi/spi-pxa2xx-pci.c	2026-04-01 13:57:44.625751125 +0200
+@@ -273,6 +273,8 @@
+ 	if (ret)
+ 		return ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
+ 	if (!pdata)
+ 		return -ENOMEM;
+@@ -300,6 +302,8 @@
+ 	if (ret)
+ 		return ret;
+ 
++	printk("%s:%d pci_dev: %px dev: %px pdata: %px num_chipselect: %d\n", __func__, __LINE__, dev, &dev->dev, pdata, pdata->num_chipselect);
++
+ 	pm_runtime_set_autosuspend_delay(&dev->dev, 50);
+ 	pm_runtime_use_autosuspend(&dev->dev);
+ 	pm_runtime_put_autosuspend(&dev->dev);
+diff -ru contrib/linux/src/linux/drivers/spi/spi-pxa2xx-platform.c contrib/linux/src-sich/linux/drivers/spi/spi-pxa2xx-platform.c
+--- contrib/linux/src/linux/drivers/spi/spi-pxa2xx-platform.c	2026-04-02 15:14:19.112962177 +0200
++++ contrib/linux/src-sich/linux/drivers/spi/spi-pxa2xx-platform.c	2026-04-01 13:57:44.626751121 +0200
+@@ -1,5 +1,6 @@
+ // SPDX-License-Identifier: GPL-2.0-or-later
+ 
++#define DEBUG 1
+ #include <linux/acpi.h>
+ #include <linux/clk.h>
+ #include <linux/device.h>
+@@ -26,13 +27,16 @@
+ 	int status;
+ 	u64 uid;
+ 
++	printk("%s:%d pdev: %px\n", __func__, __LINE__, pdev);
+ 	ssp->mmio_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
++	printk("%s:%d pdev: %px ssp: %px mmio_base: %px\n", __func__, __LINE__, pdev, ssp, ssp->mmio_base);
+ 	if (IS_ERR(ssp->mmio_base))
+ 		return PTR_ERR(ssp->mmio_base);
+ 
+ 	ssp->phys_base = res->start;
+ 
+ 	ssp->clk = devm_clk_get(dev, NULL);
++	printk("%s:%d pdev: %px dev: %px devm_clk_get: %px\n", __func__, __LINE__, pdev, &pdev->dev, ssp->clk);
+ 	if (IS_ERR(ssp->clk))
+ 		return PTR_ERR(ssp->clk);
+ 
+@@ -49,6 +53,7 @@
+ 	else
+ 		ssp->port_id = uid;
+ 
++	printk("%s:%d uid: %lu\n", __func__, __LINE__, uid);
+ 	return 0;
+ }
+ 
+@@ -63,6 +68,7 @@
+ 	int status;
+ 
+ 	ssp = pxa_ssp_request(pdev->id, pdev->name);
++	printk("%s:%d ssp: %px\n", __func__, __LINE__, ssp);
+ 	if (!ssp)
+ 		return NULL;
+ 
+@@ -86,6 +92,7 @@
+ 	u32 num_cs = 1;
+ 	int status;
+ 
++	printk("%s:%d pdev: %px dev: %px parent: %px\n", __func__, __LINE__, pdev, &pdev->dev, dev->parent);
+ 	ssp = pxa2xx_spi_ssp_request(pdev);
+ 	if (IS_ERR(ssp))
+ 		return ERR_CAST(ssp);
+@@ -101,6 +108,7 @@
+ 			return ERR_PTR(status);
+ 
+ 		type = (enum pxa_ssp_type)value;
++		printk("%s:%d type: %u LPSS_CNL_SSP: %u\n", __func__, __LINE__, type, LPSS_CNL_SSP);
+ 	}
+ 
+ 	/* Validate the SSP type correctness */
+@@ -113,6 +121,7 @@
+ 
+ 	/* Platforms with iDMA 64-bit */
+ 	is_lpss_priv = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lpss_priv");
++	printk("%s:%d is_lpss_priv: %u\n", __func__, __LINE__, is_lpss_priv);
+ 	if (is_lpss_priv) {
+ 		pdata->tx_param = parent;
+ 		pdata->rx_param = parent;
+@@ -127,6 +136,7 @@
+ 	pdata->enable_dma = true;
+ 	pdata->dma_burst_size = 1;
+ 
++	printk("%s:%d pdata: %px num_chipselect: %d\n", __func__, __LINE__, pdata, pdata->num_chipselect);
+ 	/* If SSP has been already enumerated, use it */
+ 	if (ssp)
+ 		return pdata;
+@@ -145,6 +155,8 @@
+ 	struct ssp_device *ssp;
+ 	int ret;
+ 
++	printk("%s:%d pdev: %px\n", __func__, __LINE__, pdev);
++
+ 	platform_info = dev_get_platdata(dev);
+ 	if (!platform_info) {
+ 		platform_info = pxa2xx_spi_init_pdata(pdev);
+@@ -163,6 +175,7 @@
+ 	pm_runtime_set_active(dev);
+ 	pm_runtime_enable(dev);
+ 
++	printk("%s:%d ssp: %px\n", __func__, __LINE__, ssp);
+ 	ret = pxa2xx_spi_probe(dev, ssp, platform_info);
+ 	if (ret)
+ 		pm_runtime_disable(dev);
+diff -ru contrib/linux/src/linux/include/linux/pxa2xx_ssp.h contrib/linux/src-sich/linux/include/linux/pxa2xx_ssp.h
+--- contrib/linux/src/linux/include/linux/pxa2xx_ssp.h	2026-04-02 15:14:20.592957508 +0200
++++ contrib/linux/src-sich/linux/include/linux/pxa2xx_ssp.h	2026-04-01 13:57:44.627751117 +0200
+@@ -258,6 +258,7 @@
+  */
+ static inline void pxa_ssp_write_reg(struct ssp_device *dev, u32 reg, u32 val)
+ {
++	// printk("%s:%d ssp: %px mmio_base: %px reg: 0x%x val: 0x%x\n", __func__, __LINE__, dev, dev->mmio_base, reg, val);
+ 	__raw_writel(val, dev->mmio_base + reg);
+ }
+ 
+@@ -269,7 +270,9 @@
+  */
+ static inline u32 pxa_ssp_read_reg(struct ssp_device *dev, u32 reg)
+ {
+-	return __raw_readl(dev->mmio_base + reg);
++	u32 const val = __raw_readl(dev->mmio_base + reg);
++	// printk("%s:%d ssp: %px mmio_base: %px reg: 0x%x val: 0x%x\n", __func__, __LINE__, dev, dev->mmio_base, reg, val);
++	return val;
+ }
+ 
+ static inline void pxa_ssp_enable(struct ssp_device *ssp)
+diff -ru contrib/linux/src/linux/sound/hda/codecs/realtek/alc269.c contrib/linux/src-sich/linux/sound/hda/codecs/realtek/alc269.c
+--- contrib/linux/src/linux/sound/hda/codecs/realtek/alc269.c	2026-04-02 15:14:21.879953447 +0200
++++ contrib/linux/src-sich/linux/sound/hda/codecs/realtek/alc269.c	2026-04-01 13:57:44.629751109 +0200
+@@ -3162,6 +3162,8 @@
+ 	if (count_devindex > 0)
+ 		count = count_devindex;
+ 
++	printk("%s:%d count_devindex: %d\n", __func__, __LINE__, count_devindex);
++
+ 	match = devm_kasprintf(dev, GFP_KERNEL, "-%%s:00-%s.%%d", acpi_ids[i].name);
+ 	if (!match)
+ 		return;
+Only in contrib/linux/src-sich/linux/sound/hda/codecs/realtek: alc269.c.orig
+diff -ru contrib/linux/src/linux/sound/hda/codecs/side-codecs/cirrus_scodec.c contrib/linux/src-sich/linux/sound/hda/codecs/side-codecs/cirrus_scodec.c
+--- contrib/linux/src/linux/sound/hda/codecs/side-codecs/cirrus_scodec.c	2026-04-02 15:14:21.881953441 +0200
++++ contrib/linux/src-sich/linux/sound/hda/codecs/side-codecs/cirrus_scodec.c	2026-04-01 13:57:44.629751109 +0200
+@@ -5,6 +5,8 @@
+ // Copyright (C) 2021, 2023 Cirrus Logic, Inc. and
+ //               Cirrus Logic International Semiconductor Ltd.
+ 
++#define DEBUG 1
++
+ #include <linux/dev_printk.h>
+ #include <linux/gpio/consumer.h>
+ #include <linux/module.h>
+diff -ru contrib/linux/src/linux/sound/hda/codecs/side-codecs/cs35l41_hda.c contrib/linux/src-sich/linux/sound/hda/codecs/side-codecs/cs35l41_hda.c
+--- contrib/linux/src/linux/sound/hda/codecs/side-codecs/cs35l41_hda.c	2026-04-02 15:14:21.881953441 +0200
++++ contrib/linux/src-sich/linux/sound/hda/codecs/side-codecs/cs35l41_hda.c	2026-04-01 13:57:44.629751109 +0200
+@@ -1786,6 +1786,7 @@
+ 
+ 	property = "cirrus,dev-index";
+ 	ret = device_property_count_u32(physdev, property);
++	printk("%s:%d property: '%s' ret: %d\n", __func__, __LINE__, property, ret);
+ 	if (ret <= 0)
+ 		goto err;
+ 
+diff -ru contrib/linux/src/linux/sound/hda/codecs/side-codecs/cs35l56_hda.c contrib/linux/src-sich/linux/sound/hda/codecs/side-codecs/cs35l56_hda.c
+--- contrib/linux/src/linux/sound/hda/codecs/side-codecs/cs35l56_hda.c	2026-04-02 15:14:21.882953438 +0200
++++ contrib/linux/src-sich/linux/sound/hda/codecs/side-codecs/cs35l56_hda.c	2026-04-01 15:41:50.279799074 +0200
+@@ -927,6 +927,8 @@
+ 	size_t nval;
+ 	int i, ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	/*
+ 	 * ACPI_COMPANION isn't available when this driver was instantiated by
+ 	 * the serial-multi-instantiate driver, so lookup the node by HID
+@@ -942,6 +944,8 @@
+ 		ACPI_COMPANION_SET(cs35l56->base.dev, adev);
+ 	}
+ 
++	printk("%s:%d adev: %px\n", __func__, __LINE__, adev);
++
+ 	/* Initialize things that could be overwritten by a fixup */
+ 	cs35l56->index = -1;
+ 
+@@ -950,24 +954,30 @@
+ 	if (ret)
+ 		return ret;
+ 
++	printk("%s:%d sub: '%s'\n", __func__, __LINE__, sub);
+ 	if (cs35l56->index == -1) {
+ 		property = "cirrus,dev-index";
+ 		ret = device_property_count_u32(cs35l56->base.dev, property);
++		printk("%s:%d dev: %px property: '%s' ret: %d\n", __func__, __LINE__, cs35l56->base.dev, property, ret);
+ 		if (ret <= 0)
+ 			goto err;
+ 
+ 		if (ret > ARRAY_SIZE(values)) {
+ 			ret = -EINVAL;
++			printk("%s:%d ret: %d ARRAY_SIZE(values): %zu\n", __func__, __LINE__, ret, ARRAY_SIZE(values));
+ 			goto err;
+ 		}
+ 		nval = ret;
+ 
+ 		ret = device_property_read_u32_array(cs35l56->base.dev, property, values, nval);
++		printk("%s:%d dev: %px property: '%s' ret: %d\n", __func__, __LINE__, cs35l56->base.dev, property, ret);
+ 		if (ret)
+ 			goto err;
+ 
+ 		for (i = 0; i < nval; i++) {
+ 			if (values[i] == id) {
++				printk("%s:%d values[%d]: 0x%x == id: 0x%x\n", __func__, __LINE__,
++				       i, values[i], id);
+ 				cs35l56->index = i;
+ 				break;
+ 			}
+@@ -977,38 +987,52 @@
+ 		 * It's not an error for the ID to be missing: for I2C there can be
+ 		 * an alias address that is not a real device. So reject silently.
+ 		 */
++	printk("%s:%d\n", __func__, __LINE__);
+ 		if (cs35l56->index == -1) {
++	printk("%s:%d\n", __func__, __LINE__);
+ 			dev_dbg(cs35l56->base.dev, "No index found in %s\n", property);
+ 			ret = -ENODEV;
+ 			goto err;
+ 		}
+ 	}
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	if (IS_ERR(sub)) {
+ 		dev_info(cs35l56->base.dev,
+ 			 "Read ACPI _SUB failed(%ld): fallback to generic firmware\n",
+ 			 PTR_ERR(sub));
+ 	} else {
+ 		ret = cirrus_scodec_get_speaker_id(cs35l56->base.dev, cs35l56->index, nval, -1);
++
++		printk("%s:%d ret=%d\n", __func__, __LINE__, ret);
++
+ 		if (ret == -ENOENT) {
+ 			cs35l56->system_name = sub;
+ 		} else if (ret >= 0) {
+ 			cs35l56->system_name = kasprintf(GFP_KERNEL, "%s-spkid%d", sub, ret);
+ 			kfree(sub);
++	printk("%s:%d\n", __func__, __LINE__);
+ 			if (!cs35l56->system_name)
+ 				return -ENOMEM;
+ 		} else {
++	printk("%s:%d\n", __func__, __LINE__);
+ 			return ret;
+ 		}
+ 	}
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	cs35l56->base.reset_gpio = devm_gpiod_get_index_optional(cs35l56->base.dev,
+ 								 "reset",
+ 								 cs35l56->index,
+ 								 GPIOD_OUT_LOW);
++	printk("%s:%d cs35l56->base.reset_gpio: %px\n", __func__, __LINE__, cs35l56->base.reset_gpio);
+ 	if (IS_ERR(cs35l56->base.reset_gpio)) {
+ 		ret = PTR_ERR(cs35l56->base.reset_gpio);
+ 
++		printk("%s:%d\n", __func__, __LINE__);
++
+ 		/*
+ 		 * If RESET is shared the first amp to probe will grab the reset
+ 		 * line and reset all the amps
+@@ -1023,6 +1047,7 @@
+ 	return 0;
+ 
+ err:
++	printk("%s:%d\n", __func__, __LINE__);
+ 	if (ret != -ENODEV)
+ 		dev_err(cs35l56->base.dev, "Failed property %s: %d\n", property, ret);
+ 
+@@ -1036,12 +1061,16 @@
+ 	mutex_init(&cs35l56->base.irq_lock);
+ 	dev_set_drvdata(cs35l56->base.dev, cs35l56);
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	INIT_WORK(&cs35l56->dsp_work, cs35l56_hda_dsp_work);
+ 
+ 	ret = cs35l56_hda_read_acpi(cs35l56, hid, id);
+ 	if (ret)
+ 		goto err;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	cs35l56->amp_name = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL, "AMP%d",
+ 					   cs35l56->index + 1);
+ 	if (!cs35l56->amp_name) {
+@@ -1067,34 +1096,53 @@
+ 		gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 1);
+ 	}
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	ret = cs35l56_hw_init(&cs35l56->base);
++
++	printk("%s:%d ret=%d\n", __func__, __LINE__, ret);
++
+ 	if (ret < 0)
+ 		goto err;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	/* Reset the device and wait for it to boot */
+ 	cs35l56_system_reset(&cs35l56->base, false);
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	ret = cs35l56_wait_for_firmware_boot(&cs35l56->base);
+ 	if (ret)
+ 		goto err;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	regcache_cache_only(cs35l56->base.regmap, false);
+ 
+ 	ret = cs35l56_set_patch(&cs35l56->base);
+ 	if (ret)
+ 		goto err;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	regcache_mark_dirty(cs35l56->base.regmap);
+ 	regcache_sync(cs35l56->base.regmap);
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	/* Disable auto-hibernate so that runtime_pm has control */
+ 	ret = cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_PREVENT_AUTO_HIBERNATE);
+ 	if (ret)
+ 		goto err;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	ret = cs35l56_get_calibration(&cs35l56->base);
+ 	if (ret)
+ 		goto err;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	ret = cs_dsp_halo_init(&cs35l56->cs_dsp);
+ 	if (ret) {
+ 		dev_err_probe(cs35l56->base.dev, ret, "cs_dsp_halo_init failed\n");
+@@ -1107,6 +1155,8 @@
+ 	regmap_multi_reg_write(cs35l56->base.regmap, cs35l56_hda_dai_config,
+ 			       ARRAY_SIZE(cs35l56_hda_dai_config));
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	/*
+ 	 * By default only enable one ASP1TXn, where n=amplifier index,
+ 	 * This prevents multiple amps trying to drive the same slot.
+@@ -1121,6 +1171,8 @@
+ 
+ 	cs35l56->base.init_done = true;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	ret = component_add(cs35l56->base.dev, &cs35l56_hda_comp_ops);
+ 	if (ret) {
+ 		dev_err(cs35l56->base.dev, "Register component failed: %d\n", ret);
+diff -ru contrib/linux/src/linux/sound/hda/codecs/side-codecs/cs35l56_hda_spi.c contrib/linux/src-sich/linux/sound/hda/codecs/side-codecs/cs35l56_hda_spi.c
+--- contrib/linux/src/linux/sound/hda/codecs/side-codecs/cs35l56_hda_spi.c	2026-04-02 15:14:21.882953438 +0200
++++ contrib/linux/src-sich/linux/sound/hda/codecs/side-codecs/cs35l56_hda_spi.c	2026-04-01 15:34:11.443633026 +0200
+@@ -11,12 +11,25 @@
+ 
+ #include "cs35l56_hda.h"
+ 
++static void dump_backtrace(void)
++{
++	unsigned long * fp;
++	asm volatile ("movq %%rbp, %0" : "=r"(fp) : :);
++	while (fp && *(fp + 1)) {
++		printk("0x%lx\n", *(fp + 1));
++		fp = (unsigned long*)*fp;
++	}
++}
++
++
+ static int cs35l56_hda_spi_probe(struct spi_device *spi)
+ {
+ 	const struct spi_device_id *id = spi_get_device_id(spi);
+ 	struct cs35l56_hda *cs35l56;
+ 	int ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++	// dump_backtrace();
+ 	cs35l56 = devm_kzalloc(&spi->dev, sizeof(*cs35l56), GFP_KERNEL);
+ 	if (!cs35l56)
+ 		return -ENOMEM;
+@@ -26,6 +39,7 @@
+ 	if (ret)
+ 		return ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ #ifdef CS35L56_WAKE_HOLD_TIME_US
+ 	cs35l56->base.can_hibernate = true;
+ #endif
+@@ -38,13 +52,17 @@
+ 		return ret;
+ 	}
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ret = cs35l56_hda_common_probe(cs35l56, id->driver_data, spi_get_chipselect(spi, 0));
++	printk("%s:%d ret=%d\n", __func__, __LINE__, ret);
+ 	if (ret)
+ 		return ret;
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ret = cs35l56_irq_request(&cs35l56->base, spi->irq);
+ 	if (ret < 0)
+ 		cs35l56_hda_remove(cs35l56->base.dev);
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	return ret;
+ }
+ 
+diff -ru contrib/linux/src/linux/sound/soc/codecs/cs35l56-shared.c contrib/linux/src-sich/linux/sound/soc/codecs/cs35l56-shared.c
+--- contrib/linux/src/linux/sound/soc/codecs/cs35l56-shared.c	2026-04-02 15:14:22.017953012 +0200
++++ contrib/linux/src-sich/linux/sound/soc/codecs/cs35l56-shared.c	2026-04-01 16:02:18.846343488 +0200
+@@ -538,11 +538,17 @@
+ 	 */
+ 	regcache_cache_only(cs35l56_base->regmap, true);
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	if (cs35l56_is_spi(cs35l56_base)) {
++		printk("%s:%d spi \n", __func__, __LINE__);
+ 		cs35l56_spi_system_reset(cs35l56_base);
++		printk("%s:%d spi reset\n", __func__, __LINE__);
+ 		return;
+ 	}
+ 
++	printk("%s:%d type=%d\n", __func__, __LINE__, cs35l56_base->type);
++
+ 	switch (cs35l56_base->type) {
+ 	case 0x54:
+ 	case 0x56:
+@@ -565,14 +571,18 @@
+ 						cs35l63_system_reset_seq,
+ 						ARRAY_SIZE(cs35l63_system_reset_seq));
+ 		break;
+-	default:
++		default:
+ 		break;
+ 	}
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	/* On SoundWire the registers won't be accessible until it re-enumerates. */
+ 	if (is_soundwire)
+ 		return;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	cs35l56_wait_control_port_ready();
+ 
+ 	/* Leave in cache-only. This will be revoked when the chip has rebooted. */
+@@ -1029,28 +1039,38 @@
+ 	unsigned int devid, revid, otpid, secured, fw_ver;
+ 	bool fw_missing;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
++
+ 	/*
+ 	 * When the system is not using a reset_gpio ensure the device is
+ 	 * awake, otherwise the device has just been released from reset and
+ 	 * the driver must wait for the control port to become usable.
+ 	 */
+-	if (!cs35l56_base->reset_gpio)
++	if (!cs35l56_base->reset_gpio) {
++		printk("%s:%d\n", __func__, __LINE__);
+ 		cs35l56_issue_wake_event(cs35l56_base);
+-	else
++	} else {
++		printk("%s:%d\n", __func__, __LINE__);
+ 		cs35l56_wait_control_port_ready();
++	}
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ret = regmap_read_bypassed(cs35l56_base->regmap, CS35L56_REVID, &revid);
+ 	if (ret < 0) {
+ 		dev_err(cs35l56_base->dev, "Get Revision ID failed\n");
+ 		return ret;
+ 	}
++	printk("%s:%d revid: 0x%x\n", __func__, __LINE__, revid);
+ 	cs35l56_base->rev = revid & (CS35L56_AREVID_MASK | CS35L56_MTLREVID_MASK);
+ 	cs35l56_set_fw_reg_table(cs35l56_base);
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ret = cs35l56_wait_for_firmware_boot(cs35l56_base);
++	printk("%s:%d ret=%d\n", __func__, __LINE__, ret);
+ 	if (ret)
+ 		return ret;
+ 
++	printk("%s:%d\n", __func__, __LINE__);
+ 	ret = regmap_read_bypassed(cs35l56_base->regmap, CS35L56_DEVID, &devid);
+ 	if (ret < 0) {
+ 		dev_err(cs35l56_base->dev, "Get Device ID failed\n");
