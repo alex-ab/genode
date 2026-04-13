@@ -195,8 +195,8 @@ option
     + rom config     | + child model | label: child/network
     + report         | + child report
 
-+ child ram_fs | binary: vfs | ram: 1M | caps: 300 | priority: media
-  + managed | max_ram: 2G
++ child ram_fs | binary: vfs | ram: 128M | caps: 2000 | priority: media
+  + managed | max_ram: 8G | max_caps: 4000
   + provides | + fs
   + connect
     + rom vfs.lib.so | + parent | label: vfs.lib.so
