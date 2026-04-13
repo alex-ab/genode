@@ -196,7 +196,7 @@ option
     + report         | + child report
 
 + child ram_fs | binary: vfs | ram: 1M | caps: 300 | priority: media
-  + managed | max_ram: 2G
+  + managed | max_ram: 8G | max_caps: 1000
   + provides | + fs
   + connect
     + rom vfs.lib.so | + parent | label: vfs.lib.so
