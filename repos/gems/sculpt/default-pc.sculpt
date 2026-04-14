@@ -15,7 +15,7 @@ option: log_view nic wifi
 option: top_view msr_gui
 
 # selection of accepted depot-package providers
-depot: genodelabs alex-ab chelmuth cnuke cproc jschlatow nfeske skalk ssumpf
+depot: genodelabs alex-ab chelmuth cnuke cproc jschlatow nfeske skalk ssumpf alex-ab-test
 
 # preconfigured example scenarios
 presets: empty nano3d window_manager
