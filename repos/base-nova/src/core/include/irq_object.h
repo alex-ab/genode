@@ -31,6 +31,7 @@ class Core::Irq_object
 		addr_t _msi_addr;
 		addr_t _msi_data;
 		addr_t _device_phys = 0; /* PCI config extended address */
+		addr_t _cpu_id;
 
 		Nova::Gsi_flags _gsi_flags { };
 
@@ -40,7 +41,7 @@ class Core::Irq_object
 
 	public:
 
-		Irq_object();
+		Irq_object(addr_t);
 		~Irq_object();
 
 		addr_t msi_address() const { return _msi_addr; }

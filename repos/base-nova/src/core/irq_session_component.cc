@@ -26,10 +26,11 @@ using namespace Core;
 
 
 static bool irq_ctrl(addr_t irq_sel, addr_t &msi_addr, addr_t &msi_data,
-                     addr_t sig_sel, Nova::Gsi_flags flags, addr_t virt_addr)
+                     addr_t sig_sel, Nova::Gsi_flags flags, addr_t virt_addr,
+                     addr_t cpu_id)
 {
 	/* assign IRQ to CPU && request msi data to be used by driver */
-	uint8_t res = Nova::assign_gsi(irq_sel, virt_addr, boot_cpu(),
+	uint8_t res = Nova::assign_gsi(irq_sel, virt_addr, cpu_id,
 	                               msi_addr, msi_data, sig_sel, flags);
 
 	if (res != Nova::NOVA_OK)
@@ -44,11 +45,12 @@ static bool irq_ctrl(addr_t irq_sel, addr_t &msi_addr, addr_t &msi_data,
 
 
 static bool associate_gsi(addr_t irq_sel, Signal_context_capability sig_cap,
-                          Nova::Gsi_flags gsi_flags)
+                          Nova::Gsi_flags gsi_flags, addr_t cpu_id)
 {
 	addr_t dummy1 = 0, dummy2 = 0;
 
-	return irq_ctrl(irq_sel, dummy1, dummy2, sig_cap.local_name(), gsi_flags, 0);
+	return irq_ctrl(irq_sel, dummy1, dummy2, sig_cap.local_name(), gsi_flags,
+	                0, cpu_id);
 }
 
 
@@ -56,18 +58,20 @@ static void deassociate(addr_t irq_sel)
 {
 	addr_t dummy1 = 0, dummy2 = 0;
 
-	if (!irq_ctrl(irq_sel, dummy1, dummy2, irq_sel, Nova::Gsi_flags(), 0))
+	if (!irq_ctrl(irq_sel, dummy1, dummy2, irq_sel, Nova::Gsi_flags(), 0, boot_cpu()))
 		warning("Irq could not be de-associated");
 }
 
 
 static bool associate_msi(addr_t irq_sel, addr_t phys_mem, addr_t &msi_addr,
-                          addr_t &msi_data, Signal_context_capability sig_cap)
+                          addr_t &msi_data, Signal_context_capability sig_cap,
+                          addr_t cpu_id)
 {
 	using Virt_allocation = Range_allocator::Allocation;
 
 	if (!phys_mem)
-		return irq_ctrl(irq_sel, msi_addr, msi_data, sig_cap.local_name(), Nova::Gsi_flags(), 0);
+		return irq_ctrl(irq_sel, msi_addr, msi_data, sig_cap.local_name(),
+		                Nova::Gsi_flags(), 0, cpu_id);
 
 	return platform().region_alloc().alloc_aligned(4096, AT_PAGE).convert<bool>(
 
@@ -87,7 +91,9 @@ static bool associate_msi(addr_t irq_sel, addr_t phys_mem, addr_t &msi_addr,
 				return false;
 
 			/* try to assign MSI to device */
-			bool res = irq_ctrl(irq_sel, msi_addr, msi_data, sig_cap.local_name(), Nova::Gsi_flags(), virt_addr);
+			bool res = irq_ctrl(irq_sel, msi_addr, msi_data,
+			                    sig_cap.local_name(), Nova::Gsi_flags(),
+			                    virt_addr, cpu_id);
 
 			unmap_local(Nova::Mem_crd(virt_addr >> 12, 0, Rights(true, true, true)));
 
@@ -118,9 +124,10 @@ void Irq_object::sigh(Signal_context_capability cap)
 	/* associate GSI or MSI to device belonging to device_phys */
 	bool ok = false;
 	if (_device_phys || (_msi_addr && _msi_data))
-		ok = associate_msi(irq_sel(), _device_phys, _msi_addr, _msi_data, cap);
+		ok = associate_msi(irq_sel(), _device_phys, _msi_addr, _msi_data, cap,
+		                   _cpu_id);
 	else
-		ok = associate_gsi(irq_sel(), cap, _gsi_flags);
+		ok = associate_gsi(irq_sel(), cap, _gsi_flags, _cpu_id);
 
 	if (!ok) {
 		deassociate(irq_sel());
@@ -176,12 +183,13 @@ void Irq_object::start(unsigned irq, addr_t const device_phys, Irq_args const &i
 
 	/* associate GSI or MSI to device belonging to device_phys */
 	if (irq_args.msi()) {
-		if (!associate_msi(irq_sel(), device_phys, _msi_addr, _msi_data, _sigh_cap)) {
-			error("unable to associate IRQ");
+		if (!associate_msi(irq_sel(), device_phys, _msi_addr, _msi_data,
+		                   _sigh_cap, _cpu_id)) {
+			error("unable to associate MSI");
 			return;
 		}
 	} else {
-		if (!associate_gsi(irq_sel(), _sigh_cap, _gsi_flags)) {
+		if (!associate_gsi(irq_sel(), _sigh_cap, _gsi_flags, _cpu_id)) {
 			error("unable to associate GSI");
 			return;
 		}
@@ -191,10 +199,11 @@ void Irq_object::start(unsigned irq, addr_t const device_phys, Irq_args const &i
 }
 
 
-Irq_object::Irq_object()
+Irq_object::Irq_object(addr_t kernel_cpu_id)
 :
 	_kernel_caps(cap_map().insert(KERNEL_CAP_COUNT_LOG2)),
-	_msi_addr(0UL), _msi_data(0UL)
+	_msi_addr(0UL), _msi_data(0UL),
+	_cpu_id(kernel_cpu_id)
 { }
 
 
@@ -236,10 +245,16 @@ static Range_allocator::Result allocate(Range_allocator &irq_alloc, Irq_args con
 Irq_session_component::Irq_session_component(Runtime &,
                                              Range_allocator &irq_alloc,
                                              const char      *args,
-                                             Affinity const  &)
+                                             Affinity const  &affinity)
 :
-	_irq_number(allocate(irq_alloc, Irq_args(args))), _irq_object()
+	_irq_number(allocate(irq_alloc, Irq_args(args))),
+	_irq_object(platform_specific().kernel_cpu_id(affinity.location()))
 {
+	unsigned const kernel_cpu_id = platform_specific().kernel_cpu_id(affinity.location());
+
+	if (kernel_cpu_id != boot_cpu())
+		log("irq ... kernel_cpu_id=", kernel_cpu_id, " - ", label_from_args(args));
+
 	_irq_number.with_result(
 		[&] (Range_allocator::Allocation const &a) {
 			long device_phys = Arg_string::find_arg(args, "device_config_phys").long_value(0);
