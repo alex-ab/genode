@@ -169,7 +169,8 @@ static Range_allocator::Result allocate_gsi(Range_allocator &irq_alloc,
 
 Irq_session_component::Irq_session_component(Runtime         &runtime,
                                              Range_allocator &irq_alloc,
-                                             const char      *args)
+                                             const char      *args,
+                                             Affinity const  &)
 :
 	_irq_number(allocate_gsi(irq_alloc, Irq_args(args))), _irq_object(runtime)
 {

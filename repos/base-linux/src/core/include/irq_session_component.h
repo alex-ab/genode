@@ -42,7 +42,8 @@ class Core::Irq_session_component : public Rpc_object<Irq_session>,
 		/**
 		 * Constructor
 		 */
-		Irq_session_component(Runtime &, Range_allocator &, const char *);
+		Irq_session_component(Runtime &, Range_allocator &, const char *,
+		                      Affinity const &);
 
 		/**
 		 * Destructor

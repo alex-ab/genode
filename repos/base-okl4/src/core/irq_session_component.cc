@@ -137,7 +137,8 @@ static Range_allocator::Result allocate(Range_allocator &irq_alloc, Irq_args con
 
 Irq_session_component::Irq_session_component(Runtime         &runtime,
                                              Range_allocator &irq_alloc,
-                                             const char      *args)
+                                             const char      *args,
+                                             Affinity const  &)
 :
 	_irq_number(allocate(irq_alloc, Irq_args(args))),
 	_irq_object(runtime, Irq_args(args).irq_number())

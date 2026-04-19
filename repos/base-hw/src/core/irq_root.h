@@ -47,9 +47,10 @@ class Core::Irq_root : public Root_component<Irq_session_component>,
 
 	protected:
 
-		Create_result _create_session(const char *args) override
+		Create_result _create_session(char     const *args,
+		                              Affinity const &affinity) override
 		{
-			return _alloc_obj(_registry, _irq_alloc, args);
+			return _alloc_obj(_registry, _irq_alloc, args, affinity);
 		}
 
 	public:

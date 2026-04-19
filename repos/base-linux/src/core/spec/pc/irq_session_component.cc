@@ -25,7 +25,8 @@ using namespace Core;
 
 Irq_session_component::Irq_session_component(Runtime         &runtime,
                                              Range_allocator &,
-                                             char const      *args)
+                                             char const      *args,
+                                             Affinity const  &)
 :
 	_irq_number((unsigned)Arg_string::find_arg(args, "irq_number").long_value(-1)),
 	_irq_object(runtime, _irq_number)

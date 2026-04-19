@@ -37,9 +37,10 @@ struct Core::Irq_root : Root_component<Irq_session_component>
 	Runtime         &_runtime;
 	Range_allocator &_irq_alloc;    /* platform irq allocator */
 
-	Create_result _create_session(const char *args) override
+	Create_result _create_session(char     const *args,
+	                              Affinity const &affinity) override
 	{
-		return _alloc_obj(_runtime, _irq_alloc, args);
+		return _alloc_obj(_runtime, _irq_alloc, args, affinity);
 	}
 
 	/**

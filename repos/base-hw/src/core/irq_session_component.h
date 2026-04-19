@@ -68,7 +68,8 @@ class Core::Irq_session_component
 		 */
 		Irq_session_component(Registry<Irq_session_component> &registry,
 		                      Range_allocator &irq_alloc,
-		                      const char *args)
+		                      const char *args,
+		                      Affinity const &)
 		:
 			_elem(registry, *this), _args(args), _irq_number(_allocate(irq_alloc))
 		{

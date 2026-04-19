@@ -24,7 +24,9 @@ using namespace Core;
 
 
 Irq_session_component::Irq_session_component(Runtime &runtime,
-                                             Range_allocator &, const char *)
+                                             Range_allocator &,
+                                             const char *,
+                                             Affinity const &)
 :
 	_irq_number(0), _irq_object(runtime, _irq_number)
 { }

@@ -32,9 +32,11 @@ struct Genode::Irq_connection : Connection<Irq_session>, Irq_session_client
 	Irq_connection(Env         &env,
 	               Label const &label,
 	               Trigger      trigger  = Irq_session::TRIGGER_UNCHANGED,
-	               Polarity     polarity = Irq_session::POLARITY_UNCHANGED)
+	               Polarity     polarity = Irq_session::POLARITY_UNCHANGED,
+	               Affinity     affinity = { })
 	:
 		Connection<Irq_session>(env, label, Ram_quota { RAM_QUOTA },
+		                        affinity,
 		                        Args("irq_number=",         label, ", "
 		                             "irq_trigger=",        unsigned(trigger),  ", "
 		                             "irq_polarity=",       unsigned(polarity), ", "
@@ -54,9 +56,11 @@ struct Genode::Irq_connection : Connection<Irq_session>, Irq_session_client
 	               Label const &label,
 	               addr_t       device_config_phys,
 	               Type         type,
-	               unsigned     bdf = 0x10000 /* invalid */)
+	               unsigned     bdf = 0x10000, /* invalid */
+	               Affinity     affinity = { })
 	:
 		Connection<Irq_session>(env, label, Ram_quota { RAM_QUOTA },
+		                        affinity,
 		                        Args("irq_number=",         label, ", "
 		                             "device_config_phys=", Hex(device_config_phys), ", "
 		                             "bdf=",                Hex(bdf), ", "
