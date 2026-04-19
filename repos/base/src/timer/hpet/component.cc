@@ -276,20 +276,26 @@ class Timer::Device : Noncopyable
 		{
 			auto const gsi = _determine_hpet_irq();
 
+			Affinity::Space    space = _env.cpu().affinity_space();
+			Affinity::Location location(space.location_of_index(1));
+			Affinity           affinity(space, location);
+
 			if (_msi) {
 				unsigned bdf = config.attribute_value("bdf", (0x1e << 3) | 6);
-				auto base = config.attribute_value("pci_base", 0xe0000000ul);
+				auto base = config.attribute_value("pci_base", 0xc0000000ul);
 
 				_timer_irq.construct(_env, gsi, base +
 				                     0x1000 * 8 * 256 * ((bdf >> 8) & 0xff) +
 				                     0x1000 * 8       * ((bdf >> 3) & 0x1f) +
 				                     0x1000 *           ((bdf >> 0) & 0x07),
-				                     Irq_session::TYPE_MSI, bdf);
+				                     Irq_session::TYPE_MSI, bdf, affinity);
 			}
 			else
 				_timer_irq.construct(_env, gsi,
 				                     _level ? Irq_session::Trigger::TRIGGER_LEVEL
-				                            : Irq_session::Trigger::TRIGGER_EDGE);
+				                            : Irq_session::Trigger::TRIGGER_EDGE,
+				                     Irq_session::POLARITY_UNCHANGED,
+				                     affinity);
 
 			_timer_irq->sigh(_handler);
 

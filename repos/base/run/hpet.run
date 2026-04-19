@@ -101,7 +101,7 @@ build_boot_image [build_artifacts]
 # Execution
 #
 
-append qemu_args "-nographic "
+append qemu_args "-nographic -smp 4 "
 
 run_genode_until forever
 run_genode_until "child \"test\" exited with exit value.*\n" 900
