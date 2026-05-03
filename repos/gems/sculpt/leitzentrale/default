@@ -10,7 +10,7 @@ config
   + service Timer
   + service File_system
 + default-route | + any-service | + parent
-+ default | caps: 100
++ default | caps: 150
 
 + service Gui         | + default-policy | + child wm
 + service Capture     | + default-policy | + child nitpicker
@@ -18,7 +18,7 @@ config
 + service ROM         | + default-policy | + child report_rom
 + service Report      | + default-policy | + child report_rom
 
-+ start fader_config | ram: 1M
++ start fader_config | ram: 2M
   + binary rom_filter
   + provides | + service ROM
   + config
@@ -38,7 +38,7 @@ config
     + service ROM | label: leitzentrale | + parent | label: leitzentrale_enabled
     + any-service                       | + parent
 
-+ start fader | ram: 100M
++ start fader | ram: 100M | caps: 200
   + binary gui_fader
   + provides | + service Gui
   + route
@@ -55,7 +55,7 @@ config
     + service Gui                 | + child fader
     + any-service                 | + parent
 
-+ start nitpicker | caps: 200 | ram: 14M
++ start nitpicker | caps: 250 | ram: 14M
   + provides
     + service Gui
     + service Capture
@@ -198,7 +198,7 @@ config
     + service Gui                                  | + parent
     + any-service                                  | + parent
 
-+ start backdrop | caps: 150 | ram: 4M
++ start backdrop | caps: 200 | ram: 4M
   + config | width: 300 | height: 150
   | + libc
   | + vfs

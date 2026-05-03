@@ -122,7 +122,7 @@ option
     + rom hover | + child report | label: gui/hover
     + rom xray  | + child report | label: global_keys/xray
 
-+ child global_keys | binary: global_keys_handler | ram: 1M | caps: 100 | priority: driver
++ child global_keys | binary: global_keys_handler | ram: 2M | caps: 100 | priority: driver
   + connect
     + gui        | + child gui
     + rom config | + child model | label: child/global_keys
@@ -137,7 +137,7 @@ option
     + rom config    | + child model  | label: child/clipboard
     + rom focus     | + child report | label: gui/focus
 
-+ child leitzentrale | binary: init | caps: 2200 | ram: 194M | priority: driver
++ child leitzentrale | binary: init | caps: 2800 | ram: 194M | priority: driver
   + affinity | xpos: 1 | width: 1 | . decouple leitzentrale from boot CPU
   + provides
     + gui
@@ -203,7 +203,7 @@ option
     + rom config     | + child model | label: child/ram_fs
     + rom            | + parent
 
-+ child runtime_view | binary: menu_view | ram: 52M | caps: 330 | priority: media
++ child runtime_view | binary: menu_view | ram: 52M | caps: 430 | priority: media
   + managed | max_ram: 128M | max_caps: 2000
   + heartbeat | restart_after_skipped: 2
   + connect
