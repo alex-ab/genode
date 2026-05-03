@@ -9,7 +9,7 @@ config
   + service Timer
   + service File_system
 
-+ start log_terminal | caps: 120 | ram: 8M
++ start log_terminal | caps: 140 | ram: 8M
   + binary terminal
   + provides | + service Terminal
   + config
@@ -26,7 +26,7 @@ config
     + service Gui | + parent | label: log
     + any-service | + parent
 
-+ start log | caps: 100 | ram: 2M
++ start log | caps: 120 | ram: 3M
   + binary stdin2out
   + config
   | + libc | stdin: /report/log | stdout: /dev/terminal

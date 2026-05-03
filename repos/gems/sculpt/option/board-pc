@@ -37,7 +37,7 @@ option
     + fs             | + child model | identity: rw
     + rom vfs.lib.so | + parent
 
-+ child discover | binary: pc_discover | ram: 1M | caps: 100
++ child discover | binary: pc_discover | ram: 2M | caps: 100
   + config
   + connect
     + report            | + child discover_report | label: option -> board
@@ -55,7 +55,7 @@ option
     + report     | + child report
     + dma        | + child platform | label: usb
 
-+ child usb_host | binary: pc_usb_host | ram: 16M | caps: 200 | priority: media | enabled: discover
++ child usb_host | binary: pc_usb_host | ram: 16M | caps: 250 | priority: media | enabled: discover
   + managed | disable: while_suspended
   + config | bios_handoff: no
   + connect
@@ -77,7 +77,7 @@ option
     + rom system | + child model    | label: system
     + rm         | + parent
 
-+ child intel_fb | binary: pc_intel_fb | ram: 16M | caps: 800 | priority: media | enabled: discover
++ child intel_fb | binary: pc_intel_fb | ram: 18M | caps: 800 | priority: media | enabled: discover
   + managed | max_ram: 256M | max_caps: 5000 | disable: while_suspended
   + heartbeat | restart_after_skipped: 2
   + connect
@@ -111,7 +111,7 @@ option
     + io_mem     | + parent
     + io_port    | + parent
 
-+ child ps2 | binary: ps2 | ram: 1M | caps: 100 | priority: media | enabled: discover
++ child ps2 | binary: ps2 | ram: 2M | caps: 100 | priority: media | enabled: discover
   + managed | disable: while_suspended
   + config | capslock_led: rom | numlock_led: rom | system: yes
   + connect
@@ -140,7 +140,7 @@ option
     + rom system | + child model    | label: system
     + report     | + child report
 
-+ child nvme | binary: nvme | ram: 8M | caps: 120 | priority: media | enabled: discover
++ child nvme | binary: nvme | ram: 8M | caps: 150 | priority: media | enabled: discover
   + managed | max_ram: 32M | max_caps: 500
   + provides
     + block

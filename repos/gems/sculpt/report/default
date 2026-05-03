@@ -56,7 +56,7 @@ config | verbose: no
     + policy | label_prefix: log_terminal -> | root: / | writeable: yes
     + default-policy                         | root: /
 
-+ start log_terminal | ram: 2M
++ start log_terminal | ram: 3M | caps: 150
   + binary file_terminal
   + provides | + service Terminal
   + config
