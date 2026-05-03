@@ -145,7 +145,7 @@ struct Sculpt::Usb_storage_device : List_model<Usb_storage_device>::Element,
 void Sculpt::Usb_storage_device::gen_usb_block_child_content(Generator &g) const
 {
 	gen_child_attr(g, Child_name { driver }, Binary_name { "usb_block" },
-	               Cap_quota{100}, Ram_quota{6*1024*1024}, Priority::STORAGE);
+	               Cap_quota{120}, Ram_quota{6*1024*1024}, Priority::STORAGE);
 
 	g.node("config", [&] {
 		g.attribute("report",    "yes");
