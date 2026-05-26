@@ -55,7 +55,7 @@ namespace Wm { namespace Gui {
  */
 struct Wm::Gui::Click_handler : Interface
 {
-	virtual void handle_click(Point pos) = 0;
+	virtual void handle_click(Point pos, Input::Keycode key) = 0;
 };
 
 
@@ -733,11 +733,12 @@ class Wm::Gui::Session_component : public Session_object<Gui::Session>,
 
 					/* propagate layout-affecting events to the layouter */
 					if (_click_into_unfocused_view(ev) && _key_cnt == 1)
-						_click_handler.handle_click(_pointer_pos);
+						_click_handler.handle_click(_pointer_pos, Input::BTN_LEFT);
 
 					if (ev.key_press(Input::BTN_TOUCH) && _key_cnt == 1)
 						if (_touch_state.last_observed_pos().valid)
-							_click_handler.handle_click(_touch_state.last_observed_pos().value);
+							_click_handler.handle_click(_touch_state.last_observed_pos().value,
+							                            Input::BTN_TOUCH);
 
 					/*
 					 * Hide application-local motion events from the pointer
@@ -1395,17 +1396,19 @@ class Wm::Gui::Root : public  Rpc_object<Typed_root<Gui::Session> >,
 			Input::Session_component    &window_layouter_input;
 			Input::Seq_number_generator &seq_number_generator;
 
-			void handle_click(Gui::Point pos) override
+			void handle_click(Gui::Point pos, Input::Keycode key) override
 			{
 				/*
 				 * Supply artificial mouse click to the decorator's input session
 				 * (which is routed to the layouter).
 				 */
 				window_layouter_input.submit(Input::Absolute_motion{pos.x, pos.y});
-				seq_number_generator.new_seq_number();
-				seq_number_generator.submit(window_layouter_input);
-				window_layouter_input.submit(Input::Press{Input::BTN_LEFT});
-				window_layouter_input.submit(Input::Release{Input::BTN_LEFT});
+				if (key == Input::BTN_TOUCH) {
+					seq_number_generator.new_seq_number();
+					seq_number_generator.submit(window_layouter_input);
+				}
+				window_layouter_input.submit(Input::Press{key});
+				window_layouter_input.submit(Input::Release{key});
 			}
 
 			Click_handler(Input::Session_component    &window_layouter_input,
