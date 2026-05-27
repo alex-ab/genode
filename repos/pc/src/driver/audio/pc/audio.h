@@ -19,8 +19,9 @@ extern "C" {
 
 struct genode_audio_packet
 {
-	short        *data;
+	void         *data;
 	unsigned long samples;
+	unsigned      sample_bits;
 };
 
 enum Device_mode {

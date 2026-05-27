@@ -131,7 +131,7 @@ class Audio_out::Out
 
 		genode_audio_packet record_packet()
 		{
-			genode_audio_packet packet = { nullptr, 0 };
+			genode_audio_packet packet = { nullptr, 0, 16 };
 
 			unsigned lpos = left()->pos();
 			unsigned rpos = right()->pos();
@@ -339,16 +339,27 @@ class Audio_in::In
 
 			Packet *p = stream()->alloc();
 
-			float const scale = 32768.0f * 2;
-
 			float * const content = p->content();
-			short * const data    = packet.data;
 			bzero(content, p->size());
 
-			/* convert from 2 channels s16le interleaved to one channel float */
-			for (unsigned long i = 0; i < packet.samples; i++) {
-				float sample = data[i * 2] + data[i * 2 + 1];
-				content[i]   = sample / scale;
+			/* convert from 2 channels interleaved to one channel float */
+			if (packet.sample_bits == 16) {
+				for (unsigned long i = 0; i < packet.samples; i++) {
+					float   const scale = 32768.0f * 2;
+					short * const data  = (short *)packet.data;
+
+					float sample = data[i * 2] + data[i * 2 + 1];
+					content[i]   = sample / scale;
+				}
+			}
+			if (packet.sample_bits == 32) {
+				for (unsigned long i = 0; i < packet.samples; i++) {
+					float   const scale = 2147483648.0f * 2;
+					auto  * const data  = (int32_t *)packet.data;
+
+					float sample = float(data[i * 2] + data[i * 2 + 1]);
+					content[i]   = sample / scale;
+				}
 			}
 
 			stream()->submit(p);
@@ -499,8 +510,8 @@ struct Stereo_output : Noncopyable
 	{
 		_recording.from_record_sessions(_left, _right);
 		return _recording.depleted ?
-		       genode_audio_packet { nullptr, 0 } :
-		       genode_audio_packet { _recording.data, sizeof(_recording.data) };
+		       genode_audio_packet { nullptr, 0, 16 } :
+		       genode_audio_packet { _recording.data, sizeof(_recording.data), 16 };
 	}
 
 	Stereo_output(Env &env) : _env(env) { }
@@ -521,12 +532,23 @@ struct Stereo_input : Noncopyable
 
 	void _for_each_frame(genode_audio_packet &packet, auto const &fn) const
 	{
-		float const scale = 1.0f/32768;
-
-		/* convert two channel s16le interleaved to two channel float */
-		for (unsigned i = 0; i < packet.samples; i++)
-			fn(Frame { .left  = scale*float(packet.data[i*CHANNELS]),
-			           .right = scale*float(packet.data[i*CHANNELS + 1]) });
+		/* convert two channel interleaved to two channel float */
+		if (packet.sample_bits == 16) {
+			for (unsigned i = 0; i < packet.samples; i++) {
+				float const scale = 1.0f / 32768;
+				auto left  = float(((short *)packet.data)[i*CHANNELS + 0]);
+				auto right = float(((short *)packet.data)[i*CHANNELS + 1]);
+				fn(Frame { .left  = scale * left, .right = scale * right });
+			}
+		}
+		if (packet.sample_bits == 32) {
+			for (unsigned i = 0; i < packet.samples; i++) {
+				float const scale = 1.0f / 2147483648;
+				auto left  = float(((int *)packet.data)[i*CHANNELS + 0]);
+				auto right = float(((int *)packet.data)[i*CHANNELS + 1]);
+				fn(Frame { .left = scale * left, .right = scale * right });
+			}
+		}
 	}
 
 	Play::Time_window _time_window { };
@@ -627,7 +649,8 @@ struct Audio
 	{
 		if (record_play) return stereo_output->record_packet();
 
-		return _audio_out_active() ? out->record_packet() : genode_audio_packet { nullptr, 0 };
+		return _audio_out_active() ? out->record_packet()
+		                           : genode_audio_packet { nullptr, 0, 16 };
 	}
 
 	void play_packet(struct genode_audio_packet &packet)

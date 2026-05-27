@@ -68,6 +68,7 @@ struct sound_handle
 {
 	struct file  *file;
 	struct inode *inode;
+	char          sample_bits;
 };
 
 
@@ -324,6 +325,12 @@ static void sound_param_set_mask(struct snd_pcm_hw_params *params, unsigned inde
 }
 
 
+static __u32 sound_param_get(struct snd_pcm_hw_params *params, unsigned index, unsigned bit)
+{
+	return params->masks[index].bits[0] & (1u << bit);
+}
+
+
 static void sound_param_set_interval(struct snd_pcm_hw_params *params, unsigned index, unsigned value)
 {
 	unsigned i = index - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL;
@@ -376,8 +383,17 @@ static int sound_param_configure(struct sound_handle *handle)
 		return err;
 	}
 
+	if (sound_param_get(params, SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_FORMAT_S16_LE)) {
+		sound_param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_FORMAT_S16_LE);
+		handle->sample_bits = 16;
+	} else
+	if (sound_param_get(params, SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_FORMAT_S32_LE)) {
+		sound_param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_FORMAT_S32_LE);
+		handle->sample_bits = 32;
+	} else
+		printk("Error: unsupported format\n");
+
 	sound_param_set_mask(params, SNDRV_PCM_HW_PARAM_ACCESS,    SNDRV_PCM_ACCESS_RW_INTERLEAVED);
-	sound_param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT,    SNDRV_PCM_FORMAT_S16_LE);
 	sound_param_set_mask(params, SNDRV_PCM_HW_PARAM_SUBFORMAT, SNDRV_PCM_SUBFORMAT_STD);
 
 	sound_param_set_interval(params, SNDRV_PCM_HW_PARAM_RATE,        48000);
@@ -1014,15 +1030,16 @@ static void sound_capture(struct sound_handle *handle)
 	if (!handle)
 		return;
 
-	struct genode_audio_packet packet  = {
-		.data = capture_data(),
-		.samples = genode_audio_samples_per_period(),
+	struct genode_audio_packet packet = {
+		.data         = capture_data(),
+		.samples      = genode_audio_samples_per_period(),
+		.sample_bits  = handle->sample_bits
 	};
 
 	while (sound_pcm_capture_watermark(handle)) {
 		struct snd_xferi xfer = { 0 };
 
-		memset(packet.data, 0, packet.samples * 2 * sizeof(short));
+		memset(packet.data, 0, packet.samples * 2 * packet.sample_bits / 8);
 		xfer.buf    = packet.data;
 		xfer.frames = packet.samples;
 
