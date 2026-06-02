@@ -117,6 +117,12 @@ class Board::Cpu : public Hw::X86_64_cpu
 				init.write<Context::Fcw>(0x37f);    /* mask exceptions SysV ABI */
 				init.write<Context::Mxcsr>(0x1f80);
 			}
+
+			void save() {
+				asm volatile("fxsave (%0)" :: "r" (this)); }
+
+			void load() {
+				asm volatile("fxrstor (%0)" :: "r" (this)); }
 		} __attribute__((packed));
 
 

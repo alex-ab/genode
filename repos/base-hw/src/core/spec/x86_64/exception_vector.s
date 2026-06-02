@@ -128,7 +128,6 @@
 	/* save FPU context */
 	movq %rsp, %rax
 	addq $FPU_CONTEXT_OFFSET, %rax
-	fxsave (%rax)
 
 	_load_address _ZN6Kernel24main_handle_kernel_entryEPN6Genode9Cpu_stateE rcx
 	subq $8, %rsp

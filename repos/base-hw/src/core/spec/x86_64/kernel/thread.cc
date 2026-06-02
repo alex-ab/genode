@@ -184,6 +184,7 @@ void Thread::exception(Genode::Cpu_state &state)
 	using Genode::Cpu_state;
 
 	_save(state);
+	regs->fpu_context().save();
 
 	switch (state.trapno) {
 
@@ -223,8 +224,9 @@ void Thread::proceed()
 	if (!_cpu().active(_pd.mmu_regs) && !_privileged())
 		_cpu().switch_to(_pd.mmu_regs);
 
-	asm volatile("fxrstor (%1)    \n"
-	             "mov  %0, %%rsp  \n"
+	regs->fpu_context().load();
+
+	asm volatile("mov  %0, %%rsp  \n"
 	             "popq %%r8       \n"
 	             "popq %%r9       \n"
 	             "popq %%r10      \n"
@@ -242,7 +244,7 @@ void Thread::proceed()
 	             "popq %%rbp      \n"
 	             "add  $16, %%rsp \n"
 	             "iretq           \n"
-	             :: "r" (&regs->r8), "r" (&regs->fpu_context()));
+	             :: "r" (&regs->r8));
 }
 
 

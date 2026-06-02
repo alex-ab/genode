@@ -44,5 +44,8 @@ vpath pd_session_support.cc    $(dir $(PD_SESSION_SUPPORT_CC_PATH))
 
 ARCH_WIDTH_PATH := spec/64bit
 
+# prevent compiler from using x87, SSE, AVX registers in kernel
+CC_OPT += -mgeneral-regs-only
+
 # include less specific configuration
 include $(call select_from_repositories,lib/mk/core-hw.inc)
