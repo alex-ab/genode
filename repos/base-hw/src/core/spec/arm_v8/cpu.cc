@@ -56,7 +56,7 @@ void Cpu::switch_to(Mmu_context &mmu_context)
 }
 
 
-void Cpu::mmu_fault(Cpu::Context &, Kernel::Thread_fault &fault)
+void Cpu::mmu_fault(Cpu_state &, Kernel::Thread_fault &fault)
 {
 	Esr::access_t esr = Esr_el1::read();
 

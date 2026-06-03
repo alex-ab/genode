@@ -93,7 +93,7 @@ void Core_thread::Flush_and_stop_cpu::execute(Cpu &cpu)
 }
 
 
-void Cpu::Halt_job::Halt_job::proceed()
+void Cpu::Halt_job::Halt_job::load()
 {
 	switch (_cpu().state()) {
 	case HALT:
@@ -211,13 +211,10 @@ void Thread::exception(Genode::Cpu_state &state)
 {
 	using Genode::Cpu_state;
 
-	_save(state);
-	regs->fpu_context().save();
-
 	switch (state.trapno) {
 
 	case Cpu_state::PAGE_FAULT:
-		_mmu_exception();
+		_mmu_exception(state);
 		return;
 
 	case Cpu_state::DIVIDE_ERROR:
@@ -229,7 +226,7 @@ void Thread::exception(Genode::Cpu_state &state)
 		return;
 
 	case Cpu_state::SUPERVISOR_CALL:
-		_call();
+		_call(state);
 		return;
 	}
 
@@ -245,14 +242,16 @@ void Thread::exception(Genode::Cpu_state &state)
 }
 
 
-void Thread::proceed()
+void Thread::save(Cpu_state &state)
+{
+	Genode::memcpy(&*regs, &state, sizeof(Cpu_state));
+	regs->fpu_context().save();
+}
+
+
+void Thread::load(Cpu_state &state)
 {
 	Cpu::Ia32_tsc_aux::write((Cpu::Ia32_tsc_aux::access_t)_cpu().id().value);
-
-	if (!_cpu().active(_pd.mmu_regs) && !_privileged())
-		_cpu().switch_to(_pd.mmu_regs);
-
-	regs->fpu_context().load();
 
 	asm volatile("mov  %0, %%rsp  \n"
 	             "popq %%r8       \n"
@@ -272,5 +271,16 @@ void Thread::proceed()
 	             "popq %%rbp      \n"
 	             "add  $16, %%rsp \n"
 	             "iretq           \n"
-	             :: "r" (&regs->r8));
+	             :: "r" ((void*)&state));
+}
+
+
+void Thread::load()
+{
+	if (!_cpu().active(_pd.mmu_regs) && !_privileged())
+		_cpu().switch_to(_pd.mmu_regs);
+
+	regs->fpu_context().load();
+
+	load(*reinterpret_cast<Cpu_state*>(&regs->r8));
 }

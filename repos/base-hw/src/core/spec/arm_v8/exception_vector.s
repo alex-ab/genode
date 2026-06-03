@@ -68,7 +68,7 @@ _kernel_entry:
 	msr  fpsr, xzr
 	sub  sp,  sp,  #0x338 /* overall cpu state size */
 	mov  x0,  sp
-	bl _ZN6Kernel24main_handle_kernel_entryEPN6Genode9Cpu_stateE
+	bl _ZN6Kernel24main_handle_kernel_entryERN6Genode9Cpu_stateE
 
 
 .section .text

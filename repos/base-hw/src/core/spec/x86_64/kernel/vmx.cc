@@ -844,7 +844,7 @@ void Vmcs::load(Genode::Vcpu_state &state)
 }
 
 __attribute__((optimize("omit-frame-pointer")))
-void Vmcs::switch_world(Board::Cpu::Context &regs, addr_t)
+void Vmcs::switch_world(Cpu_state &state, addr_t)
 {
 	_load_pointer();
 
@@ -852,9 +852,9 @@ void Vmcs::switch_world(Board::Cpu::Context &regs, addr_t)
 
 	Cpu::Cr2::write(cr2);
 
-	regs.trapno = TRAP_VMEXIT;
+	state.trapno = TRAP_VMEXIT;
+
 	asm volatile(
-	    "fxrstor (%[fpu_context]);"
 	    "mov %[regs], %%rbx;"
 	    "mov     (%%rbx), %%r8;"
 	    "mov  0x8(%%rbx), %%r9;"
@@ -874,8 +874,7 @@ void Vmcs::switch_world(Board::Cpu::Context &regs, addr_t)
 	    "vmresume;"
 	    "vmlaunch;"
 	    :
-	    : [regs]           "a"(&regs.r8),
-	      [fpu_context]    "d"(&regs.fpu_context())
+	    : [regs] "a"(&state.r8)
 	    : "memory", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
 	      "rbx", "rcx", "rdi", "rsi", "rbp");
 	/*

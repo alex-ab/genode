@@ -464,12 +464,11 @@ uint64_t Vmcb::handle_vm_exit()
 	return exitcode;
 }
 
-void Vmcb::switch_world(Board::Cpu::Context &regs, addr_t stack_start)
+void Vmcb::switch_world(Cpu_state &state, addr_t stack_start)
 {
 	asm volatile(
 	    "pushq %[stack];"
 	    "pushq %[host_state];"
-	    "fxrstor (%[fpu_context]);"
 	    "mov %[guest_state], %%rax;"
 	    "mov %[regs], %%rbx;"
 	    "mov     (%%rbx), %%r8;"
@@ -507,8 +506,7 @@ void Vmcb::switch_world(Board::Cpu::Context &regs, addr_t stack_start)
 	    "jmp _kernel_entry;" /* jump to _kernel_entry to save the
 	                            GPRs without breaking any */
 	    :
-	    : [regs]         "r" (&regs.r8),
-	      [fpu_context]  "r" (&regs.fpu_context()),
+	    : [regs]         "r" (&state.r8),
 	      [guest_state]  "r" (vcpu_state.vmc_phys_addr() + PAGE_SIZE),
 	      [host_state]   "r" (root_vmcb_phys),
 	      [stack]        "r" (stack_start),

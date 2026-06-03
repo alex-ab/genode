@@ -50,7 +50,7 @@ void Core_thread::Tlb_invalidation::execute(Cpu &) { }
 void Core_thread::Flush_and_stop_cpu::execute(Cpu &) { }
 
 
-void Cpu::Halt_job::proceed() { }
+void Cpu::Halt_job::load() { }
 
 
 void Thread::exception(Genode::Cpu_state&)
@@ -71,10 +71,10 @@ void Thread::exception(Genode::Cpu_state&)
 
 	switch(regs->cpu_exception) {
 	case Context::ECALL_FROM_SUPERVISOR:
-		_call();
+		_call(*regs);
 		break;
 	case Context::ECALL_FROM_USER:
-		_call();
+		_call(*regs);
 		regs->ip += 4; /* set to next instruction */
 		break;
 	case Context::INSTRUCTION_PAGE_FAULT:
@@ -99,7 +99,7 @@ void Thread::exception(Genode::Cpu_state&)
 		if (regs->last_fetch_fault == regs->ip && (regs->ip & 0xfff) == 0xffe)
 			Stval::write(Stval::read() + 4);
 
-		_mmu_exception();
+		_mmu_exception(*regs);
 		regs->last_fetch_fault = regs->ip;
 
 		break;
@@ -109,7 +109,7 @@ void Thread::exception(Genode::Cpu_state&)
 	case Context::INSTRUCTION_ACCESS_FAULT:
 	case Context::LOAD_ACCESS_FAULT:
 	case Context::STORE_ACCESS_FAULT:
-		_mmu_exception();
+		_mmu_exception(*regs);
 		break;
 	default:
 		_die("Unhandled exception=", regs->cpu_exception,
@@ -138,7 +138,10 @@ size_t Kernel::Thread::_call_cache_line_size()
 }
 
 
-void Kernel::Thread::proceed()
+void Kernel::Thread::save(Cpu_state &) { }
+
+
+void Kernel::Thread::load(Cpu_state &)
 {
 	/*
 	 * The sstatus register defines to which privilege level
@@ -147,9 +150,6 @@ void Kernel::Thread::proceed()
 	Cpu::Sstatus::access_t v = Cpu::Sstatus::read();
 	Cpu::Sstatus::Spp::set(v, (_privileged()) ? 1 : 0);
 	Cpu::Sstatus::write(v);
-
-	if (!_cpu().active(_pd.mmu_regs) && !_privileged())
-		_cpu().switch_to(_pd.mmu_regs);
 
 	asm volatile("csrw sscratch, %1                                \n"
 	             "mv   x31, %0                                     \n"
@@ -162,4 +162,13 @@ void Kernel::Thread::proceed()
 	             "csrrw x31, sscratch, x31                         \n"
 	             "sret                                             \n"
 	             :: "r" (&*regs), "r" (regs->t6) : "x30", "x31");
+}
+
+
+void Kernel::Thread::load()
+{
+	if (!_cpu().active(_pd.mmu_regs) && !_privileged())
+		_cpu().switch_to(_pd.mmu_regs);
+
+	load(*regs);
 }

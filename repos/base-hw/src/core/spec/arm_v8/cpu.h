@@ -101,7 +101,7 @@ struct Board::Cpu : Hw::Arm_64_cpu
 	bool active(Mmu_context &);
 	void switch_to(Mmu_context &);
 
-	static void mmu_fault(Context &, Kernel::Thread_fault &);
+	static void mmu_fault(Cpu_state &, Kernel::Thread_fault &);
 
 	static void single_step(Context &regs, bool on)
 	{

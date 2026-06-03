@@ -63,15 +63,13 @@ void Thread::exception(Genode::Cpu_state &state)
 {
 	using Ctx = Board::Cpu::Context;
 
-	_save(state);
-
 	switch (state.cpu_exception) {
 	case Ctx::SUPERVISOR_CALL:
-		_call();
+		_call(state);
 		return;
 	case Ctx::PREFETCH_ABORT:
 	case Ctx::DATA_ABORT:
-		_mmu_exception();
+		_mmu_exception(state);
 		return;
 	case Ctx::INTERRUPT_REQUEST:
 	case Ctx::FAST_INTERRUPT_REQUEST:
@@ -101,15 +99,24 @@ void Kernel::Core_thread::Tlb_invalidation::execute(Cpu &) { }
 void Core_thread::Flush_and_stop_cpu::execute(Cpu &) { }
 
 
-void Cpu::Halt_job::proceed() { }
+void Cpu::Halt_job::load() { }
 
 
-void Thread::proceed()
+void Thread::save(Cpu_state &state) { _save(state); }
+
+
+void Thread::load(Cpu_state &state)
+{
+	auto context = static_cast<Board::Cpu::Context*>(&state);
+	kernel_to_user_context_switch((static_cast<Board::Cpu::Fpu_context*>(context)),
+	                              context, (void*)_cpu().stack_start());
+}
+
+
+void Thread::load()
 {
 	if (!_cpu().active(_pd.mmu_regs) && !_privileged())
 		_cpu().switch_to(_pd.mmu_regs);
 
-	kernel_to_user_context_switch((static_cast<Board::Cpu::Fpu_context*>(&*regs)),
-	                              (static_cast<Board::Cpu::Context*>(&*regs)),
-	                              (void*)_cpu().stack_start());
+	load(*regs);
 }

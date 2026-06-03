@@ -437,9 +437,9 @@ void Thread::_call_cap_destroy(capid_t const id)
 }
 
 
-void Thread::_call()
+void Thread::_call(Cpu_state &state)
 {
-	Syscall_arguments args(*regs);
+	Syscall_arguments args(state);
 
 	/* switch over unrestricted kernel calls */
 	switch (args.read<0, Call_id>()) {
@@ -592,14 +592,14 @@ void Thread::_signal_to_pager()
 }
 
 
-void Thread::_mmu_exception()
+void Thread::_mmu_exception(Cpu_state &state)
 {
 	using namespace Genode;
 	using Genode::log;
 
 	_exception_state = MMU_FAULT;
-	Cpu::mmu_fault(*regs, _fault);
-	_fault.ip = regs->ip;
+	Cpu::mmu_fault(state, _fault);
+	_fault.ip = state.ip;
 
 	if (_fault.type == Thread_fault::UNKNOWN) {
 		_die("Unable to handle MMU fault: ", _fault);
@@ -901,9 +901,9 @@ void Core_thread::_call_thread_pager_signal_ack(capid_t id, Thread &thread,
 }
 
 
-void Core_thread::_call()
+void Core_thread::_call(Cpu_state &state)
 {
-	Syscall_arguments args(*regs);
+	Syscall_arguments args(state);
 
 	switch (args.read<0, Core_call_id>()) {
 	case Core_call_id::CPU_SUSPEND:
@@ -1069,15 +1069,17 @@ void Core_thread::_call()
 			return;
 		}
 	default:
-		Thread::_call();
+		Thread::_call(state);
 	}
 }
 
 
-void Core_thread::_mmu_exception()
+void Core_thread::_mmu_exception(Cpu_state &state)
 {
 	using namespace Genode;
 	using Genode::log;
+
+	_save(state);
 
 	_exception_state = MMU_FAULT;
 	Cpu::mmu_fault(*regs, _fault);

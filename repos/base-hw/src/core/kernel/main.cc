@@ -30,7 +30,7 @@ class Kernel::Main
 {
 	private:
 
-		friend void main_handle_kernel_entry(Genode::Cpu_state*);
+		friend void main_handle_kernel_entry(Cpu_state&);
 		friend void main_initialize_and_handle_kernel_entry();
 		friend time_t main_read_idle_thread_execution_time(Call_arg);
 		friend void main_print_char(char c);
@@ -48,7 +48,8 @@ class Kernel::Main
 		Board::Serial _serial { Core::Platform::mmio_to_virt(Board::UART_BASE),
 		                        Board::UART_CLOCK, SERIAL_BAUD_RATE };
 
-		void _handle_kernel_entry(Genode::Cpu_state*);
+		void _handle_first_kernel_entry();
+		void _handle_kernel_entry(Cpu_state&);
 
 	public:
 
@@ -59,24 +60,45 @@ class Kernel::Main
 Kernel::Main *Kernel::Main::_instance;
 
 
-void Kernel::Main::_handle_kernel_entry(Genode::Cpu_state *state)
+void Kernel::Main::_handle_first_kernel_entry()
 {
 	Cpu::Context *context;
 
 	_mutex.execute_exclusive(
 		[&] () {
 			Cpu &cpu = _cpu_pool.cpu(Cpu::executing_id());
-			Cpu::Context &recent = cpu.current_context();
-			if (state) recent.exception(*state);
 			context = &cpu.schedule_next_context();
 		},
-		[&] () { _cpu_pool.cpu(Cpu::executing_id()).panic(*state); });
+		[&] () { Genode::error("Mutex error during initial kernel run"); });
 
-	context->proceed();
+	context->load();
 }
 
 
-void Kernel::main_handle_kernel_entry(Genode::Cpu_state *state)
+void Kernel::Main::_handle_kernel_entry(Cpu_state &state)
+{
+	Cpu::Context *context;
+	bool same_context_again = true;
+
+	_mutex.execute_exclusive(
+		[&] () {
+			Cpu &cpu = _cpu_pool.cpu(Cpu::executing_id());
+			Cpu::Context &recent = cpu.current_context();
+			recent.exception(state);
+			context = &cpu.schedule_next_context();
+			if (&recent != context) {
+				recent.save(state);
+				same_context_again = false;
+			}
+		},
+		[&] () { _cpu_pool.cpu(Cpu::executing_id()).panic(state); });
+
+	if (same_context_again) context->load(state);
+	else context->load();
+}
+
+
+void Kernel::main_handle_kernel_entry(Cpu_state &state)
 {
 	Main::_instance->_handle_kernel_entry(state);
 }
@@ -130,7 +152,7 @@ void Kernel::main_initialize_and_handle_kernel_entry()
 
 		while (nr_of_initialized_cpus < nr_of_cpus) { }
 
-		Main::_instance->_handle_kernel_entry(nullptr);
+		Main::_instance->_handle_first_kernel_entry();
 		/* never reached */
 		return;
 	}
@@ -187,7 +209,7 @@ void Kernel::main_initialize_and_handle_kernel_entry()
 	 */
 	while (!kernel_initialized) {;}
 
-	Main::_instance->_handle_kernel_entry(nullptr);
+	Main::_instance->_handle_first_kernel_entry();
 }
 
 

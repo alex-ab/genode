@@ -100,21 +100,32 @@ void Vcpu::pause()
 }
 
 
-void Vcpu::proceed()
+void Vcpu::load(Cpu_state &state)
 {
 	Cpu::Ia32_tsc_aux::write(
 	    (Cpu::Ia32_tsc_aux::access_t)_vcpu_context.tsc_aux_guest);
 
-	_vcpu_context.virt.switch_world(*_vcpu_context.regs, _cpu().stack_start());
+	_vcpu_context.virt.switch_world(state, _cpu().stack_start());
 }
 
 
-void Vcpu::exception(Genode::Cpu_state &state)
+void Vcpu::load()
+{
+	_vcpu_context.regs->fpu_context().load();
+	load(*_vcpu_context.regs);
+}
+
+
+void Vcpu::save(Cpu_state &state)
+{
+	Genode::memcpy(&*_vcpu_context.regs, &state, sizeof(Cpu_state));
+	_vcpu_context.regs->fpu_context().save();
+}
+
+
+void Vcpu::exception(Cpu_state &state)
 {
 	using namespace Board;
-	using Ctx = Board::Cpu::Context;
-
-	Genode::memcpy(&*_vcpu_context.regs, &state, sizeof(Ctx));
 
 	bool pause = false;
 
@@ -162,11 +173,10 @@ void Vcpu::exception(Genode::Cpu_state &state)
 			break;
 		default:
 			error("Vcpu: triggered unknown exception ",
-			              _vcpu_context.regs->trapno,
-			              " with error code ", _vcpu_context.regs->errcode,
+			              state.trapno,
+			              " with error code ", state.errcode,
 			              " at ip=",
-			              (void *)_vcpu_context.regs->ip, " sp=",
-			              (void *)_vcpu_context.regs->sp);
+			              (void *)state.ip, " sp=", (void *)state.sp);
 			_pause_vcpu();
 			break;
 	};

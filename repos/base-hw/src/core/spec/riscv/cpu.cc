@@ -99,7 +99,7 @@ void Cpu::switch_to(Mmu_context &context)
 }
 
 
-void Cpu::mmu_fault(Context &, Kernel::Thread_fault &f)
+void Cpu::mmu_fault(Cpu_state &, Kernel::Thread_fault &f)
 {
 	f.addr = Cpu::Stval::read();
 	f.type = Kernel::Thread_fault::PAGE_MISSING;

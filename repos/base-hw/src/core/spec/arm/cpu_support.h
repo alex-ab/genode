@@ -111,7 +111,7 @@ struct Board::Arm_cpu : public Hw::Arm_cpu
 	bool active(Mmu_context &);
 	void switch_to(Mmu_context &);
 
-	static void mmu_fault(Context &c, Kernel::Thread_fault &fault);
+	static void mmu_fault(Cpu_state &, Kernel::Thread_fault &fault);
 	static void mmu_fault_status(Fsr::access_t fsr,
 	                             Kernel::Thread_fault &fault);
 

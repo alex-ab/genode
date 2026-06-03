@@ -42,8 +42,6 @@ void Thread::exception(Genode::Cpu_state &state)
 {
 	using namespace Genode;
 
-	_save(state);
-
 	uint64_t type = static_cast<Board::Cpu::Context&>(state).exception_type;
 
 	switch (type) {
@@ -59,7 +57,7 @@ void Thread::exception(Genode::Cpu_state &state)
 		{
 			switch (Cpu::Esr::Ec::get(state.esr_el1)) {
 			case Cpu::Esr::Ec::SVC:
-				_call();
+				_call(state);
 				return;
 			case Cpu::Esr::Ec::INST_ABORT_SAME_LEVEL: [[fallthrough]];
 			case Cpu::Esr::Ec::DATA_ABORT_SAME_LEVEL:
@@ -67,7 +65,7 @@ void Thread::exception(Genode::Cpu_state &state)
 				[[fallthrough]];
 			case Cpu::Esr::Ec::INST_ABORT_LOW_LEVEL:  [[fallthrough]];
 			case Cpu::Esr::Ec::DATA_ABORT_LOW_LEVEL:
-				_mmu_exception();
+				_mmu_exception(state);
 				return;
 			case Cpu::Esr::Ec::SOFTWARE_STEP_LOW_LEVEL: [[fallthrough]];
 			case Cpu::Esr::Ec::BRK:
@@ -109,7 +107,7 @@ void Kernel::Core_thread::Tlb_invalidation::execute(Cpu &) { }
 void Core_thread::Flush_and_stop_cpu::execute(Cpu &) { }
 
 
-void Cpu::Halt_job::proceed() { }
+void Cpu::Halt_job::load() { }
 
 
 bool Kernel::Pd::invalidate_tlb(Cpu &cpu, addr_t addr, size_t size)
@@ -147,11 +145,22 @@ bool Kernel::Pd::invalidate_tlb(Cpu &cpu, addr_t addr, size_t size)
 }
 
 
-void Thread::proceed()
+void Thread::save(Cpu_state &state)
+{
+	_save(state);
+}
+
+
+void Thread::load(Cpu_state &state)
+{
+	kernel_to_user_context_switch((&state), (void*)_cpu().stack_start());
+}
+
+
+void Thread::load()
 {
 	if (!_cpu().active(_pd.mmu_regs) && !_privileged())
 		_cpu().switch_to(_pd.mmu_regs);
 
-	kernel_to_user_context_switch((static_cast<Board::Cpu::Context*>(&*regs)),
-	                              (void*)_cpu().stack_start());
+	load(*regs);
 }

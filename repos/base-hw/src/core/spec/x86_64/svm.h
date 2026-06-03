@@ -331,7 +331,7 @@ struct Board::Vmcb
 	                addr_t page_table_phys_addr) override;
 	void load(Genode::Vcpu_state &state) override;
 	void store(Genode::Vcpu_state &state) override;
-	void switch_world(Board::Cpu::Context &regs, addr_t) override;
+	void switch_world(Cpu_state &, addr_t) override;
 	Genode::uint64_t handle_vm_exit() override;
 
 	Virt_type virt_type() override

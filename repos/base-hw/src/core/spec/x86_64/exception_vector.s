@@ -113,23 +113,10 @@
 	pushq %r9
 	pushq %r8
 
-	/**
-	 * Calculate offset into Kernel_stack member of Cpu::Context as defined
-	 * in cpu.h - struct Context : Cpu_state, Fpu_context
-	 */
-	.set REGISTER_COUNT, 22
-	.set REGISTER_SIZE, 8
-	.set SIZEOF_CPU_STATE, REGISTER_COUNT * REGISTER_SIZE /* sizeof (Cpu_state) */
-	.set FPU_CONTEXT_OFFSET, SIZEOF_CPU_STATE
 	/* rsp contains pointer to Cpu::Context */
-
 	movq %rsp, %rdi
 
-	/* save FPU context */
-	movq %rsp, %rax
-	addq $FPU_CONTEXT_OFFSET, %rax
-
-	_load_address _ZN6Kernel24main_handle_kernel_entryEPN6Genode9Cpu_stateE rcx
+	_load_address _ZN6Kernel24main_handle_kernel_entryERN6Genode9Cpu_stateE rcx
 	subq $8, %rsp
 	jmp *%rcx
 

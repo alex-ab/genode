@@ -91,7 +91,7 @@ class Board::Cpu : public Hw::Riscv_cpu
 
 		bool active(Mmu_context &context);
 		void switch_to(Mmu_context &context);
-		static void mmu_fault(Context &c, Kernel::Thread_fault &f);
+		static void mmu_fault(Cpu_state &, Kernel::Thread_fault &f);
 
 		static void single_step(Context &, bool) { };
 

@@ -369,7 +369,7 @@ struct Board::Vmcs : public Board::Virt_interface
 	void initialize(Board::Cpu &cpu, addr_t page_table_phys) override;
 	void load(Genode::Vcpu_state &state) override;
 	void store(Genode::Vcpu_state &state) override;
-	void switch_world(Board::Cpu::Context &regs, addr_t) override;
+	void switch_world(Cpu_state &, addr_t) override;
 	uint64_t handle_vm_exit() override;
 
 	void save_host_msrs();

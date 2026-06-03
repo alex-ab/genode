@@ -135,7 +135,7 @@
 	bx    lr
 
 	_kernel_entry:
-	.long _ZN6Kernel24main_handle_kernel_entryEPN6Genode9Cpu_stateE
+	.long _ZN6Kernel24main_handle_kernel_entryERN6Genode9Cpu_stateE
 
 	_fpu_save:
 	.long vfp_save_fpu_context

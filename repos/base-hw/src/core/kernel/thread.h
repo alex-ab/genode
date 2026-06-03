@@ -137,7 +137,7 @@ class Kernel::Thread : private Kernel::Object, public Cpu_context, private Timeo
 		/**
 		 * Handle an exception thrown by the memory management unit
 		 */
-		virtual void _mmu_exception();
+		virtual void _mmu_exception(Cpu_state&);
 
 		/**
 		 * Handle a non-mmu exception
@@ -147,7 +147,7 @@ class Kernel::Thread : private Kernel::Object, public Cpu_context, private Timeo
 		/**
 		 * Handle kernel-call request of the thread
 		 */
-		virtual void _call();
+		virtual void _call(Cpu_state&);
 
 		void _pause();
 		bool _restart();
@@ -160,7 +160,7 @@ class Kernel::Thread : private Kernel::Object, public Cpu_context, private Timeo
 
 		[[nodiscard]] Ipc_alloc_result _ipc_init(Genode::Native_utcb &utcb, Thread &callee);
 
-		virtual void _save(Genode::Cpu_state &);
+		virtual void _save(Cpu_state&);
 
 		virtual bool _privileged() const { return false; }
 
@@ -312,7 +312,9 @@ class Kernel::Thread : private Kernel::Object, public Cpu_context, private Timeo
 		 *****************/
 
 		void exception(Genode::Cpu_state&) override;
-		void proceed() override;
+		void load() override;
+		void load(Cpu_state&) override;
+		void save(Cpu_state&) override;
 
 
 		/*************
@@ -443,7 +445,7 @@ class Kernel::Core_thread : public Kernel::Thread
 		Genode::Constructible<Flush_and_stop_cpu> _stop_cpu {};
 		Genode::Constructible<Pause>              _thread_pause {};
 
-		virtual void _mmu_exception() override;
+		virtual void _mmu_exception(Cpu_state&) override;
 		virtual void _exception() override;
 
 		virtual bool _privileged() const override { return true; }
@@ -453,7 +455,7 @@ class Kernel::Core_thread : public Kernel::Thread
 		 ** Kernel-call back-ends, see kernel-interface headers **
 		 *********************************************************/
 
-		void _call() override;
+		void _call(Cpu_state&) override;
 
 		using C_thread = Core::Kernel_object<Thread>;
 		using C_pd     = Core::Kernel_object<Pd>;

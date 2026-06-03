@@ -105,7 +105,7 @@ void Cpu::Gdt::init(addr_t tss_addr)
 }
 
 
-void Cpu::mmu_fault(Context &regs, Kernel::Thread_fault &fault)
+void Cpu::mmu_fault(Cpu_state &state, Kernel::Thread_fault &fault)
 {
 	using Fault = Kernel::Thread_fault::Type;
 
@@ -129,7 +129,7 @@ void Cpu::mmu_fault(Context &regs, Kernel::Thread_fault &fault)
 	};
 
 	fault.addr = Cpu::Cr2::read();
-	fault.type = fault_lambda(regs.errcode);
+	fault.type = fault_lambda(state.errcode);
 }
 
 

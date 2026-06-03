@@ -78,9 +78,9 @@ Arm_cpu::Mmu_context::~Mmu_context()
 
 using Thread_fault = Kernel::Thread_fault;
 
-void Arm_cpu::mmu_fault(Context &c, Thread_fault &fault)
+void Arm_cpu::mmu_fault(Cpu_state &state, Thread_fault &fault)
 {
-	bool prefetch     = c.cpu_exception == Context::PREFETCH_ABORT;
+	bool prefetch     = state.cpu_exception == Context::PREFETCH_ABORT;
 	fault.addr        = prefetch ? Ifar::read() : Dfar::read();
 	Fsr::access_t fsr = prefetch ? Ifsr::read() : Dfsr::read();
 

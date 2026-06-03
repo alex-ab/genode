@@ -23,7 +23,7 @@ namespace Kernel {
 
 	void main_print_char(char const c);
 
-	void main_handle_kernel_entry(Genode::Cpu_state *state);
+	void main_handle_kernel_entry(Genode::Cpu_state &state);
 
 	void main_initialize_and_handle_kernel_entry();
 

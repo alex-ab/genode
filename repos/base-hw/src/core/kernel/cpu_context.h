@@ -89,12 +89,22 @@ class Kernel::Cpu_context : private Scheduler::Context
 		/**
 		 * Handle exception that occured during execution of this context
 		 */
-		virtual void exception(Genode::Cpu_state&) = 0;
+		virtual void exception(Cpu_state&) = 0;
 
 		/**
 		 * Continue execution of this context
 		 */
-		virtual void proceed() = 0;
+		virtual void load() = 0;
+
+		/**
+		 * Continue execution of this context using given state
+		 */
+		virtual void load(Cpu_state&) = 0;
+
+		/**
+		 * Have to save cpu state of this context
+		 */
+		virtual void save(Cpu_state&) = 0;
 };
 
 #endif /* _CORE__KERNEL__CPU_CONTEXT_H_ */

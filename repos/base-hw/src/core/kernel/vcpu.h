@@ -146,8 +146,10 @@ class Kernel::Vcpu : private Kernel::Object, public Cpu_context
 		 ** Cpu_context **
 		 *****************/
 
-		void exception(Genode::Cpu_state&) override;
-		void proceed() override;
+		void exception(Cpu_state&) override;
+		void save(Cpu_state&) override;
+		void load(Cpu_state&) override;
+		void load() override;
 };
 
 #endif /* _CORE__KERNEL__VCPU_H_ */

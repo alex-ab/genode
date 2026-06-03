@@ -168,7 +168,7 @@ class Board::Cpu : public Hw::X86_64_cpu
 		bool active(Mmu_context &mmu_context);
 		void switch_to(Mmu_context &mmu_context);
 
-		static void mmu_fault(Context &regs, Kernel::Thread_fault &fault);
+		static void mmu_fault(Cpu_state &, Kernel::Thread_fault &fault);
 
 		static void single_step(Context &regs, bool on);
 

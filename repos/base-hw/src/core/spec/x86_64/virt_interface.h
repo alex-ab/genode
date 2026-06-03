@@ -36,7 +36,7 @@ struct Board::Virt_interface
 	virtual void initialize(Board::Cpu &, addr_t) {};
 	virtual void load(Genode::Vcpu_state &) {};
 	virtual void store(Genode::Vcpu_state &) {};
-	virtual void switch_world(Board::Cpu::Context &, addr_t) {};
+	virtual void switch_world(Genode::Cpu_state &, addr_t) {};
 	virtual Virt_type virt_type() { return Virt_type::NONE; };
 	virtual Genode::uint64_t handle_vm_exit() { return 0; };
 

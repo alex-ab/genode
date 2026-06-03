@@ -24,7 +24,7 @@ void Kernel::Cpu::_arch_init()
 	Tss::init();
 
 	/* set interrupt stack pointer to kernel context stack minus FPU state size */
-	tss.ist[0] = stack_start() - Fpu_context::SIZE;
+	tss.ist[0] = stack_start();
 
 	_ipi_irq.init();
 

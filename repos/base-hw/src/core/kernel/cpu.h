@@ -80,8 +80,10 @@ class Kernel::Cpu : public Board::Cpu, private Irq::Pool,
 			Halt_job(Cpu &cpu)
 			: Cpu_context(cpu, Scheduler::Group_id::BACKGROUND) { }
 
-			void exception(Genode::Cpu_state&) override { }
-			void proceed()   override;
+			void exception(Cpu_state&) override { }
+			void save(Cpu_state&) override { }
+			void load(Cpu_state&) override { }
+			void load() override;
 		} _halt_job { *this };
 
 		enum State { RUN, HALT, SUSPEND };
