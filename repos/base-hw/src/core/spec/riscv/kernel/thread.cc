@@ -19,6 +19,31 @@
 using namespace Kernel;
 
 
+void Thread::Syscall_arguments::_register(unsigned idx, Call_arg arg)
+{
+	if (idx == 0) _state.a0 = arg;
+}
+
+
+Call_arg Thread::Syscall_arguments::_register(unsigned idx) const
+{
+	switch (idx) {
+		case 0: return _state.a0;
+		case 1: return _state.a1;
+		case 2: return _state.a2;
+		case 3: return _state.a3;
+		case 4: return _state.a4;
+		case 5: return _state.a5;
+		default: ;
+	};
+	return 0;
+}
+
+
+void Thread::Syscall_arguments::write(Kernel::time_t const t) {
+	_state.a0  = t; }
+
+
 void Core_thread::Tlb_invalidation::execute(Cpu &) { }
 
 
@@ -138,6 +163,3 @@ void Kernel::Thread::proceed()
 	             "sret                                             \n"
 	             :: "r" (&*regs), "r" (regs->t6) : "x30", "x31");
 }
-
-
-void Thread::user_ret_time(Kernel::time_t const t) { regs->a0  = t; }

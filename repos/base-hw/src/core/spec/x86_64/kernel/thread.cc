@@ -25,6 +25,34 @@
 
 using namespace Kernel;
 
+
+void Thread::Syscall_arguments::_register(unsigned idx, Call_arg arg)
+{
+	if (idx == 0) _state.rdi = arg;
+}
+
+
+Call_arg Thread::Syscall_arguments::_register(unsigned idx) const
+{
+	switch (idx) {
+	case 0: return _state.rdi;
+	case 1: return _state.rsi;
+	case 2: return _state.rdx;
+	case 3: return _state.rcx;
+	case 4: return _state.r8;
+	case 5: return _state.r9;
+	default: ;
+	};
+	return 0;
+}
+
+
+void Thread::Syscall_arguments::write(Kernel::time_t const t)
+{
+	_state.rdi = t;
+}
+
+
 void Core_thread::Tlb_invalidation::execute(Cpu &cpu)
 {
 	cpu.invalidate_tlb(pd.mmu_regs, addr, size, !pd.id());
@@ -246,6 +274,3 @@ void Thread::proceed()
 	             "iretq           \n"
 	             :: "r" (&regs->r8));
 }
-
-
-void Thread::user_ret_time(Kernel::time_t const t) { regs->rdi = t; }

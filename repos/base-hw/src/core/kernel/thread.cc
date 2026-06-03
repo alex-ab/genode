@@ -439,50 +439,52 @@ void Thread::_call_cap_destroy(capid_t const id)
 
 void Thread::_call()
 {
+	Syscall_arguments args(*regs);
+
 	/* switch over unrestricted kernel calls */
-	switch (user_arg_0<Call_id>()) {
+	switch (args.read<0, Call_id>()) {
 	case Call_id::CACHE_CLEAN_INV:
 		{
-			_call_cache_clean_invalidate(user_arg_1<addr_t>(),
-			                             user_arg_2<size_t>());
+			_call_cache_clean_invalidate(args.read<1, addr_t>(),
+			                             args.read<2, size_t>());
 			return;
 		}
 	case Call_id::CACHE_COHERENT:
 		{
-			_call_cache_coherent(user_arg_1<addr_t>(),
-			                     user_arg_2<size_t>());
+			_call_cache_coherent(args.read<1, addr_t>(),
+			                     args.read<2, size_t>());
 			return;
 		}
 	case Call_id::CACHE_INV:
 		{
-			_call_cache_invalidate(user_arg_1<addr_t>(),
-			                       user_arg_2<size_t>());
+			_call_cache_invalidate(args.read<1, addr_t>(),
+			                       args.read<2, size_t>());
 			return;
 		}
 	case Call_id::CACHE_SIZE:
 		{
-			user_ret(_call_cache_line_size());
+			args.write(_call_cache_line_size());
 			return;
 		}
 	case Call_id::CAP_ACK:
 		{
-			_call_cap_ack(user_arg_1<capid_t>());
+			_call_cap_ack(args.read<1, capid_t>());
 			return;
 		}
 	case Call_id::CAP_DESTROY:
 		{
-			_call_cap_destroy(user_arg_1<capid_t>());
+			_call_cap_destroy(args.read<1, capid_t>());
 			return;
 		}
 	case Call_id::PRINT:
 		{
-			Kernel::log(user_arg_1<char>());
+			Kernel::log(args.read<1, char>());
 			return;
 		}
 	case Call_id::RPC_CALL:
 		{
-			user_ret(_call_rpc_call(user_arg_1<capid_t>(),
-			                        user_arg_2<unsigned>()));
+			args.write(_call_rpc_call(args.read<1, capid_t>(),
+			                          args.read<2, unsigned>()));
 			return;
 		}
 	case Call_id::RPC_REPLY:
@@ -492,43 +494,43 @@ void Thread::_call()
 		}
 	case Call_id::RPC_REPLY_AND_WAIT:
 		{
-			user_ret(_call_rpc_reply_and_wait(user_arg_1<unsigned>()));
+			args.write(_call_rpc_reply_and_wait(args.read<1, unsigned>()));
 			return;
 		}
 	case Call_id::RPC_WAIT:
 		{
-			user_ret(_call_rpc_wait(user_arg_1<unsigned>()));
+			args.write(_call_rpc_wait(args.read<1, unsigned>()));
 			return;
 		}
 	case Call_id::SIG_ACK:
 		{
-			_call_signal_ack(user_arg_1<capid_t>());
+			_call_signal_ack(args.read<1, capid_t>());
 			return;
 		}
 	case Call_id::SIG_KILL:
 		{
-			_call_signal_kill(user_arg_1<capid_t>());
+			_call_signal_kill(args.read<1, capid_t>());
 			return;
 		}
 	case Call_id::SIG_PENDING:
 		{
-			user_ret(_call_signal_pending(user_arg_1<capid_t>()));
+			args.write(_call_signal_pending(args.read<1, capid_t>()));
 			return;
 		}
 	case Call_id::SIG_SUBMIT:
 		{
-			_call_signal_submit(user_arg_1<capid_t>(),
-			                    user_arg_2<unsigned>());
+			_call_signal_submit(args.read<1, capid_t>(),
+			                    args.read<2, unsigned>());
 			return;
 		}
 	case Call_id::SIG_WAIT:
 		{
-			user_ret(_call_signal_wait(user_arg_1<capid_t>()));
+			args.write(_call_signal_wait(args.read<1, capid_t>()));
 			return;
 		}
 	case Call_id::THREAD_RESTART:
 		{
-			user_ret(_call_thread_restart(user_arg_1<capid_t>()));
+			args.write(_call_thread_restart(args.read<1, capid_t>()));
 			return;
 		}
 	case Call_id::THREAD_STOP:
@@ -543,31 +545,31 @@ void Thread::_call()
 		}
 	case Call_id::TIME:
 		{
-			user_ret_time(_cpu().timer().ticks_to_us(_cpu().timer().time()));
+			args.write(_cpu().timer().ticks_to_us(_cpu().timer().time()));
 			return;
 		}
 	case Call_id::TIMEOUT:
 		{
-			_call_timeout(user_arg_1<timeout_t>(), user_arg_2<capid_t>());
+			_call_timeout(args.read<1, timeout_t>(), args.read<2, capid_t>());
 			return;
 		}
 	case Call_id::TIMEOUT_MAX_US:
 		{
-			user_ret_time(_cpu().timer().timeout_max_us());
+			args.write(_cpu().timer().timeout_max_us());
 			return;
 		}
 	case Call_id::VCPU_PAUSE:
 		{
-			_call_vcpu_pause(user_arg_1<capid_t>());
+			_call_vcpu_pause(args.read<1, capid_t>());
 			return;
 		}
 	case Call_id::VCPU_RUN:
 		{
-			_call_vcpu_run(user_arg_1<capid_t>());
+			_call_vcpu_run(args.read<1, capid_t>());
 			return;
 		}
 	default:
-		_die("Invalid system call ", user_arg_0<unsigned>());
+		_die("Invalid system call ", args.read<0, unsigned>());
 	}
 }
 
@@ -901,163 +903,169 @@ void Core_thread::_call_thread_pager_signal_ack(capid_t id, Thread &thread,
 
 void Core_thread::_call()
 {
-	switch (user_arg_0<Core_call_id>()) {
+	Syscall_arguments args(*regs);
+
+	switch (args.read<0, Core_call_id>()) {
 	case Core_call_id::CPU_SUSPEND:
 		{
-			user_ret(_call_cpu_suspend(user_arg_1<unsigned>()));
+			args.write(_call_cpu_suspend(args.read<1, unsigned>()));
 			return;
 		}
 	case Core_call_id::IRQ_ACK:
 		{
-			user_arg_1<User_irq*>()->enable();
+			args.read<1, User_irq*>()->enable();
 			return;
 		}
 	case Core_call_id::IRQ_CREATE:
 		{
-			user_ret(_call_irq_create(*user_arg_1<C_irq*>(),
-			                          user_arg_2<unsigned>(),
-			                          user_arg_3<Genode::Irq_session::Trigger>(),
-			                          user_arg_4<Genode::Irq_session::Polarity>(),
-			                          user_arg_5<capid_t>()));
+			args.write(_call_irq_create(*args.read<1, C_irq*>(),
+			                            args.read<2, unsigned>(),
+			                            args.read<3, Genode::Irq_session::Trigger>(),
+			                            args.read<4, Genode::Irq_session::Polarity>(),
+			                            args.read<5, capid_t>()));
 			return;
 		}
 	case Core_call_id::IRQ_DESTROY:
 		{
-			_call_destruct<User_irq>();
+			_call_destruct<User_irq>(args);
 			return;
 		}
 	case Core_call_id::OBJECT_CREATE:
 		{
-			user_ret(_call_obj_create(*user_arg_1<Thread_identity*>(),
-			                          user_arg_2<capid_t>()));
+			args.write(_call_obj_create(*args.read<1, Thread_identity*>(),
+			                            args.read<2, capid_t>()));
 			return;
 		}
 	case Core_call_id::OBJECT_DESTROY:
 		{
-			user_arg_1<Thread_identity*>()->destruct();
+			args.read<1, Thread_identity*>()->destruct();
 			return;
 		}
 	case Core_call_id::PD_CREATE:
 		{
-			_call_create<Pd>(*user_arg_2<Pd::Core_pd_data*>());
+			_call_create<Pd>(args, *args.read<2, Pd::Core_pd_data*>());
 			return;
 		}
 	case Core_call_id::PD_DESTROY:
 		{
-			_call_pd_destroy(*user_arg_1<C_pd*>());
+			_call_pd_destroy(*args.read<1, C_pd*>());
 			return;
 		}
 	case Core_call_id::PD_INVALIDATE_TLB:
 		{
-			_call_pd_invalidate_tlb(*user_arg_1<Pd*>(), user_arg_2<addr_t>(),
-			                        user_arg_3<size_t>());
+			_call_pd_invalidate_tlb(*args.read<1, Pd*>(),
+			                        args.read<2, addr_t>(),
+			                        args.read<3, size_t>());
 			return;
 		}
 	case Core_call_id::SIGNAL_CONTEXT_CREATE:
 		{
-			_call_create<Signal_context>(*user_arg_2<Signal_receiver*>(),
-			                             user_arg_3<addr_t>());
+			_call_create<Signal_context>(args, *args.read<2, Signal_receiver*>(),
+			                             args.read<3, addr_t>());
 			return;
 		}
 	case Core_call_id::SIGNAL_CONTEXT_DESTROY:
 		{
-			_call_destruct<Signal_context>();
+			_call_destruct<Signal_context>(args);
 			return;
 		}
 	case Core_call_id::SIGNAL_RECEIVER_CREATE:
 		{
-			_call_create<Signal_receiver>();
+			_call_create<Signal_receiver>(args);
 			return;
 		}
 	case Core_call_id::SIGNAL_RECEIVER_DESTROY:
 		{
-			_call_destruct<Signal_receiver>();
+			_call_destruct<Signal_receiver>(args);
 			return;
 		}
 	case Core_call_id::THREAD_CREATE:
 		{
-			_cpu_pool.with_cpu(user_arg_3<unsigned>(), [&] (Cpu &cpu) {
-				_call_create<Thread>(cpu, *user_arg_2<Pd*>(),
-				                     Scheduler::Group_id(user_arg_4<unsigned>()),
-				                     user_arg_5<char const*>());
+			_cpu_pool.with_cpu(args.read<3, unsigned>(), [&] (Cpu &cpu) {
+				_call_create<Thread>(args, cpu, *args.read<2, Pd*>(),
+				                     Scheduler::Group_id(args.read<4, unsigned>()),
+				                     args.read<5, char const*>());
 			});
 			return;
 		}
 	case Core_call_id::THREAD_CORE_CREATE:
 		{
-			_cpu_pool.with_cpu(user_arg_2<unsigned>(), [&] (Cpu &cpu) {
-				_call_create<Core_thread>(_cpu_pool, cpu, _pd,
-				                          user_arg_3<char const*>());
+			_cpu_pool.with_cpu(args.read<2, unsigned>(), [&] (Cpu &cpu) {
+				_call_create<Core_thread>(args, _cpu_pool, cpu, _pd,
+				                          args.read<3, char const*>());
 			});
 			return;
 		}
 	case Core_call_id::THREAD_CPU_STATE_GET:
 		{
-			*user_arg_2<Cpu_state*>() = *user_arg_1<Thread*>()->regs;
+			*args.read<2, Cpu_state*>() = *args.read<1, Thread*>()->regs;
 			return;
 		}
 	case Core_call_id::THREAD_CPU_STATE_SET:
 		{
-			static_cast<Cpu_state&>(*user_arg_1<Thread*>()->regs) =
-				*user_arg_2<Cpu_state*>();
+			static_cast<Cpu_state&>(*args.read<1, Thread*>()->regs) =
+				*args.read<2, Cpu_state*>();
 			return;
 		}
 	case Core_call_id::THREAD_DESTROY:
 		{
-			_call_thread_destroy(*user_arg_1<C_thread*>());
+			_call_thread_destroy(*args.read<1, C_thread*>());
 			return;
 		}
 	case Core_call_id::THREAD_EXC_STATE_GET:
 		{
-			*user_arg_2<Exception_state*>() =
-				user_arg_1<Thread*>()->exception_state();
+			*args.read<2, Exception_state*>() =
+				args.read<1, Thread*>()->exception_state();
 			return;
 		}
 	case Core_call_id::THREAD_PAGER_SET:
 		{
-			_call_thread_pager(*user_arg_1<Thread*>(), *user_arg_2<Thread*>(),
-			                   user_arg_3<capid_t>());
+			_call_thread_pager(*args.read<1, Thread*>(),
+			                   *args.read<2, Thread*>(),
+			                   args.read<3, capid_t>());
 			return;
 		}
 	case Core_call_id::THREAD_PAGER_SIGNAL_ACK:
 		{
-			_call_thread_pager_signal_ack(user_arg_1<capid_t>(),
-			                              *user_arg_2<Thread*>(),
-			                              user_arg_3<bool>());
+			_call_thread_pager_signal_ack(args.read<1, capid_t>(),
+			                              *args.read<2, Thread*>(),
+			                              args.read<3, bool>());
 			return;
 		}
 	case Core_call_id::THREAD_PAUSE:
 		{
-			_call_thread_pause(*user_arg_1<Thread*>());
+			_call_thread_pause(*args.read<1, Thread*>());
 			return;
 		}
 	case Core_call_id::THREAD_RESUME:
 		{
-			_call_thread_resume(*user_arg_1<Thread*>());
+			_call_thread_resume(*args.read<1, Thread*>());
 			return;
 		}
 	case Core_call_id::THREAD_SINGLE_STEP:
 		{
-			Cpu::single_step(*user_arg_1<Thread*>()->regs, user_arg_2<bool>());
+			Cpu::single_step(*args.read<1, Thread*>()->regs,
+			                 args.read<2, bool>());
 			return;
 		}
 	case Core_call_id::THREAD_START:
 		{
-			user_ret(_call_thread_start(*user_arg_1<Thread*>(),
-			                            *user_arg_2<Native_utcb*>()));
+			args.write(_call_thread_start(*args.read<1, Thread*>(),
+			                              *args.read<2, Native_utcb*>()));
 			return;
 		}
 	case Core_call_id::VCPU_CREATE:
 		{
-			user_ret(_call_vcpu_create(*user_arg_1<C_vcpu*>(), user_arg_2<unsigned>(),
-			                           *user_arg_3<Board::Vcpu_state*>(),
-			                           *user_arg_4<Vcpu::Identity*>(),
-			                           user_arg_5<capid_t>()));
+			args.write(_call_vcpu_create(*args.read<1, C_vcpu*>(),
+			                             args.read<2, unsigned>(),
+			                             *args.read<3, Board::Vcpu_state*>(),
+			                             *args.read<4, Vcpu::Identity*>(),
+			                             args.read<5, capid_t>()));
 			return;
 		}
 	case Core_call_id::VCPU_DESTROY:
 		{
-			_call_vcpu_destroy(*user_arg_1<C_vcpu*>());
+			_call_vcpu_destroy(*args.read<1, C_vcpu*>());
 			return;
 		}
 	default:

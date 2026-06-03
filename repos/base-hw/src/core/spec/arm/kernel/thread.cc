@@ -26,6 +26,35 @@ extern "C" void kernel_to_user_context_switch(Board::Cpu::Fpu_context*,
                                               Board::Cpu::Context*, void*);
 
 
+void Thread::Syscall_arguments::_register(unsigned idx, Call_arg arg)
+{
+	if (idx == 0) _state.r0 = arg;
+}
+
+
+Call_arg Thread::Syscall_arguments::_register(unsigned idx) const
+{
+	switch (idx) {
+		case 0: return _state.r0;
+		case 1: return _state.r1;
+		case 2: return _state.r2;
+		case 3: return _state.r3;
+		case 4: return _state.r4;
+		case 5: return _state.r5;
+		default: ;
+	};
+	return 0;
+}
+
+
+void Thread::Syscall_arguments::write(Kernel::time_t const t)
+{
+	/* split 64-bit time_t value into 2 register */
+	_state.r0 = (addr_t) (t >> 32UL);
+	_state.r1 = t & ~0UL;
+}
+
+
 Cpu_suspend_result Core_thread::_call_cpu_suspend(unsigned const) {
 	return Cpu_suspend_result::FAILED; }
 
@@ -83,12 +112,4 @@ void Thread::proceed()
 	kernel_to_user_context_switch((static_cast<Board::Cpu::Fpu_context*>(&*regs)),
 	                              (static_cast<Board::Cpu::Context*>(&*regs)),
 	                              (void*)_cpu().stack_start());
-}
-
-
-void Thread::user_ret_time(Kernel::time_t const t)
-{
-	/* split 64-bit time_t value into 2 register */
-	regs->r0 = (addr_t) (t >> 32UL);
-	regs->r1 = t & ~0UL;
 }

@@ -22,6 +22,18 @@ extern "C" void kernel_to_user_context_switch(void *, void *);
 using namespace Kernel;
 
 
+void Thread::Syscall_arguments::_register(unsigned idx, Call_arg arg) {
+	if (idx == 0) _state.r[0] = arg; }
+
+
+Call_arg Thread::Syscall_arguments::_register(unsigned idx) const {
+	return (idx > 5) ? 0 : _state.r[idx]; }
+
+
+void Thread::Syscall_arguments::write(Kernel::time_t const t) {
+	_state.r[0] = t; }
+
+
 Cpu_suspend_result Core_thread::_call_cpu_suspend(unsigned const) {
 	return Cpu_suspend_result::FAILED; }
 
@@ -143,6 +155,3 @@ void Thread::proceed()
 	kernel_to_user_context_switch((static_cast<Board::Cpu::Context*>(&*regs)),
 	                              (void*)_cpu().stack_start());
 }
-
-
-void Thread::user_ret_time(Kernel::time_t const t) { regs->r[0] = t; }

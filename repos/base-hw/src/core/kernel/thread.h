@@ -230,16 +230,31 @@ class Kernel::Thread : private Kernel::Object, public Cpu_context, private Timeo
 		 ** Support for syscalls **
 		 **************************/
 
-		void user_ret_time(Kernel::time_t const t);
+		class Syscall_arguments
+		{
+			private:
 
-		void user_ret(auto const arg) { regs->reg_0((Call_arg)arg); }
+				Cpu_state &_state;
 
-		template <typename T> T user_arg_0() const { return (T)regs->reg_0(); }
-		template <typename T> T user_arg_1() const { return (T)regs->reg_1(); }
-		template <typename T> T user_arg_2() const { return (T)regs->reg_2(); }
-		template <typename T> T user_arg_3() const { return (T)regs->reg_3(); }
-		template <typename T> T user_arg_4() const { return (T)regs->reg_4(); }
-		template <typename T> T user_arg_5() const { return (T)regs->reg_5(); }
+				Call_arg _register(unsigned idx) const;
+				void _register(unsigned idx, Call_arg);
+
+			public:
+
+				Syscall_arguments(Cpu_state &state)
+				:
+					_state(state) {}
+
+				template <unsigned REG, typename T> T read() const
+				{
+					static_assert(REG <= 5);
+					return (T) _register(REG);
+				}
+
+				void write(Kernel::time_t const);
+
+				void write(auto const arg) { _register(0, (Call_arg)arg); }
+		};
 
 		/**
 		 * Syscall to create a thread
@@ -473,19 +488,19 @@ class Kernel::Core_thread : public Kernel::Thread
 		Cpu_suspend_result _call_cpu_suspend(unsigned const);
 
 		template <typename T>
-		void _call_create(auto &&... args)
+		void _call_create(Syscall_arguments &sargs, auto &&... args)
 		{
 			Core::Kernel_object<T> &kobj =
-				*user_arg_1<Core::Kernel_object<T>*>();
+				*sargs.read<1, Core::Kernel_object<T>*>();
 			kobj.construct(_pd, args...);
-			user_ret(kobj->core_capid());
+			sargs.write(kobj->core_capid());
 		}
 
 		template <typename T>
-		void _call_destruct()
+		void _call_destruct(Syscall_arguments &sargs)
 		{
 			Core::Kernel_object<T> &kobj =
-				*user_arg_1<Core::Kernel_object<T>*>();
+				*sargs.read<1, Core::Kernel_object<T>*>();
 			kobj.destruct();
 		}
 
