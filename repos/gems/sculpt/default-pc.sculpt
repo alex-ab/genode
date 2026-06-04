@@ -9,7 +9,8 @@ import: pkg/pc_audio
 
 # selection of option-menu entries
 option: download_debug_info black_hole trace_logger
-option: audio mixer system_clock acpi_support recall_fs touchpad
+option: audio_bsd audio_lx mixer
+option: system_clock acpi_support recall_fs touchpad
 option: log_view
 
 # selection of accepted depot-package providers

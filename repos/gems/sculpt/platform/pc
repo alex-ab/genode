@@ -117,6 +117,7 @@ config | verbose: yes
     + policy | label: nic       | info: yes
     | + pci | class: ETHERNET
     + policy | label: audio     | info: yes
+    | + device NHLT
     | + pci | class: AUDIO
     | + pci | class: HDAUDIO
     + policy | label: acpica
