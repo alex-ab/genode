@@ -1,5 +1,5 @@
 option
-+ child audio | pkg: alex-ab/pkg/pc_audio/2026-06-02 | binary: pc_audio | priority: -1 | ram: 8M | caps: 200 | enabled: yes
++ child audio | binary: pc_audio | priority: -1 | ram: 8M | caps: 200 | enabled: yes
   + config | record_play: no | report_mixer: yes
            | speaker_priority: external | mic_priority: external
            | profile: zbook8
