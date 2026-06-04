@@ -1,8 +1,0 @@
-option
-
-+ child msr_gui | priority: -2 | pkg: msr_gui | managing_system: yes
-  + connect
-    + gui                   | + child wm
-    + fs font               | + child font
-    + rom platform_info     | + parent         | label: platform_info
--
