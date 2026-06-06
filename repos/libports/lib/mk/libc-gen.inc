@@ -40,7 +40,6 @@ FILTER_OUT_C += \
 	getentropy.c \
 	getutxent.c \
 	pututxline.c \
-	readpassphrase.c \
 	scandir_b.c \
 	sem_new.c \
 	signal.c \
