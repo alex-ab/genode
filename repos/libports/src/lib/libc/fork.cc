@@ -176,6 +176,14 @@ void Libc::Child_config::_generate(Generator &g, Node const &config, Fs &fs, Fds
 
 		g.attribute("pid", _pid);
 
+		auto copy_attributes = [&] (Generator &g, Node const &from)
+		{
+			using Value = String<64>;
+			from.for_each_attribute([&] (Node::Attribute const &attr) {
+				Value value { Cstring(attr.value.start, attr.value.num_bytes) };
+				g.attribute(attr.name.string(), value); });
+		};
+
 		using Path = String<Vfs::MAX_PATH_LEN>;
 		config.with_optional_sub_node("libc", [&] (Node const &node) {
 			if (node.has_attribute("rtc"))
@@ -186,6 +194,9 @@ void Libc::Child_config::_generate(Generator &g, Node const &config, Fs &fs, Fds
 				g.attribute("socket", node.attribute_value("socket", Path()));
 			if (node.has_attribute("rng"))
 				g.attribute("rng", node.attribute_value("rng", Path()));
+
+			node.with_optional_sub_node("passwd", [&] (Node const &node) {
+				g.node("passwd", [&] () { copy_attributes(g, node); }); });
 		});
 
 		{
