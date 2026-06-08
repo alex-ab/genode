@@ -640,6 +640,7 @@ realpath T
 recv T
 recvfrom T
 recvmsg T
+recvmmsg T
 regcomp T
 regerror T
 regexec T
@@ -679,6 +680,7 @@ semget W
 semop W
 send T
 sendmsg W
+sendmmsg T
 sendto T
 setbuf T
 setbuffer T
