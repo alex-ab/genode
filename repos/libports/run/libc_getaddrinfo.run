@@ -1,5 +1,5 @@
-assert {[have_include power_on/qemu]} \
-	"Run script requires QEMU networking"
+assert {[have_include power_on/qemu] || [have_board linux]} \
+	"Run script requires QEMU networking or Linux user-networking"
 
 create_boot_directory
 

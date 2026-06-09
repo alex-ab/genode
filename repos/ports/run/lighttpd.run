@@ -6,15 +6,6 @@
 
 proc ip_stack { } { return lwip }
 
-proc nic_router_uplink_domain_attr { } {
-	# static IP config on Linux
-	if {[have_spec linux]} {
-		return {interface: 10.0.2.55/24 | gateway: 10.0.2.1}
-	} else {
-		return {}
-	}
-}
-
 create_boot_directory
 import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/pkg/[drivers_nic_pkg] \
@@ -68,7 +59,7 @@ config
   + config | verbose_domain_state: yes
     + policy | label_prefix: lighttpd | domain: downlink
     + policy | label_prefix: nic      | domain: uplink
-    + domain uplink | } [nic_router_uplink_domain_attr] {
+    + domain uplink
       + nat | domain: downlink | tcp-ports: 16384 | udp-ports: 16384 | icmp-ids: 16384
       + tcp-forward | port:  80 | domain: downlink | to: 10.0.3.2
       + tcp-forward | port: 443 | domain: downlink | to: 10.0.3.2

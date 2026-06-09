@@ -1,5 +1,4 @@
-assert {![have_board linux] &&
-       ![have_board rpi]  &&
+assert {![have_board rpi]  &&
        ![have_board rpi3]  &&
        ![have_board imx53_qsb_tz]}
 

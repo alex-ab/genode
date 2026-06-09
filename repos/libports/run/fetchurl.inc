@@ -10,28 +10,8 @@ if {[have_cmd_switch --autopilot]} {
 	       "Autopilot mode is not supported on this platform."
 }
 
-#
-# This run script works on Linux with NAT setup from tap0 to uplink
-# device uplink0 like follows.
-#
-# iptables -t nat -A POSTROUTING -o uplink0 -j MASQUERADE
-# iptables -A FORWARD -i tap0    -o uplink0 -j ACCEPT
-# iptables -A FORWARD -i uplink0 -o tap0    -m state --state RELATED,ESTABLISHED -j ACCEPT
-# echo 1 > /proc/sys/net/ipv4/ip_forward
-#
-
 proc socket_fs_plugin { } {
-	set result "[ip_stack]"
-
-	if {[have_board linux]} {
-		append result { | ip_addr: 10.0.2.55 | netmask: 255.255.255.0}
-		append result { | gateway: 10.0.2.1  | nameserver: 1.1.1.1}
-	} else {
-		append result { | dhcp: yes}
-	}
-
-	return $result
-}
+	return "[ip_stack] | dhcp: yes" }
 
 create_boot_directory
 

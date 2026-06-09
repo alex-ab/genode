@@ -1,35 +1,9 @@
 #
-# For running this script on Linux in your private network there is some
-# preparation required. Let's assume 'eth0' is your physical network device
-# (run 'ifconfig' for that), 'shrimp' is your Linux user name, and
-# 192.168.178.1 is the IP of a device in your local network you want to ping.
-# You would do the following:
+# For running this script on Linux you must provide ON_LINUX_WITH_DST_IP
+# on the command line in order to provide the IP of the device to ping, e.g.:
 #
-# 1) Establish a bridge between a TAP device and a physical network device in
-#    your Linux:
-#    ! sudo brctl addbr br0
-#    ! sudo ip addr flush dev eth0
-#    ! sudo brctl addif br0 eth0
-#    ! sudo ip tuntap add tap0 mode tap user shrimp
-#    ! sudo brctl addif br0 tap0
-#    ! sudo ifconfig eth0 up
-#    ! sudo ifconfig tap0 up
-#    ! sudo ifconfig br0 up
-#    ! brctl show
-#    ! sudo dhclient -v br0
-#
-# 2) Now you can do testing with the script:
-#    ! cd <GENODE_DIR>/build/x86_64
-#    ! make run/ping KERNEL=linux BOARD=linux ON_LINUX_WITH_DST_IP=192.168.178.1
-#
-# 3) Clean up your Linux when done testing:
-#    ! sudo brctl delif br0 tap0
-#    ! sudo ip tuntap delete tap0 mode tap
-#    ! sudo brctl delif br0 eth0
-#    ! sudo ifconfig br0 down
-#    ! sudo brctl delbr br0
-#    ! sudo ifconfig eth0 up
-#    ! sudo dhclient -v eth0
+# ! cd <GENODE_DIR>/build/x86_64
+# ! make run/ping KERNEL=linux BOARD=linux ON_LINUX_WITH_DST_IP=192.168.178.1
 #
 
 source ${genode_dir}/repos/os/run/assert_nic.inc

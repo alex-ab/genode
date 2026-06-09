@@ -1,6 +1,6 @@
 source ${genode_dir}/repos/os/run/assert_nic.inc
 
-set on_hardware [expr ![have_include power_on/qemu]]
+set on_hardware [expr ![have_include power_on/qemu] && ![have_board linux]]
 
 create_boot_directory
 
@@ -13,7 +13,8 @@ import_from_depot [depot_user]/src/[base_src] \
 build { app/ping }
 
 proc good_dst_ip { } {
-	if {![have_include power_on/qemu]} {
+	global on_hardware
+	if {$on_hardware} {
 		return "10.0.0.2"
 	} else {
 		return "10.0.2.2"

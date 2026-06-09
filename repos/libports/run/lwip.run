@@ -12,12 +12,6 @@
 # environments (i.e., the test won't work with the Linux version of Genode).
 #
 
-#
-# TODO: Add support for Linux via user-level networking (using the
-#       tun/tap proxy driver at os/src/driver/nic/linux)
-#
-
-assert {![have_board linux]}
 assert {![have_board imx53_qsb_tz]}
 assert {![have_board rpi3]}
 assert {![have_board rpi]}
@@ -113,7 +107,7 @@ build_boot_image [build_artifacts]
 append qemu_args "  -nographic "
 append_qemu_nic_args "hostfwd=tcp::5555-:80"
 
-if {[have_include "power_on/qemu"]} {
+if {[have_include "power_on/qemu"] || [have_board linux]} {
 	run_genode_until {.*Start the server loop.*\n} 30
 	set uri "http://localhost:5555/"
 } else {

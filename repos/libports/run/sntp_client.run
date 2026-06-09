@@ -1,5 +1,3 @@
-assert {![have_spec linux]}
-
 if {[have_cmd_switch --autopilot]} {
 	assert {[have_spec x86]} \
 		"Autopilot mode is not supported on this platform."
