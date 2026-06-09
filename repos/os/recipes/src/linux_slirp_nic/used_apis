@@ -6,3 +6,4 @@ nic_session
 os
 report_session
 uplink_session
+libslirp
