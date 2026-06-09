@@ -70,16 +70,38 @@ ACPI_STATUS AcpiOsReadPciConfiguration (ACPI_PCI_ID *pcidev, UINT32 reg,
 	                     !pcidev->Bus && !pcidev->Device && !pcidev->Function;
 
 	/*
-	 * ACPI quirk for 12th Gen Framework laptop and Thinkpad X1 Nano Gen2
-	 *
 	 * XXX emulate some of the register accesses to the Intel root bridge to
-	 *     avoid bogus calculation of physical addresses. The value seems to
-	 *     be close to the pci config start address as provided by mcfg table
-	 *     for those machines.
+	 *     avoid bogus calculation of physical addresses.
 	 */
 	if (emulate) {
-		if (reg == 0x60 && width == 32) {
-			*value = 0xe0000001;
+		*value = ~0U;
+
+		bool fuji4    = false;
+		bool fuji5    = true;
+		bool hp_zbook = false;
+		bool t490     = false;
+
+		if (fuji5) {
+			if (reg == 0x48 && width == 32) *value = 0xfedc0001; /* MCHBAR */
+			if (reg == 0x60 && width == 32) *value = 0xc0000001; /* PCIEXBAR */
+		}
+
+		if (fuji4) {
+			if (reg == 0x48 && width == 32) *value = 0xfed10001; /* MCHBAR */
+			if (reg == 0x60 && width == 32) *value = 0xf0000005; /* PCIEXBAR */
+		}
+
+		if (hp_zbook) {
+			if (reg == 0x48 && width == 32) *value = 0xfedc0001; /* MCHBAR */
+			if (reg == 0x60 && width == 32) *value = 0xc0000001; /* PCIEXBAR */
+		}
+
+		if (t490) {
+			if (reg == 0x48 && width == 32) *value = 0xfed10001; /* MCHBAR */
+			if (reg == 0x60 && width == 32) *value = 0xe0000001; /* PCIEXBAR */
+		}
+
+		if (*value != ~0U) {
 			warning(bdf, " emulate read ", Hex(reg), " -> ", Hex(*value));
 			return AE_OK;
 		}
