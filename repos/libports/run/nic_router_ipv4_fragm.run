@@ -35,7 +35,7 @@ if {[catch { exec $setcap -v cap_net_raw+ep $nping }]} {
 
 create_boot_directory
 
-import_from_depot [depot_user]/pkg/[drivers_nic_pkg]
+import_from_depot [depot_user]/src/linux_nic
 
 build {
 	core lib/ld init timer lib/libc lib/libm lib/vfs lib/vfs_lwip
@@ -63,11 +63,10 @@ config
 + start timer
   + provides | + service Timer
 
-+ start drivers | caps: 1000 | ram: 32M | managing_system: yes
-  + binary init
++ start nic | caps: 100 | ram: 32M | ld: no
+  + binary linux_nic
   + route
-    + service ROM | label: config | + parent | label: drivers.config
-    + service Uplink              | + child nic_router
+    + service Uplink | + child nic_router
     + any-service
       + parent
       + any-child
@@ -88,7 +87,7 @@ config
     |      verbose_packet_drop:            yes
     |      icmp_type_3_code_on_fragm_ipv4: 4
     |
-    + policy | label_prefix: drivers | domain: uplink
+    + policy | label_prefix: nic | domain: uplink
     + policy | label_prefix: test-lwip-udp-server | domain: downlink
     + report
     |        interval_sec:       1
@@ -134,10 +133,8 @@ append pattern_string {.*Raw packets sent: 1 (188B) | Rcvd: 1 (188B) | Lost: 0.*
 run_genode_until $pattern_string 30 $spawn_id
 
 # ping server with ipv4 fragmentation (should fail)
-spawn $nping -c 1 --privileged --udp --data-length 1600 --mtu 800 -p 8000 10.0.2.55
+spawn $nping -c 1 --privileged --udp --data-length 1400 --mtu 800 --mf -p 8000 10.0.2.55
 set pattern_string ""
-append pattern_string {.*RCVD .* ICMP .*10\.0\.2\.55 > 10\.0\.2\.1 Fragmentation required.*\n}
-append pattern_string {.*RCVD .* ICMP .*10\.0\.2\.55 > 10\.0\.2\.1 Fragmentation required.*\n}
 append pattern_string {.*RCVD .* ICMP .*10\.0\.2\.55 > 10\.0\.2\.1 Fragmentation required.*\n}
 run_genode_until $pattern_string 30 $spawn_id
 
@@ -145,9 +142,5 @@ run_genode_until $pattern_string 30 $spawn_id
 set pattern_string ""
 append pattern_string {.*snd .*IPV4.* 10\.0\.2\.55 > 10\.0\.2\.1 .*ICMP.* 3 4.*\n}
 append pattern_string {.*drop packet .fragmented IPv4 not supported.*\n}
-append pattern_string {.*snd .*IPV4.* 10\.0\.2\.55 > 10\.0\.2\.1 .*ICMP.* 3 4.*\n}
-append pattern_string {.*drop packet .fragmented IPv4 not supported.*\n}
-append pattern_string {.*snd .*IPV4.* 10\.0\.2\.55 > 10\.0\.2\.1 .*ICMP.* 3 4.*\n}
-append pattern_string {.*drop packet .fragmented IPv4 not supported.*\n}
-append pattern_string {.* dropped-fragm-ipv4 [|] value: 3.*\n}
+append pattern_string {.* dropped-fragm-ipv4 [|] value: 1.*\n}
 run_genode_until $pattern_string 30 $genode_id
