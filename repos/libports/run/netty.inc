@@ -14,6 +14,14 @@ if {[protocol] == "tcp"} {
 	append build_components { test/netty/udp }
 }
 
+proc nic_uplink_interface { } {
+  if {[have_board linux]} {
+    return ""
+  } else {
+    return "| interface: 10.0.2.55/24 | gateway: 10.0.2.1"    
+  }
+}
+
 build $build_components
 
 create_boot_directory
@@ -64,7 +72,7 @@ config | verbose: yes
   + config | verbose_domain_state: yes | verbose_packets: no
     + policy | label_prefix: socket_fs | domain: downlink
     + policy | label_prefix: drivers   | domain: uplink
-    + domain uplink | interface: 10.0.2.55/24 | gateway: 10.0.2.1
+    + domain uplink } [nic_uplink_interface] {
       + nat | domain: downlink | tcp-ports: 16384 | udp-ports: 16384 | icmp-ids: 16384
       + tcp-forward | port:   80 | domain: downlink | to: 10.0.3.55
       + tcp-forward | port: 8080 | domain: downlink | to: 10.0.3.55
