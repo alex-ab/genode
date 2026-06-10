@@ -9,4 +9,12 @@ option
   + provides | + fs
   + config | + default-policy | root: / | writeable: yes
   + connect | + log | + parent
+
++ child nic | binary: linux_slirp_nic | ram: 20M | caps: 300 | enabled: no | ld: no
+  + config
+  + connect
+    + uplink      | + child network  | label: nic
+    + report      | + child report
+    + rm          | + parent
+
 -

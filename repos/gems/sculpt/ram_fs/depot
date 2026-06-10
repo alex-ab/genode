@@ -1,9 +1,10 @@
 config
 + vfs
   + ram
-  + dir depot
-    + ram
-    + tar depot.tar
+  + import
+    + dir depot
+      + ram
+      + tar depot.tar
 
 + default-policy | root: / | writeable: yes
 -

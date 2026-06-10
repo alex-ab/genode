@@ -96,6 +96,7 @@ struct Sculpt::Main : Input_event_handler,
 	bool const _mnt_reform = (_build_info.board == "mnt_reform2");
 	bool const _mnt_pocket = (_build_info.board == "mnt_pocket");
 	bool const _armstone   = (_build_info.board == "imx8mp_armstone");
+	bool const _linux      = (_build_info.board == "linux");
 
 	Registry<Child_state> _child_states { };
 
@@ -290,7 +291,7 @@ struct Sculpt::Main : Input_event_handler,
 		.usb   = _mnt_reform || _mnt_pocket || _armstone,
 		.mmc   = _mnt_reform || _mnt_pocket || _armstone,
 		.modem = false,
-		.nic   = _mnt_reform || _mnt_pocket || _armstone,
+		.nic   = _mnt_reform || _mnt_pocket || _armstone || _linux,
 
 		.fb_on_dedicated_cpu = _mnt_pocket
 	};
