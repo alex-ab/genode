@@ -4,8 +4,6 @@
 # \date   2011-09-08
 #
 
-assert {![have_spec linux]}
-
 create_boot_directory
 
 import_from_depot [depot_user]/src/[base_src] \
@@ -90,12 +88,12 @@ config | verbose: yes
 build_boot_image [build_artifacts]
 
 append qemu_args " -nographic "
-append_qemu_nic_args "hostfwd=tcp::5555-:8888"
+append_qemu_nic_args "hostfwd=tcp::5555-:8888 hostfwd=tcp::8888-:8888"
 
 run_genode_until forever
 
 #
-# Now, connect via 'telnet localhost 5555'
+# Now, connect via 'telnet localhost 8888'
 #
 
 # vi: set ft=tcl :
