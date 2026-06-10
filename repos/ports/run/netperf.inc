@@ -6,8 +6,10 @@
 #
 
 #
-# To execute this run script on your Linux host you have to do some
-# preparation:
+# On your Linux host, this run script uses the libslirp-based nic driver
+# by default, which comes with a bit of performance penalty. When provided
+# with'USE_TAP=1', the run script will use a tap-device nic driver instead.
+# This, however, requires some preparation on your Linux host:
 #
 # 1) Setup a TAP device:
 #    ! export USER=[YOUR_USER_NAME]
@@ -21,11 +23,14 @@
 #
 # 2) Now, start the test:
 #    ! cd build/x86_64
-#    ! make run/netperf_$FLAVOR KERNEL=linux BOARD=linux
+#    ! make run/netperf_$FLAVOR KERNEL=linux BOARD=linux USE_TAP=1
 #
 # 3) Clean up your Linux when done testing:
 #    ! sudo ip tuntap delete $TAP_DEV mode tap
 #
+
+set use_tap 0
+catch {set use_tap $::env(USE_TAP)}
 
 assert {![have_include power_on/qemu]}
 assert {![have_board imx53_qsb_tz]}
@@ -145,7 +150,8 @@ set packages "
 	[depot_user]/src/vfs
 	[depot_user]/src/nic_router
 "
-set use_nic_driver [expr !$use_usb_driver && !$use_wifi_driver]
+set use_nic_driver [expr !$use_usb_driver && !$use_wifi_driver && !$use_tap]
+append_if $use_tap          packages " [depot_user]/src/linux_nic             "
 append_if $use_nic_driver   packages " [depot_user]/pkg/[drivers_nic_pkg]     "
 append_if [expr !$use_lxip] packages " [depot_user]/src/vfs_lwip              "
 append_if $use_lxip         packages " [depot_user]/src/vfs_lxip              "
@@ -297,7 +303,20 @@ proc nic_start_nodes { } { return {
     + any-service                 | + parent
 } }
 
-if {$use_wifi_driver || $use_usb_driver} { proc nic_start_nodes { } { } }
+if {!$use_nic_driver} { proc nic_start_nodes { } { } }
+
+# Tap driver (Linux)
+
+proc tap_start_nodes { } { return {
++ start nic | caps: 1200 | ram: 32M | ld: no | priority: -1
+  + binary linux_nic
+  + route
+    + service Timer               | + child timer
+    + service Uplink              | + child nic_router
+    + any-service                 | + parent
+} }
+
+if {!$use_tap} { proc tap_start_nodes { } { } }
 
 
 # NIC bridge and NIC router config
@@ -323,8 +342,8 @@ proc nic_bridge_start_node { } { return [join [list {
 if {!$use_nic_bridge} { proc nic_bridge_start_node { } { } }
 
 proc nic_router_uplink_domain_attr { } {
-	global lx_ip_addr
-	if {[have_spec linux]} {
+	global lx_ip_addr use_tap
+	if {[have_spec linux] && $use_tap} {
 		return "| interface: $lx_ip_addr/24 | gateway: 10.0.2.1"
 	}
 }
@@ -356,7 +375,7 @@ config | verbose: yes | prio_levels: 4
 + start timer
   + provides | + service Timer
 
-} [wifi_start_nodes] [usb_start_nodes] [nic_start_nodes] [nic_bridge_start_node] {
+} [wifi_start_nodes] [usb_start_nodes] [nic_start_nodes] [nic_bridge_start_node] [tap_start_nodes] {
 
 + start nic_router | caps: 120 | ram: 5M | priority: -1
   + provides
@@ -432,7 +451,11 @@ if {[have_spec linux]} {
 set serial_id [output_spawn_id]
 
 if [have_spec linux] {
-	set ip_addr $lx_ip_addr
+	if {$use_tap} {
+		set ip_addr $lx_ip_addr
+	} else {
+		set ip_addr localhost
+	}
 } else {
 	regexp $ip_match_string $output all ip_addr
 	puts ""
