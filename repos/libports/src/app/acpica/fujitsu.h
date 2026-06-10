@@ -111,8 +111,8 @@ class Fuj02e3 : public Acpica::Reporter, Acpica::Callback<Fuj02e3>
 			Acpica::Buffer<ACPI_OBJECT> irb;
 			ACPI_STATUS res = read_button(hid, irb);
 			if (ACPI_SUCCESS(res) && irb.object.Integer.Value != 0)
-				Genode::error("not implemented - irb value=",
-				              Genode::Hex(irb.object.Integer.Value));
+				Genode::warning("not supported Fuji02e3 value=",
+				                Genode::Hex(irb.object.Integer.Value));
 
 			if (_features & HID_FUJITSU_FLAG_SOFTKEYS) {
 				Acpica::Buffer<ACPI_OBJECT> feature;
