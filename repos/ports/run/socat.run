@@ -1,5 +1,5 @@
 assert {([have_board pc]) ||
-        ([have_board rpi3] && [have_include power_on/qemu])}
+        ([have_board rpi3] && [have_include power_on/qemu]) || [have_board linux]}
 
 proc socat_uart { } { return [have_include power_on/qemu] }
 
@@ -194,8 +194,13 @@ if {[have_include power_on/qemu]} {
 
 	run_genode_until $match_string 30
 
-	regexp $match_string $output host
-	regexp {[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+} $host host
+	if {[have_board linux]} {
+		set host localhost
+		set port 15555
+	} else {
+		regexp $match_string $output host
+		regexp {[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+} $host host
+	}
 }
 
 # wait a moment for all components to become ready
