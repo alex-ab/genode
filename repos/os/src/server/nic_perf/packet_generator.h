@@ -48,8 +48,8 @@ class Nic_perf::Packet_generator
 		Mac_address  _dst_mac  { };
 		State        _state    { MUTED };
 
-		Timer::One_shot_timeout<Packet_generator>  _timeout;
-		Nic_perf::Interface                       &_interface;
+		Timer::One_shot_io_timeout<Packet_generator>  _timeout;
+		Nic_perf::Interface                          &_interface;
 
 		void _generate_arp_request(void *, Size_guard &, Mac_address const &, Ipv4_address const &);
 

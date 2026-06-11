@@ -257,7 +257,7 @@ struct Test::Test
 
 		Timer::Connection _timer { _env };
 
-		Constructible<Timer::Periodic_timeout<Test>> _progress_timeout { };
+		Constructible<Timer::Periodic_io_timeout<Test>> _progress_timeout { };
 
 		Allocator_avl _block_alloc { &_alloc };
 

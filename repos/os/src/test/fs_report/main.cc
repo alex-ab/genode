@@ -66,7 +66,7 @@ struct Test::Main
 	Signal_handler<Main> _focus_removal_handler {
 		_env.ep(), *this, &Main::_handle_focus_removal };
 
-	Constructible<Timer::One_shot_timeout<Main> > _one_shot_timeout { };
+	Constructible<Timer::One_shot_io_timeout<Main> > _one_shot_timeout { };
 
 	void _handle_init()
 	{

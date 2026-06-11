@@ -75,9 +75,9 @@ struct Libc::Timeout_handler
  */
 struct Libc::Timeout
 {
-	Timer_accessor                     &_timer_accessor;
-	Timeout_handler                    &_handler;
-	::Timer::One_shot_timeout<Timeout>  _timeout;
+	Timer_accessor                        &_timer_accessor;
+	Timeout_handler                       &_handler;
+	::Timer::One_shot_io_timeout<Timeout>  _timeout;
 
 	bool     _expired             = true;
 	uint64_t _absolute_timeout_ms = 0;

@@ -43,7 +43,7 @@ namespace Lwip {
 
 		::Timer::Connection &timer;
 
-		Timer::Periodic_timeout<Sys_timer> timeout {
+		Timer::Periodic_io_timeout<Sys_timer> timeout {
 			timer, *this, &Sys_timer::check_timeouts,
 			Genode::Microseconds{250*1000} };
 

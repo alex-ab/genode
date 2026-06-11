@@ -133,7 +133,7 @@ class Timed_semaphore
 			Genode::Fifo<Element>    &queue;
 
 			Genode::Mutex            destruct_mutex { };
-			Timer::One_shot_timeout<Element> timeout;
+			Timer::One_shot_io_timeout<Element> timeout;
 			bool wakeup_called { false };
 
 			void handle_timeout(Genode::Duration)

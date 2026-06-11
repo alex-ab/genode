@@ -1617,14 +1617,14 @@ struct Wifi::Manager : Wifi::Rfkill_notification_handler
 
 	Signal_handler<Wifi::Manager> _scan_timeout_handler;
 
-	Timer::One_shot_timeout<Wifi::Manager> _scan_timeout {
+	Timer::One_shot_io_timeout<Wifi::Manager> _scan_timeout {
 		_timer, *this, &Wifi::Manager::_flag_scan_timeout };
 
 	void _flag_scan_timeout(Genode::Duration) { _scan_timeout_handler.local_submit(); }
 
 	Signal_handler<Wifi::Manager> _quality_timeout_handler;
 
-	Timer::One_shot_timeout<Wifi::Manager> _quality_timeout {
+	Timer::One_shot_io_timeout<Wifi::Manager> _quality_timeout {
 		_timer, *this, &Wifi::Manager::_flag_quality_timeout };
 
 	void _flag_quality_timeout(Genode::Duration) { _quality_timeout_handler.local_submit(); }

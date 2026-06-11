@@ -114,7 +114,7 @@ struct Fetchurl::Main
 
 	List<Fetch> _fetches { };
 
-	Timer::One_shot_timeout<Main> _report_timeout {
+	Timer::One_shot_io_timeout<Main> _report_timeout {
 		_timer, *this, &Main::_report };
 
 	Duration _report_delay { Milliseconds { 0 } };

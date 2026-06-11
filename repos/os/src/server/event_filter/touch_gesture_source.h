@@ -261,7 +261,7 @@ class Event_filter::Touch_gesture_source : public Source, Source::Filter
 		{
 			Timer::Connection &_timer;
 
-			Timer::One_shot_timeout<Swipe> _timeout {
+			Timer::One_shot_io_timeout<Swipe> _timeout {
 				_timer, *this, &Swipe::_handle_timeout };
 
 			using Direction = Multitouch::Direction;
@@ -420,7 +420,7 @@ class Event_filter::Touch_gesture_source : public Source, Source::Filter
 			Timer::Connection &_timer;
 			Source::Trigger   &_trigger;
 
-			Timer::One_shot_timeout<Hold> _timeout {
+			Timer::One_shot_io_timeout<Hold> _timeout {
 				_timer, *this, &Hold::_handle_timeout };
 
 			struct Attr

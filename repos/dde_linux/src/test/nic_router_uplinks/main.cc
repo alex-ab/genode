@@ -66,7 +66,7 @@ struct Main
 	unsigned last_result_id = Result::INVALID_ID;
 	Constructible<Goal> goal { };
 	Timer::Connection timer { env };
-	Timer::One_shot_timeout<Main> timeout { timer, *this, &Main::handle_timeout };
+	Timer::One_shot_io_timeout<Main> timeout { timer, *this, &Main::handle_timeout };
 	unsigned step { 0UL };
 	Constructible<Driver> driver { };
 

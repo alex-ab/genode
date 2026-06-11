@@ -36,8 +36,8 @@ namespace Audio_out
 
 struct Audio_out::Session_component_base
 {
-	Genode::Signal_handler<Session_component_base>  _data_available_handler;
-	Timer::One_shot_timeout<Session_component_base> _timeout;
+	Genode::Signal_handler<Session_component_base>     _data_available_handler;
+	Timer::One_shot_io_timeout<Session_component_base> _timeout;
 
 	virtual void _handle_data_available() = 0;
 	virtual void _handle_timeout(Genode::Duration) = 0;

@@ -74,7 +74,7 @@ struct Test::Main : Sandbox::Local_service_base::Wakeup
 
 	Timer::Connection _timer { _env };
 
-	Timer::Periodic_timeout<Main> _timeout_handler {
+	Timer::Periodic_io_timeout<Main> _timeout_handler {
 		_timer, *this, &Main::_handle_timer, Microseconds(250*1000) };
 
 	void _generate_sandbox_config(Generator &g) const

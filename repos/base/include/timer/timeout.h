@@ -83,7 +83,7 @@ struct Genode::Time_source : Interface
  * This class should be used only if it is necessary to use one timeout
  * callback for both periodic and one-shot timeouts. This is the case, for
  * example, in a Timer-session server. If this is not the case, the classes
- * Periodic_timeout and One_shot_timeout are the better choice.
+ * Periodic_io_timeout and One_shot_io_timeout are the better choice.
  */
 class Genode::Timeout : private Noncopyable,
                         public Genode::List<Timeout>::Element

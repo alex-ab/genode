@@ -37,7 +37,7 @@ namespace Nic_perf {
 
 struct Nic_perf::Main
 {
-	using Periodic_timeout = Timer::Periodic_timeout<Main>;
+	using Periodic_timeout = Timer::Periodic_io_timeout<Main>;
 
 	Env                      &_env;
 

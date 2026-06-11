@@ -25,17 +25,17 @@
 namespace Timer
 {
 	class Connection;
-	template <typename> class Periodic_timeout;
-	template <typename> class One_shot_timeout;
+	template <typename> class Periodic_io_timeout;
+	template <typename> class One_shot_io_timeout;
 }
 
 
 /**
- * Periodic timeout that is linked to a custom handler, scheduled when constructed
+ * I/O-level periodic timeout that is linked to a custom handler, scheduled when constructed
  */
 template <typename HANDLER>
-struct Timer::Periodic_timeout : private Genode::Noncopyable,
-                                 private Genode::Timeout_handler
+struct Timer::Periodic_io_timeout : private Genode::Noncopyable,
+                                    private Genode::Timeout_handler
 {
 	private:
 
@@ -59,10 +59,10 @@ struct Timer::Periodic_timeout : private Genode::Noncopyable,
 
 	public:
 
-		Periodic_timeout(Connection     &timer,
-		                 HANDLER        &object,
-		                 Handler_method  method,
-		                 Microseconds    duration)
+		Periodic_io_timeout(Connection     &timer,
+		                    HANDLER        &object,
+		                    Handler_method  method,
+		                    Microseconds    duration)
 		:
 			_timeout { timer },
 			_object  { object },
@@ -74,11 +74,11 @@ struct Timer::Periodic_timeout : private Genode::Noncopyable,
 
 
 /**
- * One-shot timeout that is linked to a custom handler, scheduled manually
+ * I/O-level one-shot timeout that is linked to a custom handler, scheduled manually
  */
 template <typename HANDLER>
-class Timer::One_shot_timeout : private Genode::Noncopyable,
-                                private Genode::Timeout_handler
+class Timer::One_shot_io_timeout : private Genode::Noncopyable,
+                                   private Genode::Timeout_handler
 {
 	private:
 
@@ -102,9 +102,9 @@ class Timer::One_shot_timeout : private Genode::Noncopyable,
 
 	public:
 
-		One_shot_timeout(Connection     &timer,
-		                 HANDLER        &object,
-		                 Handler_method  method)
+		One_shot_io_timeout(Connection     &timer,
+		                    HANDLER        &object,
+		                    Handler_method  method)
 		:
 			_timeout { timer },
 			_object  { object },
@@ -157,7 +157,7 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		 * In this mode, the user can operate directly on the connection using
 		 * the methods of the timer-session interface. As soon as the
 		 * connection is handed over as argument to the constructor of a
-		 * Periodic_timeout or a One_shot_timeout, it switches to
+		 * Periodic_io_timeout or a One_shot_io_timeout, it switches to
 		 * TIMEOUT_FRAMEWORK mode. From this point on, the only method that
 		 * the user can use directly on the connection is 'curr_time'. For
 		 * the rest of the functionality he rather uses the interfaces of

@@ -60,7 +60,7 @@ class Main
 
 		Timer::Connection _timer { _env };
 
-		Timer::Periodic_timeout<Main> _period {
+		Timer::Periodic_io_timeout<Main> _period {
 			_timer, *this, &Main::_handle_period, _config.period_us };
 
 		Heap          _heap            { _env.ram(), _env.rm() };

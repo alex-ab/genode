@@ -64,14 +64,14 @@ class Net::Dhcp_client
 		enum { DISCOVER_TIMEOUT_SEC = 2 };
 		enum { REQUEST_TIMEOUT_SEC  = 2 };
 
-		Genode::Allocator                    &_alloc;
-		State                                 _state { State::INIT };
-		Timer::One_shot_timeout<Dhcp_client>  _timeout;
-		unsigned long                         _lease_time_sec = 0;
-		Genode::Microseconds const            _discover_timeout { (Genode::uint64_t)DISCOVER_TIMEOUT_SEC * 1000 * 1000 };
-		Genode::Microseconds const            _request_timeout  { (Genode::uint64_t)REQUEST_TIMEOUT_SEC * 1000 * 1000  };
-		Nic                                  &_nic;
-		Dhcp_client_handler                  &_handler;
+		Genode::Allocator                       &_alloc;
+		State                                    _state { State::INIT };
+		Timer::One_shot_io_timeout<Dhcp_client>  _timeout;
+		unsigned long                            _lease_time_sec = 0;
+		Genode::Microseconds const               _discover_timeout { (Genode::uint64_t)DISCOVER_TIMEOUT_SEC * 1000 * 1000 };
+		Genode::Microseconds const               _request_timeout  { (Genode::uint64_t)REQUEST_TIMEOUT_SEC * 1000 * 1000  };
+		Nic                                     &_nic;
+		Dhcp_client_handler                     &_handler;
 
 		void
 		_handle_dhcp_reply_in_request_state(Dhcp_packet::Message_type  msg_type,
