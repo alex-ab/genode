@@ -84,6 +84,11 @@ class Genode::Rpc_in_buffer : public Rpc_in_buffer_base
 		: Rpc_in_buffer_base(base, min(size, (size_t)MAX_SIZE)) { }
 
 		/**
+		 * Construct buffer from span
+		 */
+		Rpc_in_buffer(Span const &s) : Rpc_in_buffer(s.start, s.num_bytes) { }
+
+		/**
 		 * Construct buffer from null-terminated string
 		 */
 		Rpc_in_buffer(const char *str) : Rpc_in_buffer_base(str)
