@@ -24,10 +24,30 @@
 
 namespace Timer
 {
+	class Entrypoint_accessor;
 	class Connection;
 	template <typename> class Periodic_io_timeout;
 	template <typename> class One_shot_io_timeout;
+	template <typename> class Periodic_timeout;
+	template <typename> class One_shot_timeout;
 }
+
+
+/**
+ * Helper for accessing entrypoint of forward-declared Timer::Connection
+ */
+class Timer::Entrypoint_accessor
+{
+	private:
+
+		Genode::Entrypoint &_ep;
+
+	public:
+
+		Entrypoint_accessor(Genode::Entrypoint &ep) : _ep(ep) { }
+
+		Genode::Entrypoint &ep() { return _ep; }
+};
 
 
 /**
@@ -123,15 +143,120 @@ class Timer::One_shot_io_timeout : private Genode::Noncopyable,
 
 
 /**
+ * Application-level periodic timeout that is linked to a custom handler, scheduled when constructed
+ */
+template <typename HANDLER>
+class Timer::Periodic_timeout : private Genode::Noncopyable
+{
+	private:
+
+		using Duration          = Genode::Duration;
+		using Io_timeout        = Timer::Periodic_io_timeout<Periodic_timeout>;
+		using Microseconds      = Genode::Microseconds;
+		using Signal_handler    = Genode::Signal_handler<Periodic_timeout>;
+
+		typedef void (HANDLER::*Handler_method)(Duration);
+
+		Io_timeout            _io_timeout;
+		HANDLER              &_object;
+		Handler_method const  _method;
+		Signal_handler        _timeout_handler;
+
+		Duration              _curr_time { Microseconds { 0 } };
+
+		void _handle_io_timeout(Duration curr_time)
+		{
+			_curr_time = curr_time;
+			_timeout_handler.local_submit();
+		}
+
+		void _handle_timeout() {
+			(_object.*_method)(_curr_time); }
+
+	public:
+
+		Periodic_timeout(Connection     &timer,
+		                 HANDLER        &object,
+		                 Handler_method  method,
+		                 Microseconds    duration)
+		:
+			_io_timeout      { timer, *this, &Periodic_timeout::_handle_io_timeout, duration },
+			_object          { object },
+			_method          { method },
+			_timeout_handler { ((Entrypoint_accessor)timer).ep() ,
+			                   *this, &Periodic_timeout::_handle_timeout }
+		{ }
+};
+
+
+/**
+ * Application-level one-shot timeout that is linked to a custom handler
+ */
+template <typename HANDLER>
+class Timer::One_shot_timeout : private Genode::Noncopyable
+{
+	private:
+
+		using Duration          = Genode::Duration;
+		using Io_timeout        = Timer::One_shot_io_timeout<One_shot_timeout>;
+		using Microseconds      = Genode::Microseconds;
+		using Signal_handler    = Genode::Signal_handler<One_shot_timeout>;
+
+		typedef void (HANDLER::*Handler_method)(Duration);
+
+		Io_timeout            _io_timeout;
+		HANDLER              &_object;
+		Handler_method const  _method;
+		Signal_handler        _timeout_handler;
+
+		Duration              _curr_time { Microseconds { 0 } };
+
+		void _handle_io_timeout(Duration curr_time)
+		{
+			_curr_time = curr_time;
+			_timeout_handler.local_submit();
+		}
+
+		void _handle_timeout() {
+			(_object.*_method)(_curr_time); }
+
+	public:
+
+		One_shot_timeout(Connection     &timer,
+		                 HANDLER        &object,
+		                 Handler_method  method)
+		:
+			_io_timeout      { timer, *this, &One_shot_timeout::_handle_io_timeout },
+			_object          { object },
+			_method          { method },
+			_timeout_handler { ((Entrypoint_accessor)timer).ep() ,
+			                   *this, &One_shot_timeout::_handle_timeout }
+		{ }
+
+		void schedule(Microseconds duration) {
+			_io_timeout.schedule(duration); }
+
+		void discard() { _io_timeout.discard(); }
+
+		bool scheduled() { return _io_timeout.scheduled(); }
+
+		Microseconds deadline() const { return _io_timeout.deadline(); }
+};
+
+
+/**
  * Connection to timer service and timeout scheduler
  *
  * Multiplexes a timer session amongst different timeouts.
  */
 class Timer::Connection : public  Genode::Connection<Session>,
                           public  Session_client,
-                          private Genode::Time_source
+                          private Genode::Time_source,
+                          private Entrypoint_accessor
 {
 	friend class Genode::Timeout;
+	template <typename> friend class One_shot_timeout;
+	template <typename> friend class Periodic_timeout;
 
 	private:
 
@@ -208,7 +333,7 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		enum { MIN_FACTOR_LOG2            = 8 };
 		enum { MAX_DRIFT_US               = 1000 };
 
-		Io_signal_handler         _signal_handler;
+		Io_signal_handler         _signal_handler        { ep(), *this, &Connection::_handle_timeout };
 		Timeout_handler          *_handler               { nullptr };
 		Mutex                     _real_time_mutex       { };
 		uint64_t                  _us                    { elapsed_us() };

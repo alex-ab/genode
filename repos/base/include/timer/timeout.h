@@ -168,7 +168,7 @@ class Genode::Timeout_scheduler : private Noncopyable,
 
 		void _schedule_one_shot_timeout(Timeout         &timeout,
 		                                Microseconds     duration,
-                                        Timeout_handler &handler);
+		                                Timeout_handler &handler);
 
 		void _schedule_periodic_timeout(Timeout         &timeout,
 		                                Microseconds     period,
