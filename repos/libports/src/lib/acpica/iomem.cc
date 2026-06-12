@@ -453,6 +453,11 @@ void * AcpiOsMapMemory (ACPI_PHYSICAL_ADDRESS phys, ACPI_SIZE size)
 	if (phys == FAKED_PHYS_RSDP_ADDR)
 		return &faked_rsdp;
 
+	if (0xfffff000 <= phys && phys < 0x100000000) {
+		warning(" suppress ", Genode::Hex(phys), " access");
+		return NULL;
+	}
+
 	Genode::addr_t virt = Acpica::Io_mem::apply_u([&] (Acpica::Io_mem &io_mem) {
 		if (io_mem.unused() || io_mem.stale())
 			return 0UL;
