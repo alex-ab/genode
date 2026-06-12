@@ -1,3 +1,5 @@
-LIBSLIR_DIR := $(call select_from_ports,libslirp)
+LIBSLIRP_DIR := $(call select_from_ports,libslirp)
 INC_DIR += $(LIBSLIRP_DIR)/include
-INC_DIR += $(REP_DIR)/src/lib/libslirp/
+ifneq ($(CONTRIB_DIR),)
+INC_DIR += $(call select_from_repositories,src/lib/libslirp)
+endif
