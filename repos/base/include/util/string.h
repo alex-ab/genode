@@ -202,6 +202,8 @@ struct Genode::Span : Noncopyable
 	: start(start), num_bytes(num_bytes) { }
 
 	constexpr ~Span() { }
+
+	void print(Output &out) const { out.out_string(start, num_bytes); }
 };
 
 
