@@ -198,7 +198,10 @@ struct Genode::Span : Noncopyable
 		return fn(Span(s, n));
 	}
 
-	Span(char const *start, size_t num_bytes) : start(start), num_bytes(num_bytes) { }
+	constexpr Span(char const *start, size_t num_bytes)
+	: start(start), num_bytes(num_bytes) { }
+
+	constexpr ~Span() { }
 };
 
 
