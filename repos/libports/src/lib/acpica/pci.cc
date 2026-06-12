@@ -41,72 +41,6 @@ struct Bdf
 };
 
 
-class Pci
-{
-	private:
-
-		static void for_each_sub_mcfg(ACPI_TABLE_HEADER *table, auto const &fn)
-		{
-			typedef ACPI_MCFG_ALLOCATION S;
-
-			auto mcfg = reinterpret_cast<ACPI_TABLE_MCFG *>(table);
-
-			for(S const * e = reinterpret_cast<S const * const>(mcfg + 1);
-			    e < reinterpret_cast<S const *>(reinterpret_cast<char const *>(mcfg) + mcfg->Header.Length);
-			    e = reinterpret_cast<S const *>(reinterpret_cast<char const *>(e) + sizeof(*e)))
-			{
-				fn(*e);
-			}
-		}
-
-		static UINT32 _read_reg_32(Bdf const &bdf, UINT32 reg, void * base)
-		{
-			auto addr = reinterpret_cast<char *>(base)
-			          + 32ul * 8ul * 0x1000ul * bdf.bus
-			          +        8ul * 0x1000ul * bdf.dev
-			          +              0x1000ul * bdf.fn
-			          + reg;
-
-			return *reinterpret_cast<UINT32 *>(addr);
-		}
-
-	public:
-
-		static UINT32 read_pci_reg_32(Bdf const &bdf, UINT32 const reg)
-		{
-			UINT32              result = ~0U;
-			ACPI_TABLE_HEADER * table  = nullptr;
-
-			auto status = AcpiGetTable((char *)ACPI_SIG_MCFG, 0, &table);
-
-			if (status != AE_OK)
-				return result;
-
-			for_each_sub_mcfg(table, [&](auto const &e) {
-
-				if (bdf.bus < e.StartBusNumber || bdf.bus > e.EndBusNumber)
-					return;
-
-				auto phys_pci_cfg = e.Address
-				                  + 256ul * 0x1000ul * (bdf.bus - e.StartBusNumber)
-				                  +   8ul * 0x1000ul *  bdf.dev
-				                  +         0x1000ul *  bdf.fn;
-
-				auto virt_pci_cfg = AcpiOsMapMemory(phys_pci_cfg, 0x1000);
-
-				if (!virt_pci_cfg)
-					return;
-
-				result = _read_reg_32(bdf, reg, virt_pci_cfg);
-
-				AcpiOsUnmapMemory(virt_pci_cfg, 0x1000);
-			});
-
-			return result;
-		}
-};
-
-
 static bool cpu_name(char const * name)
 {
 	unsigned cpuid = 0, edx = 0, ebx = 0, ecx = 0;
@@ -135,22 +69,18 @@ ACPI_STATUS AcpiOsReadPciConfiguration (ACPI_PCI_ID *pcidev, UINT32 reg,
 	bool const emulate = intel &&
 	                     !pcidev->Bus && !pcidev->Device && !pcidev->Function;
 
-	*value = ~0U;
-
 	/*
-	 * Read out some of the Intel root bridge register to avoid bogus io-mem
-	 * address calculation, which are later on tried to be used and leading
-	 * to red session denied messages.
+	 * ACPI quirk for 12th Gen Framework laptop and Thinkpad X1 Nano Gen2
+	 *
+	 * XXX emulate some of the register accesses to the Intel root bridge to
+	 *     avoid bogus calculation of physical addresses. The value seems to
+	 *     be close to the pci config start address as provided by mcfg table
+	 *     for those machines.
 	 */
 	if (emulate) {
-		/* name registers as specified by Intel for the root bridge */
-		enum { MCHBAR = 0x48, PCIEXBAR = 0x60 };
-		if (width == 32 && (reg == MCHBAR || reg == PCIEXBAR)) {
-
-			*value = Pci::read_pci_reg_32(bdf, reg);
-
-			log(bdf, " pci cfg read ", Hex(reg), " -> ", Hex(*value));
-
+		if (reg == 0x60 && width == 32) {
+			*value = 0xe0000001;
+			warning(bdf, " emulate read ", Hex(reg), " -> ", Hex(*value));
 			return AE_OK;
 		}
 	}
@@ -159,6 +89,7 @@ ACPI_STATUS AcpiOsReadPciConfiguration (ACPI_PCI_ID *pcidev, UINT32 reg,
 	if (!(AcpiDbgLevel & ACPI_LV_INIT))
 		error(__func__, " ", bdf, " ", Hex(reg), " width=", width);
 
+	*value = ~0U;
 	return AE_OK;
 }
 
