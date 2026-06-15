@@ -1,4 +1,6 @@
-MIRROR_FROM_REP_DIR := lib/mk/libslirp.mk \
+MIRROR_FROM_REP_DIR := lib/mk/libslirp.inc \
+                       lib/mk/spec/x86_32/libslirp.mk \
+                       lib/mk/spec/x86_64/libslirp.mk \
                        lib/import/import-libslirp.mk
 
 content: $(MIRROR_FROM_REP_DIR)

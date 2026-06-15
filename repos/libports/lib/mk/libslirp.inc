@@ -1,4 +1,4 @@
-REQUIRES = linux
+REQUIRES += linux
 LIBSLIRP_DIR     := $(call select_from_ports,libslirp)
 LIBSLIRP_SRC_DIR := $(call select_from_ports,libslirp)/src/lib/libslirp/src
 
@@ -7,9 +7,6 @@ INC_DIR += $(REP_DIR)/src/lib/libslirp
 
 # for libslirp-version.h in depot
 INC_DIR += $(LIBSLIRP_DIR)/include/slirp
-
-# acquire include paths for glib-2.0 via pkg-config
-INC_DIR += $(patsubst -I%,%,$(filter -I%,$(shell pkg-config --cflags glib-2.0)))
 
 SRC_CC = $(addprefix $(LIBSLIRP_SRC_DIR)/,arp_table.c \
                                           bootp.c \
