@@ -190,7 +190,7 @@ void Libc::Kernel::_init_file_descriptors()
 		Absolute_path path { };
 
 		if (resolve_absolute_path(attr_value, path).failed()) {
-			warning("failed to resolve path for ", path);
+			warning("failed to resolve path for ", attr, ": ", attr_value.string());
 			diag_guard.show = true;
 			return;
 		}
