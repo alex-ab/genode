@@ -14,3 +14,6 @@ PKG_CONFIG_DIRS = $(wildcard $(addsuffix /pkgconfig,$(HOST_LIB_SEARCH_DIRS)))
 INC_DIR += $(patsubst -I%,%,$(filter -I%,\
   $(shell export PKG_CONFIG_PATH=$(firstword $(PKG_CONFIG_DIRS)) && pkg-config --cflags glib-2.0)))
 
+SRC_C += check_glib.c
+
+vpath check_glib.c $(REP_DIR)/src/lib/libslirp/spec/x86_32

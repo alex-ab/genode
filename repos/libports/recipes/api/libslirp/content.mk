@@ -1,7 +1,8 @@
 MIRROR_FROM_REP_DIR := lib/mk/libslirp.inc \
                        lib/mk/spec/x86_32/libslirp.mk \
                        lib/mk/spec/x86_64/libslirp.mk \
-                       lib/import/import-libslirp.mk
+                       lib/import/import-libslirp.mk \
+                       src/lib/libslirp/spec/x86_32/check_glib.c
 
 content: $(MIRROR_FROM_REP_DIR)
 
