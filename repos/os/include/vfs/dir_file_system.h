@@ -514,22 +514,20 @@ class Genode::Vfs::Dir_file_system : public File_system
 			return false;
 		}
 
-		char const *leaf_path(char const *path) override
+		bool dir_entry_exists(char const *path) override
 		{
 			path = _sub_path(path);
 			if (!path)
-				return nullptr;
+				return false;
 
 			if (strlen(path) == 0)
-				return path;
+				return true;
 
-			for (File_system *fs = _first_file_system; fs; fs = fs->next) {
-				char const *leaf_path = fs->leaf_path(path);
-				if (leaf_path)
-					return leaf_path;
-			}
+			for (File_system *fs = _first_file_system; fs; fs = fs->next)
+				if (fs->dir_entry_exists(path))
+					return true;
 
-			return nullptr;
+			return false;
 		}
 
 		Open_result open(char const  *path,
@@ -698,7 +696,7 @@ class Genode::Vfs::Dir_file_system : public File_system
 				return OPENDIR_ERR_LOOKUP_FAILED;
 
 			if (create) {
-				if (leaf_path(path) != nullptr)
+				if (dir_entry_exists(path))
 					return OPENDIR_ERR_NODE_ALREADY_EXISTS;
 
 				auto opendir_fn = [&] (File_system &fs, char const *path)

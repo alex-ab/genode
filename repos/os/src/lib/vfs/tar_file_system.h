@@ -680,7 +680,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 			return record ? (record->type() == Record::TYPE_DIR) : true;
 		}
 
-		char const *leaf_path(char const *path) override
+		bool dir_entry_exists(char const *path) override
 		{
 			/*
 			 * Check if path exists within the file system. If this is the
@@ -688,7 +688,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 			 * of this file system.
 			 */
 			Node *node = _root_node.lookup(path);
-			return node ? path : 0;
+			return node != nullptr;
 		}
 
 		Open_result open(char const *path, unsigned, Vfs_handle **out_handle,

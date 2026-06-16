@@ -657,7 +657,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 		Rename_result rename(char const *from_path, char const *to_path) override
 		{
-			if ((strcmp(from_path, to_path) == 0) && leaf_path(from_path))
+			if ((strcmp(from_path, to_path) == 0) && dir_entry_exists(from_path))
 				return RENAME_OK;
 
 			Absolute_path from_dir_path(from_path);
@@ -721,16 +721,16 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			return false;
 		}
 
-		char const *leaf_path(char const *path) override
+		bool dir_entry_exists(char const *path) override
 		{
 			/* check if node at path exists within file system */
 			try {
 				::File_system::Node_handle node = _fs.node(path);
 				_fs.close(node);
 			}
-			catch (...) { return 0; }
+			catch (...) { return false; }
 
-			return path;
+			return true;
 		}
 
 		Open_result open(char const *path, unsigned vfs_mode, Vfs_handle **out_handle,

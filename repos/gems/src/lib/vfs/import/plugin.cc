@@ -271,8 +271,8 @@ class Vfs_import::File_system : public Vfs::File_system
 		bool directory(char const*) override {
 			return false; }
 
-		const char* leaf_path(const char *) override {
-			return nullptr; }
+		bool dir_entry_exists(const char *) override {
+			return false; }
 
 		/**********************
 		 ** File I/O service **

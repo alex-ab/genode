@@ -212,7 +212,7 @@ int Libc::Vfs_plugin::access(const char *path, int amode)
 {
 	bool succeeded = false;
 	monitor().monitor([&] {
-		if (_root_fs.leaf_path(path))
+		if (_root_fs.dir_entry_exists(path))
 			succeeded = true;
 		return Fn::COMPLETE;
 	});
@@ -2282,7 +2282,7 @@ int Libc::Vfs_plugin::rename(char const *from_path, char const *to_path)
 	bool succeeded = false;
 	int result_errno = false;
 	monitor().monitor([&] {
-		if (_root_fs.leaf_path(to_path)) {
+		if (_root_fs.dir_entry_exists(to_path)) {
 			if (_root_fs.directory(to_path)) {
 				if (!_root_fs.directory(from_path)) {
 					result_errno = EISDIR; return Fn::COMPLETE;

@@ -568,10 +568,10 @@ class Vfs_rump::File_system : public Vfs::File_system
 			return S_ISDIR(s.st_mode);
 		}
 
-		char const *leaf_path(char const *path) override
+		bool dir_entry_exists(char const *path) override
 		{
 			struct stat s;
-			return (rump_sys_lstat(path, &s) == 0) ? path : 0;
+			return rump_sys_lstat(path, &s) == 0;
 		}
 
 		Open_result open(char const *path, unsigned mode,

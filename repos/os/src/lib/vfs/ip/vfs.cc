@@ -1885,10 +1885,10 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 			return node ? dynamic_cast<Vfs_ip::Directory *>(node) : 0;
 		}
 
-		char const *leaf_path(char const *path) override
+		bool dir_entry_exists(char const *path) override
 		{
 			Vfs_ip::Node *node = _lookup(path);
-			return node ? path : nullptr;
+			return node != nullptr;
 		}
 
 		Directory_service::Open_result

@@ -126,7 +126,7 @@ struct Genode::Vfs::Directory_service : Interface
 	                           Allocator&)
 	{
 		/* default implementation for static file-systems */
-		return (leaf_path(path)) ? WATCH_ERR_STATIC : WATCH_ERR_UNACCESSIBLE;
+		return (dir_entry_exists(path)) ? WATCH_ERR_STATIC : WATCH_ERR_UNACCESSIBLE;
 	}
 
 	virtual void close(Vfs_watch_handle *)
@@ -232,7 +232,7 @@ struct Genode::Vfs::Directory_service : Interface
 	/**
 	 * Return leaf path or nullptr if the path does not exist
 	 */
-	virtual char const *leaf_path(char const *path) = 0;
+	virtual bool dir_entry_exists(char const *path) = 0;
 };
 
 #endif /* _INCLUDE__VFS__DIRECTORY_SERVICE_H_ */

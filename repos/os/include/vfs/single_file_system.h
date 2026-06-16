@@ -201,9 +201,9 @@ class Genode::Vfs::Single_file_system : public File_system
 			return false;
 		}
 
-		char const *leaf_path(char const *path) override
+		bool dir_entry_exists(char const *path) override
 		{
-			return _single_file(path) ? path : 0;
+			return _single_file(path);
 		}
 
 		Opendir_result opendir(char const *path, bool create,

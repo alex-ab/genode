@@ -554,7 +554,7 @@ class Vfs_server::Session_component : private Session_resources,
 			/* re-root the path */
 			Path const sub_path(path_str + 1, _root_path.base());
 			path_str = sub_path.base();
-			if (sub_path != "/" && !_vfs.leaf_path(path_str))
+			if (sub_path != "/" && !_vfs.dir_entry_exists(path_str))
 				throw Lookup_failed();
 
 			Node_base &node = *new (_alloc) Node_base(_node_space, path_str);

@@ -590,8 +590,8 @@ class Vfs_ram::File_system : public Vfs::File_system
 				: false;
 		}
 
-		char const *leaf_path(char const *path) override {
-			return lookup(path) ? path : nullptr; }
+		bool dir_entry_exists(char const *path) override {
+			return lookup(path) != nullptr; }
 
 		Open_result open(char const * const path, unsigned mode,
 		                 Vfs_handle **handle, Allocator &alloc) override

@@ -535,22 +535,19 @@ class Vfs_pipe::File_system : public Vfs::File_system
 
 		file_size num_dirent(char const *) override { return 0; }
 
-		const char* leaf_path(const char *cpath) override
+		bool dir_entry_exists(const char *cpath) override
 		{
 			Path const path { cpath };
 			if (path == "/")
-				return cpath;
+				return true;
 
 			if (!_valid_path(cpath))
-				return nullptr;
+				return false;
 
-			char const *result { nullptr };
+			bool result = false;
 			Pipe_space::Id id { ~0UL };
-			if (_pipe_id(cpath, id)) {
-				_try_apply(id, [&result, &cpath] (Pipe &) {
-					result = cpath;
-				});
-			}
+			if (_pipe_id(cpath, id))
+				_try_apply(id, [&] (Pipe &) { result = true; });
 
 			return result;
 		}
@@ -706,13 +703,13 @@ class Vfs_pipe::Pipe_file_system : public Vfs_pipe::File_system
 			return result;
 		}
 
-		const char* leaf_path(const char *cpath) override
+		bool dir_entry_exists(const char *cpath) override
 		{
 			Path path { cpath };
 			if (path == "/new")
-				return cpath;
+				return true;
 
-			return File_system::leaf_path(cpath);
+			return File_system::dir_entry_exists(cpath);
 		}
 };
 

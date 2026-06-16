@@ -576,15 +576,14 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				(fno.fattrib & AM_DIR) : false;
 		}
 
-		char const *leaf_path(char const *path) override
+		bool dir_entry_exists(char const *path) override
 		{
-			if (_opened_file(path)) {
-				return path;
-			} else {
-				FILINFO fno;
-				return (f_stat((const TCHAR*)path, &fno) == FR_OK) ?
-					path : 0;
-			}
+			FILINFO fno;
+
+			if (_opened_file(path))
+				return true;
+			else
+				return f_stat((const TCHAR*)path, &fno) == FR_OK;
 		}
 
 		Stat_result stat(char const *path, Stat &stat) override

@@ -804,26 +804,23 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system
 			return false;
 		}
 
-		char const *leaf_path(char const *path) override
+		bool dir_entry_exists(char const *path) override
 		{
 			path = _sub_path(path);
-			if (!path) {
-				return nullptr;
-			}
+			if (!path)
+				return false;
 
-			if (strlen(path) == 0 || strcmp(path, "") == 0) {
-				return path;
-			}
+			if (strlen(path) == 0 || strcmp(path, "") == 0)
+				return true;
 
 			try {
 				Key_file_system &fs = _key_reg.by_path(path);
-				char const *leaf_path = fs.leaf_path(path);
-				if (leaf_path) {
-					return leaf_path;
-				}
+				if (fs.dir_entry_exists(path))
+					return true;
+
 			} catch (Key_registry::Invalid_path) { }
 
-			return nullptr;
+			return false;
 		}
 
 

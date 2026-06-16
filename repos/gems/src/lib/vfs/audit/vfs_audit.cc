@@ -73,7 +73,7 @@ class Vfs_audit::File_system : public Vfs::File_system
 
 		Absolute_path const _audit_path;
 
-		Absolute_path _expanded_path { }; /* buffer for 'leaf_path' return value */
+		Absolute_path _expanded_path { }; /* buffer for 'dir_entry_exists' return value */
 
 		/**
 		 * Expand a path to lay within the audit path
@@ -209,10 +209,10 @@ class Vfs_audit::File_system : public Vfs::File_system
 			return _root_dir.directory(_expand(path).string());
 		}
 
-		char const *leaf_path(const char *path) override
+		bool dir_entry_exists(const char *path) override
 		{
 			_expanded_path = _expand(path);
-			return _root_dir.leaf_path(_expanded_path.string());
+			return _root_dir.dir_entry_exists(_expanded_path.string());
 		}
 
 
