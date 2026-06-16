@@ -706,28 +706,20 @@ class Vfs_server::File : public Io_node
 		File(File const &);
 		File &operator = (File const &);
 
-		char const * const _leaf_path = nullptr; /* offset pointer to Node_base::_path */
-
 		using Stat = Directory_service::Stat;
 
-		template <typename FN>
-		void _with_stat(FN const &fn)
-		{
-			using Result = Directory_service::Stat_result;
-
-			Vfs::Directory_service::Stat stat { };
-			if (_handle.ds().stat(_leaf_path, stat) == Result::STAT_OK)
-				fn(stat);
-		}
+		bool _warned_once = false;
 
 		seek_off_t _seek_pos()
 		{
 			seek_off_t seek_pos = _packet.position();
 
-			if (seek_pos == (seek_off_t)SEEK_TAIL)
-				_with_stat([&] (Stat const &stat) {
-					seek_pos = stat.size; });
-
+			if (seek_pos == (seek_off_t)SEEK_TAIL) {
+				seek_pos = ~0UL;
+				if (!_warned_once)
+					error("SEEK_TAIL as seek position is unsupported");
+				_warned_once = true;
+			}
 			return seek_pos;
 		}
 
@@ -766,9 +758,16 @@ class Vfs_server::File : public Io_node
 		     Mode              mode,
 		     bool              create)
 		:
-			Io_node(space, path, mode, _open(vfs, alloc, path, mode, create)),
-			_leaf_path(vfs.leaf_path(Node_base::path()))
-		{ }
+			Io_node(space, path, mode, _open(vfs, alloc, path, mode, create))
+		{
+			if (mode == Mode::WRITE_ONLY || mode == Mode::READ_WRITE) {
+				using Result = Directory_service::Stat_result;
+				Vfs::Directory_service::Stat stat { };
+				if (_handle.ds().stat(Node_base::path(), stat) == Result::STAT_OK)
+					_write_type = (stat.type == Vfs::Node_type::CONTINUOUS_FILE)
+					            ? Write_type::CONTINUOUS : Write_type::TRANSACTIONAL;
+			}
+		}
 
 		void truncate(file_size_t size)
 		{
@@ -819,16 +818,6 @@ class Vfs_server::File : public Io_node
 					 * Continue writing if the file is continuous.
 					 * Return an error if the file is transactional.
 					 */
-
-					/* determine write type once via 'stat' */
-					if (_write_type == Write_type::UNKNOWN) {
-						_write_type = Write_type::TRANSACTIONAL;
-
-						_with_stat([&] (Stat const &stat) {
-							if (stat.type == Vfs::Node_type::CONTINUOUS_FILE)
-								_write_type = Write_type::CONTINUOUS; });
-					}
-
 					if (_write_type == Write_type::TRANSACTIONAL) {
 						_acknowledge_as_failure();
 						break;
