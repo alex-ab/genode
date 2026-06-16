@@ -70,6 +70,9 @@ int init_srcu_struct(struct srcu_struct * ssp)
 	atomic_set(&ssp->srcu_sup->srcu_barrier_cpu_cnt, 0);
 	/* INIT_DELAYED_WORK(&ssp->work, process_srcu); */
 	ssp->sda = alloc_percpu(struct srcu_data);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,15,0)
+	ssp->srcu_ctrp = &ssp->sda->srcu_ctrs[0];
+#endif
 	/* init_srcu_struct_nodes(ssp, false); */
 	ssp->srcu_sup->srcu_gp_seq_needed_exp = 0;
 	ssp->srcu_sup->srcu_last_gp_end = ktime_get_mono_fast_ns();
