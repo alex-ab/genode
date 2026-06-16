@@ -153,16 +153,16 @@ class Black_hole_test::Uplink_test
 			PKT_SIZE = 100,
 		};
 
-		Env                                     &_env;
-		Allocator                               &_alloc;
-		Timer::Connection                       &_timer;
-		Signal_context_capability                _sigh;
-		Timer::Periodic_io_timeout<Uplink_test>  _timeout                  { _timer, *this, &Uplink_test::_execute_link_down_up_step, Microseconds { 1000000 } };
-		Constructible<Nic::Packet_allocator>     _packet_alloc             { };
-		Constructible<Uplink::Connection>        _connection               { };
-		unsigned long                            _nr_of_sent_pkts          { 0 };
-		unsigned long                            _nr_of_acked_pkts         { 0 };
-		unsigned long                            _nr_of_link_down_up_steps { 0 };
+		Env                                  &_env;
+		Allocator                            &_alloc;
+		Timer::Connection                    &_timer;
+		Signal_context_capability             _sigh;
+		Timer::Periodic_timeout<Uplink_test>  _timeout                  { _timer, *this, &Uplink_test::_execute_link_down_up_step, Microseconds { 1000000 } };
+		Constructible<Nic::Packet_allocator>  _packet_alloc             { };
+		Constructible<Uplink::Connection>     _connection               { };
+		unsigned long                         _nr_of_sent_pkts          { 0 };
+		unsigned long                         _nr_of_acked_pkts         { 0 };
+		unsigned long                         _nr_of_link_down_up_steps { 0 };
 
 		void _execute_link_down_up_step(Duration)
 		{

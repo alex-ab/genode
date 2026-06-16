@@ -110,12 +110,12 @@ struct Lock_test : Test
 {
 	static constexpr char const *brief = "Test locks in handlers";
 
-	bool                                   stop     { false };
-	Microseconds                           us       { 1000 };
-	Mutex                                  mutex    { };
-	Timer::One_shot_io_timeout<Lock_test>  ot1      { timer, *this, &Lock_test::handle_ot1 };
-	Timer::One_shot_io_timeout<Lock_test>  ot2      { timer, *this, &Lock_test::handle_ot2 };
-	Timer::One_shot_io_timeout<Lock_test>  ot3      { timer, *this, &Lock_test::handle_ot3 };
+	bool                                stop     { false };
+	Microseconds                        us       { 1000 };
+	Mutex                               mutex    { };
+	Timer::One_shot_timeout<Lock_test>  ot1      { timer, *this, &Lock_test::handle_ot1 };
+	Timer::One_shot_timeout<Lock_test>  ot2      { timer, *this, &Lock_test::handle_ot2 };
+	Timer::One_shot_timeout<Lock_test>  ot3      { timer, *this, &Lock_test::handle_ot3 };
 
 	Lock_test(Env                       &env,
 	          unsigned                  &error_cnt,
@@ -129,7 +129,7 @@ struct Lock_test : Test
 		ot3.schedule(us);
 	}
 
-	void handle(Timer::One_shot_io_timeout<Lock_test> &ot)
+	void handle(Timer::One_shot_timeout<Lock_test> &ot)
 	{
 		if (stop)
 			return;
@@ -320,12 +320,12 @@ struct Mixed_timeouts : Test
 	uint64_t max_error_us { config.node().attribute_value("precise_timeouts", true) ?
 	                        (uint64_t)50000 : (uint64_t)200000 };
 
-	Timer::Periodic_io_timeout<Mixed_timeouts> pt1 { timer, *this, &Mixed_timeouts::handle_pt1, timeouts[0].us };
-	Timer::Periodic_io_timeout<Mixed_timeouts> pt2 { timer, *this, &Mixed_timeouts::handle_pt2, timeouts[1].us };
-	Timer::Periodic_io_timeout<Mixed_timeouts> pt3 { timer, *this, &Mixed_timeouts::handle_pt3, timeouts[2].us };
-	Timer::One_shot_io_timeout<Mixed_timeouts> ot1 { timer, *this, &Mixed_timeouts::handle_ot1 };
-	Timer::One_shot_io_timeout<Mixed_timeouts> ot2 { timer, *this, &Mixed_timeouts::handle_ot2 };
-	Timer::One_shot_io_timeout<Mixed_timeouts> ot3 { timer, *this, &Mixed_timeouts::handle_ot3 };
+	Timer::Periodic_timeout<Mixed_timeouts> pt1 { timer, *this, &Mixed_timeouts::handle_pt1, timeouts[0].us };
+	Timer::Periodic_timeout<Mixed_timeouts> pt2 { timer, *this, &Mixed_timeouts::handle_pt2, timeouts[1].us };
+	Timer::Periodic_timeout<Mixed_timeouts> pt3 { timer, *this, &Mixed_timeouts::handle_pt3, timeouts[2].us };
+	Timer::One_shot_timeout<Mixed_timeouts> ot1 { timer, *this, &Mixed_timeouts::handle_ot1 };
+	Timer::One_shot_timeout<Mixed_timeouts> ot2 { timer, *this, &Mixed_timeouts::handle_ot2 };
+	Timer::One_shot_timeout<Mixed_timeouts> ot3 { timer, *this, &Mixed_timeouts::handle_ot3 };
 
 	void handle_pt1(Duration time) { handle(time, timeouts[0]); }
 	void handle_pt2(Duration time) { handle(time, timeouts[1]); }

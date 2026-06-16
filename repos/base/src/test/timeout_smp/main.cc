@@ -58,7 +58,7 @@ class Test_smp_2
 {
 	private:
 
-		using Test_timeout = Timer::One_shot_io_timeout<Test_smp_2>;
+		using Test_timeout = Timer::One_shot_timeout<Test_smp_2>;
 
 		Env                &_env;
 		unsigned long      &_nr_of_errors;
@@ -201,7 +201,7 @@ class Test_smp_1
 	private:
 
 		using Test_timeout =
-			Constructible<Timer::One_shot_io_timeout<Test_smp_1> >;
+			Constructible<Timer::One_shot_timeout<Test_smp_1> >;
 
 		Env                      &_env;
 		unsigned long            &_nr_of_errors;

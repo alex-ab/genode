@@ -37,7 +37,7 @@ class Main : public Nic_handler,
 {
 	private:
 
-		using Periodic_timeout = Timer::Periodic_io_timeout<Main>;
+		using Periodic_timeout = Timer::Periodic_timeout<Main>;
 
 		struct Bad_protocol : Exception { };
 

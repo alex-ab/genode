@@ -33,10 +33,10 @@ class Vmm::Generic_timer : Gic::Irq::Irq_handler
 {
 	private:
 
-		Timer::Connection                         _timer;
-		Timer::One_shot_io_timeout<Generic_timer> _timeout;
-		Gic::Irq                                 &_irq;
-		Cpu_base                                 &_cpu;
+		Timer::Connection                      _timer;
+		Timer::One_shot_timeout<Generic_timer> _timeout;
+		Gic::Irq                              &_irq;
+		Cpu_base                              &_cpu;
 
 		enum class State { MASKED, UNMASKED } _state { State::UNMASKED };
 

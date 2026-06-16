@@ -553,7 +553,7 @@ class Event_filter::Chargen_source : public Source, Source::Filter
 				_pending_event_count = 0;
 			}
 
-			Timer::One_shot_io_timeout<Char_repeater> _timeout {
+			Timer::One_shot_timeout<Char_repeater> _timeout {
 				_timer, *this, &Char_repeater::_handle_timeout };
 
 			Char_repeater(Timer::Connection &timer, Node const &node,

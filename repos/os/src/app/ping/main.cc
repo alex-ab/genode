@@ -50,7 +50,7 @@ class Main : public Nic_handler,
 	private:
 
 		using Signal_handler   = Genode::Signal_handler<Main>;
-		using Periodic_timeout = Timer::Periodic_io_timeout<Main>;
+		using Periodic_timeout = Timer::Periodic_timeout<Main>;
 
 		enum { IPV4_TIME_TO_LIVE  = 64 };
 		enum { DEFAULT_DST_PORT   = 50000 };
