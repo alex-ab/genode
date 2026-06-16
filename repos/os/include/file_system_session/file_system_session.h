@@ -194,7 +194,7 @@ class File_system::Packet_descriptor : public Genode::Packet_descriptor
 		 */
 		Packet_descriptor(Packet_descriptor p,
 		                  Node_handle handle, Opcode op, size_t length,
-		                  seek_off_t position = SEEK_TAIL)
+		                  seek_off_t position)
 		:
 			Genode::Packet_descriptor(p.offset(), p.size()),
 			_handle(handle), _op(op), _success(false),

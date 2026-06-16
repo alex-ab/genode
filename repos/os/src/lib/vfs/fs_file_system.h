@@ -262,7 +262,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 				::File_system::Packet_descriptor const
 					packet(p, file_handle(),
-					       ::File_system::Packet_descriptor::SYNC, 0);
+					       ::File_system::Packet_descriptor::SYNC, 0, 0);
 
 				queued_sync_state = Handle_state::Queued_state::QUEUED;
 
