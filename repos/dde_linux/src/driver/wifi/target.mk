@@ -1,3 +1,5 @@
+REQUIRES := 64bit
+
 TARGET  := wifi
 SRC_CC  := main.cc wpa.cc access_firmware.cc
 LIBS    := base wifi
