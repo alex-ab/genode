@@ -116,6 +116,41 @@ struct block_device *blkdev_get_by_dev(dev_t dev, blk_mode_t mode, void *holder,
 	return NULL;
 }
 
+
+/* XXX for the moment guard against not updated DDE Linux variants */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,9,0)
+static struct file * bdev_files[MAX_BDEV];
+
+
+struct file *bdev_file_open_by_dev(dev_t dev, blk_mode_t mode, void *holder,
+                   const struct blk_holder_ops *hops)
+{
+	struct block_device *bdev = NULL;
+
+	unsigned const idx = MAJOR(dev);
+	if (idx < MAX_BDEV)
+		bdev = bdevs[idx];
+
+	if (!bdev)
+		return NULL;
+
+	/* reuse existing object as we do not anticipate removal at runtime */
+	if (bdev_files[idx])
+		return bdev_files[idx];
+
+	struct file *bdev_file = kzalloc(sizeof(struct file), GFP_KERNEL);
+	if (!bdev_file)
+		return ERR_PTR(-ENOMEM);
+
+	bdev_files[idx] = bdev_file;
+
+	/* for now store minimal information the object */
+	bdev_file->f_inode = BD_INODE(bdev);
+
+	return bdev_file;
+}
+#endif
+
 enum { MAX_GEN_DISKS = 4 };
 
 struct gendisk * gendisks[MAX_GEN_DISKS];
