@@ -170,7 +170,7 @@ struct Genode::Register
 		 * Useful to combine successive access to multiple
 		 * bitfields into one operation.
 		 */
-		static inline access_t bits(access_t const value) {
+		static constexpr access_t bits(access_t const value) {
 			return access_t((value & mask()) << SHIFT); }
 
 		/**
