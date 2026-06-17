@@ -100,6 +100,8 @@ struct Hw::X86_64_cpu
 		struct Smap       : Bitfield<21, 1> { }; /* SMAP Enable */
 	);
 
+	X86_64_XCR_REGISTER(Xcr0, 0);
+
 	X86_64_MSR_REGISTER(IA32_apic_base,  0x1b,
 		struct Bsp    : Bitfield<  8,  1> { }; /* Bootstrap processor */
 		struct X2apic : Bitfield< 10,  1> { }; /* Enable/disable X2APIC */
@@ -316,46 +318,70 @@ struct Hw::X86_64_cpu
 	 */
 	X86_64_MSR_REGISTER(Ia32_vmx_cr4_fixed1, 0x489);
 
+	X86_64_MSR_REGISTER(Ia32_xss, 0xda0);
 
-	X86_64_CPUID_REGISTER(Cpuid_0_eax, 0, eax);
-	X86_64_CPUID_REGISTER(Cpuid_0_ebx, 0, ebx);
-	X86_64_CPUID_REGISTER(Cpuid_0_ecx, 0, ecx);
-	X86_64_CPUID_REGISTER(Cpuid_0_edx, 0, edx);
+	X86_64_CPUID_REGISTER(Cpuid_0_eax, 0, 0, eax);
+	X86_64_CPUID_REGISTER(Cpuid_0_ebx, 0, 0, ebx);
+	X86_64_CPUID_REGISTER(Cpuid_0_ecx, 0, 0, ecx);
+	X86_64_CPUID_REGISTER(Cpuid_0_edx, 0, 0, edx);
 
-	X86_64_CPUID_REGISTER(Cpuid_1_eax, 1, eax);
+	X86_64_CPUID_REGISTER(Cpuid_1_eax, 1, 0, eax);
 
-	X86_64_CPUID_REGISTER(Cpuid_1_ebx, 1, ebx,
+	X86_64_CPUID_REGISTER(Cpuid_1_ebx, 1, 0, ebx,
 		struct Apic_id : Bitfield<24, 8> { };
 	);
 
-	X86_64_CPUID_REGISTER(Cpuid_1_ecx, 1, ecx,
+	X86_64_CPUID_REGISTER(Cpuid_1_ecx, 1, 0, ecx,
 		struct Vmx          : Bitfield< 5, 1> { };
 		struct Pcid         : Bitfield<17, 1> { };
 		struct X2apic       : Bitfield<21, 1> { };
 		struct Tsc_deadline : Bitfield<24, 1> { };
+		struct Xsave        : Bitfield<26, 1> { };
 	);
 
-	X86_64_CPUID_REGISTER(Cpuid_1_edx, 1, edx,
+	X86_64_CPUID_REGISTER(Cpuid_1_edx, 1, 0, edx,
 		struct Pat : Bitfield<16, 1> { };
 	);
 
-	X86_64_CPUID_REGISTER(Cpuid_15_eax, 15, eax);
-	X86_64_CPUID_REGISTER(Cpuid_15_ebx, 15, ebx);
-	X86_64_CPUID_REGISTER(Cpuid_15_ecx, 15, ecx);
+	X86_64_CPUID_REGISTER(Cpuid_xcr0_low, 0xd, 0, eax);
+	X86_64_CPUID_REGISTER(Cpuid_xsave_bytes_enabled, 0xd, 0, ebx);
 
-	X86_64_CPUID_REGISTER(Cpuid_16_eax, 16, ecx);
+	X86_64_CPUID_REGISTER(Cpuid_d_1_eax, 0xd, 1, eax,
+		struct Xsaveopt : Bitfield<0, 1> { };
+		struct Xsaves   : Bitfield<3, 1> { };
+	);
 
-	X86_64_CPUID_REGISTER(Cpuid_8000000A_edx, 0x8000000A, edx,
+	X86_64_CPUID_REGISTER(Cpuid_ia32_xss_low,  0xd, 1, ecx);
+	X86_64_CPUID_REGISTER(Cpuid_ia32_xss_high, 0xd, 1, edx);
+
+	X86_64_CPUID_REGISTER(Cpuid_8000000A_edx, 0x8000000A, 0, edx,
 		struct Np : Bitfield<0, 1> { }; /* Nested paging */
 	);
 
-	X86_64_CPUID_REGISTER(Cpuid_80000007_eax, 0x80000007, eax,
+	X86_64_CPUID_REGISTER(Cpuid_80000007_eax, 0x80000007, 0, eax,
 		struct Invariant_tsc : Bitfield<2, 1> { }; /* Invariant TSC */
 	);
 
-	X86_64_CPUID_REGISTER(Cpuid_80000001_ecx, 0x80000001, ecx,
+	X86_64_CPUID_REGISTER(Cpuid_80000001_ecx, 0x80000001, 0, ecx,
 		struct Svm : Bitfield<2, 1> { };
 	);
+
+	/*
+	 * XSAVE feature set comprises different state components,
+	 * the following bitmap shows a subset of it that is common
+	 * across different registers like Cpuid_xcr0_low, Xcr0,...,
+	 * and also used in operations like xsave/xrstor to define
+	 * which state is addressed.
+	 *
+	 * See Intel SDM Vol. 1, section 13.1.
+	 */
+	struct Xstate_components : Genode::Register<64>
+	{
+		struct X87     : Bitfield<0, 1> { };
+		struct Sse     : Bitfield<1, 1> { };
+		struct Avx     : Bitfield<2, 1> { };
+		struct Avx_512 : Bitfield<5, 3> { };
+	};
 
 	Suspend_type suspend;
 

@@ -21,6 +21,8 @@
 #include <util/mmio.h>
 #include <util/register.h>
 #include <cpu/cpu_state.h>
+#include <cpu/vcpu_state.h>
+#include <base/internal/align_at.h>
 
 /* base-hw internal includes */
 #include <hw/spec/x86_64/cpu.h>
@@ -89,50 +91,50 @@ class Board::Cpu : public Hw::X86_64_cpu
 			void init(addr_t tss_addr);
 		} __attribute__((packed)) gdt { };
 
-
-		struct Fpu_context
+		struct Fpu
 		{
-			static constexpr size_t SIZE = 512;
+			Fpu();
+		} fpu { };
+
+		struct alignas(64) Fpu_context
+		{
+			static constexpr size_t SIZE =
+				sizeof(Genode::Vcpu_state::Fpu::State);
 
 			/*
-			 * FXSAVE area providing storage for x87 FPU, MMX, XMM,
-			 * and MXCSR registers.
-			 *
-			 * For further details see Intel SDM Vol. 2A,
-			 * 'FXSAVE instruction'.
+			 * Data saved/restored by related co-processor load/restore ops.
 			 */
-			char _fxsave_area[SIZE] = { 0 };
+			char _data[SIZE] = { 0 };
 
 			struct Context : Mmio<SIZE>
 			{
-				struct Fcw   : Register<0, 16>  { };
-				struct Mxcsr : Register<24, 32> { };
+				struct Fpu_control         : Register<0x0,  16>  { };
+				struct Simd_control_status : Register<0x18, 32> { };
+
+				struct Xcomp : Register<0x208, 64>
+				{
+					struct Compact : Bitfield<63,1> {};
+				};
 
 				using Mmio<SIZE>::Mmio;
 			};
 
-			Fpu_context()
-			{
-				Context init({ _fxsave_area, SIZE });
-				init.write<Context::Fcw>(0x37f);    /* mask exceptions SysV ABI */
-				init.write<Context::Mxcsr>(0x1f80);
-			}
+			Fpu_context();
 
-			void save() {
-				asm volatile("fxsave (%0)" :: "r" (this)); }
-
-			void load() {
-				asm volatile("fxrstor (%0)" :: "r" (this)); }
+			void save();
+			void load() const;
 		} __attribute__((packed));
 
 
-		struct alignas(16) Context : Cpu_state, Fpu_context
+		struct alignas(16) Context : Cpu_state
 		{
 			enum Eflags {
 				EFLAGS_TF     = 1 << 8,
 				EFLAGS_IF_SET = 1 << 9,
 				EFLAGS_IOPL_3 = 3 << 12,
 			};
+
+			Genode::Align_at<Fpu_context> fc {};
 
 			Context(bool privileged);
 
@@ -148,9 +150,8 @@ class Board::Cpu : public Hw::X86_64_cpu
 				}
 			}
 
-			Fpu_context& fpu_context() {
-				return static_cast<Fpu_context&>(*this); }
-		} __attribute__((packed));
+			Fpu_context& fpu_context() { return *fc; }
+		};
 
 
 		struct Mmu_context

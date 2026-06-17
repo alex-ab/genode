@@ -66,6 +66,107 @@ Cpu::Context::Context(bool core)
 }
 
 
+static bool xsave_avail()
+{
+	using Id = Cpu::Cpuid_1_ecx;
+	static bool avail = Id::Xsave::get(Id::read());
+	return avail;
+}
+
+
+static bool xsaves_avail()
+{
+	using Id = Cpu::Cpuid_d_1_eax;
+	static bool avail = Id::Xsaves::get(Id::read());
+	return avail;
+}
+
+static bool xsaveopt_avail()
+{
+	using Id = Cpu::Cpuid_d_1_eax;
+	static bool avail = Id::Xsaveopt::get(Id::read());
+	return avail;
+}
+
+static uint32_t xcr0_low()
+{
+	static constexpr uint32_t hw_supported =
+		Cpu::Xstate_components::X87::bits(1) |
+		Cpu::Xstate_components::Sse::bits(1) |
+		Cpu::Xstate_components::Avx::bits(1) |
+		Cpu::Xstate_components::Avx_512::bits(0b111);
+	static uint32_t xcr0 = Cpu::Cpuid_xcr0_low::read();
+	return xcr0 & hw_supported;
+}
+
+
+Cpu::Fpu::Fpu()
+{
+	if (!xsave_avail())
+		return;
+
+	Cpu::Cr4::access_t cr4 = Cpu::Cr4::read();
+	Cpu::Cr4::Osxsave::set(cr4, 1);
+	Cpu::Cr4::write(cr4);
+
+	/* we don't make use of the extended supervisor state save/restore */
+	if (xsaves_avail()) Cpu::Ia32_xss::write(0);
+
+	Cpu::Xcr0::write(xcr0_low());
+
+	if (Cpu::Cpuid_xsave_bytes_enabled::read() > Cpu::Fpu_context::SIZE)
+		error("XSAVE state is bigger than kernel's specified size!");
+}
+
+
+Cpu::Fpu_context::Fpu_context()
+{
+	Context init({ _data, SIZE });
+	init.write<Context::Fpu_control>(0x37f);    /* mask exceptions SysV ABI */
+	init.write<Context::Simd_control_status>(0x1f80);
+	if (xsaves_avail())
+		init.write<Context::Xcomp>(Context::Xcomp::Compact::bits(1));
+}
+
+
+void Cpu::Fpu_context::save()
+{
+	if (!xsave_avail()) {
+		asm volatile("fxsave (%0)" :: "r" (this));
+		return;
+	}
+
+	if (xsaves_avail()) {
+		asm volatile ("xsaves64 (%0)"
+		              :: "r" (this), "d" (0), "a" (xcr0_low()) : "memory");
+		return;
+	}
+
+	if (xsaveopt_avail())
+		asm volatile ("xsaveopt (%0)"
+		              :: "r" (this), "d" (0), "a" (xcr0_low()) : "memory");
+	else
+		asm volatile ("xsave64 (%0)"
+		              :: "r" (this), "d" (0), "a" (xcr0_low()) : "memory");
+}
+
+
+void Cpu::Fpu_context::load() const
+{
+	if (!xsave_avail()) {
+		asm volatile("fxrstor (%0)" :: "r" (this));
+		return;
+	}
+
+	if (xsaves_avail())
+		asm volatile ("xrstors64 (%0)"
+		              :: "r" (this), "d" (0), "a" (xcr0_low()) : "memory");
+	else
+		asm volatile ("xrstor64 (%0)"
+		              :: "r" (this), "d" (0), "a" (xcr0_low()) : "memory");
+}
+
+
 Cpu::Mmu_context::Mmu_context(addr_t table, addr_t id)
 :
 	cr3(Cr3::Pdb::masked(table))

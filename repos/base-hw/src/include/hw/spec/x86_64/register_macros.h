@@ -32,6 +32,22 @@
 		__VA_ARGS__; \
 	};
 
+#define X86_64_XCR_REGISTER(name, nr, ...) \
+	struct name : Genode::Register<64> \
+	{ \
+		static access_t read() \
+		{ \
+			access_t low, high; \
+			asm volatile ("xgetbv" : "=d" (high), "=a" (low) : "c" (nr)); \
+			return (high << 32) | (low & ~0U); \
+		} \
+ \
+		static void write(access_t const v) { \
+			asm volatile ("xsetbv" :: "d" (v >> 32), "a" (v), "c" (nr)); } \
+ \
+		__VA_ARGS__; \
+	};
+
 #define X86_64_MSR_REGISTER(name, msr, ...) \
 	struct name : Genode::Register<64> \
 	{ \
@@ -50,16 +66,16 @@
 		__VA_ARGS__; \
 	};
 
-#define X86_64_CPUID_REGISTER(name, id, reg, ...) \
+#define X86_64_CPUID_REGISTER(name, id, sub, reg, ...) \
 	struct name : Genode::Register<32> \
 	{ \
 		static access_t read() \
 		{ \
 			Genode::uint32_t eax = id; \
 			Genode::uint32_t ebx = 0; \
-			Genode::uint32_t ecx = 0; \
+			Genode::uint32_t ecx = sub; \
 			Genode::uint32_t edx = 0; \
-			asm volatile ("cpuid" : "+a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx)); \
+			asm volatile ("cpuid" : "+a" (eax), "=b" (ebx), "+c" (ecx), "=d" (edx)); \
 			return reg; \
 		} \
  \

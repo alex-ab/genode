@@ -100,6 +100,36 @@ void Vcpu::pause()
 }
 
 
+static bool xsave_avail()
+{
+	using Id = Cpu::Cpuid_1_ecx;
+	static bool avail = Id::Xsave::get(Id::read());
+	return avail;
+}
+
+
+static Cpu::Xcr0::access_t xcr0()
+{
+	static constexpr auto hw_supported =
+		Cpu::Xstate_components::X87::bits(1) |
+		Cpu::Xstate_components::Sse::bits(1) |
+		Cpu::Xstate_components::Avx::bits(1) |
+		Cpu::Xstate_components::Avx_512::bits(0b111);
+	static auto v = Cpu::Cpuid_xcr0_low::read();
+	return v & hw_supported;
+}
+
+
+static size_t xstates_size()
+{
+	static size_t size = (xsave_avail())
+		? min((size_t)Cpu::Cpuid_xsave_bytes_enabled::read(),
+		      Cpu::Fpu_context::SIZE)
+		: 512;
+	return size;
+}
+
+
 void Vcpu::load(Cpu_state &state)
 {
 	Cpu::Ia32_tsc_aux::write(
@@ -111,7 +141,32 @@ void Vcpu::load(Cpu_state &state)
 
 void Vcpu::load()
 {
+	_state.with_state([&] (auto &state) {
+		if (state.fpu.charged())
+			state.fpu.with_state([&](auto const &fpu) {
+				memcpy(&_vcpu_context.regs->fpu_context(), &fpu,
+				       xstates_size());
+			});
+	});
 	_vcpu_context.regs->fpu_context().load();
+
+	if (xsave_avail() && _vcpu_context.xcr0 != xcr0()) {
+		/*
+		 * Sanity check delivered xcr0 value to only use
+		 * xstates supported by hw kernel, (and thereby cleaned),
+		 * and to fulfill hardware restrictions that otherwise lead
+		 * to hardware exceptions
+		 */
+		auto v = _vcpu_context.xcr0 & xcr0();
+		Cpu::Xstate_components::X87::set(v, 1);
+		if (Cpu::Xstate_components::Avx_512::get(v))
+			Cpu::Xstate_components::Avx::set(v, 1);
+		if (Cpu::Xstate_components::Avx::get(v))
+			Cpu::Xstate_components::Sse::set(v, 1);
+		Cpu::Xcr0::write(v);
+		_vcpu_context.xcr0 = v;
+	}
+
 	load(*_vcpu_context.regs);
 }
 
@@ -119,7 +174,17 @@ void Vcpu::load()
 void Vcpu::save(Cpu_state &state)
 {
 	Genode::memcpy(&*_vcpu_context.regs, &state, sizeof(Cpu_state));
+
+	if (xsave_avail() && _vcpu_context.xcr0 != xcr0())
+		Cpu::Xcr0::write(xcr0());
+
 	_vcpu_context.regs->fpu_context().save();
+	_state.with_state([&] (auto &state) {
+		state.fpu.charge([&](auto &fpu) {
+			memcpy(&fpu, &_vcpu_context.regs->fpu_context(), xstates_size());
+			return xstates_size();
+		});
+	});
 }
 
 
@@ -221,7 +286,6 @@ Board::Vcpu_context::detect_virtualization(Vcpu_state &state, Id &id)
 
 Board::Vcpu_context::Vcpu_context(Id id, Board::Vcpu_state &state)
 :
-	regs(1),
 	virt(detect_virtualization(state, id))
 {
 	regs->trapno = TRAP_VMEXIT;
@@ -260,31 +324,17 @@ void Board::Vcpu_context::load(Genode::Vcpu_state &state)
 		regs->r15 = state.r15.value();
 	}
 
-	using Fpu_state = Genode::Vcpu_state::Fpu::State;
-
-	if (state.fpu.charged()) {
-		state.fpu.with_state(
-		    [&](Fpu_state const &fpu) {
-			    memcpy(&regs->fpu_context(), &fpu, Cpu::Fpu_context::SIZE);
-		    });
-	}
-
 	if (state.tsc_aux.charged())
 		tsc_aux_guest = state.tsc_aux.value();
+
+	if (state.xcr0.charged()) xcr0 = state.xcr0.value();
 }
 
 
 void Board::Vcpu_context::store(Genode::Vcpu_state &state)
 {
-	using Fpu_state = Genode::Vcpu_state::Fpu::State;
-
 	state.discharge();
 	state.exit_reason = (unsigned) exit_reason;
-
-	state.fpu.charge([&](Fpu_state &fpu) {
-		memcpy(&fpu, &regs->fpu_context(), Cpu::Fpu_context::SIZE);
-		return Cpu::Fpu_context::SIZE;
-	});
 
 	/* SVM will overwrite rax but VMX doesn't. */
 	state.ax.charge(regs->rax);
@@ -307,6 +357,9 @@ void Board::Vcpu_context::store(Genode::Vcpu_state &state)
 
 	state.tsc.charge(Hw::Tsc::rdtsc());
 	state.tsc_aux.charge(tsc_aux_guest);
+
+	state.xcr0.charge(xcr0);
+	state.xss.charge(xss);
 
 	virt.store(state);
 }

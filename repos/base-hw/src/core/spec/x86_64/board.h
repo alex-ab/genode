@@ -98,12 +98,14 @@ struct Board::Vcpu_context
 	void load(Genode::Vcpu_state &state);
 	void store(Genode::Vcpu_state &state);
 
-	Genode::Align_at<Board::Cpu::Context> regs;
+	Genode::Align_at<Cpu::Context> regs { true };
 
 	Virt_interface &virt;
 
 	uint64_t tsc_aux_guest = 0U;
 	uint64_t exit_reason = EXIT_PAUSED;
+	uint64_t xcr0 { 1 };
+	uint64_t xss  { 0 };
 
 	Init_state init_state { Init_state::CREATED };
 
