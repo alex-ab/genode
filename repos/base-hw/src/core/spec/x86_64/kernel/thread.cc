@@ -251,8 +251,6 @@ void Thread::save(Cpu_state &state)
 
 void Thread::load(Cpu_state &state)
 {
-	Cpu::Ia32_tsc_aux::write((Cpu::Ia32_tsc_aux::access_t)_cpu().id().value);
-
 	asm volatile("mov  %0, %%rsp  \n"
 	             "popq %%r8       \n"
 	             "popq %%r9       \n"
