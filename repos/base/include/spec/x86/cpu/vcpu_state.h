@@ -206,7 +206,11 @@ class Genode::Vcpu_state
 
 				struct State
 				{
-					uint8_t _buffer[2560] { };
+					/*
+					 * maximum size of non-compact XSAVE state
+					 * (x87,SIMD,AVX,AVX-512), see Intel SDM Vol. 1, sec. 13ff.
+					 */
+					uint8_t _buffer[2688] { };
 				} __attribute__((aligned(64)));
 
 			private:
