@@ -4,12 +4,7 @@
 # \date   2014-05-07
 #
 
-#
-# Determine Genode base directory based on the known location of the
-# 'create_builddir' tool within the Genode source tree
-#
-export GENODE_DIR := $(realpath $(dir $(MAKEFILE_LIST))/../../..)
-export GENODE_CONTRIB_CACHE ?= $(GENODE_DIR)/contrib/cache
+export GENODE_CONTRIB_CACHE ?= $(CONTRIB_DIR)/contrib/cache
 
 include $(GENODE_DIR)/tool/ports/mk/front_end.inc
 include $(GENODE_DIR)/tool/ports/mk/check_port_arg.inc
