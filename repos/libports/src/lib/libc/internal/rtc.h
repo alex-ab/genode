@@ -23,7 +23,7 @@ struct Libc::Rtc : Vfs::Watch_response_handler
 {
 	using Allocator = Genode::Allocator;
 
-	Vfs_plugin &_vfs;
+	Directory &_root_dir;
 
 	Allocator &_alloc;
 
@@ -43,32 +43,30 @@ struct Libc::Rtc : Vfs::Watch_response_handler
 
 	void _update_rtc_value_from_file()
 	{
-		_vfs.with_root_dir([&] (Directory &root_dir) {
-			try {
-				File_content const content(_alloc, root_dir, _rtc_path.string(),
-				                           File_content::Limit{4096U});
-				content.bytes([&] (char const *ptr, size_t size) {
+		try {
+			File_content const content(_alloc, _root_dir, _rtc_path.string(),
+			                           File_content::Limit{4096U});
+			content.bytes([&] (char const *ptr, size_t size) {
 
-					char buf[32] { };
-					::memcpy(buf, ptr, min(sizeof(buf) - 1, size));
+				char buf[32] { };
+				::memcpy(buf, ptr, min(sizeof(buf) - 1, size));
 
-					struct tm tm { };
-					if (strptime(buf, "%Y-%m-%d %H:%M:%S", &tm)
-					 || strptime(buf, "%Y-%m-%d %H:%M", &tm)) {
-						_rtc_value = timegm(&tm);
-						if (_rtc_value == (time_t)-1)
-							_rtc_value = 0;
-					}
-				});
-			} catch (...) {
-				warning(_rtc_path, " not readable, returning ", _rtc_value);
-			}
-		});
+				struct tm tm { };
+				if (strptime(buf, "%Y-%m-%d %H:%M:%S", &tm)
+				 || strptime(buf, "%Y-%m-%d %H:%M", &tm)) {
+					_rtc_value = timegm(&tm);
+					if (_rtc_value == (time_t)-1)
+						_rtc_value = 0;
+				}
+			});
+		} catch (...) {
+			warning(_rtc_path, " not readable, returning ", _rtc_value);
+		}
 	}
 
-	Rtc(Vfs_plugin &vfs, Allocator &alloc, Rtc_path const &rtc_path, Watch &watch)
+	Rtc(Directory &root_dir, Allocator &alloc, Rtc_path const &rtc_path, Watch &watch)
 	:
-		_vfs(vfs), _alloc(alloc), _rtc_path(rtc_path), _watch(watch)
+		_root_dir(root_dir), _alloc(alloc), _rtc_path(rtc_path), _watch(watch)
 	{
 		if (!_rtc_path_valid) {
 			warning("rtc not configured, returning ", _rtc_value);

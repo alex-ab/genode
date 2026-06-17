@@ -24,7 +24,6 @@
 #include <errno.h>
 
 /* libc-internal includes */
-#include <internal/plugin.h>
 #include <internal/types.h>
 
 namespace Libc {
@@ -34,7 +33,7 @@ namespace Libc {
 	/**
 	 * Return singleton instance of mmap registry
 	 */
-	Mmap_registry *mmap_registry();
+	Mmap_registry &mmap_registry();
 }
 
 
@@ -42,13 +41,18 @@ class Libc::Mmap_registry
 {
 	public:
 
+		struct Attr
+		{
+			void  *start;
+			size_t num_bytes;
+			bool   anonymous;
+		};
+
 		struct Entry : List<Entry>::Element
 		{
-			void   * const start;
-			Plugin * const plugin;
+			Attr const attr;
 
-			Entry(void *start, Plugin *plugin)
-			: start(start), plugin(plugin) { }
+			Entry(Attr attr) : attr(attr) { }
 		};
 
 	private:
@@ -66,7 +70,7 @@ class Libc::Mmap_registry
 		static ENTRY *_lookup_by_addr_unsynchronized(ENTRY *curr, void * const start)
 		{
 			for (; curr; curr = curr->next())
-				if (curr->start == start)
+				if (curr->attr.start == start)
 					return curr;
 
 			return 0;
@@ -84,32 +88,27 @@ class Libc::Mmap_registry
 
 	public:
 
-		void insert(void *start, size_t len, Plugin *plugin)
+		void insert(Attr attr)
 		{
 			Mutex::Guard guard(_mutex);
 
-			if (_lookup_by_addr_unsynchronized(start)) {
-				warning(__func__, ": mmap region at ", start, " "
+			if (_lookup_by_addr_unsynchronized(attr.start)) {
+				warning(__func__, ": mmap region at ", attr.start, " "
 				        "is already registered");
 				return;
 			}
 
-			_list.insert(new (&_md_alloc) Entry(start, plugin));
+			_list.insert(new (&_md_alloc) Entry(attr));
 		}
 
-		Plugin *lookup_plugin_by_addr(void *start) const
+		auto with_registered(void *start, auto const &fn, auto const &missing_fn) const
+		-> decltype(missing_fn())
 		{
 			Mutex::Guard guard(_mutex);
 
 			Entry const * const e = _lookup_by_addr_unsynchronized(start);
-			return e ? e->plugin : 0;
-		}
 
-		bool registered(void *start) const
-		{
-			Mutex::Guard guard(_mutex);
-
-			return _lookup_by_addr_unsynchronized(start) != 0;
+			return e ? fn(e->attr) : missing_fn();
 		}
 
 		void remove(void *start)

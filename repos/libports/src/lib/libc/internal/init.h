@@ -29,6 +29,8 @@
 #include <internal/types.h>
 #include <internal/config.h>
 
+namespace Genode::Vfs { struct Read_ready_response_handler; }
+
 namespace Libc {
 
 	struct Resume;
@@ -39,10 +41,12 @@ namespace Libc {
 	struct Clone_connection;
 	struct Watch;
 	struct Signal;
-	struct File_descriptor_allocator;
+	struct Fds;
 	struct Timer_accessor;
 	struct Cwd;
 	struct Atexit;
+	struct Vfs_plugin;
+	struct Fs;
 
 	/**
 	 * Support for shared libraries
@@ -50,31 +54,20 @@ namespace Libc {
 	void init_dl(Genode::Env &env);
 
 	/**
-	 * File-descriptor allocator
-	 */
-	void init_fd_alloc(Genode::Allocator &);
-
-	/**
 	 * Global memory allocator
 	 */
 	void init_mem_alloc(Genode::Env &env);
 
 	/**
-	 * Plugin interface
+	 * file system access
 	 */
-	void init_plugin(Resume &);
-
-	/**
-	 * Virtual file system
-	 */
-	void init_vfs_plugin(Monitor &, Genode::Env::Local_rm &);
-	void init_file_operations(Cwd &, File_descriptor_allocator &, Config_accessor const &);
-	void init_pread_pwrite(File_descriptor_allocator &);
+	void init_file_operations(Cwd &, Fds &, Fs &, Config const &);
+	void init_pread_pwrite(Fds &);
 
 	/**
 	 * Poll support
 	 */
-	void init_poll(Signal &, Monitor &, File_descriptor_allocator &);
+	void init_poll(Signal &, Monitor &, Fds &);
 
 	/**
 	 * Support for querying available RAM quota in sysctl functions
@@ -108,10 +101,10 @@ namespace Libc {
 	void init_alarm(Timer_accessor &, Signal &);
 
 	/**
-	 * Socket fs
+	 * Socket support
 	 */
-	void init_socket_fs(Monitor &, File_descriptor_allocator &, Config const &);
-	void init_socket_operations(File_descriptor_allocator &, Config const &);
+	void init_socket(Genode::Allocator &, Monitor &, Fds &, Config const &);
+	void init_socket_operations(Genode::Allocator &, Fds &, Config const &);
 
 	/**
 	 * Pthread/semaphore support
@@ -123,7 +116,7 @@ namespace Libc {
 	/**
 	 * Fork mechanism
 	 */
-	void init_fork(Genode::Env &, File_descriptor_allocator &,
+	void init_fork(Genode::Env &, Fs &, Fds &,
 	               Config_accessor const &, Genode::Allocator &heap,
 	               Heap &malloc_heap, int pid, Monitor &, Signal &,
 	               Binary_name const &);
@@ -143,7 +136,7 @@ namespace Libc {
 	 */
 	void init_execve(Genode::Env &, Genode::Allocator &, void *user_stack,
 	                 Reset_atexit &, Reset_malloc_heap &, Binary_name &,
-	                 File_descriptor_allocator &);
+	                 Fds &);
 
 	/**
 	 * Signal handling
@@ -158,7 +151,7 @@ namespace Libc {
 	/**
 	 * Kqueue support
 	 */
-	void init_kqueue(Genode::Allocator &, Monitor &, File_descriptor_allocator &);
+	void init_kqueue(Genode::Allocator &, Monitor &, Fds &);
 
 	/**
 	 * Random-number support

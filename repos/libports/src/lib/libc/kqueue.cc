@@ -13,16 +13,16 @@
 
 /* Libc includes */
 #include <sys/event.h>
+#include <sys/poll.h>
 #include <errno.h>
 #include <assert.h>
 
 /* internal includes */
-#include <internal/fd_alloc.h>
+#include <internal/fds.h>
 #include <internal/file.h>
 #include <internal/kernel.h>
 #include <internal/monitor.h>
 #include <internal/kqueue.h>
-#include <sys/poll.h>
 
 /* Genode includes */
 #include <base/mutex.h>
@@ -33,25 +33,30 @@ using namespace Libc;
 
 namespace Libc {
 	class Kqueue;
-
-	bool read_ready_from_kernel(File_descriptor *);
-	void notify_read_ready_from_kernel(File_descriptor *);
-	bool write_ready_from_kernel(File_descriptor *);
 }
 
 namespace { using Fn = Libc::Monitor::Function_result; }
 
 
-static Monitor             *_monitor_ptr;
-static Libc::Kqueue_plugin *_kqueue_plugin_ptr;
+static Genode::Allocator *_alloc_ptr;
+static Monitor           *_monitor_ptr;
 
 
-static Libc::Monitor & monitor()
+static Libc::Monitor &monitor()
 {
-	struct Missing_call_of_init_kqueue_support : Genode::Exception { };
+	struct Missing_call_of_init_kqueue : Genode::Exception { };
 	if (!_monitor_ptr)
-		throw Missing_call_of_init_kqueue_support();
+		throw Missing_call_of_init_kqueue();
 	return *_monitor_ptr;
+}
+
+
+static Genode::Allocator &alloc()
+{
+	struct Missing_call_of_init_kqueue : Genode::Exception { };
+	if (!_alloc_ptr)
+		throw Missing_call_of_init_kqueue();
+	return *_alloc_ptr;
 }
 
 
@@ -381,8 +386,50 @@ struct Libc::Kqueue
 			 * Since we need to check the condition on retrieval anyway, we *only* check
 			 * the condition on retrieval and not asynchronously.
 			 */
-			auto check_fn = [&](Kqueue_element &ele) {
-				File_descriptor *fd = libc_fd_to_fd(ele.ident, "kevent_collect");
+			auto check_fn = [&](Kqueue_element &ele)
+			{
+				int const ret = with_fd(ele.ident, "kevent_collect", [&] (File_descriptor &fd) {
+
+					/*
+					 *  If an event is disabled, ignore it.
+					 */
+					if (Kqueue_flags::Disable::get(ele.flags))
+						return 0;
+
+					/*
+					 * Right now we do not support tracking newly available read data via
+					 * the clear flag, as that would entail tracking the availability of new
+					 * data across file system implementations. For the case that a kqueue
+					 * client sets EV_CLEAR and does not read the available data after receiving
+					 * a kevent, this will lead to extraneous kevents for the already existing data.
+					 */
+					switch (ele.filter) {
+					case EVFILT_READ:
+						if (Libc::read_ready_from_kernel(fd)) {
+							eventlist[num_events] = ele;
+							eventlist[num_events].flags = 0;
+							num_events++;
+						} else {
+							Libc::notify_read_ready_from_kernel(fd);
+						}
+						break;
+					case EVFILT_WRITE:
+						if (Libc::write_ready_from_kernel(fd)) {
+							eventlist[num_events] = ele;
+							eventlist[num_events].flags = 0;
+							num_events++;
+						}
+						break;
+					default:
+						assert(false && "Element with unknown filter inserted");
+					}
+
+					/* Delete oneshot event */
+					if (Kqueue_flags::Oneshot::get(ele.flags))
+						_queue_for_deletion(ele);
+
+					return 0;
+				});
 
 				/*
 				 * kqueue(2): "Calling close() on a file  descriptor will remove any
@@ -391,48 +438,10 @@ struct Libc::Kqueue
 				 * Instead of removing the kqueue entry from close(), we collect
 				 * invalid entries for deletion here.
 				 */
-				if (!fd || !fd->plugin || !fd->context) {
+				if (ret != 0) {
 					_queue_for_deletion(ele);
 					return true;
 				}
-
-				/*
-				 *  If an event is disabled, ignore it.
-				 */
-				if (Kqueue_flags::Disable::get(ele.flags))
-					return true;
-
-				/*
-				 * Right now we do not support tracking newly available read data via
-				 * the clear flag, as that would entail tracking the availability of new
-				 * data across file system implementations. For the case that a kqueue
-				 * client sets EV_CLEAR and does not read the available data after receiving
-				 * a kevent, this will lead to extraneous kevents for the already existing data.
-				 */
-				switch (ele.filter) {
-				case EVFILT_READ:
-					if (Libc::read_ready_from_kernel(fd)) {
-						eventlist[num_events] = ele;
-						eventlist[num_events].flags = 0;
-						num_events++;
-					} else {
-						Libc::notify_read_ready_from_kernel(fd);
-					}
-					break;
-				case EVFILT_WRITE:
-					if (Libc::write_ready_from_kernel(fd)) {
-						eventlist[num_events] = ele;
-						eventlist[num_events].flags = 0;
-						num_events++;
-					}
-					break;
-				default:
-					assert(false && "Element with unknown filter inserted");
-				}
-
-				/* Delete oneshot event */
-				if (Kqueue_flags::Oneshot::get(ele.flags))
-					_queue_for_deletion(ele);
 
 				return num_events < nevents;
 			};
@@ -462,51 +471,23 @@ struct Libc::Kqueue
 };
 
 
-void Libc::init_kqueue(Genode::Allocator &alloc, Monitor &monitor,
-                       File_descriptor_allocator &fd_alloc)
+void Libc::init_kqueue(Genode::Allocator &alloc, Monitor &monitor, Fds &fds)
 {
-	_kqueue_plugin_ptr = new (alloc) Kqueue_plugin(alloc);
-	_monitor_ptr       = &monitor;
-	_fd_alloc_ptr      = &fd_alloc;
+	_alloc_ptr   = &alloc;
+	_monitor_ptr = &monitor;
+	_fds_ptr     = &fds;
 }
 
 
-static Kqueue_plugin *kqueue_plugin()
+Libc::Kqueue &Libc::create_kqueue(Genode::Allocator &alloc)
 {
-	if (!_kqueue_plugin_ptr) {
-		error("libc kqueue not initialized - aborting");
-		exit(1);
-	}
-
-	return _kqueue_plugin_ptr;
+	return *new (alloc) Kqueue(alloc);
 }
 
 
-
-int Libc::Kqueue_plugin::create_kqueue()
+void Libc::destroy_kqueue(Kqueue &kq)
 {
-	Kqueue *kq = new (_alloc) Kqueue(_alloc);
-
-	Plugin_context *context = reinterpret_cast<Libc::Plugin_context *>(kq);
-	File_descriptor *fd =
-		file_descriptor_allocator()->alloc(this, context, Libc::ANY_FD);
-
-	return fd->libc_fd;
-}
-
-
-int Libc::Kqueue_plugin::close(File_descriptor *fd)
-{
-	if (fd->plugin != this)
-		return -1;
-
-	if (fd->context)
-		_alloc.free(fd->context, sizeof(Kqueue));
-
-
-	file_descriptor_allocator()->free(fd);
-
-	return 0;
+	destroy(kq._alloc, &kq);
 }
 
 
@@ -514,52 +495,59 @@ extern "C" int
 kevent(int libc_fd, const struct kevent *changelist, int nchanges,
        struct kevent *eventlist, int nevents, const struct timespec *timeout)
 {
-	File_descriptor *fd = libc_fd_to_fd(libc_fd, "kevent");
+	return with_fd(libc_fd, "kevent", [&] (File_descriptor &fd) -> int {
 
-	if (fd->plugin != kqueue_plugin()) {
-		error("File descriptor not reqistered to kqueue plugin");
-		return Errno(EBADF);
-	}
-
-	Kqueue *kq = reinterpret_cast<Libc::Kqueue *>(fd->context);
-	assert(kq && "Kqueue not set in kqueue file descriptor");
-
-	if (nchanges < 0 || nevents < 0)
-		return Errno(EINVAL);
-
-	int err { 0 };
-
-	if (changelist && nchanges) {
-		int num_errors = kq->process_events(changelist, nchanges, eventlist, nevents);
-
-		/*
-		 * kqueue(2):
-		 * If an error occurs while processing an element of the
-		 * changelist and there is enough roomin the eventlist, then the
-		 * event will be placed in the eventlist with EV_ERROR set in
-		 * flags and the system error in data. Otherwise, -1 will be
-		 * returned, and errno will be set to indicate the error
-		 * condition.
-		 */
-		if (num_errors < 0)
-			return -1;
-
-		/* reduce space available in the eventlist */
-		if (num_errors) {
-			nevents -= num_errors;
-			eventlist = &eventlist[num_errors];
+		if (!fd.kqueue_ptr) {
+			error("file descriptor ", libc_fd, " unrelated to kqueue");
+			return Errno(EBADF);
 		}
-	}
 
-	if (eventlist && nevents)
-		err = kq->collect_completed_events(eventlist, nevents, timeout);
+		Kqueue &kq = *fd.kqueue_ptr;
 
-	return err;
+		if (nchanges < 0 || nevents < 0)
+			return Errno(EINVAL);
+
+		int err { 0 };
+
+		if (changelist && nchanges) {
+			int num_errors = kq.process_events(changelist, nchanges, eventlist, nevents);
+
+			/*
+			 * kqueue(2):
+			 * If an error occurs while processing an element of the
+			 * changelist and there is enough roomin the eventlist, then the
+			 * event will be placed in the eventlist with EV_ERROR set in
+			 * flags and the system error in data. Otherwise, -1 will be
+			 * returned, and errno will be set to indicate the error
+			 * condition.
+			 */
+			if (num_errors < 0)
+				return -1;
+
+			/* reduce space available in the eventlist */
+			if (num_errors) {
+				nevents -= num_errors;
+				eventlist = &eventlist[num_errors];
+			}
+		}
+
+		if (eventlist && nevents)
+			err = kq.collect_completed_events(eventlist, nevents, timeout);
+
+		return err;
+	});
 }
 
 
-extern "C"
-int kqueue(void)
+extern "C" int kqueue(void)
 {
-	return kqueue_plugin()->create_kqueue();
+	return fds().with_alloc([&] (Fds::Bits &bits, Fds::Space &space) {
+		return bits.alloc().convert<int>(
+			[&] (addr_t const libc_id) {
+				Kqueue &kq = create_kqueue(alloc());
+				new (alloc()) File_descriptor(space, int(libc_id), kq);
+				return int(libc_id);
+			},
+			[&] (Fds::Bits::Error) -> int { return Errno { EMFILE }; });
+	});
 }

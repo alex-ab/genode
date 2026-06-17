@@ -17,79 +17,24 @@
 #include <sys/poll.h>
 
 /* internal includes */
-#include <internal/plugin_registry.h>
-#include <internal/plugin.h>
 #include <internal/errno.h>
+#include <internal/fds.h>
 #include <internal/file.h>
 #include <internal/init.h>
 #include <internal/monitor.h>
 #include <internal/signal.h>
+#include <internal/fs.h>
 
 using namespace Libc;
-
 
 static Monitor      *_monitor_ptr;
 static Libc::Signal *_signal_ptr;
 
-void Libc::init_poll(Signal &signal, Monitor &monitor,
-                     File_descriptor_allocator &fd_alloc)
+void Libc::init_poll(Signal &signal, Monitor &monitor, Fds &fds)
 {
-	_signal_ptr   = &signal;
-	_monitor_ptr  = &monitor;
-	_fd_alloc_ptr = &fd_alloc;
-}
-
-
-static int poll_plugins(Plugin::Pollfd pollfds[], int nfds)
-{
-	int nready = 0;
-
-	for (Plugin *plugin = plugin_registry()->first();
-	     plugin;
-	     plugin = plugin->next()) {
-
-		if (!plugin->supports_poll())
-			continue;
-
-		/* count the number of pollfds for this plugin */
-
-		int plugin_nfds = 0;
-
-		for (int pollfd_index = 0; pollfd_index < nfds; pollfd_index++)
-			if (pollfds[pollfd_index].fdo &&
-			    pollfds[pollfd_index].fdo->plugin == plugin)
-				plugin_nfds++;
-
-		if (plugin_nfds == 0)
-			continue;
-
-		/*
-		 * Copy the pollfds belonging to this plugin to a plugin-specific
-		 * array. 'revents' still points into the original structure.
-		 */
-
-		Plugin::Pollfd plugin_pollfds[plugin_nfds];
-
-		for (int pollfd_index = 0, plugin_pollfd_index = 0;
-		     pollfd_index < nfds;
-		     pollfd_index++) {
-
-			if (pollfds[pollfd_index].fdo &&
-			    pollfds[pollfd_index].fdo->plugin == plugin) {
-				plugin_pollfds[plugin_pollfd_index] = pollfds[pollfd_index];
-				plugin_pollfd_index++;
-			}
-		}
-
-		int plugin_nready = plugin->poll(plugin_pollfds, plugin_nfds);
-
-		if (plugin_nready < 0)
-			return plugin_nready;
-
-		nready += plugin_nready;
-	}
-
-	return nready;
+	_signal_ptr  = &signal;
+	_monitor_ptr = &monitor;
+	_fds_ptr     = &fds;
 }
 
 
@@ -97,6 +42,10 @@ extern "C" int
 __attribute__((weak))
 poll(struct pollfd pollfds[], nfds_t nfds, int timeout_ms)
 {
+	struct Missing_call_of_init_poll : Genode::Exception { };
+	if (!_fds_ptr || !_monitor_ptr || !_signal_ptr)
+		throw Missing_call_of_init_poll();
+
 	/*
 	 * Look up the file descriptor objects early-on to reduce repeated
 	 * overhead.
@@ -108,19 +57,27 @@ poll(struct pollfd pollfds[], nfds_t nfds, int timeout_ms)
 	 * the file descriptor being skipped.
 	 */
 
-	Plugin::Pollfd plugins_pollfds[nfds];
+	Pollfd internal_pollfds[nfds];
 
 	for (nfds_t pollfd_index = 0; pollfd_index < nfds; pollfd_index++) {
 		pollfds[pollfd_index].revents = 0;
-		plugins_pollfds[pollfd_index].fdo =
-			file_descriptor_allocator()->find_by_libc_fd(pollfds[pollfd_index].fd);
-		plugins_pollfds[pollfd_index].events = pollfds[pollfd_index].events;
-		plugins_pollfds[pollfd_index].revents = &pollfds[pollfd_index].revents;
+		internal_pollfds[pollfd_index].fdo = fds().with_space([&] (Fds::Space &space) {
+			return space.apply<File_descriptor>({ addr_t(pollfds[pollfd_index].fd) },
+				[&] (File_descriptor &fd) { return &fd; },
+				[&]                       { return nullptr; }); });
+		internal_pollfds[pollfd_index].events = pollfds[pollfd_index].events;
+		internal_pollfds[pollfd_index].revents = &pollfds[pollfd_index].revents;
 	}
+
+	auto poll_sockets_and_files = [&]
+	{
+		return socket_poll(internal_pollfds, nfds)
+		     + Fs::poll(*_monitor_ptr, internal_pollfds, nfds);
+	};
 
 	int nready = 0;
 	_monitor_ptr->monitor([&] {
-		nready = poll_plugins(plugins_pollfds, nfds);
+		nready = poll_sockets_and_files();
 		return Monitor::Function_result::COMPLETE;
 	});
 
@@ -136,11 +93,6 @@ poll(struct pollfd pollfds[], nfds_t nfds, int timeout_ms)
 	if (timeout_ms < 0)
 		timeout_ms = 0;
 
-	if (!_monitor_ptr || !_signal_ptr) {
-		struct Missing_call_of_init_poll : Exception { };
-		throw Missing_call_of_init_poll();
-	}
-
 	unsigned const orig_signal_count = _signal_ptr->count();
 
 	auto signal_occurred_during_poll = [&] ()
@@ -150,7 +102,7 @@ poll(struct pollfd pollfds[], nfds_t nfds, int timeout_ms)
 
 	auto monitor_fn = [&] ()
 	{
-		nready = poll_plugins(plugins_pollfds, nfds);
+		nready = poll_sockets_and_files();
 
 		if (nready != 0)
 			return Monitor::Function_result::COMPLETE;

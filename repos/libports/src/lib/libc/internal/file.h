@@ -19,71 +19,70 @@
 #include <base/log.h>
 
 /* libc-internal includes */
-#include <internal/fd_alloc.h>
-#include <internal/plugin_registry.h>
+#include <internal/fds.h>
 
 
 enum { INVALID_FD = -1 };
 
 
-static Libc::File_descriptor_allocator *_fd_alloc_ptr;
+static Libc::Fds *_fds_ptr;
 
 
-static Libc::File_descriptor_allocator *file_descriptor_allocator()
+static Libc::Fds &fds()
 {
-	if (!_fd_alloc_ptr) {
-		Genode::error("missing initialization of _fd_alloc_ptr");
+	if (!_fds_ptr) {
+		Genode::error("missing initialization of _fds_ptr");
 		for (;;);
 	}
-	return _fd_alloc_ptr;
+	return *_fds_ptr;
 }
 
 
-/**
- * Find plugin responsible for the specified libc file descriptor
- *
- * \param func_name  function name of the caller for printing an error message
- */
-static inline Libc::File_descriptor *libc_fd_to_fd(int libc_fd, const char *func_name)
-{
-	Libc::File_descriptor *fd = file_descriptor_allocator()->find_by_libc_fd(libc_fd);
-	if (!fd)
-		Genode::error("no plugin found for ", func_name, "(", libc_fd, ")");
-	return fd;
+namespace Libc {
+
+	template <typename FN>
+	static inline auto with_fd(int libc_fd, char const *caller_name, FN const &fn)
+	-> typename Trait::Functor<decltype(&FN::operator())>::Return_type
+	{
+		File_descriptor *fd_ptr = fds().with_space([&] (Fds::Space &space) {
+			return space.apply<File_descriptor>({ unsigned(libc_fd) },
+				[&] (File_descriptor &fd) { return &fd; },
+				[&]                       { return nullptr; }); });
+
+		if (!fd_ptr) {
+			if (caller_name)
+				error("unknown fd ", libc_fd, " passed to ", caller_name);
+			return Errno(EBADF);
+		}
+
+		return fn(*fd_ptr);
+	}
+
+
+	static inline int with_open_file(int libc_fd, char const *caller_name, auto const &fn)
+	{
+		return with_fd(libc_fd, caller_name, [&] (File_descriptor &fd) {
+			return fd.open_file_ptr ? fn(*fd.open_file_ptr) : int(Errno(EBADF)); });
+	}
+
+
+	static inline int with_open_dir(int libc_fd, char const *caller_name, auto const &fn)
+	{
+		return with_fd(libc_fd, caller_name, [&] (File_descriptor &fd) {
+			return fd.open_dir_ptr ? fn(*fd.open_dir_ptr) : int(Errno(EBADF)); });
+	}
+
+	static inline bool fd_in_use(int libc_fd)
+	{
+		return fds().with_alloc([&] (Fds::Bits &bits, Fds::Space &) {
+			return bits.alloc_addr(libc_fd).convert<bool>(
+				[&] (Ok) { bits.free(libc_fd); return false; },
+				[&] (Fds::Bits::Error) {       return true; }); });
+	}
+
+	bool read_ready_from_kernel(File_descriptor &);
+	void notify_read_ready_from_kernel(File_descriptor &);
+	bool write_ready_from_kernel(File_descriptor &);
 }
-
-
-/**
- * Generate body of wrapper function taking a file descriptor as first argument
- */
-#define FD_FUNC_WRAPPER_GENERIC(result_stm, result_err_val, func_name, libc_fd, ...)	\
-{																		\
-	File_descriptor *fd = libc_fd_to_fd(libc_fd, #func_name);			\
-	if (!fd || !fd->plugin) {											\
-		errno = EBADF;													\
-		result_stm result_err_val;											\
-	} else																\
-		result_stm fd->plugin->func_name(fd, ##__VA_ARGS__ ); 			\
-}
-
-#define FD_FUNC_WRAPPER(func_name, libc_fd, ...) \
-	FD_FUNC_WRAPPER_GENERIC(return, INVALID_FD, func_name, libc_fd, ##__VA_ARGS__ )
-
-/**
- * Generate body of wrapper function taking a path name as first argument
- */
-#define FNAME_FUNC_WRAPPER_GENERIC(result_stm, func_name, path, ...)						\
-{																							\
-	Plugin *plugin  = plugin_registry()->get_plugin_for_##func_name(path, ##__VA_ARGS__);	\
-	if (!plugin) {																			\
-		Genode::error("no plugin found for ", #func_name, "(\"", Genode::Cstring(path), "\")");\
-		errno = ENOSYS;																		\
-		result_stm -1;																		\
-	} else																					\
-		result_stm plugin->func_name(path, ##__VA_ARGS__);									\
-}
-
-#define FNAME_FUNC_WRAPPER(func_name, path, ...) \
-	FNAME_FUNC_WRAPPER_GENERIC(return, func_name, path, ##__VA_ARGS__ )
 
 #endif /* _LIBC__INTERNAL__FILE_H_ */

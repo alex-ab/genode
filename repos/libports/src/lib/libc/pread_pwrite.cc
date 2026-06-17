@@ -22,7 +22,7 @@
 /* libc-internal includes */
 #include <internal/init.h>
 #include <internal/types.h>
-#include <internal/fd_alloc.h>
+#include <internal/fds.h>
 
 
 struct Read
@@ -43,12 +43,12 @@ struct Write
 };
 
 
-static Libc::File_descriptor_allocator *_fd_alloc_ptr;
+static Libc::Fds *_fds_ptr;
 
 
-void Libc::init_pread_pwrite(Libc::File_descriptor_allocator &fd_alloc)
+void Libc::init_pread_pwrite(Libc::Fds &fds)
 {
-	_fd_alloc_ptr = &fd_alloc;
+	_fds_ptr = &fds;
 }
 
 
@@ -58,16 +58,20 @@ using namespace Libc;
 template <typename Rw_func, typename Buf_type>
 static ssize_t pread_pwrite_impl(Rw_func rw_func, int fd, Buf_type buf, ::size_t count, ::off_t offset)
 {
-	if (!_fd_alloc_ptr) {
+	if (!_fds_ptr) {
 		error("missing call of init_pread_pwrite");
 		return -1;
 	}
 
-	File_descriptor *fdesc = _fd_alloc_ptr->find_by_libc_fd(fd);
-	if (fdesc == 0)
+	File_descriptor *fd_ptr = _fds_ptr->with_space([&] (Fds::Space &space) {
+		return space.apply<File_descriptor>({ unsigned(fd) },
+			[&] (File_descriptor &fd) { return &fd; },
+			[&]                       { return nullptr; }); });
+
+	if (!fd_ptr)
 		return -1;
 
-	Mutex::Guard guard(fdesc->mutex);
+	Mutex::Guard guard(fd_ptr->mutex);
 
 	::off_t old_offset = lseek(fd, 0, SEEK_CUR);
 

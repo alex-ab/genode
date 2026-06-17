@@ -29,8 +29,6 @@
 #include <signal.h>
 
 /* libc-internal includes */
-#include <internal/plugin_registry.h>
-#include <internal/plugin.h>
 #include <internal/kernel.h>
 #include <internal/init.h>
 #include <internal/signal.h>

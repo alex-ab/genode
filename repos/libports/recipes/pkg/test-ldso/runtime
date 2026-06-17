@@ -35,7 +35,7 @@ runtime | ram: 3M | caps: 150 | binary: test-ldso
   : lib_1_local_3 0x12345676
   : lib_1_pod_1 0x8070604d
   : Libc::read:
-  : *Error: no plugin found for read(3)
+  : *Error: unknown fd 3 passed to read
   : Libc::abs(-10): 10
   :
   : Catch exceptions in program

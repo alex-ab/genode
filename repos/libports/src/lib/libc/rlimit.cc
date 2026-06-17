@@ -21,7 +21,7 @@
 #include <stdio.h>
 
 /* libc-internal includes */
-#include <internal/fd_alloc.h>
+#include <internal/fds.h>
 
 
 extern "C" int __attribute__((weak)) getrlimit(int resource, struct rlimit *rlim)

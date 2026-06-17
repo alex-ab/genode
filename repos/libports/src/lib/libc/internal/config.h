@@ -33,6 +33,7 @@ struct Libc::Config
 	pid_t  pid;
 	Path   rtc, rng, pipe, socket, nameserver;
 	size_t stack_size;
+	Align  mmap_align;
 
 	struct Connect_timeout { unsigned seconds; } conn_timeout;
 
@@ -45,6 +46,10 @@ struct Libc::Config
 		libc.with_optional_sub_node("stack", [&] (Node const &stack) {
 			stack_size = stack.attribute_value("size", Number_of_bytes(0)); });
 
+		Align mmap_align { AT_PAGE };
+		libc.with_optional_sub_node("mmap", [&] (Node const &mmap) {
+				mmap_align.log2 = mmap.attribute_value("align_log2", mmap_align.log2); });
+
 		return {
 			.update_mtime = libc.attribute_value("update_mtime", true),
 			.cloned       = libc.attribute_value("cloned", false),
@@ -56,6 +61,7 @@ struct Libc::Config
 			.nameserver   = libc.attribute_value("nameserver_file",
 			                                     default_nameserver),
 			.stack_size   = stack_size,
+			.mmap_align   = mmap_align,
 			.conn_timeout = { libc.attribute_value("connect_timeout_sec", 10u) },
 		};
 	}

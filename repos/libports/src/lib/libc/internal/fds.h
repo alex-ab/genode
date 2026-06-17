@@ -1,66 +1,98 @@
 /*
- * \brief  file descriptor allocator interface
- * \author Christian Prochaska 
- * \date   2010-01-21
+ * \brief  File descriptor definition and lifetime management
+ * \author Norman Feske
+ * \date   2026-06-23
  */
 
 /*
- * Copyright (C) 2010-2017 Genode Labs GmbH
+ * Copyright (C) 2026 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
  */
 
-#ifndef _LIBC_PLUGIN__FD_ALLOC_H_
-#define _LIBC_PLUGIN__FD_ALLOC_H_
+#ifndef _LIBC__INTERNAL__FDS_H_
+#define _LIBC__INTERNAL__FDS_H_
 
 /* Genode includes */
 #include <base/mutex.h>
-#include <base/log.h>
-#include <base/node.h>
-#include <os/path.h>
 #include <base/allocator.h>
 #include <base/id_space.h>
 #include <util/bit_allocator.h>
 #include <vfs/vfs_handle.h>
 
-/* libc includes */
-#include <stdlib.h>
-#include <string.h>
-
 /* libc-internal includes */
-#include <internal/plugin.h>
+#include <internal/kqueue.h>
+#include <internal/socket.h>
+#include <internal/fs.h>
 
 enum { MAX_NUM_FDS = 1024 };
 
 namespace Libc {
 
-	/**
-	 * Plugin-specific file-descriptor context
-	 */
-	struct Plugin_context { virtual ~Plugin_context() { } };
+	struct Open_file;
+	struct Open_dir;
+	struct Kqueue;
+	struct Socket;
+	struct Fs;
 
 	enum { ANY_FD = -1 };
 
-	struct File_descriptor;
+	class Fds;
 
-	class File_descriptor_allocator;
+	struct File_descriptor;
 }
+
+
+class Libc::Fds
+{
+	public:
+
+		using Bits  = Bit_allocator<MAX_NUM_FDS>;
+		using Space = Id_space<File_descriptor>;
+
+	private:
+
+		Mutex _mutex { };
+		Bits  _bits  { };
+		Space _space { };
+
+	public:
+
+		template <typename FN>
+		auto with_alloc(FN const &fn)
+		-> typename Trait::Functor<decltype(&FN::operator())>::Return_type
+		{
+			Mutex::Guard guard { _mutex };
+			return fn(_bits, _space);
+		}
+
+		template <typename FN>
+		auto with_space(FN const &fn)
+		-> typename Trait::Functor<decltype(&FN::operator())>::Return_type
+		{
+			Mutex::Guard guard { _mutex };
+			return fn(_space);
+		}
+};
 
 
 struct Libc::File_descriptor
 {
 	Genode::Mutex mutex { };
 
-	using Id_space = Genode::Id_space<File_descriptor>;
-	Id_space::Element _elem;
+	Fds::Space::Element _elem;
 
 	int const libc_fd = _elem.id().value;
 
-	char const *fd_path = nullptr;  /* for 'fchdir', 'fstat' */
+	Open_file * const open_file_ptr = nullptr;
+	Open_dir  * const open_dir_ptr  = nullptr;
+	Socket    * const socket_ptr    = nullptr;
+	Kqueue    * const kqueue_ptr    = nullptr;
 
-	Plugin         *plugin;
-	Plugin_context *context;
+	using Path = String<Vfs::MAX_PATH_LEN>;
+
+	Path path;
 
 	struct Aio_handle
 	{
@@ -101,7 +133,7 @@ struct Libc::File_descriptor
 			}
 	}
 
-	void _close_aio_handles()
+	void close_aio_handles()
 	{
 		for (auto & handle : _aio_handles)
 			if (handle.vfs_handle) {
@@ -173,94 +205,42 @@ struct Libc::File_descriptor
 		return false;
 	}
 
-	void apply_lio(struct aiocb const *iocb, auto const &fn)
+	static void apply_lio(auto /* const or non-const */ &fd,
+	                      struct aiocb const *iocb, auto const &fn)
 	{
 		for (unsigned i = 0; i < MAX_AIOCB_PER_FD; i++)
-			if (iocb == _aio_jobs[i].iocb)
-				fn(_aio_jobs[i]);
+			if (iocb == fd._aio_jobs[i].iocb)
+				fn(fd._aio_jobs[i]);
 	}
 
 	unsigned lio_list_completed = 0;
 	unsigned lio_list_queued    = 0;
 
-	int  flags    = 0;  /* for 'fcntl' */
-	bool cloexec  = 0;  /* for 'fcntl' */
-	bool modified = false;
+	int  flags   = 0;
+	bool cloexec = false;
+	bool closed  = false;
 
-	File_descriptor(Id_space &id_space, Plugin &plugin, Plugin_context &context,
-	                Id_space::Id id)
-	: _elem(*this, id_space, id), plugin(&plugin), context(&context) { }
+	File_descriptor(Fds::Space &space, int libc_fd, Open_file &of, Path const &path)
+	: _elem(*this, space, { addr_t(libc_fd) }), open_file_ptr(&of), path(path) { }
+
+	File_descriptor(Fds::Space &space, int libc_fd, Open_dir &od, Path const &path)
+	: _elem(*this, space, { addr_t(libc_fd) }), open_dir_ptr(&od), path(path) { }
+
+	File_descriptor(Fds::Space &space, int libc_fd, Socket &socket, Path const &path)
+	: _elem(*this, space, { addr_t(libc_fd) }), socket_ptr(&socket), path(path) { }
+
+	File_descriptor(Fds::Space &space, int libc_fd, Kqueue &kqueue)
+	: _elem(*this, space, { addr_t(libc_fd) }), kqueue_ptr(&kqueue) { }
 
 	~File_descriptor()
 	{
-		_close_aio_handles();
+		if (!closed) error("destructing unclosed file descriptor for ", path);
 	}
 
-	void path(char const *newpath);
+	/**
+	 * Return path to pseudo files used for ioctl operations of a given FD
+	 */
+	Path ioctl_dir() const;
 };
 
-
-class Libc::File_descriptor_allocator
-{
-	private:
-
-		Genode::Mutex _mutex;
-
-		Genode::Allocator &_alloc;
-
-		using Id_space = File_descriptor::Id_space;
-
-		Id_space _id_space;
-
-		using Id_bit_alloc = Genode::Bit_allocator<MAX_NUM_FDS>;
-
-		Id_bit_alloc _id_allocator;
-
-	public:
-
-		/**
-		 * Constructor
-		 */
-		File_descriptor_allocator(Genode::Allocator &_alloc);
-
-		/**
-		 * Allocate file descriptor
-		 */
-		File_descriptor *alloc(Plugin *plugin, Plugin_context *context, int libc_fd = -1);
-
-		/**
-		 * Release file descriptor
-		 */
-		void free(File_descriptor *fdo);
-
-		/**
-		 * Prevent the use of the specified file descriptor
-		 */
-		void preserve(int libc_fd);
-
-		File_descriptor *find_by_libc_fd(int libc_fd);
-
-		/**
-		 * Return any file descriptor with close-on-execve flag set
-		 *
-		 * \return pointer to file descriptor, or
-		 *         nullptr is no such file descriptor exists
-		 */
-		File_descriptor *any_cloexec_libc_fd();
-
-		/**
-		 * Update seek state of file descriptor with append flag set.
-		 */
-		void update_append_libc_fds();
-
-		/**
-		 * Return file-descriptor ID of any open file, or -1 if no file is
-		 * open
-		 */
-		int any_open_fd();
-
-		void generate_info(Genode::Generator &);
-};
-
-
-#endif /* _LIBC_PLUGIN__FD_ALLOC_H_ */
+#endif /* _LIBC__INTERNAL__FDS_H_ */

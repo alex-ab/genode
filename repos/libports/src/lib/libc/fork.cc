@@ -28,9 +28,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <fcntl.h>
 
 /* libc-internal includes */
-#include <internal/fd_alloc.h>
+#include <internal/fds.h>
 #include <internal/init.h>
 #include <internal/clone_session.h>
 #include <internal/monitor.h>
@@ -60,19 +61,20 @@ namespace { using Fn = Monitor::Function_result; }
 
 static pid_t fork_result;
 
-static Genode::Env               *_env_ptr;
-static File_descriptor_allocator *_fd_alloc_ptr;
-static Allocator                 *_alloc_ptr;
-static Monitor                   *_monitor_ptr;
-static Libc::Signal              *_signal_ptr;
-static Heap                      *_malloc_heap_ptr;
-static void                      *_user_stack_base_ptr;
-static size_t                     _user_stack_size;
-static int                        _pid;
-static int                        _pid_cnt;
-static Config_accessor     const *_config_accessor_ptr;
-static Binary_name         const *_binary_name_ptr;
-static Forked_children           *_forked_children_ptr;
+static Genode::Env           *_env_ptr;
+static Fs                    *_fs_ptr;
+static Fds                   *_fds_ptr;
+static Allocator             *_alloc_ptr;
+static Monitor               *_monitor_ptr;
+static Libc::Signal          *_signal_ptr;
+static Heap                  *_malloc_heap_ptr;
+static void                  *_user_stack_base_ptr;
+static size_t                 _user_stack_size;
+static int                    _pid;
+static int                    _pid_cnt;
+static Config_accessor const *_config_accessor_ptr;
+static Binary_name     const *_binary_name_ptr;
+static Forked_children       *_forked_children_ptr;
 
 
 static Libc::Monitor & monitor()
@@ -92,10 +94,10 @@ struct Libc::Child_config
 
 	pid_t const _pid;
 
-	void _generate(Generator &, Node const &config, File_descriptor_allocator &);
+	void _generate(Generator &, Node const &config, Fs &, Fds &);
 
 	Child_config(Genode::Env &env, Config_accessor const &config_accessor,
-	             File_descriptor_allocator &fd_alloc, pid_t pid)
+	             Fs &fs, Fds &fds, pid_t pid)
 	:
 		_env(env), _pid(pid)
 	{
@@ -108,7 +110,7 @@ struct Libc::Child_config
 				Generator::Result const result =
 					Generator::generate({ _ds->local_addr<char>(), buffer_size, },
 					                    "config", [&] (Generator &g) {
-						_generate(g, config, fd_alloc); });
+						_generate(g, config, fs, fds); });
 
 				if (result.ok())
 					break;
@@ -124,8 +126,41 @@ struct Libc::Child_config
 };
 
 
-void Libc::Child_config::_generate(Generator &g, Node const &config,
-                                   File_descriptor_allocator &fd_alloc)
+static void generate_open_fds(Genode::Generator &g, Libc::Fs &fs, Libc::Fds &fds)
+{
+	using namespace Libc;
+
+	fds.with_space([&] (Fds::Space &space) {
+
+		space.for_each<File_descriptor>([&] (File_descriptor &fd) {
+			g.node("fd", [&] () {
+
+				g.attribute("id", fd.libc_fd);
+
+				if (fd.path.length() > 1)
+					g.attribute("path", fd.path);
+
+				if (fd.cloexec)
+					g.attribute("cloexec", "yes");
+
+				if (((fd.flags & O_ACCMODE) != O_WRONLY))
+					g.attribute("readable", "yes");
+
+				if (((fd.flags & O_ACCMODE) != O_RDONLY))
+					g.attribute("writeable", "yes");
+
+				if (fd.open_file_ptr) {
+					::off_t const seek = fs.lseek(fd, 0, SEEK_CUR);
+					if (seek)
+						g.attribute("seek", seek);
+				}
+			});
+		});
+	});
+}
+
+
+void Libc::Child_config::_generate(Generator &g, Node const &config, Fs &fs, Fds &fds)
 {
 	using Addr = String<30>;
 
@@ -159,7 +194,7 @@ void Libc::Child_config::_generate(Generator &g, Node const &config,
 				g.attribute("cwd", Path(Cstring(buf)));
 		}
 
-		fd_alloc.generate_info(g);
+		generate_open_fds(g, fs, fds);
 
 		auto gen_range_attr = [&] (auto at, auto size)
 		{
@@ -545,7 +580,8 @@ struct Libc::Forked_child : Child_policy, Child_ready
 	Child _child;
 
 	Forked_child(Genode::Env               &env,
-	             File_descriptor_allocator &fd_alloc,
+	             Fs                        &fs,
+	             Fds                       &fds,
 	             Entrypoint                &fork_ep,
 	             Allocator                 &alloc,
 	             Binary_name         const &binary_name,
@@ -557,7 +593,7 @@ struct Libc::Forked_child : Child_policy, Child_ready
 	:
 		_env(env), _binary_name(binary_name),
 		_signal(signal), _pid(pid),
-		_child_config(env, config_accessor, fd_alloc, pid),
+		_child_config(env, config_accessor, fs, fds, pid),
 		_parent_services(parent_services),
 		_local_rom_services(local_rom_services),
 		_local_clone_service(env, fork_ep, *this),
@@ -592,7 +628,7 @@ static Forked_child * fork_kernel_routine()
 	static Local_rom_services local_rom_services(env, fork_ep, alloc);
 
 	Registered<Forked_child> *child = new (alloc)
-		Registered<Forked_child>(*_forked_children_ptr, env, *_fd_alloc_ptr,
+		Registered<Forked_child>(*_forked_children_ptr, env, *_fs_ptr, *_fds_ptr,
 		                         fork_ep, alloc, *_binary_name_ptr,
 		                         signal, child_pid, *_config_accessor_ptr,
 		                         parent_services, local_rom_services);
@@ -704,6 +740,16 @@ struct Libc::Wait4_functor
 };
 
 
+static void update_append_libc_fds(Fs &fs, Fds &fds)
+{
+	using namespace Libc;
+	fds.with_space([&] (Fds::Space &space) {
+		space.for_each<File_descriptor>([&] (File_descriptor &fd) {
+			if (fd.open_file_ptr && (fd.flags & O_APPEND))
+				fs.lseek(fd, 0, SEEK_END); }); });
+}
+
+
 extern "C" pid_t __sys_wait4(pid_t, int *, int, rusage *) __attribute__((weak));
 extern "C" pid_t __sys_wait4(pid_t pid, int *status, int options, rusage *rusage)
 {
@@ -732,8 +778,8 @@ extern "C" pid_t __sys_wait4(pid_t pid, int *status, int options, rusage *rusage
 		return Fn::INCOMPLETE;
 	});
 
-	if (_fd_alloc_ptr)
-		_fd_alloc_ptr->update_append_libc_fds();
+	if (_fds_ptr && _fs_ptr)
+		update_append_libc_fds(*_fs_ptr, *_fds_ptr);
 	else
 		error("__sys_wait4: missing call of 'init_fork'");
 
@@ -752,21 +798,22 @@ extern "C" pid_t __sys_wait4(pid_t pid, int *status, int options, rusage *rusage
 extern "C" pid_t wait4(pid_t, int *, int, rusage *) __attribute__((weak, alias("__sys_wait4")));
 
 
-void Libc::init_fork(Genode::Env &env, File_descriptor_allocator &fd_alloc,
+void Libc::init_fork(Genode::Env &env, Fs &fs, Fds &fds,
                      Config_accessor const &config_accessor,
                      Allocator &alloc, Heap &malloc_heap, pid_t pid,
                      Monitor &monitor, Signal &signal,
                      Binary_name const &binary_name)
 {
-	_env_ptr                      = &env;
-	_fd_alloc_ptr                 = &fd_alloc;
-	_alloc_ptr                    = &alloc;
-	_monitor_ptr                  = &monitor;
-	_signal_ptr                   = &signal;
-	_malloc_heap_ptr              = &malloc_heap;
-	_config_accessor_ptr          = &config_accessor;
-	_pid                          =  pid;
-	_binary_name_ptr              = &binary_name;
+	_env_ptr             = &env;
+	_fs_ptr              = &fs;
+	_fds_ptr             = &fds;
+	_alloc_ptr           = &alloc;
+	_monitor_ptr         = &monitor;
+	_signal_ptr          = &signal;
+	_malloc_heap_ptr     = &malloc_heap;
+	_config_accessor_ptr = &config_accessor;
+	_pid                 =  pid;
+	_binary_name_ptr     = &binary_name;
 
 	static Forked_children forked_children { };
 	_forked_children_ptr = &forked_children;

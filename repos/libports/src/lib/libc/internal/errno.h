@@ -23,6 +23,8 @@ struct Libc::Errno
 {
     explicit Errno(int error) { errno = error; }
 
+    explicit Errno() { } /* don't overwrite 'errno' for successful 'Attempt' */
+
     operator int() const { return -1; }
 };
 

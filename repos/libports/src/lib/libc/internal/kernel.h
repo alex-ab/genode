@@ -26,7 +26,7 @@
 #include <internal/timer.h>
 #include <internal/init.h>
 #include <internal/env.h>
-#include <internal/vfs_plugin.h>
+#include <internal/fs.h>
 #include <internal/suspend.h>
 #include <internal/resume.h>
 #include <internal/current_time.h>
@@ -39,6 +39,7 @@
 #include <internal/atexit.h>
 #include <internal/rtc.h>
 #include <internal/config.h>
+#include <internal/fds.h>
 
 namespace Libc {
 	class Kernel;
@@ -131,7 +132,7 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 		 */
 		Binary_name _binary_name { "binary" };
 
-		File_descriptor_allocator _fd_alloc { _heap };
+		Fds _fds { };
 
 		/**
 		 * Allocator for application-owned data
@@ -198,7 +199,18 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 
 		Env_implementation _libc_env { _env, *_vfs_env, _config_rom };
 
-		Vfs_plugin _vfs { _fd_alloc, _heap, _config, *_vfs_env, *this, *this };
+		Directory _root_dir { *_vfs_env };
+
+		Fs _fs {
+			._monitor          = *this,
+			._local_rm         = _env.rm(),
+			._response_handler = *this,
+			._config           = _config,
+			._now              = *this,
+			._kernel_heap      = _heap,
+			._vfs              = _vfs_env->root_dir(),
+			._root_dir         = _root_dir
+		};
 
 		Constructible<Rtc> _rtc { };
 
@@ -301,7 +313,7 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 
 		Constructible<Clone_connection> _clone_connection { };
 
-		Absolute_path _cwd { "/" };
+		Cwd_path _cwd { "/" };
 
 
 		/**
@@ -650,7 +662,7 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 		/**
 		 * Cwd interface
 		 */
-		Absolute_path &cwd() override { return _cwd; }
+		Cwd_path &cwd() override { return _cwd; }
 
 
 		/*********************************
@@ -665,7 +677,7 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 		timespec current_real_time() override
 		{
 			if (!_rtc.constructed())
-				_rtc.construct(_vfs, _heap, _config.rtc, *this);
+				_rtc.construct(_root_dir, _heap, _config.rtc, *this);
 
 			return _rtc->read(current_time());
 		}

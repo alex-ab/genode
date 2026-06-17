@@ -16,7 +16,6 @@
 #include <base/component.h>
 
 /* libc-internal includes */
-#include <internal/plugin_registry.h>
 #include <internal/kernel.h>
 
 
@@ -36,7 +35,6 @@ void Component::construct(Genode::Env &env)
 	static Genode::Heap heap { env.ram(), env.rm() };
 
 	/* pass Genode::Env to libc subsystems that depend on it */
-	Libc::init_fd_alloc(heap);
 	Libc::init_mem_alloc(env);
 	Libc::init_dl(env);
 	Libc::sysctl_init(env);
@@ -58,12 +56,6 @@ void Component::construct(Genode::Env &env)
 
 	/* finish static construction of component and libraries */
 	Libc::with_libc([&] () { env.exec_static_constructors(); });
-
-	/* initialize plugins that require Genode::Env */
-	auto init_plugin = [&] (Libc::Plugin &plugin) {
-		plugin.init(env);
-	};
-	Libc::plugin_registry()->for_each_plugin(init_plugin);
 
 	/* construct libc component on kernel stack */
 	Libc::Component::construct(kernel.libc_env());

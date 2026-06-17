@@ -25,7 +25,7 @@
 #include <libc/allocator.h>
 
 /* libc-internal includes */
-#include <internal/fd_alloc.h>
+#include <internal/fds.h>
 #include <internal/call_func.h>
 #include <internal/init.h>
 #include <internal/errno.h>
@@ -303,21 +303,21 @@ struct Libc::String_array : Noncopyable
 /* pointer to environment, provided by libc */
 extern char **environ;
 
-static Env                             *_env_ptr;
-static Allocator                       *_alloc_ptr;
-static void                            *_user_stack_ptr;
-static main_fn_ptr                      _main_ptr;
-static Libc::String_array              *_env_vars_ptr;
-static Libc::String_array              *_args_ptr;
-static Libc::Reset_atexit              *_reset_atexit_ptr;
-static Libc::Reset_malloc_heap         *_reset_malloc_heap_ptr;
-static Libc::Binary_name               *_binary_name_ptr;
-static Libc::File_descriptor_allocator *_fd_alloc_ptr;
+static Env                     *_env_ptr;
+static Allocator               *_alloc_ptr;
+static void                    *_user_stack_ptr;
+static main_fn_ptr              _main_ptr;
+static Libc::String_array      *_env_vars_ptr;
+static Libc::String_array      *_args_ptr;
+static Libc::Reset_atexit      *_reset_atexit_ptr;
+static Libc::Reset_malloc_heap *_reset_malloc_heap_ptr;
+static Libc::Binary_name       *_binary_name_ptr;
+static Libc::Fds               *_fds_ptr;
 
 
 void Libc::init_execve(Genode::Env &env, Genode::Allocator &alloc, void *user_stack_ptr,
                        Reset_atexit &reset_atexit, Reset_malloc_heap &reset_malloc_heap,
-                       Binary_name &binary_name, File_descriptor_allocator &fd_alloc)
+                       Binary_name &binary_name, Fds &fds)
 {
 	_env_ptr               = &env;
 	_alloc_ptr             = &alloc;
@@ -325,7 +325,7 @@ void Libc::init_execve(Genode::Env &env, Genode::Allocator &alloc, void *user_st
 	_reset_atexit_ptr      = &reset_atexit;
 	_reset_malloc_heap_ptr = &reset_malloc_heap;
 	_binary_name_ptr       = &binary_name;
-	_fd_alloc_ptr          = &fd_alloc;
+	_fds_ptr               = &fds;
 
 	Dynamic_linker::keep(env, "libc.lib.so");
 	Dynamic_linker::keep(env, "libm.lib.so");
@@ -347,13 +347,24 @@ extern "C" int execve(char const *, char *const[], char *const[]) __attribute__(
 extern "C" int execve(char const *filename,
                       char *const argv[], char *const envp[])
 {
-	if (!_env_ptr || !_alloc_ptr) {
+	if (!_env_ptr || !_alloc_ptr || !_fds_ptr) {
 		error("missing call of 'init_execve'");
 		return Libc::Errno(EACCES);
 	}
 
+	auto any_cloexec_fd = [&] ()
+	{
+		return _fds_ptr->with_space([&] (Libc::Fds::Space &space) {
+		 Libc::File_descriptor *result_ptr = nullptr;
+			space.for_each<Libc::File_descriptor>([&] (Libc::File_descriptor &fd) {
+				if (!result_ptr && fd.cloexec)
+					result_ptr = &fd; });
+			return result_ptr;
+		});
+	};
+
 	/* close all file descriptors with the close-on-execve flag enabled */
-	while (Libc::File_descriptor *fd = _fd_alloc_ptr->any_cloexec_libc_fd())
+	while (Libc::File_descriptor *fd = any_cloexec_fd())
 		close(fd->libc_fd);
 
 	/* capture environment variables and args to libc-internal heap */

@@ -17,6 +17,12 @@
 #include <internal/kernel.h>
 #include <internal/file_operations.h>
 
+/* libc includes */
+extern "C" {
+#include <fcntl.h>
+}
+
+
 Libc::Kernel * Libc::Kernel::_kernel_ptr;
 
 
@@ -120,7 +126,7 @@ void Libc::Kernel::_init_file_descriptors()
 				 */
 				if (!symlink_resolved_in_this_iteration) {
 					struct stat stat_buf;
-					int res = _vfs.stat_from_kernel(next_iteration_working_path.base(), &stat_buf);
+					int res = _fs.stat_from_kernel(next_iteration_working_path.base(), stat_buf);
 					if (res == -1) {
 						return Symlink_resolve_error();
 					}
@@ -135,7 +141,7 @@ void Libc::Kernel::_init_file_descriptors()
 
 						if (symlink_target[0] == '/')
 							/* absolute target */
-							next_iteration_working_path.import(symlink_target, _cwd.base());
+							next_iteration_working_path.import(symlink_target, _cwd.string());
 						else {
 							/* relative target */
 							next_iteration_working_path.strip_last_element();
@@ -168,8 +174,8 @@ void Libc::Kernel::_init_file_descriptors()
 
 	auto resolve_absolute_path = [&] (Path const &path, Absolute_path &abs_path) -> Absolute_path_resolve_result
 	{
-		Absolute_path abs_dir(path.string(), _cwd.base());   abs_dir.strip_last_element();
-		Absolute_path dir_entry(path.string(), _cwd.base()); dir_entry.keep_only_last_element();
+		Absolute_path abs_dir(path.string(),   _cwd.string()); abs_dir.strip_last_element();
+		Absolute_path dir_entry(path.string(), _cwd.string()); dir_entry.keep_only_last_element();
 
 		try {
 			if (resolve_symlinks(abs_dir, abs_path).failed())
@@ -196,55 +202,50 @@ void Libc::Kernel::_init_file_descriptors()
 		}
 
 		struct stat out_stat { };
-		if (_vfs.stat_from_kernel(path.string(), &out_stat) != 0) {
+		if (_fs.stat_from_kernel(path.string(), out_stat) != 0) {
 			warning("failed to call 'stat' on ", path);
 			diag_guard.show = true;
 			return;
 		}
 
-		File_descriptor *fd =
-			_vfs.open_from_kernel(path.string(), flags, libc_fd);
+		_fds.with_alloc([&] (Fds::Bits &bits, Fds::Space &space) {
+			bits.alloc_addr(libc_fd).with_result(
+				[&] (Ok) {
+					_fs.open_file_from_kernel(path.string(), flags).with_result(
+						[&] (Open_file &of) {
+							File_descriptor &new_fd = *new (_heap)
+								File_descriptor(space, libc_fd, of, path.string());
 
-		if (!fd)
-			return;
+							new_fd.flags   = flags;
+							new_fd.cloexec = node.attribute_value("cloexec", false);
 
-		if (fd->libc_fd != libc_fd) {
-			error("could not allocate fd ",libc_fd," for ",path,", "
-			      "got fd ",fd->libc_fd);
-			_vfs.close_from_kernel(fd);
-			diag_guard.show = true;
-			return;
-		}
-
-		fd->cloexec = node.attribute_value("cloexec", false);
-
-		/*
-		 * We need to manually register the path. Normally this is done
-		 * by '_open'. But we call the local 'open' function directly
-		 * because we want to explicitly specify the libc fd ID.
-		 */
-		if (fd->fd_path)
-			warning("may leak former FD path memory");
-
-		{
-			char *dst = (char *)_heap.alloc(path.max_len());
-			copy_cstring(dst, path.string(), path.max_len());
-			fd->fd_path = dst;
-		}
-
-		::off_t const seek = node.attribute_value("seek", 0ULL);
-		if (seek)
-			_vfs.lseek_from_kernel(fd, seek);
+							::off_t const seek = node.attribute_value("seek", 0ULL);
+							if (seek)
+								_fs.lseek_from_kernel(new_fd, seek);
+						},
+						[&] (Errno) {
+							error("could not open fd ", libc_fd, " for ", path);
+						});
+				},
+				[&] (Fds::Bits::Error) {
+					error("could not allocate fd ", libc_fd, " for ", path);
+					diag_guard.show = true;
+				});
+		});
 	};
 
-	if (_vfs.root_dir_has_dirents()) {
+	bool const root_dir_has_dirents = _vfs_env->root_dir().num_dirent("/") > 0;
+	if (root_dir_has_dirents) {
 
 		_config_rom.node().with_optional_sub_node("libc", [&] (Node const &node) {
 
 			using Path = String<Vfs::MAX_PATH_LEN>;
 
-			if (node.has_attribute("cwd"))
-				_cwd.import(node.attribute_value("cwd", Path()).string(), _cwd.base());
+			if (node.has_attribute("cwd")) {
+				Absolute_path abs_path { };
+				abs_path.import(node.attribute_value("cwd", Path()).string(), _cwd.string());
+				_cwd = { abs_path.string() };
+			}
 
 			init_fd(node, "stdin",  0, O_RDONLY);
 			init_fd(node, "stdout", 1, O_WRONLY);
@@ -270,8 +271,9 @@ void Libc::Kernel::_init_file_descriptors()
 		});
 
 		/* prevent use of IDs of stdin, stdout, and stderr for other files */
-		for (unsigned fd = 0; fd <= 2; fd++)
-			_fd_alloc.preserve(fd);
+		_fds.with_alloc([&] (Fds::Bits &bits, Fds::Space &) {
+			for (unsigned fd = 0; fd <= 2; fd++)
+				(void)bits.alloc_addr(fd); });
 	}
 
 	/**
@@ -279,37 +281,32 @@ void Libc::Kernel::_init_file_descriptors()
 	 *
 	 * If no matching ioctl pseudo file exists, 'fn' is not called.
 	 */
-	auto with_ioctl_path = [&] (File_descriptor const *fd, char const *file, auto fn)
+	auto with_ioctl_path = [&] (int libc_fd, char const *file, auto fn)
 	{
-		if (!fd || !fd->fd_path)
-			return;
+		Absolute_path path { };
+		_fds.with_space([&] (Fds::Space &space) {
+			return space.apply<File_descriptor>({ unsigned(libc_fd) },
+				[&] (File_descriptor &fd) {
+					path = { fd.ioctl_dir().string() };;
+					path.append_element(file);
+				},
+				[&] { }); });
 
-		Absolute_path const ioctl_dir = Vfs_plugin::ioctl_dir(*fd);
-		Absolute_path path = ioctl_dir;
-		path.append_element(file);
-
-		_vfs.with_root_dir([&] (Directory &root_dir) {
-			if (root_dir.file_exists(path.string()))
-				fn(root_dir, path.string()); });
+		if (_root_dir.file_exists(path.string()))
+			fn(_root_dir, path.string());
 	};
 
 	/*
 	 * Watch stdout's 'info' pseudo file to detect terminal-resize events
 	 */
-	File_descriptor const * const stdout_fd =
-		_fd_alloc.find_by_libc_fd(STDOUT_FILENO);
-
-	with_ioctl_path(stdout_fd, "info", [&] (Directory &root_dir, char const *path) {
+	with_ioctl_path(STDOUT_FILENO, "info", [&] (Directory &root_dir, char const *path) {
 		_terminal_resize_handler.construct(root_dir, path, *this,
 		                                   &Kernel::_handle_terminal_resize); });
 
 	/*
 	 * Watch stdin's 'interrupts' pseudo file to detect control-c events
 	 */
-	File_descriptor const * const stdin_fd =
-		_fd_alloc.find_by_libc_fd(STDIN_FILENO);
-
-	with_ioctl_path(stdin_fd, "interrupts", [&] (Directory &root_dir, char const *path) {
+	with_ioctl_path(STDIN_FILENO, "interrupts", [&] (Directory &root_dir, char const *path) {
 		_user_interrupt_handler.construct(root_dir, path,
 		                                  *this, &Kernel::_handle_user_interrupt); });
 }
@@ -459,16 +456,21 @@ void Libc::execute_in_application_context(Application_code &app_code)
 }
 
 
-static Libc::File_descriptor_allocator *_atexit_fd_alloc_ptr;
+static Libc::Fds *_atexit_fds_ptr;
 
 
 static void close_file_descriptors_on_exit()
 {
+	using namespace Libc;
 	for (;;) {
-		int const fd = _atexit_fd_alloc_ptr->any_open_fd();
-		if (fd == -1)
+		int libc_fd = -1;
+		_atexit_fds_ptr->with_space([&] (Fds::Space &space) {
+			space.apply_any<File_descriptor>([&] (File_descriptor &fd) {
+				libc_fd = fd.libc_fd; }); });
+		if (libc_fd == -1)
 			break;
-		close(fd);
+
+		close(libc_fd);
 	}
 }
 
@@ -488,7 +490,7 @@ Libc::Kernel::Kernel(Genode::Env &env, Genode::Allocator &heap)
 
 	init_atexit(_atexit);
 
-	_atexit_fd_alloc_ptr = &_fd_alloc;
+	_atexit_fds_ptr = &_fds;
 	atexit(close_file_descriptors_on_exit);
 
 	init_semaphore_support(_timer_accessor);
@@ -507,19 +509,17 @@ Libc::Kernel::Kernel(Genode::Env &env, Genode::Allocator &heap)
 		init_malloc(*_malloc_heap);
 	}
 
-	init_fork(_env, _fd_alloc, _libc_env, _heap, *_malloc_heap, _config.pid, *this,
-	          _signal, _binary_name);
-	init_execve(_env, _heap, _user_stack, *this, *this, _binary_name, _fd_alloc);
-	init_plugin(*this);
+	init_fork(_env, _fs, _fds, _libc_env, _heap, *_malloc_heap, _config.pid,
+	          *this, _signal, _binary_name);
+	init_execve(_env, _heap, _user_stack, *this, *this, _binary_name, _fds);
 	init_sleep(*this);
-	init_vfs_plugin(*this, _env.rm());
-	init_file_operations(*this, _fd_alloc, _libc_env);
-	init_pread_pwrite(_fd_alloc);
+	init_file_operations(*this, _fds, _fs, _config);
+	init_pread_pwrite(_fds);
 	init_time(*this, *this);
 	init_alarm(_timer_accessor, _signal);
-	init_poll(_signal, *this, _fd_alloc);
-	init_socket_fs(*this, _fd_alloc, _config);
-	init_socket_operations(_fd_alloc, _config);
+	init_poll(_signal, *this, _fds);
+	init_socket(_heap, *this, _fds, _config);
+	init_socket_operations(_heap, _fds, _config);
 
 	_with_libc_sub_config("passwd", [&] (Node const &passwd_config) {
 		init_passwd(passwd_config); });
@@ -528,7 +528,7 @@ Libc::Kernel::Kernel(Genode::Env &env, Genode::Allocator &heap)
 		init_group(group_config); });
 
 	init_signal(_signal);
-	init_kqueue(_heap, *this, _fd_alloc);
+	init_kqueue(_heap, *this, _fds);
 	init_random(_config);
 
 	_init_file_descriptors();

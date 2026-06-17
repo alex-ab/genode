@@ -21,11 +21,9 @@
 #include <limits.h>   /* for 'PATH_MAX' */
 
 /* libc-internal includes */
-#include <internal/plugin.h>
 #include <internal/types.h>
 
 namespace Libc {
-
 	using Absolute_path = Genode::Path<PATH_MAX>;
 
 	struct Symlink_resolve_error { };

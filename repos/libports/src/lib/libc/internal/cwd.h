@@ -14,9 +14,11 @@
 #ifndef _LIBC__INTERNAL__CWD_H_
 #define _LIBC__INTERNAL__CWD_H_
 
+/* Genode includes */
+#include <vfs/types.h>
+
 /* libc-internal includes */
 #include <internal/types.h>
-#include <internal/plugin.h>
 
 namespace Libc {
 
@@ -28,7 +30,7 @@ namespace Libc {
 		/**
 		 * Provide access to current working directory (modifiable)
 		 */
-		virtual Absolute_path &cwd() = 0;
+		virtual Cwd_path &cwd() = 0;
 	};
 }
 

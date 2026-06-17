@@ -17,6 +17,7 @@
 /* Genode includes */
 #include <base/log.h>
 #include <util/string.h>
+#include <vfs/types.h>
 
 namespace Libc {
 
@@ -24,6 +25,8 @@ namespace Libc {
 
 	using uint64_t = Genode::uint64_t;
 	using Binary_name = String<64>;
+	using Socket_path = String<Vfs::MAX_PATH_LEN>;
+	using Cwd_path    = String<Vfs::MAX_PATH_LEN>;
 }
 
 #endif /* _LIBC__INTERNAL__TYPES_H_ */
