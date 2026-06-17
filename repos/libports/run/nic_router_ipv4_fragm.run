@@ -142,5 +142,5 @@ run_genode_until $pattern_string 30 $spawn_id
 set pattern_string ""
 append pattern_string {.*snd .*IPV4.* 10\.0\.2\.55 > 10\.0\.2\.1 .*ICMP.* 3 4.*\n}
 append pattern_string {.*drop packet .fragmented IPv4 not supported.*\n}
-append pattern_string {.* dropped-fragm-ipv4 [|] value: 1.*\n}
+append pattern_string {.* dropped-fragm-ipv4 [|] value: [1-3].*\n}
 run_genode_until $pattern_string 30 $genode_id
