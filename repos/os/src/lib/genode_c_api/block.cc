@@ -145,13 +145,13 @@ class Block_root : public Root_component<genode_block_session>
 
 		using Buffered_node = Genode::Buffered_node;
 
-		Env                          &_env;
-		Signal_context_capability     _sigh_cap;
-		Constructible<Buffered_node>  _config   { };
-		Expanding_reporter            _reporter { _env, "block_devices" };
-		Constructible<Device_info>    _devices[MAX_BLOCK_DEVICES];
-		bool                          _announced     { false };
-		bool                          _report_needed { false };
+		Env                              &_env;
+		Signal_context_capability          _sigh_cap;
+		Constructible<Buffered_node>       _config   { };
+		Constructible<Expanding_reporter>  _reporter { };
+		Constructible<Device_info>         _devices[MAX_BLOCK_DEVICES];
+		bool                               _announced     { false };
+		bool                               _report_needed { false };
 
 		Block_root(const Block_root&);
 		Block_root & operator=(const Block_root&);
@@ -383,7 +383,7 @@ void Block_root::_report()
 	if (!_report_needed)
 		return;
 
-	_reporter.generate([&] (Generator &g) {
+	_reporter->generate([&] (Generator &g) {
 		_for_each_device_info([&] (Device_info &di) {
 			g.node("device", [&] {
 				g.attribute("label",       di.name);
@@ -490,6 +490,9 @@ void Block_root::apply_config(Node const &config)
 {
 	_config.construct(*md_alloc(), config);
 	_report_needed = config.attribute_value("report", false);
+
+	if (_report_needed && !_reporter.constructed())
+		_reporter.construct(_env, "block_devices");
 }
 
 
