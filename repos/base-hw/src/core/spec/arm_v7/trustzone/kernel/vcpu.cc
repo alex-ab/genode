@@ -70,7 +70,16 @@ bool secure_irq(unsigned const i);
 extern "C" void monitor_mode_enter_normal_world(Genode::Vcpu_state&, void*);
 
 
-void Vcpu::proceed()
+void Vcpu::save(Genode::Cpu_state&) { }
+
+
+void Vcpu::load(Genode::Cpu_state&)
+{
+	load();
+}
+
+
+void Vcpu::load()
 {
 	_state.with_state([&] (auto &state) {
 		unsigned const irq = state.irq_injection;

@@ -100,7 +100,7 @@ monitor_mode_exception_vector:
 	mov   r0, sp                  /* set vm context as first arg     */
 	subs  pc, lr, #0              /* jump back into kernel           */
 
-	_kernel_entry: .long _ZN6Kernel24main_handle_kernel_entryEPN6Genode9Cpu_stateE
+	_kernel_entry: .long _ZN6Kernel24main_handle_kernel_entryERN6Genode9Cpu_stateE
 
 
 /* jump to this point to switch to TrustZone's normal world */
