@@ -60,6 +60,7 @@ static inline struct page *virt_to_page(void const *v) { return lx_emul_virt_to_
 
 #define pfn_to_page(pfn) ( (struct page *)(__va(pfn << PAGE_SHIFT)) )
 #define page_to_pfn(page) ( page_to_phys(page) >> PAGE_SHIFT )
+#define phys_to_page(p) virt_to_page((void const*)lx_emul_mem_virt_addr((void*)(p)))
 
 #define PCI_IO_START 0
 
