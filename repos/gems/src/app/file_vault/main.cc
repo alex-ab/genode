@@ -195,7 +195,7 @@ struct Main : Sandbox::Local_service_base::Wakeup, Sandbox::State_handler
 	Signal_handler<Main> state_handler { env.ep(), *this, &Main::handle_state };
 	Extend::State extend_state { Extend::INACTIVE };
 	Rekey::State rekey_state { Rekey::INACTIVE };
-	Timer::One_shot_io_timeout<Main> unlock_retry_delay { timer, *this, &Main::handle_unlock_retry_delay };
+	Timer::One_shot_timeout<Main> unlock_retry_delay { timer, *this, &Main::handle_unlock_retry_delay };
 	File_path image_name { "tresor.img" };
 	Attached_rom_dataspace ui_config_rom { env, "ui_config" };
 	Signal_handler<Main> ui_config_handler { env.ep(), *this, &Main::handle_ui_config_rom };
