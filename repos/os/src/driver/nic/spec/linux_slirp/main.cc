@@ -69,6 +69,11 @@ class Uplink_client : public Uplink_client_base,
 			if (!buf || !len)
 				return 0;
 
+			/* handle tx acks */
+			while (_conn->tx()->ack_avail()) {
+				_conn->tx()->release_packet(_conn->tx()->get_acked_packet());
+			}
+
 			size_t const max_pkt_size {
 				Nic::Packet_allocator::OFFSET_PACKET_SIZE };
 
@@ -90,6 +95,10 @@ class Uplink_client : public Uplink_client_base,
 		/************************
 		 ** Uplink_client_base **
 		 ************************/
+
+		/* prevent handling tx acks in signal handler */
+		bool _custom_conn_tx_ack_avail_handler() override { return true; }
+		void _custom_conn_tx_handle_ack_avail()  override { }
 
 		Transmit_result
 		_drv_transmit_pkt(const char *conn_rx_pkt_base,
