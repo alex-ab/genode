@@ -27,7 +27,6 @@ configured_kernel:
 	                 -C $(SEL4_DIR)/configs/AARCH64_verified.cmake \
 	                 $(SEL4_DIR) \
 	&& echo -e "\n#define CONFIG_PRINTING 1"                         >>gen_config/kernel/gen_config.h \
-	&& echo -e "#define CONFIG_DEBUG_BUILD 1"                        >>gen_config/kernel/gen_config.h \
 	&& echo -e "#define CONFIG_ENABLE_BENCHMARKS 1"                  >>gen_config/kernel/gen_config.h \
 	&& echo -e "#define CONFIG_BENCHMARK_TRACK_UTILISATION 1"        >>gen_config/kernel/gen_config.h \
 	&& echo -e "#define CONFIG_SET_TLS_BASE_SELF 1"                  >>gen_config/kernel/gen_config.h \

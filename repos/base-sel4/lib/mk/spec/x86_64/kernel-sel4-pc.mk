@@ -19,7 +19,6 @@ configured_kernel:
 	                 $(SEL4_DIR) \
 	\
 	&& echo -e "\n#define CONFIG_PRINTING 1"                  >>gen_config/kernel/gen_config.h \
-	&& echo -e "#define CONFIG_DEBUG_BUILD 1"                 >>gen_config/kernel/gen_config.h \
 	&& echo -e "#define CONFIG_VTX 1"                         >>gen_config/kernel/gen_config.h \
 	&& echo -e "#define CONFIG_ENABLE_BENCHMARKS 1"           >>gen_config/kernel/gen_config.h \
 	&& echo -e "#define CONFIG_BENCHMARK_TRACK_UTILISATION 1" >>gen_config/kernel/gen_config.h \
