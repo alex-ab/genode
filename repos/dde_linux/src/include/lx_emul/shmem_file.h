@@ -32,45 +32,53 @@ struct file *shmem_file_setup(char const *name, loff_t size,
 	struct file *f;
 	struct inode *inode;
 	struct address_space *mapping;
-	struct shmem_file_buffer *private_data;
+	struct shmem_file_buffer *i_private_data;
 	loff_t const nrpages = DIV_ROUND_UP(size, PAGE_SIZE);
 
 	if (!size)
 		return (struct file*)ERR_PTR(-EINVAL);
 
-	f = kzalloc(sizeof (struct file), 0);
+	f = kzalloc(sizeof (struct file), GFP_KERNEL);
 	if (!f) {
 		return (struct file*)ERR_PTR(-ENOMEM);
 	}
 
-	inode = kzalloc(sizeof (struct inode), 0);
+	inode = kzalloc(sizeof (struct inode), GFP_KERNEL);
 	if (!inode) {
 		goto err_inode;
 	}
 
-	mapping = kzalloc(sizeof (struct address_space), 0);
+	mapping = kzalloc(sizeof (struct address_space), GFP_KERNEL);
 	if (!mapping) {
 		goto err_mapping;
 	}
 
-	private_data = kzalloc(sizeof (struct shmem_file_buffer), 0);
-	if (!private_data) {
+	i_private_data = kzalloc(sizeof (struct shmem_file_buffer), GFP_KERNEL);
+	if (!i_private_data) {
 		goto err_private_data;
 	}
 
-	private_data->dataspace = lx_emul_shared_dma_buffer_allocate(nrpages * PAGE_SIZE);
-	if (!private_data->dataspace)
+	i_private_data->dataspace = lx_emul_shared_dma_buffer_allocate(nrpages * PAGE_SIZE);
+	if (!i_private_data->dataspace)
 		goto err_private_data_addr;
 
-	private_data->addr = lx_emul_shared_dma_buffer_virt_addr(private_data->dataspace);
-	private_data->pages = lx_emul_virt_to_page(private_data->addr);
+	i_private_data->addr = lx_emul_shared_dma_buffer_virt_addr(i_private_data->dataspace);
+	i_private_data->pages = lx_emul_virt_to_page(i_private_data->addr);
 
-	mapping->private_data = private_data;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
+	mapping->i_private_data = i_private_data;
+#else
+	mapping->private_data = i_private_data;
+#endif
 	mapping->nrpages = nrpages;
 
 	inode->i_mapping = mapping;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
+	file_ref_init(&f->f_ref, 1);
+#else
 	atomic_long_set(&f->f_count, 1);
+#endif
 	f->f_inode    = inode;
 	f->f_mapping  = mapping;
 	f->f_flags    = flags;
@@ -80,7 +88,7 @@ struct file *shmem_file_setup(char const *name, loff_t size,
 	return f;
 
 err_private_data_addr:
-	kfree(private_data);
+	kfree(i_private_data);
 err_private_data:
 	kfree(mapping);
 err_mapping:
@@ -102,14 +110,18 @@ struct folio *shmem_read_folio_gfp(struct address_space *mapping,
 #endif
 {
 	struct page *p;
-	struct shmem_file_buffer *private_data;
+	struct shmem_file_buffer *i_private_data;
 
 	if (index > mapping->nrpages)
 		return NULL;
 
-	private_data = mapping->private_data;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
+	i_private_data = mapping->i_private_data;
+#else
+	i_private_data = mapping->private_data;
+#endif
 
-	p = private_data->pages;
+	p = i_private_data->pages;
 	return folio_cast(p + index);
 }
 
@@ -139,17 +151,21 @@ static void _free_file(struct file *file)
 {
 	struct inode *inode;
 	struct address_space *mapping;
-	struct shmem_file_buffer *private_data;
+	struct shmem_file_buffer *i_private_data;
 
 	mapping      = file->f_mapping;
 	inode        = file->f_inode;
 
 	if (mapping) {
-		private_data = mapping->private_data;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
+		i_private_data = mapping->i_private_data;
+#else
+		i_private_data = mapping->private_data;
+#endif
 
-		lx_emul_shared_dma_buffer_free(private_data->dataspace);
+		lx_emul_shared_dma_buffer_free(i_private_data->dataspace);
 
-		kfree(private_data);
+		kfree(i_private_data);
 		kfree(mapping);
 	}
 
@@ -159,12 +175,28 @@ static void _free_file(struct file *file)
 }
 
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
+/*
+ * Used below from within 'file_ref_put()' and put here
+ * to prevent adding code to the handful of drivers
+ * making use of this header file.
+ */
+bool __file_ref_put(file_ref_t * ref,unsigned long cnt)
+{
+	return cnt == FILE_REF_NOREF;
+}
+#endif
+
+
 void fput(struct file *file)
 {
 	if (!file)
 		return;
 
-	if (atomic_long_sub_and_test(1, &file->f_count)) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
+	if (file_ref_put(&file->f_ref))
+#else
+	if (atomic_long_sub_and_test(1, &file->f_count))
+#endif
 		_free_file(file);
-	}
 }
