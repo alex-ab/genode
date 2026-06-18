@@ -22,9 +22,9 @@ DDE_LINUX_REP_DIR  := $(GENODE_DIR)/repos/dde_linux
 WS_PORT_DIR    := $(call port_dir,$(DDE_LINUX_REP_DIR)/ports/wpa_supplicant)
 LIBNL_PORT_DIR := $(call port_dir,$(DDE_LINUX_REP_DIR)/ports/libnl)
 
-DDE_LINUX_LIB_MK := lib/mk/spec/64bit/libnl.mk \
+DDE_LINUX_LIB_MK := \
           $(addprefix lib/mk/,libnl_include.mk wifi.inc) \
-          $(addprefix lib/mk/,wpa_driver_nl80211.mk wpa_supplicant.mk)
+          $(addprefix lib/mk/spec/64bit/,libnl.mk wpa_driver_nl80211.mk wpa_supplicant.mk)
 
 MIRROR_FROM_DDE_LINUX_DIR := $(DDE_LINUX_LIB_MK) \
                              src/driver/wifi \
