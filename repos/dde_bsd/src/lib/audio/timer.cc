@@ -117,7 +117,7 @@ class Bsd::Timer
 		 * timer. If the head changes the currently pending the one shot
 		 * timer must be rescheduled.
 		 */
-		::Timer::One_shot_io_timeout<Timer> _timers_one_shot;
+		::Timer::One_shot_timeout<Timer> _timers_one_shot;
 
 		/*
 		 * For now the timer "queue" is populated by exactly one timer.
