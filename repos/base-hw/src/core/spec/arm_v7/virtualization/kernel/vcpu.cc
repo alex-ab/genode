@@ -183,7 +183,13 @@ void Kernel::Vcpu::exception(Genode::Cpu_state&)
 }
 
 
-void Kernel::Vcpu::proceed()
+void Kernel::Vcpu::load(Cpu_state &)
+{
+	load();
+}
+
+
+void Kernel::Vcpu::load()
 {
 	_state.with_state([&] (auto &state) {
 		if (state.timer.irq) _vcpu_context.vtimer_irq.enable();
