@@ -28,14 +28,6 @@ int __cond_resched_lock(spinlock_t * lock)
 struct cpumask __cpu_active_mask;
 
 
-#include <linux/file_ref.h>
-
-bool __file_ref_put(file_ref_t * ref,unsigned long cnt)
-{
-	lx_emul_trace_and_stop(__func__);
-}
-
-
 extern struct i915_request * __i915_request_commit(struct i915_request * rq);
 struct i915_request * __i915_request_commit(struct i915_request * rq)
 {

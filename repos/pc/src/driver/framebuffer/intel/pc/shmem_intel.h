@@ -62,7 +62,7 @@ struct file *shmem_file_setup(char const *name, loff_t size,
 
 	inode->i_mapping = mapping;
 
-	file_ref_inc(&f->f_ref);
+	file_ref_init(&f->f_ref, 1);
 	f->f_inode    = inode;
 	f->f_mapping  = mapping;
 	f->f_flags    = flags;
@@ -105,6 +105,17 @@ static void _free_file(struct file *file)
 	kfree(inode);
 	kfree(file->f_path.dentry);
 	kfree(file);
+}
+
+
+/*
+ * Used below from within 'file_ref_put()' and put here
+ * to prevent adding code to the handful of drivers
+ * making use of this header file.
+ */
+bool __file_ref_put(file_ref_t * ref,unsigned long cnt)
+{
+	return cnt == FILE_REF_NOREF;
 }
 
 
