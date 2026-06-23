@@ -124,7 +124,7 @@ Timer::Connection::Connection(Env &env, Entrypoint &ep, Label const &label)
 :
 	Genode::Connection<Session>(env, label, Ram_quota { 10*1024 }, Args()),
 	Session_client(cap()),
-	Entrypoint_accessor(ep)
+	_ep(ep)
 {
 	/* register default signal handler */
 	Session_client::sigh(_default_sigh_cap);
