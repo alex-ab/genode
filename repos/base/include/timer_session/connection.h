@@ -348,7 +348,7 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		unsigned                  _interpolation_quality { 0 };
 		uint64_t                  _us_to_ts_factor       { 1 };
 		unsigned                  _us_to_ts_factor_shift { 0 };
-		Genode::Timeout_scheduler _timeout_scheduler     { *this, Microseconds { 1 } };
+		Genode::Timeout_scheduler _timeout_scheduler     { *this };
 
 		Genode::Timeout_scheduler &_switch_to_timeout_framework_mode();
 

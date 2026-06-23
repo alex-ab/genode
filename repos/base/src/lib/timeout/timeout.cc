@@ -70,19 +70,6 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 		}
 		_current_time = curr_time.trunc_to_plain_us();
 
-		/* apply rate limit to the handling of timeouts */
-		if (_current_time.value < _rate_limit_deadline.value) {
-
-			_time_source.set_timeout(
-				Microseconds { _rate_limit_deadline.value -
-				               _current_time.value },
-				*this);
-
-			return;
-		}
-		_rate_limit_deadline.value = _current_time.value +
-		                             _rate_limit_period.value;
-
 		/*
 		 * Filter out all pending timeouts to a local list first. The
 		 * processing of pending timeouts can have effects on the '_timeouts'
@@ -193,13 +180,8 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 }
 
 
-Timeout_scheduler::Timeout_scheduler(Time_source  &time_source,
-                                     Microseconds  rate_limit_period)
-:
-	_time_source         { time_source },
-	_rate_limit_period   { rate_limit_period },
-	_rate_limit_deadline { Microseconds { _current_time.value +
-	                                      rate_limit_period.value } }
+Timeout_scheduler::Timeout_scheduler(Time_source  &time_source)
+: _time_source { time_source }
 { }
 
 
@@ -251,9 +233,6 @@ void Timeout_scheduler::_set_time_source_timeout()
 
 void Timeout_scheduler::_set_time_source_timeout(uint64_t duration_us)
 {
-	if (duration_us < _rate_limit_period.value) {
-		duration_us = _rate_limit_period.value;
-	}
 	if (duration_us > _max_sleep_time.value) {
 		duration_us = _max_sleep_time.value;
 	}
