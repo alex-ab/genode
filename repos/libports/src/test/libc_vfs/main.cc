@@ -325,6 +325,8 @@ struct Main
 
 		Libc::with_libc([&] () {
 
+			setlinebuf(stdout);
+
 			test(config_rom.node());
 			test_write_read(config_rom.node());
 
