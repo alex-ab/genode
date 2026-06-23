@@ -102,79 +102,151 @@ struct Hw::X86_64_cpu
 
 	X86_64_XCR_REGISTER(Xcr0, 0);
 
-	X86_64_MSR_REGISTER(IA32_apic_base,  0x1b,
+	enum Msr {
+		IA32_PLATFORM_ID             = 0x17,
+		IA32_APIC_BASE               = 0x1b,
+		IA32_FEATURE_CONTROL         = 0x3a,
+		MSR_FSB_FREQ                 = 0xcd,
+		MSR_PLATFORM_INFO            = 0xce,
+		IA32_MPERF                   = 0xe7,
+		IA32_APERF                   = 0xe8,
+		IA32_THERM_STATUS            = 0x19c,
+		MSR_TEMPERATURE_TARGET       = 0x1a2,
+		IA32_ENERGY_PERF_BIAS        = 0x1b0,
+		IA32_PACKAGE_THERM_STATUS    = 0x1b1,
+		IA32_PAT                     = 0x277,
+		MSR_PKG_C3_RESIDENCY         = 0x3f8,
+		MSR_PKG_C6_RESIDENCY         = 0x3f9,
+		MSR_PKG_C7_RESIDENCY         = 0x3fa,
+		MSR_CORE_C3_RESIDENCY        = 0x3fc,
+		MSR_CORE_C6_RESIDENCY        = 0x3fd,
+		MSR_CORE_C7_RESIDENCY        = 0x3fe,
+		IA32_VMX_BASIC               = 0x480,
+		IA32_VMX_PINBASED_CTLS       = 0x481,
+		IA32_VMX_PROCBASED_CTLS      = 0x482,
+		IA32_VMX_EXIT_CTLS           = 0x483,
+		IA32_VMX_ENTRY_CTLS          = 0x484,
+		IA32_VMX_CR0_FIXED0          = 0x486,
+		IA32_VMX_CR0_FIXED1          = 0x487,
+		IA32_VMX_CR4_FIXED0          = 0x488,
+		IA32_VMX_CR4_FIXED1          = 0x489,
+		IA32_VMX_PROCBASED_CTLS2     = 0x48b,
+		IA32_VMX_TRUE_PINBASED_CTLS  = 0x48d,
+		IA32_VMX_TRUE_PROCBASED_CTLS = 0x48e,
+		IA32_VMX_TRUE_EXIT_CTLS      = 0x48f,
+		IA32_VMX_TRUE_ENTRY_CTLS     = 0x490,
+		MSR_RAPL_POWER_UNIT          = 0x606,
+		MSR_PKG_C2_RESIDENCY         = 0x60d,
+		MSR_PKG_POWER_LIMIT          = 0x610,
+		MSR_PKG_ENERGY_STATUS        = 0x611,
+		MSR_PKG_PERF_STATUS          = 0x613,
+		MSR_PKG_POWER_INFO           = 0x614,
+		MSR_DRAM_ENERGY_STATUS       = 0x619,
+		MSR_DRAM_PERF_STATUS         = 0x61b,
+		MSR_PKG_C8_RESIDENCY         = 0x630,
+		MSR_PKG_C9_RESIDENCY         = 0x631,
+		MSR_PKG_C10_RESIDENCY        = 0x632,
+		MSR_PP0_POWER_LIMIT          = 0x638,
+		MSR_PP0_ENERGY_STATUS        = 0x639,
+		MSR_PP0_POLICY               = 0x63a,
+		MSR_PP1_POWER_LIMIT          = 0x640,
+		MSR_PP1_ENERGY_STATUS        = 0x641,
+		MSR_PP1_POLICY               = 0x642,
+		MSR_CORE_C1_RESIDENCY        = 0x660,
+		IA32_PM_ENABLE               = 0x770,
+		IA32_HWP_CAPABILITIES        = 0x771,
+		IA32_HWP_REQUEST_PKG         = 0x772,
+		IA32_HWP_REQUEST             = 0x774,
+		IA32_XSS                     = 0xda0,
+		IA32_EFER                    = 0xc0000080,
+		IA32_FS_BASE                 = 0xc0000100,
+		IA32_GS_BASE                 = 0xc0000101,
+		IA32_STAR                    = 0xc0000081,
+		IA32_LSTAR                   = 0xc0000082,
+		IA32_CSTAR                   = 0xc0000083,
+		IA32_FMASK                   = 0xc0000084,
+		IA32_KERNEL_GS_BASE          = 0xc0000102,
+		IA32_TSC_AUX                 = 0xc0000103,
+		AMD_VM_SYSCVG                = 0xc0010010,
+		AMD_VM_CR                    = 0xc0010114,
+		AMD_VM_HSAVEPA               = 0xc0010117,
+		AMD_LFENCE                   = 0xc0011029,
+
+	};
+
+	X86_64_MSR_REGISTER(IA32_apic_base, IA32_APIC_BASE,
 		struct Bsp    : Bitfield<  8,  1> { }; /* Bootstrap processor */
 		struct X2apic : Bitfield< 10,  1> { }; /* Enable/disable X2APIC */
 		struct Lapic  : Bitfield< 11,  1> { }; /* Enable/disable local APIC */
 		struct Base   : Bitfield< 12, 24> { }; /* Base address of APIC registers */
 	);
 
-	X86_64_MSR_REGISTER(IA32_pat, 0x277,
+	X86_64_MSR_REGISTER(IA32_pat, IA32_PAT,
 		struct Pa1 : Bitfield <8, 3> {
 			enum { WRITE_COMBINING = 0b001 };
 		};
 	);
 
-	X86_64_MSR_REGISTER(Amd_vm_syscvg, 0xC0010010,
+	X86_64_MSR_REGISTER(Amd_vm_syscvg, AMD_VM_SYSCVG,
 		struct Nested_paging : Bitfield< 0, 1> { }; /* Enable nested paging */
 		struct Sev : Bitfield< 1, 1> { }; /* Enable Secure Encrypted Virtualization */
 		struct Enc_state : Bitfield< 2, 1> { }; /* Enable Encrypted State for Secure Encrypted Virtualization */
 	);
 
-	X86_64_MSR_REGISTER(Amd_vm_cr, 0xC0010114,
+	X86_64_MSR_REGISTER(Amd_vm_cr, AMD_VM_CR,
 		struct Svmdis : Bitfield< 4, 1> { }; /* SVM disabled */
 	);
 
 	/* AMD host save physical address */
-	X86_64_MSR_REGISTER(Amd_vm_hsavepa, 0xC0010117);
+	X86_64_MSR_REGISTER(Amd_vm_hsavepa, AMD_VM_HSAVEPA);
 
 
 	/* Non-architectural MSR used to make lfence serializing */
-	X86_64_MSR_REGISTER(Amd_lfence, 0xC0011029,
+	X86_64_MSR_REGISTER(Amd_lfence, AMD_LFENCE,
 		struct Enable_dispatch_serializing : Bitfield<1, 1> { }; /* Enable lfence dispatch serializing */
 	)
 
-	X86_64_MSR_REGISTER(Platform_id, 0x17,
+	X86_64_MSR_REGISTER(Platform_id, IA32_PLATFORM_ID,
 		struct Bus_ratio : Bitfield<8, 5> { }; /* Bus ratio on Core 2, see SDM 19.7.3 */
 	);
 
-	X86_64_MSR_REGISTER(Platform_info, 0xCE,
+	X86_64_MSR_REGISTER(Platform_info, MSR_PLATFORM_INFO,
 		struct Ratio : Bitfield< 8, 8> { }; /* Maximum Non-Turbo Ratio (R/O) */
 	);
 
-	X86_64_MSR_REGISTER(Fsb_freq, 0xCD,
+	X86_64_MSR_REGISTER(Fsb_freq, MSR_FSB_FREQ,
 		struct Speed : Bitfield< 0, 3> { }; /* Scaleable Bus Speed (R/O) */
 	);
 
-	X86_64_MSR_REGISTER(Ia32_efer, 0xC0000080,
+	X86_64_MSR_REGISTER(Ia32_efer, IA32_EFER,
 		struct Lme  : Bitfield< 8, 1> { }; /* Long Mode Enable */
 		struct Lma  : Bitfield<10, 1> { }; /* Long Mode Active */
 		struct Svme : Bitfield<12, 1> { }; /* Secure Virtual Machine Enable */
 	);
 
 	/* Map of BASE Address of FS */
-	X86_64_MSR_REGISTER(Ia32_fs_base, 0xC0000100);
+	X86_64_MSR_REGISTER(Ia32_fs_base, IA32_FS_BASE);
 
 	/* Map of BASE Address of GS */
-	X86_64_MSR_REGISTER(Ia32_gs_base, 0xC0000101);
+	X86_64_MSR_REGISTER(Ia32_gs_base, IA32_GS_BASE);
 
 	/* System Call Target Address */
-	X86_64_MSR_REGISTER(Ia32_star, 0xC0000081);
+	X86_64_MSR_REGISTER(Ia32_star, IA32_STAR);
 
 	/* IA-32e Mode System Call Target Address */
-	X86_64_MSR_REGISTER(Ia32_lstar, 0xC0000082);
+	X86_64_MSR_REGISTER(Ia32_lstar, IA32_LSTAR);
 
 	/* IA-32e Mode System Call Target Address */
-	X86_64_MSR_REGISTER(Ia32_cstar, 0xC0000083);
+	X86_64_MSR_REGISTER(Ia32_cstar, IA32_CSTAR);
 
 	/* System Call Flag Mask */
-	X86_64_MSR_REGISTER(Ia32_fmask, 0xC0000084);
+	X86_64_MSR_REGISTER(Ia32_fmask, IA32_FMASK);
 
 	/* Swap Target of BASE Address of GS */
-	X86_64_MSR_REGISTER(Ia32_kernel_gs_base, 0xC0000102);
+	X86_64_MSR_REGISTER(Ia32_kernel_gs_base, IA32_KERNEL_GS_BASE);
 
 	/* See Vol. 4, Table 2-2 of the Intel SDM */
-	X86_64_MSR_REGISTER(Ia32_feature_control, 0x3A,
+	X86_64_MSR_REGISTER(Ia32_feature_control, IA32_FEATURE_CONTROL,
 		struct Lock       : Bitfield< 0, 0> { }; /* VMX Lock */
 		struct Vmx_no_smx : Bitfield< 2, 2> { }; /* Enable VMX outside SMX */
 	);
@@ -184,14 +256,14 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3B of the Intel SDM (September 2023):
 	 * 18.17.2 IA32_TSC_AUX Register and RDTSCP Support
 	 */
-	X86_64_MSR_REGISTER(Ia32_tsc_aux, 0xc0000103);
+	X86_64_MSR_REGISTER(Ia32_tsc_aux, IA32_TSC_AUX);
 
 	/*
 	 * Reporting Register of Basic VMX Capabilities
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.1 Basic VMX Information
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_basic, 0x480,
+	X86_64_MSR_REGISTER(Ia32_vmx_basic, IA32_VMX_BASIC,
 		struct Rev             : Bitfield< 0,31> { }; /* VMCS revision */
 		struct Clear_controls  : Bitfield<55, 1> { }; /* VMCS controls may be cleared, see A.2 */
 	);
@@ -201,7 +273,7 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.3.1 Pin-Based VM-Execution Controls
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_pinbased_ctls, 0x481,
+	X86_64_MSR_REGISTER(Ia32_vmx_pinbased_ctls, IA32_VMX_PINBASED_CTLS,
 		struct Allowed_0_settings : Bitfield< 0,32> { }; /* allowed 0-settings */
 		struct Allowed_1_settings : Bitfield<32,32> { }; /* allowed 1-settings */
 	);
@@ -211,7 +283,7 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.3.1 Pin-Based VM-Execution Controls
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_true_pinbased_ctls, 0x48D,
+	X86_64_MSR_REGISTER(Ia32_vmx_true_pinbased_ctls, IA32_VMX_TRUE_PINBASED_CTLS,
 		struct Allowed_0_settings : Bitfield< 0,32> { }; /* allowed 0-settings */
 		struct Allowed_1_settings : Bitfield<32,32> { }; /* allowed 1-settings */
 	);
@@ -221,7 +293,7 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.3.2 Primary Processor-Based VM-Execution Controls
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_procbased_ctls, 0x482,
+	X86_64_MSR_REGISTER(Ia32_vmx_procbased_ctls, IA32_VMX_PROCBASED_CTLS,
 		struct Allowed_0_settings : Bitfield< 0,32> { }; /* allowed 0-settings */
 		struct Allowed_1_settings : Bitfield<32,32> { }; /* allowed 1-settings */
 	);
@@ -231,7 +303,7 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.3.2 Primary Processor-Based VM-Execution Controls
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_true_procbased_ctls, 0x48E,
+	X86_64_MSR_REGISTER(Ia32_vmx_true_procbased_ctls, IA32_VMX_TRUE_PROCBASED_CTLS,
 		struct Allowed_0_settings : Bitfield< 0,32> { }; /* allowed 0-settings */
 		struct Allowed_1_settings : Bitfield<32,32> { }; /* allowed 1-settings */
 	);
@@ -241,7 +313,7 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.4.1 Primary VM-Exit Controls
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_exit_ctls, 0x483,
+	X86_64_MSR_REGISTER(Ia32_vmx_exit_ctls, IA32_VMX_EXIT_CTLS,
 		struct Allowed_0_settings : Bitfield< 0,32> { }; /* allowed 0-settings */
 		struct Allowed_1_settings : Bitfield<32,32> { }; /* allowed 1-settings */
 	);
@@ -251,7 +323,7 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.4.1 Primary VM-Exit Controls
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_true_exit_ctls, 0x48F,
+	X86_64_MSR_REGISTER(Ia32_vmx_true_exit_ctls, IA32_VMX_TRUE_EXIT_CTLS,
 		struct Allowed_0_settings : Bitfield< 0,32> { }; /* allowed 0-settings */
 		struct Allowed_1_settings : Bitfield<32,32> { }; /* allowed 1-settings */
 	);
@@ -261,7 +333,7 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.5 VM-Entry Controls
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_entry_ctls, 0x484,
+	X86_64_MSR_REGISTER(Ia32_vmx_entry_ctls, IA32_VMX_ENTRY_CTLS,
 		struct Allowed_0_settings : Bitfield< 0,32> { }; /* allowed 0-settings */
 		struct Allowed_1_settings : Bitfield<32,32> { }; /* allowed 1-settings */
 	);
@@ -271,7 +343,7 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.5 VM-Entry Controls
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_true_entry_ctls, 0x490,
+	X86_64_MSR_REGISTER(Ia32_vmx_true_entry_ctls, IA32_VMX_TRUE_ENTRY_CTLS,
 		struct Allowed_0_settings : Bitfield< 0,32> { }; /* allowed 0-settings */
 		struct Allowed_1_settings : Bitfield<32,32> { }; /* allowed 1-settings */
 	);
@@ -281,7 +353,7 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.3.3 Secondary Processor-Based VM-Execution Controls
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_procbased_ctls2, 0x48B,
+	X86_64_MSR_REGISTER(Ia32_vmx_procbased_ctls2, IA32_VMX_PROCBASED_CTLS2,
 		struct Allowed_0_settings : Bitfield< 0,32> { }; /* allowed 0-settings */
 		struct Allowed_1_settings : Bitfield<32,32> { }; /* allowed 1-settings */
 	);
@@ -292,7 +364,7 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.7 VMX-Fixed Bits in CR0
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_cr0_fixed0, 0x486);
+	X86_64_MSR_REGISTER(Ia32_vmx_cr0_fixed0, IA32_VMX_CR0_FIXED0);
 
 	/*
 	 * Capability Reporting Register of CR0 Bits Fixed to 1
@@ -300,7 +372,7 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.7 VMX-Fixed Bits in CR0
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_cr0_fixed1, 0x487);
+	X86_64_MSR_REGISTER(Ia32_vmx_cr0_fixed1, IA32_VMX_CR0_FIXED1);
 
 	/*
 	 * Capability Reporting Register of CR5 Bits Fixed to 0
@@ -308,7 +380,7 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.8 VMX-Fixed Bits in CR4
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_cr4_fixed0, 0x488);
+	X86_64_MSR_REGISTER(Ia32_vmx_cr4_fixed0, IA32_VMX_CR4_FIXED0);
 
 	/*
 	 * Capability Reporting Register of CR4 Bits Fixed to 1
@@ -316,9 +388,9 @@ struct Hw::X86_64_cpu
 	 * For details, see Vol. 3D of the Intel SDM (September 2023):
 	 * A.8 VMX-Fixed Bits in CR4
 	 */
-	X86_64_MSR_REGISTER(Ia32_vmx_cr4_fixed1, 0x489);
+	X86_64_MSR_REGISTER(Ia32_vmx_cr4_fixed1, IA32_VMX_CR4_FIXED1);
 
-	X86_64_MSR_REGISTER(Ia32_xss, 0xda0);
+	X86_64_MSR_REGISTER(Ia32_xss, IA32_XSS);
 
 	X86_64_CPUID_REGISTER(Cpuid_0_eax, 0, 0, eax);
 	X86_64_CPUID_REGISTER(Cpuid_0_ebx, 0, 0, ebx);
@@ -340,7 +412,19 @@ struct Hw::X86_64_cpu
 	);
 
 	X86_64_CPUID_REGISTER(Cpuid_1_edx, 1, 0, edx,
-		struct Pat : Bitfield<16, 1> { };
+		struct Pat  : Bitfield<16, 1> { };
+		struct Acpi : Bitfield<22, 1> { };
+	);
+
+	X86_64_CPUID_REGISTER(Cpuid_power_thermal_eax, 6, 0, eax,
+		struct Pkg_therm_mgmt  : Bitfield<6, 1> { };
+		struct Hwp             : Bitfield<7, 1> { };
+		struct Hwp_request_pkg : Bitfield<11,1> { };
+	);
+
+	X86_64_CPUID_REGISTER(Cpuid_power_thermal_ecx, 6, 0, ecx,
+		struct Mperf_aperf      : Bitfield<0,1> { };
+		struct Energy_perf_bias : Bitfield<0,3> { };
 	);
 
 	X86_64_CPUID_REGISTER(Cpuid_xcr0_low, 0xd, 0, eax);

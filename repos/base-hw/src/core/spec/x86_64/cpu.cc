@@ -316,3 +316,146 @@ void Cpu::invalidate_tlb(Mmu_context &mmu_context, addr_t addr, size_t size, boo
 	for (addr_t page = addr; page < (addr+size); page += PAGE_SIZE)
 		asm volatile ("invlpg (%0)" :: "r" (page) : "memory");
 }
+
+
+bool Cpu::user_msr_read(addr_t const msr, addr_t &value)
+{
+	uint32_t msr_addr = msr & 0xffffffff;
+
+	static unsigned const family = Hw::Vendor::get_family();
+	static unsigned const model  = Hw::Vendor::get_model();
+
+	bool const nehalem_or_newer     = (family == 0x6);
+	bool const sandybridge_or_newer = (family == 0x6) && (model >= 0x2a);
+	bool const haswell_or_newer     = (family == 0x6) && (model >= 0x3c);
+	bool const cannonlake           = (family == 0x6) && (model == 0x66);
+
+	value = 0;
+
+	switch(msr_addr) {
+	case IA32_APERF:
+	case IA32_MPERF:
+		{
+			using Id = Cpuid_power_thermal_ecx;
+			if (!Id::Mperf_aperf::get(Id::read()))
+				return false;
+			break;
+		}
+	case IA32_THERM_STATUS:
+		{
+			if (!Cpuid_1_edx::Acpi::get(Cpuid_1_edx::read()))
+				return false;
+			break;
+		}
+	case IA32_PACKAGE_THERM_STATUS:
+		{
+			using Id = Cpuid_power_thermal_eax;
+			if (!Id::Pkg_therm_mgmt::get(Id::read()))
+				return false;
+			break;
+		}
+	case IA32_PM_ENABLE:
+	case IA32_HWP_CAPABILITIES:
+	case IA32_HWP_REQUEST:
+		{
+			using Id = Cpuid_power_thermal_eax;
+			if (!Id::Hwp::get(Id::read()))
+				return false;
+			break;
+		}
+	case IA32_HWP_REQUEST_PKG:
+		{
+			using Id = Cpuid_power_thermal_eax;
+			if (!Id::Hwp_request_pkg::get(Id::read()))
+				return false;
+			break;
+		}
+	case IA32_ENERGY_PERF_BIAS:
+		{
+			using Id = Cpuid_power_thermal_ecx;
+			if (!Id::Energy_perf_bias::get(Id::read()))
+				return false;
+			break;
+		}
+	case MSR_TEMPERATURE_TARGET:
+	case MSR_PKG_C3_RESIDENCY:
+	case MSR_PKG_C6_RESIDENCY:
+	case MSR_PKG_C7_RESIDENCY:
+	case MSR_CORE_C3_RESIDENCY:
+	case MSR_CORE_C6_RESIDENCY:
+		if (nehalem_or_newer)
+			break;
+		return false;
+	case MSR_CORE_C7_RESIDENCY:
+	case MSR_RAPL_POWER_UNIT:
+	case MSR_PKG_C2_RESIDENCY:
+	case MSR_PKG_ENERGY_STATUS:
+	case MSR_PP0_POWER_LIMIT:
+	case MSR_PP0_ENERGY_STATUS:
+	case MSR_PP0_POLICY:
+	case MSR_PP1_POWER_LIMIT:
+	case MSR_PP1_ENERGY_STATUS:
+	case MSR_PP1_POLICY:
+	case MSR_PKG_POWER_INFO:
+	case MSR_PKG_POWER_LIMIT:
+		if (sandybridge_or_newer)
+			break;
+		return false;
+	case MSR_DRAM_ENERGY_STATUS:
+	case MSR_DRAM_PERF_STATUS:
+	case MSR_PKG_PERF_STATUS:
+	case MSR_PKG_C8_RESIDENCY:
+	case MSR_PKG_C9_RESIDENCY:
+	case MSR_PKG_C10_RESIDENCY:
+		if (haswell_or_newer)
+			break;
+		return false;
+	case MSR_CORE_C1_RESIDENCY:
+		if (cannonlake)
+			break;
+		return false;
+	default:
+		return false;
+	};
+
+	uint32_t low, high;
+	asm volatile ("rdmsr" : "=a" (low), "=d" (high) : "c" (msr_addr));
+	value = ((uint64_t)high << 32) | (low & ~0U);
+	return true;
+}
+
+
+bool Cpu::user_msr_write(addr_t const msr, addr_t const value)
+{
+	uint32_t msr_addr = msr & 0xffffffff;
+
+	switch(msr_addr) {
+	case IA32_PM_ENABLE:
+	case IA32_HWP_REQUEST:
+		{
+			using Id = Cpuid_power_thermal_eax;
+			if (!Id::Hwp::get(Id::read()))
+				return false;
+			break;
+		}
+	case IA32_HWP_REQUEST_PKG:
+		{
+			using Id = Cpuid_power_thermal_eax;
+			if (!Id::Hwp_request_pkg::get(Id::read()))
+				return false;
+			break;
+		}
+	case IA32_ENERGY_PERF_BIAS:
+		{
+			using Id = Cpuid_power_thermal_ecx;
+			if (!Id::Energy_perf_bias::get(Id::read()))
+				return false;
+			break;
+		}
+	default:
+		return false;
+	};
+
+	asm volatile ("wrmsr" :: "a" (value), "d" (value>>32), "c" (msr_addr));
+	return true;
+}

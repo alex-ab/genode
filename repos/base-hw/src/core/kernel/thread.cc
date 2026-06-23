@@ -979,6 +979,18 @@ void Core_thread::_call(Cpu_state &state)
 			_call_destruct<Signal_receiver>(args);
 			return;
 		}
+	case Core_call_id::SYS_REG_READ:
+		{
+			args.write(_cpu().user_msr_read(args.read<1, addr_t>(),
+			                                *args.read<2, addr_t*>()));
+			return;
+		}
+	case Core_call_id::SYS_REG_WRITE:
+		{
+			args.write(_cpu().user_msr_write(args.read<1, addr_t>(),
+			                                 args.read<2, addr_t>()));
+			return;
+		}
 	case Core_call_id::THREAD_CREATE:
 		{
 			_cpu_pool.with_cpu(args.read<3, unsigned>(), [&] (Cpu &cpu) {

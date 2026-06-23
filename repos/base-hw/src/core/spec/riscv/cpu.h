@@ -100,6 +100,9 @@ class Board::Cpu : public Hw::Riscv_cpu
 		static void clear_memory_region(addr_t const addr,
 		                                size_t const size,
 		                                bool changed_cache_properties);
+
+		bool user_msr_read(addr_t const, addr_t &) { return false; }
+		bool user_msr_write(addr_t const, addr_t) { return false; }
 };
 
 #endif /* _CORE__SPEC__RISCV__CPU_H_ */

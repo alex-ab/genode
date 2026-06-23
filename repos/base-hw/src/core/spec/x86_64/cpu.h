@@ -181,6 +181,9 @@ class Board::Cpu : public Hw::X86_64_cpu
 		static void clear_memory_region(addr_t const addr,
 		                                size_t const size,
 		                                bool changed_cache_properties);
+
+		bool user_msr_read(addr_t const msr, addr_t &value);
+		bool user_msr_write(addr_t const msr, addr_t value);
 };
 
 #endif /* _CORE__SPEC__X86_64__CPU_H_ */

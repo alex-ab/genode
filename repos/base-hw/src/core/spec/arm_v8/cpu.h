@@ -125,6 +125,9 @@ struct Board::Cpu : Hw::Arm_64_cpu
 	                                               size_t const size);
 	static void cache_invalidate_data_region(addr_t const addr,
 	                                         size_t const size);
+
+	bool user_msr_read(addr_t const, addr_t &) { return false; }
+	bool user_msr_write(addr_t const, addr_t) { return false; }
 };
 
 #endif /* _CORE__SPEC__ARM_V8__CPU_H_ */

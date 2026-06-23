@@ -126,6 +126,9 @@ struct Board::Arm_cpu : public Hw::Arm_cpu
 	static Id executing_id() { return { 0 }; }
 
 	static void single_step(Context &, bool) { };
+
+	bool user_msr_read(addr_t const, addr_t &) { return false; }
+	bool user_msr_write(addr_t const, addr_t) { return false; }
 };
 
 #endif /* _CORE__SPEC__ARM__CPU_SUPPORT_H_ */

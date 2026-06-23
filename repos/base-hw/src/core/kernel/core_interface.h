@@ -47,6 +47,8 @@ namespace Kernel {
 		IRQ_ACK,
 		IRQ_CREATE,
 		IRQ_DESTROY,
+		SYS_REG_READ,
+		SYS_REG_WRITE,
 		OBJECT_CREATE,
 		OBJECT_DESTROY,
 		PD_CREATE,
@@ -238,6 +240,24 @@ namespace Kernel {
 		return (core_call(Core_call_id::CPU_SUSPEND, sleep_type)
 		        == (Call_ret)Cpu_suspend_result::OK) ? Cpu_suspend_result::OK
 		                                             : Cpu_suspend_result::FAILED;
+	}
+
+
+	enum class Sys_reg_access_result : Call_arg { OK, FAILED };
+
+	inline Sys_reg_access_result sys_reg_read(addr_t reg_addr, addr_t &value)
+	{
+		return (core_call(Core_call_id::SYS_REG_READ, reg_addr, (Call_arg)&value)
+		       == (Call_ret)Sys_reg_access_result::OK) ? Sys_reg_access_result::OK
+		                                               : Sys_reg_access_result::FAILED;
+	}
+
+
+	inline Sys_reg_access_result sys_reg_write(addr_t reg_addr, addr_t value)
+	{
+		return (core_call(Core_call_id::SYS_REG_WRITE, reg_addr, value)
+		       == (Call_ret)Sys_reg_access_result::OK) ? Sys_reg_access_result::OK
+		                                               : Sys_reg_access_result::FAILED;
 	}
 }
 
