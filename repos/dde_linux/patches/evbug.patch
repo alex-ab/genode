@@ -1,0 +1,167 @@
+This patch reverts the removal of the evbug debugging driver.
+
+ drivers/input/Kconfig  |  14 +++++++
+ drivers/input/Makefile |   1 +
+ drivers/input/evbug.c  | 100 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 115 insertions(+)
+
+diff --git a/drivers/input/Kconfig b/drivers/input/Kconfig
+index 88ecdf5218ee9ba3..3bdbd34314b3495a 100644
+--- src/linux/drivers/input/Kconfig
++++ src/linux/drivers/input/Kconfig
+@@ -152,6 +152,20 @@ config INPUT_EVDEV
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called evdev.
+ 
++config INPUT_EVBUG
++	tristate "Event debugging"
++	help
++	  Say Y here if you have a problem with the input subsystem and
++	  want all events (keypresses, mouse movements), to be output to
++	  the system log. While this is useful for debugging, it's also
++	  a security threat - your keypresses include your passwords, of
++	  course.
++
++	  If unsure, say N.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called evbug.
++
+ config INPUT_KUNIT_TEST
+ 	tristate "KUnit tests for Input" if !KUNIT_ALL_TESTS
+ 	depends on INPUT && KUNIT
+diff --git a/drivers/input/Makefile b/drivers/input/Makefile
+index 930b64d2115e1740..c787532749214cc1 100644
+--- src/linux/drivers/input/Makefile
++++ src/linux/drivers/input/Makefile
+@@ -18,6 +18,7 @@ obj-$(CONFIG_INPUT_LEDS)	+= input-leds.o
+ obj-$(CONFIG_INPUT_MOUSEDEV)	+= mousedev.o
+ obj-$(CONFIG_INPUT_JOYDEV)	+= joydev.o
+ obj-$(CONFIG_INPUT_EVDEV)	+= evdev.o
++obj-$(CONFIG_INPUT_EVBUG)	+= evbug.o
+ 
+ obj-$(CONFIG_INPUT_KEYBOARD)	+= keyboard/
+ obj-$(CONFIG_INPUT_MOUSE)	+= mouse/
+diff --git a/drivers/input/evbug.c b/drivers/input/evbug.c
+new file mode 100644
+index 0000000000000000..e47bdf92088ac6fd
+--- /dev/null
++++ src/linux/drivers/input/evbug.c
+@@ -0,0 +1,117 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++/*
++ *  Copyright (c) 1999-2001 Vojtech Pavlik
++ */
++
++/*
++ *  Input driver event debug module - dumps all events into syslog
++ */
++
++#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
++
++#include <linux/slab.h>
++#include <linux/module.h>
++#include <linux/input.h>
++#include <linux/init.h>
++#include <linux/device.h>
++
++MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
++MODULE_DESCRIPTION("Input driver event debug module");
++MODULE_LICENSE("GPL");
++
++static void evbug_event(struct input_handle *handle, unsigned int type, unsigned int code, int value)
++{
++//	if (type == EV_SYN) return;
++
++	static int ox, oy;
++
++	int d = 0;
++	if (type == EV_ABS && code == ABS_MT_POSITION_X) { d = value - ox; ox = value; }
++	if (type == EV_ABS && code == ABS_MT_POSITION_Y) { d = value - oy; oy = value; }
++
++
++	printk(KERN_DEBUG pr_fmt("Event. Dev: %s, Type: %2d, Code: %3d, Value: %5d (%d)\n"),
++	       dev_name(&handle->dev->dev), type, code, value, d);
++}
++
++static int evbug_connect(struct input_handler *handler, struct input_dev *dev,
++			 const struct input_device_id *id)
++{
++	struct input_handle *handle;
++	int error;
++
++//	clear_bit(ABS_X, dev->absbit);
++//	clear_bit(ABS_Y, dev->absbit);
++//	clear_bit(MSC_TIMESTAMP, dev->mscbit);
++
++	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
++	if (!handle)
++		return -ENOMEM;
++
++	handle->dev = dev;
++	handle->handler = handler;
++	handle->name = "evbug";
++
++	error = input_register_handle(handle);
++	if (error)
++		goto err_free_handle;
++
++	error = input_open_device(handle);
++	if (error)
++		goto err_unregister_handle;
++
++	printk(KERN_DEBUG pr_fmt("Connected device: %s (%s at %s)\n"),
++	       dev_name(&dev->dev),
++	       dev->name ?: "unknown",
++	       dev->phys ?: "unknown");
++
++	return 0;
++
++ err_unregister_handle:
++	input_unregister_handle(handle);
++ err_free_handle:
++	kfree(handle);
++	return error;
++}
++
++static void evbug_disconnect(struct input_handle *handle)
++{
++	printk(KERN_DEBUG pr_fmt("Disconnected device: %s\n"),
++	       dev_name(&handle->dev->dev));
++
++	input_close_device(handle);
++	input_unregister_handle(handle);
++	kfree(handle);
++}
++
++static const struct input_device_id evbug_ids[] = {
++	{
++		/* Matches all devices */
++		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
++		.evbit = { BIT_MASK(EV_SYN) },
++	},
++	{ /* Terminating zero entry */ }
++};
++
++MODULE_DEVICE_TABLE(input, evbug_ids);
++
++static struct input_handler evbug_handler = {
++	.event =	evbug_event,
++	.connect =	evbug_connect,
++	.disconnect =	evbug_disconnect,
++	.name =		"evbug",
++	.id_table =	evbug_ids,
++};
++
++static int __init evbug_init(void)
++{
++	return input_register_handler(&evbug_handler);
++}
++
++static void __exit evbug_exit(void)
++{
++	input_unregister_handler(&evbug_handler);
++}
++
++module_init(evbug_init);
++module_exit(evbug_exit);

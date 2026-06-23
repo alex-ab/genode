@@ -33,6 +33,7 @@ PATCH_FILES := \
                audio_distinguish_irq.patch \
                audio_hda_bus_repsonse.patch \
                audio_hp_jack_event_sleep.patch \
-               audio_sof_timeouts.patch
+               audio_sof_timeouts.patch \
+               evbug.patch
 
 PATCHES += $(addprefix patches/,$(PATCH_FILES))
