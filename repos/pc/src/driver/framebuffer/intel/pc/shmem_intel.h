@@ -37,22 +37,22 @@ struct file *shmem_file_setup(char const *name, loff_t size,
 	if (!size)
 		return (struct file*)ERR_PTR(-EINVAL);
 
-	f = kzalloc(sizeof (struct file), 0);
+	f = kzalloc(sizeof (struct file), GFP_KERNEL);
 	if (!f) {
 		return (struct file*)ERR_PTR(-ENOMEM);
 	}
 
-	inode = kzalloc(sizeof (struct inode), 0);
+	inode = kzalloc(sizeof (struct inode), GFP_KERNEL);
 	if (!inode) {
 		goto err_inode;
 	}
 
-	mapping = kzalloc(sizeof (struct address_space), 0);
+	mapping = kzalloc(sizeof (struct address_space), GFP_KERNEL);
 	if (!mapping) {
 		goto err_mapping;
 	}
 
-	private_data = kzalloc(sizeof (struct shmem_file_buffer), 0);
+	private_data = kzalloc(sizeof (struct shmem_file_buffer), GFP_KERNEL);
 	if (!private_data) {
 		goto err_private_data;
 	}

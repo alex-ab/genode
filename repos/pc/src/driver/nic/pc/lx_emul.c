@@ -239,7 +239,7 @@ struct vfsmount * kern_mount(struct file_system_type * type)
 {
 	struct vfsmount *m;
 
-	m = kzalloc(sizeof (struct vfsmount), 0);
+	m = kzalloc(sizeof (struct vfsmount), GFP_KERNEL);
 	if (!m)
 		return (struct vfsmount*)ERR_PTR(-ENOMEM);
 

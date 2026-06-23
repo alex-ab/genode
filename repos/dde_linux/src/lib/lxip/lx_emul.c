@@ -270,7 +270,7 @@ int sock_register(const struct net_proto_family *ops)
 
 struct socket *sock_alloc(void)
 {
-	struct socket *sock = (struct socket *)kzalloc(sizeof(struct socket), 0);
+	struct socket *sock = (struct socket *)kzalloc(sizeof(struct socket), GFP_KERNEL);
 
 	init_waitqueue_head(&sock->wq.wait);
 	sock->wq.fasync_list = NULL;

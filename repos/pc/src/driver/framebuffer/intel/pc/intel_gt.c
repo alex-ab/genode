@@ -88,7 +88,7 @@ int intel_root_gt_init_early(struct drm_i915_private *i915)
 	 * not public available. iommu/iommu.c is not used by our port, so adding
 	 * a dummy valid pointer is sufficient to get i915_vtd_active working.
 	 */
-	i915->drm.dev->iommu_group = kzalloc(4096, 0);
+	i915->drm.dev->iommu_group = kzalloc(4096, GFP_KERNEL);
 	if (!i915_vtd_active(i915))
 		printk("i915_vtd_active is off, which may cause random runtime"
 		       "IOMMU faults on kernels with enabled IOMMUs\n");

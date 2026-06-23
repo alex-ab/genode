@@ -56,7 +56,7 @@ struct vfsmount * kern_mount(struct file_system_type * type)
 	 * called from 'sock_alloc()' properly allocates the inode.
 	 */
 
-	m = kzalloc(sizeof (struct vfsmount), 0);
+	m = kzalloc(sizeof (struct vfsmount), GFP_KERNEL);
 	if (m) {
 
 		struct fs_context fs_ctx;
