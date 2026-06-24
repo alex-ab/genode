@@ -35,15 +35,8 @@ extern "C" Genode::addr_t __initial_ax;
 /* contains physical pointer to multiboot */
 extern "C" Genode::addr_t __initial_bx;
 
-/* pointer to stack base */
-extern "C" Genode::addr_t bootstrap_stack;
-
 /* number of booted CPUs */
 extern "C" Genode::addr_t volatile __cpus_booted;
-
-/* stack size per CPU */
-extern "C" Genode::addr_t const bootstrap_stack_size;
-
 
 /* hardcoded physical page or AP CPUs boot code */
 enum { AP_BOOT_CODE_PAGE = 0x1000 };
@@ -341,9 +334,6 @@ Bootstrap::Platform::Board::Board()
 
 static inline void wake_up_all_cpus(Hw::Apic &apic)
 {
-	/* reset assembly counter (crt0.s), required for resume */
-	__cpus_booted = 0;
-
 	/* see Intel Multiprocessor documentation - we need to do INIT-SIPI-SIPI */
 	apic.send_ipi_to_all(0 /* unused */,
 	                     Hw::Apic::Icr_low::Delivery_mode::INIT);
@@ -367,6 +357,9 @@ Bootstrap::Platform::Cpu_id Bootstrap::Platform::enable_mmu()
 
 	Hw::Apic apic(Hw::Cpu_memory_map::lapic_phys_base());
 	if (boot_cpu && board.cpus > 1) wake_up_all_cpus(apic);
+
+	/* last booted CPU resets assembly counter (crt0.s), required for resume */
+	if (__cpus_booted >= board.cpus) __cpus_booted = 0;
 
 	/* enable serializing lfence on supported AMD processors. */
 	amd_enable_serializing_lfence();
