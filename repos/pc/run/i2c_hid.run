@@ -95,7 +95,7 @@ config | prio_levels: 2
       + parent
       + any-child
 
-+ start pc_i2c_hid | priority: -1 | caps: 130 | ram: 8M
++ start pc_i2c_hid | priority: -1 | caps: 150 | ram: 8M
   + config
     + i2c_slave  | irq: 266 | bus_addr: 44 | hid_addr: 32 | gpio_chip: INT34C5  | . Fujitsu U7411 (SYNAPTICS)
     x i2c_slave  | irq: 266 | bus_addr: 21 | hid_addr: 1  | gpio_chip: INT34C5  | . Fujitsu U7511 (ELAN)
