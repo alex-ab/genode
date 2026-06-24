@@ -44,7 +44,6 @@ SRC_CC += trace_session_component.cc
 SRC_CC += ram_dataspace_factory.cc
 SRC_CC += signal_transmitter_noinit.cc
 SRC_CC += thread_start.cc
-SRC_CC += env.cc
 SRC_CC += pager.cc
 SRC_CC += _main.cc
 SRC_CC += kernel/cpu.cc

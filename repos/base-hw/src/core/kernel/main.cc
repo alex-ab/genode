@@ -12,11 +12,14 @@
  * under the terms of the GNU Affero General Public License version 3.
  */
 
+#include <base/internal/native_env.h>
+
 /* core includes */
 #include <map_local.h>
 #include <kernel/cpu.h>
 #include <kernel/mutex.h>
 #include <kernel/main.h>
+#include <platform.h>
 #include <platform_pd.h>
 #include <platform_thread.h>
 
@@ -276,4 +279,13 @@ bool Core::unmap_local(addr_t virt_addr, size_t num_pages)
 	pd._table.remove(virt_addr, size, pd._table_alloc);
 	Kernel::pd_invalidate_tlb(*pd._kobj, virt_addr, size);
 	return true;
+}
+
+
+void Genode::upgrade_capability_slab()
+{
+	auto &alloc = Core::platform().core_mem_alloc();
+	auto &pd    = Kernel::Main::core_platform_pd();
+	if (pd.upgrade_slab(alloc).failed())
+		Genode::error("Cannot upgrade core's cap allocator!");
 }
