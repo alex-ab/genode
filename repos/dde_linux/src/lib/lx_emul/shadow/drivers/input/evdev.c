@@ -188,6 +188,7 @@ struct evdev_touchpad
 {
 	typeof(jiffies) touch_time;
 	bool            btn_left_pressed; /* state of (physical) BTN_LEFT */
+	bool            palm;             /* hardware detected palm */
 
 	struct { double x, y; } normalize;
 };
@@ -339,8 +340,13 @@ static bool record_touchpad(struct evdev *evdev, struct input_value const *v)
 	if (v->type == EV_KEY && v->code == BTN_LEFT)
 		evdev->touchpad.btn_left_pressed = !!v->value;
 
+	if (v->type == EV_ABS && v->code == ABS_MT_TOOL_TYPE) {
+		evdev->touchpad.palm = v->value == MT_TOOL_PALM;
+		return true;
+	}
+
 	/* only multi-touch pads supported currently */
-	return record_mt(&evdev->mt, v);
+	return evdev->touchpad.palm || record_mt(&evdev->mt, v);
 }
 
 
@@ -757,7 +763,6 @@ static void init_touchpad(struct evdev *evdev)
 	clear_bit(ABS_MT_WIDTH_MINOR, dev->absbit);
 	clear_bit(ABS_MT_ORIENTATION, dev->absbit);
 	clear_bit(ABS_MT_PRESSURE,    dev->absbit);
-	clear_bit(ABS_MT_TOOL_TYPE,   dev->absbit);
 	clear_bit(ABS_MT_TOOL_X,      dev->absbit);
 	clear_bit(ABS_MT_TOOL_Y,      dev->absbit);
 }
