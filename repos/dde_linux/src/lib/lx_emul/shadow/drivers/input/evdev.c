@@ -188,6 +188,8 @@ struct evdev_touchpad
 {
 	typeof(jiffies) touch_time;
 	bool            btn_left_pressed; /* state of (physical) BTN_LEFT */
+
+	struct { double x, y; } normalize;
 };
 
 
@@ -205,7 +207,7 @@ struct evdev
 	struct evdev_xy   abs;
 	struct evdev_mt   mt;
 
-	/* device-specific state machine */
+	/* motion-device-specific state machine */
 	union {
 		struct evdev_touchpad touchpad;
 	};
@@ -539,7 +541,7 @@ static void submit_touchpad(struct evdev *evdev, struct genode_event_submit *sub
 	 * - edge scrolling
 	 * - virtual-button regions
 	 *
-	 * https://wayland.freedesktop.org/libinput/doc/latest/tapping.html
+	 * https://wayland.freedesktop.org/libinput/doc/latest/features.html
 	 */
 
 	if (mt->pending) {
@@ -549,11 +551,18 @@ static void submit_touchpad(struct evdev *evdev, struct genode_event_submit *sub
 				continue;
 			}
 
-			if (slot->ox != -1 && slot->oy != -1)
-				submit->rel_motion(submit, slot->x - slot->ox, slot->y - slot->oy);
+			int dx = 0, dy = 0;
+			if (slot->ox != -1 && slot->oy != -1) {
+				dx = (int)(evdev->touchpad.normalize.x*(slot->x - slot->ox));
+				dy = (int)(evdev->touchpad.normalize.y*(slot->y - slot->oy));
 
-			slot->ox = slot->x;
-			slot->oy = slot->y;
+				if (dx || dy )
+					submit->rel_motion(submit, dx, dy);
+			}
+
+			/* initial or processed position */
+			if (slot->ox == -1 || dx) slot->ox = slot->x;
+			if (slot->oy == -1 || dy) slot->oy = slot->y;
 		}
 
 		mt->pending = false;
@@ -703,52 +712,102 @@ static unsigned evdev_events(struct input_handle *handle,
 }
 
 
-static void init_motion(struct evdev *evdev)
+static void init_evdev_mt(struct evdev *evdev, struct input_dev *dev)
+{
+	struct evdev_mt *mt = &evdev->mt;
+
+	struct evdev_mt_slot *slot;
+
+	mt->num_slots = min(dev->mt->num_slots, MAX_MT_SLOTS);
+	mt->cur_slot = 0;
+	for_each_mt_slot(slot, mt)
+		*slot = INIT_MT_SLOT;
+}
+
+
+static void init_touchpad(struct evdev *evdev)
+{
+	if (evdev->motion != MOTION_TOUCHPAD)
+		return;
+
+	struct input_dev *dev = evdev->handle.dev;
+
+	/* only multi-touch pads supported currently */
+	if (!dev->mt)
+		return;
+
+	init_evdev_mt(evdev, dev);
+
+	/* normalize sensitivity */
+	enum { NORMALIZED_DPI = 600 };
+
+	int x_res = input_abs_get_res(dev, ABS_MT_POSITION_X); /* dpmm */
+	int y_res = input_abs_get_res(dev, ABS_MT_POSITION_Y); /* dpmm */
+
+	evdev->touchpad.normalize.x = NORMALIZED_DPI / (x_res*25.4);
+	evdev->touchpad.normalize.y = NORMALIZED_DPI / (y_res*25.4);
+
+	/* disable undesired events */
+	clear_bit(ABS_X,              dev->absbit);
+	clear_bit(ABS_Y,              dev->absbit);
+	clear_bit(ABS_PRESSURE,       dev->absbit);
+	clear_bit(ABS_MT_TOUCH_MAJOR, dev->absbit);
+	clear_bit(ABS_MT_TOUCH_MINOR, dev->absbit);
+	clear_bit(ABS_MT_WIDTH_MAJOR, dev->absbit);
+	clear_bit(ABS_MT_WIDTH_MINOR, dev->absbit);
+	clear_bit(ABS_MT_ORIENTATION, dev->absbit);
+	clear_bit(ABS_MT_PRESSURE,    dev->absbit);
+	clear_bit(ABS_MT_TOOL_TYPE,   dev->absbit);
+	clear_bit(ABS_MT_TOOL_X,      dev->absbit);
+	clear_bit(ABS_MT_TOOL_Y,      dev->absbit);
+}
+
+
+static void init_motion_direct(struct evdev *evdev)
 {
 	struct input_dev *dev = evdev->handle.dev;
 
-	evdev->motion = evdev_motion(dev);
+	/* multi-touch screens and absolute touch tools supported */
+	if (dev->mt) {
+		init_evdev_mt(evdev, dev);
 
-	switch (evdev->motion) {
-	case MOTION_NONE:
-	case MOTION_MOUSE:
-	case MOTION_POINTER:
-		/* nothing to do */
-		break;
-
-	case MOTION_TOUCHPAD:
-	case MOTION_TOUCHTOOL:
-	case MOTION_TOUCHSCREEN:
-		if (dev->mt) {
-			struct evdev_mt *mt = &evdev->mt;
-
-			struct evdev_mt_slot *slot;
-
-			mt->num_slots = min(dev->mt->num_slots, MAX_MT_SLOTS);
-			mt->cur_slot = 0;
-			for_each_mt_slot(slot, mt)
-				*slot = INIT_MT_SLOT;
-
-			/* disable undesired events */
-			clear_bit(ABS_X,              dev->absbit);
-			clear_bit(ABS_Y,              dev->absbit);
-			clear_bit(ABS_PRESSURE,       dev->absbit);
-			clear_bit(ABS_MT_TOUCH_MAJOR, dev->absbit);
-			clear_bit(ABS_MT_TOUCH_MINOR, dev->absbit);
-			clear_bit(ABS_MT_WIDTH_MAJOR, dev->absbit);
-			clear_bit(ABS_MT_WIDTH_MINOR, dev->absbit);
-			clear_bit(ABS_MT_ORIENTATION, dev->absbit);
-			clear_bit(ABS_MT_TOOL_TYPE,   dev->absbit);
-			clear_bit(ABS_MT_PRESSURE,    dev->absbit);
-			clear_bit(ABS_MT_TOOL_X,      dev->absbit);
-			clear_bit(ABS_MT_TOOL_Y,      dev->absbit);
-		} else {
-			/* disable undesired events */
-			clear_bit(ABS_PRESSURE,       dev->absbit);
-			clear_bit(ABS_DISTANCE,       dev->absbit);
-		}
-		break;
+		/* disable undesired events */
+		clear_bit(ABS_X,              dev->absbit);
+		clear_bit(ABS_Y,              dev->absbit);
+		clear_bit(ABS_PRESSURE,       dev->absbit);
+		clear_bit(ABS_DISTANCE,       dev->absbit);
+		clear_bit(ABS_MT_TOUCH_MAJOR, dev->absbit);
+		clear_bit(ABS_MT_TOUCH_MINOR, dev->absbit);
+		clear_bit(ABS_MT_WIDTH_MAJOR, dev->absbit);
+		clear_bit(ABS_MT_WIDTH_MINOR, dev->absbit);
+		clear_bit(ABS_MT_ORIENTATION, dev->absbit);
+		clear_bit(ABS_MT_PRESSURE,    dev->absbit);
+		clear_bit(ABS_MT_TOOL_TYPE,   dev->absbit);
+		clear_bit(ABS_MT_TOOL_X,      dev->absbit);
+		clear_bit(ABS_MT_TOOL_Y,      dev->absbit);
+	} else {
+		/* disable undesired events */
+		clear_bit(ABS_PRESSURE,       dev->absbit);
+		clear_bit(ABS_DISTANCE,       dev->absbit);
 	}
+}
+
+
+static void init_touchtool(struct evdev *evdev)
+{
+	if (evdev->motion != MOTION_TOUCHTOOL)
+		return;
+
+	init_motion_direct(evdev);
+}
+
+
+static void init_touchscreen(struct evdev *evdev)
+{
+	if (evdev->motion != MOTION_TOUCHSCREEN)
+		return;
+
+	init_motion_direct(evdev);
 }
 
 
@@ -772,7 +831,10 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	evdev->handle.handler = handler;
 	evdev->handle.name    = dev->name;
 
-	init_motion(evdev);
+	evdev->motion = evdev_motion(dev);
+	init_touchpad(evdev);
+	init_touchtool(evdev);
+	init_touchscreen(evdev);
 
 	/* disable undesired events */
 	clear_bit(EV_MSC,            dev->evbit);
