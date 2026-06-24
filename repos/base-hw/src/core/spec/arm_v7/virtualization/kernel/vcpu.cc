@@ -183,6 +183,9 @@ void Kernel::Vcpu::exception(Genode::Cpu_state&)
 }
 
 
+void Kernel::Vcpu::save(Cpu_state &) { }
+
+
 void Kernel::Vcpu::load(Cpu_state &)
 {
 	load();
