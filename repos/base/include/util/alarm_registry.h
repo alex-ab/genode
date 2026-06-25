@@ -11,11 +11,13 @@
  * under the terms of the GNU Affero General Public License version 3.
  */
 
-#ifndef _INCLUDE__BASE__INTERNAL__ALARM_REGISTRY_H_
-#define _INCLUDE__BASE__INTERNAL__ALARM_REGISTRY_H_
+#ifndef _INCLUDE__UTIL__ALARM_REGISTRY_H_
+#define _INCLUDE__UTIL__ALARM_REGISTRY_H_
 
 /* Genode includes */
 #include <base/log.h>
+#include <util/attempt.h>
+#include <util/avl_tree.h>
 
 namespace Genode { template <typename, typename> class Alarm_registry; }
 
@@ -278,4 +280,4 @@ class Genode::Alarm_registry : Noncopyable
 		}
 };
 
-#endif /* _INCLUDE__BASE__INTERNAL__ALARM_REGISTRY_H_ */
+#endif /* _INCLUDE__UTIL__ALARM_REGISTRY_H_ */

@@ -19,9 +19,7 @@
 #include <base/attached_rom_dataspace.h>
 #include <root/component.h>
 #include <timer_session/timer_session.h>
-
-/* base-internal includes */
-#include <base/internal/alarm_registry.h>
+#include <util/alarm_registry.h>
 
 /* Fiasco.OC includes */
 #include <foc/native_thread.h>

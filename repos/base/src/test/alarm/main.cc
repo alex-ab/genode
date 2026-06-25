@@ -15,10 +15,10 @@
 #include <base/component.h>
 #include <base/heap.h>
 #include <base/log.h>
+#include <util/alarm_registry.h>
 
 /* base-internal includes */
 #include <base/internal/xoroshiro.h>
-#include <base/internal/alarm_registry.h>
 
 
 namespace Test {
