@@ -266,6 +266,7 @@ class Timer::Connection : public  Genode::Connection<Session>,
 
 		using Timeout           = Genode::Timeout;
 		using Timeout_handler   = Genode::Timeout_handler;
+		using Timeout_scheduler = Genode::Timeout_scheduler;
 		using Timestamp         = Genode::Trace::Timestamp;
 		using Duration          = Genode::Duration;
 		using Mutex             = Genode::Mutex;
@@ -280,36 +281,6 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		Connection(Connection const &);
 		Connection &operator = (Connection const &);
 
-		/*
-		 * The mode determines which interface of the timer connection is
-		 * enabled. Initially, a timer connection is in TIMER_SESSION mode.
-		 * In this mode, the user can operate directly on the connection using
-		 * the methods of the timer-session interface. As soon as the
-		 * connection is handed over as argument to the constructor of a
-		 * Periodic_io_timeout or a One_shot_io_timeout, it switches to
-		 * TIMEOUT_FRAMEWORK mode. From this point on, the only method that
-		 * the user can use directly on the connection is 'curr_time'. For
-		 * the rest of the functionality he rather uses the interfaces of
-		 * timeout objects that reference the connection.
-		 *
-		 * These are the characteristics of the two modes:
-		 *
-		 *    TIMER_SESSION:
-		 *
-		 *       * Allows for both blocking and non-blocking timeout semantics.
-		 *       * Missing local interpolation leads to less precise curr_time
-		 *         results.
-		 *       * Only one timeout at a time per connection.
-		 *
-		 *    TIMEOUT FRAMEWORK:
-		 *
-		 *       * Supports only non-blocking timeout semantics.
-		 *       * More precise curr_time results through local interpolation.
-		 *       * Multiplexing of multiple timeouts at the same connection
-		 */
-		enum Mode { TIMER_SESSION, TIMEOUT_FRAMEWORK };
-
-		Mode                    _mode             { TIMER_SESSION };
 		Mutex                   _mutex            { };
 		Genode::Signal_receiver _sig_rec          { };
 		Genode::Signal_context  _default_sigh_ctx { };
@@ -339,7 +310,6 @@ class Timer::Connection : public  Genode::Connection<Session>,
 
 		Entrypoint               &_ep;
 		Io_signal_handler         _signal_handler        { _ep, *this, &Connection::_handle_timeout };
-		Timeout_handler          *_handler               { nullptr };
 		Mutex                     _real_time_mutex       { };
 		uint64_t                  _us                    { elapsed_us() };
 		Timestamp                 _ts                    { _timestamp() };
@@ -348,9 +318,36 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		unsigned                  _interpolation_quality { 0 };
 		uint64_t                  _us_to_ts_factor       { 1 };
 		unsigned                  _us_to_ts_factor_shift { 0 };
-		Genode::Timeout_scheduler _timeout_scheduler     { *this };
 
-		Genode::Timeout_scheduler &_switch_to_timeout_framework_mode();
+		Genode::Constructible<Timeout_scheduler> _timeout_scheduler { };
+
+		/*
+		 * The mode determines which interface of the timer connection is
+		 * enabled. Initially, a timer connection is in TIMER_SESSION mode.
+		 * In this mode, the user can operate directly on the connection using
+		 * the methods of the timer-session interface. As soon as the
+		 * connection is handed over as argument to the constructor of a
+		 * Periodic_io_timeout or a One_shot_io_timeout, it switches to
+		 * TIMEOUT mode. From this point on, the only method that
+		 * the user can use directly on the connection is 'curr_time()'.
+		 *
+		 * These are the characteristics of the two modes:
+		 *
+		 *    TIMER_SESSION:
+		 *
+		 *       * Allows for both blocking and non-blocking timeout semantics.
+		 *       * Missing local interpolation
+		 *       * Only one timeout at a time per connection.
+		 *
+		 *    TIMEOUT:
+		 *
+		 *       * Supports only non-blocking timeout semantics.
+		 *       * curr_time() makes use of local clock interpolation.
+		 *       * Multiplexing of multiple timeouts at the same connection
+		 */
+		bool _timeout_mode() const { return _timeout_scheduler.constructed(); };
+
+		Timeout_scheduler &_switch_to_timeout_framework_mode();
 
 		Timestamp _timestamp();
 
@@ -372,7 +369,7 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		 ** Time_source **
 		 *****************/
 
-		void set_timeout(Microseconds duration, Timeout_handler &handler) override;
+		void set_timeout(Microseconds duration) override;
 		Microseconds max_timeout() const override { return Microseconds(REAL_TIME_UPDATE_PERIOD_US); }
 
 	public:
@@ -402,7 +399,7 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		 */
 		void sigh(Signal_context_capability sigh) override
 		{
-			if (_mode == TIMEOUT_FRAMEWORK) {
+			if (_timeout_mode()) {
 				Genode::error("unable to register timer signal handler");
 				return;
 			}
@@ -415,7 +412,7 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		 */
 		void usleep(uint64_t us) override
 		{
-			if (_mode == TIMEOUT_FRAMEWORK) {
+			if (_timeout_mode()) {
 				Genode::error("attempt to usleep in timeout-framework mode");
 				return;
 			}
@@ -451,7 +448,7 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		 */
 		void msleep(uint64_t ms) override
 		{
-			if (_mode == TIMEOUT_FRAMEWORK) {
+			if (_timeout_mode()) {
 				Genode::error("attempt to msleep in timeout-framework mode");
 				return;
 			}

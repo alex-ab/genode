@@ -100,14 +100,13 @@ void Timer::Connection::_handle_timeout()
 	if (us - _us > REAL_TIME_UPDATE_PERIOD_US) {
 		_update_real_time();
 	}
-	if (_handler) {
-		_handler->handle_timeout(curr_time());
+	if (_timeout_scheduler.constructed()) {
+		_timeout_scheduler->handle_timeout(curr_time());
 	}
 }
 
 
-void Timer::Connection::set_timeout(Microseconds     duration,
-                                    Timeout_handler &handler)
+void Timer::Connection::set_timeout(Microseconds duration)
 {
 	if (duration.value < MIN_TIMEOUT_US)
 		duration.value = MIN_TIMEOUT_US;
@@ -115,7 +114,6 @@ void Timer::Connection::set_timeout(Microseconds     duration,
 	if (duration.value > REAL_TIME_UPDATE_PERIOD_US)
 		duration.value = REAL_TIME_UPDATE_PERIOD_US;
 
-	_handler = &handler;
 	trigger_once(duration.value);
 }
 
@@ -133,17 +131,16 @@ Timer::Connection::Connection(Env &env, Entrypoint &ep, Label const &label)
 
 Timeout_scheduler &Timer::Connection::_switch_to_timeout_framework_mode()
 {
-	if (_mode == TIMEOUT_FRAMEWORK) {
-		return _timeout_scheduler;
-	}
-	_mode = TIMEOUT_FRAMEWORK;
+	if (_timeout_scheduler.constructed())
+		return *_timeout_scheduler;
+
 	_sigh(_signal_handler);
 
-	_timeout_scheduler._enable();
+	_timeout_scheduler.construct(*(Time_source*)this);
 
 	/* do initial calibration burst to make interpolation available earlier */
 	for (unsigned i = 0; i < NR_OF_INITIAL_CALIBRATIONS; i++) {
 		_update_real_time();
 	}
-	return _timeout_scheduler;
+	return *_timeout_scheduler;
 };

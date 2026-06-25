@@ -70,10 +70,8 @@ struct Genode::Time_source : Interface
 	 * Install a timeout, overrides the last timeout if any
 	 *
 	 * \param duration  timeout duration
-	 * \param handler   timeout callback
 	 */
-	virtual void set_timeout(Microseconds     duration,
-	                         Timeout_handler &handler) = 0;
+	virtual void set_timeout(Microseconds duration) = 0;
 };
 
 
@@ -161,8 +159,6 @@ class Genode::Timeout_scheduler : private Noncopyable,
 		                       Timeout_handler &handler);
 
 		void _discard_timeout_unsynchronized(Timeout &timeout);
-
-		void _enable();
 
 		void _schedule_one_shot_timeout(Timeout         &timeout,
 		                                Microseconds     duration,

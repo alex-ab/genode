@@ -182,7 +182,9 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 
 Timeout_scheduler::Timeout_scheduler(Time_source  &time_source)
 : _time_source { time_source }
-{ }
+{
+	_set_time_source_timeout();
+}
 
 
 Timeout_scheduler::~Timeout_scheduler()
@@ -212,16 +214,6 @@ Timeout_scheduler::~Timeout_scheduler()
 }
 
 
-void Timeout_scheduler::_enable()
-{
-	Mutex::Guard const scheduler_guard { _mutex };
-	if (_destructor_called) {
-		return;
-	}
-	_set_time_source_timeout();
-}
-
-
 void Timeout_scheduler::_set_time_source_timeout()
 {
 	_set_time_source_timeout(
@@ -236,7 +228,7 @@ void Timeout_scheduler::_set_time_source_timeout(uint64_t duration_us)
 	if (duration_us > _max_sleep_time.value) {
 		duration_us = _max_sleep_time.value;
 	}
-	_time_source.set_timeout(Microseconds(duration_us), *this);
+	_time_source.set_timeout(Microseconds(duration_us));
 }
 
 
