@@ -30,7 +30,7 @@ class Lx_kit::Timeout
 
 		void _handle(Duration);
 
-		using One_shot = Timer::One_shot_timeout<Timeout>;
+		using One_shot = Timer::One_shot_io_timeout<Timeout>;
 
 		Scheduler         &_scheduler;
 		One_shot           _timeout;
