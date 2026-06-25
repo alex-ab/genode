@@ -1543,8 +1543,10 @@ class Vfs_tresor::Current_file_system : private Current_local_factory, public Di
 		Current_file_system(Vfs::Env &vfs_env, Plugin &plugin)
 		:
 			Current_local_factory(vfs_env, plugin),
-			Dir_file_system(vfs_env, Node(_config()), *this)
-		{ }
+			Dir_file_system(vfs_env, Node(_config()))
+		{
+			Dir_file_system::update(Node(_config()), *this);
+		}
 
 		static char const *type_name() { return "current"; }
 
@@ -1624,8 +1626,10 @@ class Vfs_tresor::Control_file_system : private Control_local_factory, public Di
 		Control_file_system(Vfs::Env &vfs_env, Node const &node, Plugin &plugin)
 		:
 			Control_local_factory(vfs_env, node, plugin),
-			Dir_file_system(vfs_env, Node(_config()), *this)
-		{ }
+			Dir_file_system(vfs_env, Node(_config()))
+		{
+			Dir_file_system::update(Node(_config()), *this);
+		}
 
 		static char const *type_name() { return "control"; }
 
@@ -1695,9 +1699,11 @@ class Vfs_tresor::File_system : private Local_factory, public Dir_file_system
 		File_system(Vfs::Env &vfs_env, Node const &node, Plugin &plugin)
 		:
 			Local_factory(vfs_env, node, plugin),
-			Dir_file_system(vfs_env, Node(_config(node)), *this),
+			Dir_file_system(vfs_env, Node(_config(node))),
 			_plugin(plugin)
-		{ }
+		{
+			Dir_file_system::update(Node(_config(node)), *this);
+		}
 };
 
 

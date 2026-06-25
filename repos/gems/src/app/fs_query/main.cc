@@ -252,7 +252,7 @@ struct Fs_query::Main : Vfs::Watch_response_handler
 		Node const config = _config.node();
 
 		_config.node().with_optional_sub_node("vfs", [&] (Node const &vfs_config) {
-			_vfs_env.root_dir().apply_config(vfs_config); });
+			_vfs_env.apply_config(vfs_config); });
 
 		_dirs.for_each([&] (Registered<Watched_directory> &dir) {
 			destroy(_heap, &dir); });

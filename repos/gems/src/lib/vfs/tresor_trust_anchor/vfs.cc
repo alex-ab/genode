@@ -1974,8 +1974,10 @@ class Vfs_tresor_trust_anchor::File_system : private Local_factory,
 
 		File_system(Vfs::Env &vfs_env, Node const &node)
 		:
-			Local_factory(vfs_env, node), Dir_file_system(vfs_env, Node(_config(node)), *this)
-		{ }
+			Local_factory(vfs_env, node), Dir_file_system(vfs_env, Node(_config(node)))
+		{
+			Dir_file_system::update(Node(_config(node)), *this);
+		}
 
 		~File_system() { }
 };

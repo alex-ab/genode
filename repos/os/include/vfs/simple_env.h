@@ -45,8 +45,10 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 		           Node  const &config,
 		           Env::User   &user)
 		:
-			_env(env), _alloc(alloc), _user(user), _root_dir(*this, config, _fs_factory)
-		{ }
+			_env(env), _alloc(alloc), _user(user), _root_dir(*this, config)
+		{
+			_root_dir.update(config, _fs_factory);
+		}
 
 		Simple_env(Genode::Env &env, Allocator &alloc, Node const &config)
 		:
@@ -55,7 +57,7 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 
 		void apply_config(Node const &config)
 		{
-			_root_dir.apply_config(config);
+			_root_dir.update(config, _fs_factory);
 		}
 
 		Genode::Env      &env()              override { return _env; }

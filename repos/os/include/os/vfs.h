@@ -466,8 +466,6 @@ struct Genode::Root_directory : public Vfs::Simple_env,
 	:
 		Vfs::Simple_env(env, alloc, config), Directory((Vfs::Simple_env&)*this)
 	{ }
-
-	void apply_config(Node const &config) { root_dir().apply_config(config); }
 };
 
 

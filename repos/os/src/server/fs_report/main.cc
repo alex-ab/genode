@@ -213,7 +213,7 @@ class Fs_report::Root : public Genode::Root_component<Session_component>
 			_config_rom.update();
 
 			_config_rom.node().with_optional_sub_node("vfs", [&] (Node const &node) {
-				_vfs_env.root_dir().apply_config(node); });
+				_vfs_env.apply_config(node); });
 		}
 
 	protected:

@@ -255,9 +255,11 @@ class Vfs_ip::Sockopt_file_system : private Sockopt_factory,
 	public:
 
 		Sockopt_file_system(Vfs::Env &env, genode_socket_handle &sock)
-		: Sockopt_factory(sock),
-		  Dir_file_system(env, Node(_config()), *this)
-		{ }
+		:
+			Sockopt_factory(sock), Dir_file_system(env, Node(_config()))
+		{
+			Dir_file_system::update(Node(_config()), *this);
+		}
 
 		static char const *type_name() { return "sockopts"; }
 };

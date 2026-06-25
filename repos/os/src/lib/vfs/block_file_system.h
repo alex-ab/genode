@@ -734,10 +734,10 @@ class Vfs_block::File_system : private Local_factory, public Dir_file_system
 		File_system(Vfs::Env &vfs_env, Node const &node)
 		:
 			Local_factory { vfs_env, node },
-			Dir_file_system { vfs_env,
-			                  Node(_config(Local_factory::name(node))),
-			                  *this }
-		{ }
+			Dir_file_system { vfs_env, Node(_config(Local_factory::name(node))) }
+		{
+			Dir_file_system::update(Node(_config(Local_factory::name(node))), *this);
+		}
 
 		static const char *name() { return "block"; }
 

@@ -344,10 +344,12 @@ class Vfs_trace::Subject : private Subject_factory, public Dir_file_system
 
 		Subject(Vfs::Env &env, Trace::Connection &trace,
 		        Trace::Policy_id policy, Node const &node)
-		: Subject_factory(env, trace, policy, { node.attribute_value("id", 0u) }),
-		  Dir_file_system(env, Node(_config(node)), *this)
-		{ }
-
+		:
+			Subject_factory(env, trace, policy, { node.attribute_value("id", 0u) }),
+			Dir_file_system(env, Node(_config(node)))
+		{
+			Dir_file_system::update(Node(_config(node)), *this);
+		}
 
 		static char const *type_name() { return "trace_node"; }
 		char const *type() override { return type_name(); }
@@ -457,8 +459,10 @@ class Vfs_trace::File_system : private Local_factory, public Dir_file_system
 		File_system(Vfs::Env &vfs_env, Node const &node)
 		:
 			Local_factory(vfs_env, node),
-			Dir_file_system(vfs_env, Node(_config(vfs_env, _directory)), *this)
-		{ }
+			Dir_file_system(vfs_env, Node(_config(vfs_env, _directory)))
+		{
+			Dir_file_system::update(Node(_config(vfs_env, _directory)), *this);
+		}
 
 		char const *type() override { return "trace"; }
 };

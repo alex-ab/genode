@@ -142,7 +142,7 @@ struct Vfs_ttf::Local_factory : File_system_factory, Watch_response_handler
 		return nullptr;
 	}
 
-	void apply_config(Node const &config)
+	void update(Node const &config)
 	{
 		_font_config = Font_config(config);
 		_font.construct(_env, _font_config);
@@ -187,14 +187,16 @@ class Vfs_ttf::File_system : private Local_factory, public  Dir_file_system
 		File_system(Vfs::Env &vfs_env, Node const &node)
 		:
 			Local_factory(vfs_env, node),
-			Dir_file_system(vfs_env, Node(_config(node)), *this)
-		{ }
+			Dir_file_system(vfs_env, Node(_config(node)))
+		{
+			Dir_file_system::update(Node(_config(node)), *this);
+		}
 
 		char const *type() override { return "ttf"; }
 
-		void apply_config(Node const &node) override
+		void update(Node const &node, File_system_factory &) override
 		{
-			Local_factory::apply_config(node);
+			Local_factory::update(node);
 		}
 };
 

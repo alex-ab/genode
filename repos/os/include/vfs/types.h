@@ -81,6 +81,8 @@ namespace Genode::Vfs {
 			return s[0] != '\\' && s[1] == '\"';
 		}
 	};
+
+	struct File_system_factory;
 }
 
 #endif /* _INCLUDE__VFS__TYPES_H_ */

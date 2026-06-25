@@ -360,33 +360,12 @@ class Genode::Vfs::Dir_file_system : public File_system
 
 	public:
 
-		Dir_file_system(Env &env, Node const &node,
-		                File_system_factory &fs_factory)
+		Dir_file_system(Env &env, Node const &node)
 		:
 			_env(env),
 			_vfs_root(!node.has_type("dir")),
 			_name(_vfs_root ? Name() : node.attribute_value("name", Name()))
-		{
-			using namespace Genode;
-
-			node.for_each_sub_node([&] (Node const &sub_node) {
-
-				/* traverse into <dir> nodes */
-				if (sub_node.has_type("dir")) {
-					_append_file_system(new (_env.alloc())
-						Dir_file_system(_env, sub_node, fs_factory));
-					return;
-				}
-
-				File_system * const fs = fs_factory.create(_env, sub_node);
-				if (fs) {
-					_append_file_system(fs);
-					return;
-				}
-
-				error("failed to create VFS node: ", sub_node);
-			});
-		}
+		{ }
 
 		/*********************************
 		 ** Directory-service interface **
@@ -880,28 +859,54 @@ class Genode::Vfs::Dir_file_system : public File_system
 		char const *name() const    { return "dir"; }
 		char const *type() override { return "dir"; }
 
-		void apply_config(Node const &node) override
+		void update(Node const &node, File_system_factory &factory) override
 		{
 			using namespace Genode;
 
-			File_system *curr = _first_file_system;
-			node.for_each_sub_node([&] (Node const &sub_node) {
+			/* construct child file systems only once */
+			if (!_first_file_system) {
+				node.for_each_sub_node([&] (Node const &sub_node) {
 
-				if (!curr) {
-					error("VFS config update missed file system for ", sub_node);
-					return;
-				}
+					/* traverse into <dir> nodes */
+					if (sub_node.has_type("dir")) {
+						Dir_file_system &dir = *new (_env.alloc())
+							Dir_file_system(_env, sub_node);
+						dir.update(sub_node, factory);
+						_append_file_system(&dir);
+						return;
+					}
 
-				/* check if type of node matches current file-system type */
-				if (!curr || sub_node.has_type(curr->type()) == false) {
-					error("VFS config update failed (node type '",
-					      sub_node.type(), "' != fs type '", curr->type(),"')");
-					return;
-				}
+					File_system * const fs = factory.create(_env, sub_node);
+					if (fs) {
+						fs->update(sub_node, factory);
+						_append_file_system(fs);
+						return;
+					}
 
-				curr->apply_config(sub_node);
-			 	curr = curr->next;
-			});
+					error("failed to create VFS node: ", sub_node);
+				});
+			} else {
+
+				/* propagate config parameter updates to child file systems */
+				File_system *curr = _first_file_system;
+				node.for_each_sub_node([&] (Node const &sub_node) {
+
+					if (!curr) {
+						error("VFS config update missed file system for ", sub_node);
+						return;
+					}
+
+					/* check if type of node matches current file-system type */
+					if (!curr || sub_node.has_type(curr->type()) == false) {
+						error("VFS config update failed (node type '",
+						      sub_node.type(), "' != fs type '", curr->type(),"')");
+						return;
+					}
+
+					curr->update(sub_node, factory);
+				 	curr = curr->next;
+				});
+			}
 		}
 
 

@@ -353,8 +353,10 @@ class Vfs_tresor_crypto::Key_file_system : private Key_local_factory,
 		                uint32_t  key_id)
 		:
 			Key_local_factory(crypto, key_id),
-			Dir_file_system(vfs_env, Node(_config(key_id)), *this), _key_id(key_id)
-		{ }
+			Dir_file_system(vfs_env, Node(_config(key_id))), _key_id(key_id)
+		{
+			Dir_file_system::update(Node(_config(key_id)), *this);
+		}
 
 		static char const *type_name() { return "keys"; }
 
@@ -1115,8 +1117,10 @@ class Vfs_tresor_crypto::File_system : private Local_factory, public Dir_file_sy
 		File_system(Vfs::Env &vfs_env, Node const &node)
 		:
 			Local_factory(vfs_env, Tresor_crypto::get_interface()),
-			Dir_file_system(vfs_env, Node(_config(node)), *this)
-		{ }
+			Dir_file_system(vfs_env, Node(_config(node)))
+		{
+			Dir_file_system::update(Node(_config(node)), *this);
+		}
 
 		~File_system() { }
 };

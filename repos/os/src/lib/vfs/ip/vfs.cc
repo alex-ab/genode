@@ -1699,7 +1699,7 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 
 	public:
 
-		Ip_file_system(Vfs::Env &env, Genode::Node const &config)
+		Ip_file_system(Vfs::Env &env, Genode::Node const &)
 		:
 			Directory(""), _env(env)
 		{
@@ -1707,8 +1707,6 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 			_wakeup_remote.callback = _schedule_wakeup;
 
 			genode_socket_register_wakeup(&_wakeup_remote);
-
-			apply_config(config);
 		}
 
 		~Ip_file_system() { }
@@ -1719,7 +1717,7 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 		 ** File_system interface **
 		 ***************************/
 
-		void apply_config(Genode::Node const &config) override
+		void update(Genode::Node const &config, File_system_factory &) override
 		{
 			using Addr = String<16>;
 

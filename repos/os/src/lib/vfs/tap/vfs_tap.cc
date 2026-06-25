@@ -347,10 +347,10 @@ class Vfs_tap::Compound_file_system : private Local_factory<FS>,
 		Compound_file_system(Vfs::Env &vfs_env, Node const &node)
 		:
 			Local_factory<FS>(vfs_env, node),
-			Vfs::Dir_file_system(vfs_env,
-			                     Node(_config(Local_factory<FS>::name(node))),
-			                     *this)
-		{ }
+			Dir_file_system(vfs_env, Node(_config(Local_factory<FS>::name(node))))
+		{
+			Dir_file_system::update(Node(_config(Local_factory<FS>::name(node))), *this);
+		}
 
 		static const char *name() { return "tap"; }
 

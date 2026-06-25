@@ -32,13 +32,13 @@ class Libc::Env_implementation : public Libc::Env
 
 		Genode::Env &_env;
 
-		Vfs::Env &_vfs_env;
+		Vfs::Simple_env &_vfs_env;
 
 		Attached_rom_dataspace const &_config_rom;
 
 	public:
 
-		Env_implementation(Genode::Env &env, Vfs::Env &vfs_env,
+		Env_implementation(Genode::Env &env, Vfs::Simple_env &vfs_env,
 		                   Attached_rom_dataspace const &config_rom)
 		:
 			_env(env), _vfs_env(vfs_env), _config_rom(config_rom)
@@ -57,6 +57,8 @@ class Libc::Env_implementation : public Libc::Env
 		}
 
 		Vfs::Env &vfs_env() override { return _vfs_env; }
+
+		void apply_config(Node const &n) override { _vfs_env.apply_config(n); }
 
 
 		/***************************

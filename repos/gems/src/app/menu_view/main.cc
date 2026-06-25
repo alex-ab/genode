@@ -31,7 +31,7 @@ namespace Menu_view { struct Main; }
 
 struct Menu_view::Main : Dialog::Action
 {
-	Env &_env;
+	Libc::Env &_env;
 
 	Attached_rom_dataspace _config { _env, "config" };
 
@@ -42,9 +42,7 @@ struct Menu_view::Main : Dialog::Action
 
 	Heap _heap { _env.ram(), _env.rm() };
 
-	Vfs::Env &_vfs_env;
-
-	Directory _root_dir  { _vfs_env };
+	Directory _root_dir  { _env.vfs_env() };
 	Directory _font_dir  { _root_dir, "font" };
 	Directory _style_dir { _root_dir, "style" };
 
@@ -112,9 +110,7 @@ struct Menu_view::Main : Dialog::Action
 
 	void _update_hover_report();
 
-	Main(Env &env, Vfs::Env &libc_vfs_env)
-	:
-		_env(env), _vfs_env(libc_vfs_env)
+	Main(Libc::Env &env) : _env(env)
 	{
 		_config.sigh(_config_handler);
 		_config_handler.local_submit(); /* apply initial configuration */
@@ -174,7 +170,7 @@ void Menu_view::Main::_handle_config()
 		                            _env, "hover", "hover"); });
 
 	_config.node().with_optional_sub_node("vfs", [&] (Node const &vfs_node) {
-		_vfs_env.root_dir().apply_config(vfs_node); });
+		_env.apply_config(vfs_node); });
 
 	_dialogs.update_from_node(config,
 
@@ -253,6 +249,6 @@ extern "C" void _sigprocmask() { }
 
 void Libc::Component::construct(Libc::Env &env)
 {
-	static Menu_view::Main main(env, env.vfs_env());
+	static Menu_view::Main main(env);
 }
 

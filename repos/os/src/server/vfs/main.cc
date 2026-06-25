@@ -978,8 +978,7 @@ struct Vfs_server::Main : Entrypoint::Io_progress_handler
 	{
 		_config.update();
 		_config.node().with_optional_sub_node("vfs",
-			[&] (Node const &config) {
-				_vfs_env.root_dir().apply_config(config); });
+			[&] (Node const &config) { _vfs_env.apply_config(config); });
 
 		/*
 		 * The VFS configuration change may result in watch notifications

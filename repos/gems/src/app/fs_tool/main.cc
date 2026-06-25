@@ -81,7 +81,7 @@ struct Fs_tool::Main
 		_verbose = config.attribute_value("verbose", false);
 
 		_config.node().with_optional_sub_node("vfs", [&] (Node const &node) {
-			_vfs_env.root_dir().apply_config(node); });
+			_vfs_env.apply_config(node); });
 
 		config.for_each_sub_node([&] (Node const &operation) {
 

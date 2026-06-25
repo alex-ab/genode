@@ -43,7 +43,7 @@ class Genode::Vfs::File_system : public Directory_service, public File_io_servic
 		/**
 		 * Adjust to configuration changes
 		 */
-		virtual void apply_config(Node const &) { }
+		virtual void update(Node const &, File_system_factory &) { }
 
 		/**
 		 * Return the file-system type
