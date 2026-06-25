@@ -1,0 +1,49 @@
+build {
+	timer
+	core init lib/ld
+	server/report_rom
+	driver/framebuffer/boot
+	test/framebuffer
+	test/log
+}
+
+create_boot_directory
+
+install_config {
+config
++ parent-provides
+  + service LOG
+  + service PD
+  + service CPU
+  + service ROM
+  + service IO_PORT
+  + service IO_MEM
+  + service IRQ
+
++ default-route
+  + any-service
+    + any-child
+    + parent
+
++ default | caps: 100 | ram: 10M
+
++ start timer
+  + provides | + service Timer
+
++ start test-log
+
++ start report_rom
+  + provides
+    + service Report
+
++ start boot_fb | caps: 300 | ram: 64M
+
++ start test-framebuffer | ram: 10M
+  + provides | + service Capture
+  + config
+-
+}
+
+build_boot_image [build_artifacts]
+
+run_genode_until forever
