@@ -630,8 +630,6 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 		of.handle.seek(initial_seek);
 	}
 
-//	Plugin::resume_all();
-
 	switch (out_result) {
 	case Result::WRITE_ERR_WOULD_BLOCK: return Errno(EWOULDBLOCK);
 	case Result::WRITE_ERR_INVALID:     return Errno(EINVAL);
@@ -694,8 +692,6 @@ ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 	if (result_errno)
 		return Errno(result_errno);
 
-//	Plugin::resume_all();
-
 	of.handle.advance_seek(out_count);
 
 	return out_count;
@@ -728,8 +724,6 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 		out_result = od.handle.fs().complete_read(&od.handle, dst, out_count);
 		return out_result != Result::READ_QUEUED ? Fn::COMPLETE : Fn::INCOMPLETE;
 	});
-
-//	Plugin::resume_all();
 
 	if ((out_result != Result::READ_OK) ||
 	    (out_count < sizeof(Dirent))) {
