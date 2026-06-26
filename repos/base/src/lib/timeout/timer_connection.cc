@@ -108,8 +108,6 @@ void Timer::Connection::_handle_timeout()
 
 void Timer::Connection::set_timeout(Microseconds duration)
 {
-	if (duration.value < MIN_TIMEOUT_US)
-		duration.value = MIN_TIMEOUT_US;
 
 	if (duration.value > REAL_TIME_UPDATE_PERIOD_US)
 		duration.value = REAL_TIME_UPDATE_PERIOD_US;
