@@ -1,0 +1,45 @@
+plan
+.
+. The text plan refers to two independent watch handles 'x', 'y', and 'z'
+. that can be associated to paths via 'watch_*'.
+.
++ watch_z /a/b/
+  .
+  . Watch directory, to be triggered whenever entries are added or removed.
+  .
++ new_file /a/b/c | : file c, version 1
++ expect_trigger_z
+
++ watch_x /a/b/c
+  .
+  . As the file already exists, an initial watch notification is expected.
+  .
++ expect_trigger_x
+
++ watch_y /a/b/d
+  .
+  . The file 'd' does not exist yet.
+  . The watch handle is expected to trigger as soon as the file appears.
+  .
++ expect_content /a/b/c | : file c, version 1
+
++ append /a/b/c | : +
++ expect_trigger_x
++ expect_content /a/b/c | : file c, version 1+
+
++ new_file /a/b/c | : file c, version 2
++ expect_trigger_x
++ expect_content /a/b/c | : file c, version 2
+
++ rename /a/b/c | to: /a/b/d
++ expect_trigger_x
++ expect_trigger_y
++ expect_trigger_z
++ expect_missing /a/b/c
++ expect_content /a/b/d | : file c, version 2
+
++ unlink /a/b/d
++ expect_trigger_y
++ expect_trigger_z
++ expect_missing /a/b/d
+-

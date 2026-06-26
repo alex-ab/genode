@@ -1,0 +1,75 @@
+#
+# Check used commands
+#
+set mke2fs [installed_command mke2fs]
+set dd     [installed_command dd]
+
+#
+# Build EXT2-file-system image
+#
+catch { exec $dd if=/dev/zero of=bin/ext2.raw bs=1M count=16 }
+catch { exec $mke2fs -F bin/ext2.raw }
+
+build { lib/vfs server/vfs_block server/vfs lib/vfs_rump test/vfs_watch }
+
+create_boot_directory
+
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/src/init \
+                  [depot_user]/src/sequence \
+                  [depot_user]/src/vfs_import \
+                  [depot_user]/raw/test-vfs_watch
+
+install_config {
+config | verbose: yes
++ parent-provides
+  + service ROM
+  + service PD
+  + service RM
+  + service CPU
+  + service LOG
+
++ default-route
+  + any-service
+    + parent
+    + any-child
+
++ default | caps: 200 | ram: 2M
+
++ start timer
+  + provides | + service Timer
+
++ start vfs_block | caps: 300 | ram: 20M
+  + provides | + service Block
+  + config
+    + default-policy | root: / | file: ext2.raw | block_size: 512 | writeable: yes
+    + vfs
+      + ram
+      + import | + rom ext2.raw
+
++ start vfs | caps: 400 | ram: 25M
+  + provides | + service File_system
+  + config
+    + vfs | + rump | fs: ext2fs | ram: 10M
+    + default-policy | root: / | writeable: yes
+
++ start test | caps: 500 | ram: 3M
+  + binary sequence
+  + exit | propagate: yes
+  + config
+    + start local | caps: 100
+      + binary test-vfs_watch
+      + config | + vfs | + ram
+    + start remote | caps: 100
+      + binary test-vfs_watch
+      + config | + vfs | + fs
+-
+}
+
+build_boot_image [list {*}[build_artifacts] ext2.raw]
+
+append qemu_args " -nographic"
+
+run_genode_until {\[init -> test -> remote\] all steps done\..*\n} 10
+
+exec rm -f bin/ext2.raw

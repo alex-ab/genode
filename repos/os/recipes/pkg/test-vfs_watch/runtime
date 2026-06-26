@@ -1,0 +1,46 @@
+runtime | ram: 10M | caps: 1000 | binary: init
+
++ fail    | after_seconds: 20
++ fail    | : Error*
++ succeed | exit: 0
+
++ content
+  + rom | label: ld.lib.so
+  + rom | label: vfs.lib.so
+  + rom | label: vfs
+  + rom | label: init
+  + rom | label: test-vfs_watch
+  + rom | label: plan.hid
+  + rom | label: sequence
+
++ config
+  + parent-provides
+    + service ROM
+    + service LOG
+    + service RM
+    + service CPU
+    + service PD
+    + service Timer
+
+  + default-route
+    + any-service
+      + parent
+      + any-child
+
+  + start vfs | caps: 100 | ram: 1M
+    + provides | + service File_system
+    + config
+      + vfs | + ram
+      + default-policy | root: / | writeable: yes
+
+  + start test | caps: 500 | ram: 3M
+    + binary sequence
+    + exit | propagate: yes
+    + config
+      + start local | caps: 100
+        + binary test-vfs_watch
+        + config | + vfs | + ram
+      + start remote | caps: 100
+        + binary test-vfs_watch
+        + config | + vfs | + fs
+-

@@ -1,0 +1,52 @@
+assert {[have_spec linux]}
+
+create_boot_directory
+
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/src/init \
+                  [depot_user]/src/sequence \
+                  [depot_user]/raw/test-vfs_watch
+
+build { lib/vfs server/lx_fs test/vfs_watch }
+
+install_config {
+config
++ parent-provides
+  + service ROM
+  + service IRQ
+  + service IO_MEM
+  + service IO_PORT
+  + service PD
+  + service RM
+  + service CPU
+  + service LOG
+
++ default-route
+  + any-service
+    + parent
+    + any-child
+
+x start timer | caps: 100 | ram: 1M
+  + provides | + service Timer
+
++ start lx_fs | caps: 220 | ram: 8M | ld: no
+  + provides | + service File_system
+  + config
+    + default-policy | root: / | writeable: yes
+
++ start test | caps: 500 | ram: 3M
+  + binary sequence
+  + exit | propagate: yes
+  + config
+    + start local | caps: 100
+      + binary test-vfs_watch
+      + config | + vfs | + ram
+    + start remote | caps: 100
+      + binary test-vfs_watch
+      + config | + vfs | + fs
+-
+}
+
+build_boot_image [build_artifacts]
+
+run_genode_until {\[init -> test -> remote\] all steps done\..*\n} 10

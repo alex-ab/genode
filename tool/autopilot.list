@@ -33,6 +33,7 @@ local_clock
 log_core
 lwip
 lx_fs_import
+lx_fs_watch
 lx_hybrid_ctors
 lx_hybrid_exception
 lx_hybrid_pthread_ipc
@@ -67,6 +68,7 @@ nova
 platform
 rtc
 rump_ext2
+rump_watch
 scale_priority
 sd_card_zynq
 seoul-auto
