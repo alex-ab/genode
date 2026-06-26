@@ -31,6 +31,8 @@ struct Timer::Session_client : Genode::Rpc_client<Session>
 
 	void trigger_periodic(uint64_t us) override { call<Rpc_trigger_periodic>(us); }
 
+	uint64_t trigger_at(uint64_t us) override { return call<Rpc_trigger_at>(us); }
+
 	void sigh(Signal_context_capability sigh) override { call<Rpc_sigh>(sigh); }
 
 	uint64_t elapsed_ms() const override { return call<Rpc_elapsed_ms>(); }

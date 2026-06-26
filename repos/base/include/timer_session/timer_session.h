@@ -55,6 +55,14 @@ struct Timer::Session : Genode::Session
 	virtual void trigger_periodic(uint64_t us) = 0;
 
 	/**
+	 * Program absolute timeout and return elapsed microseconds
+	 * 
+	 * The timeout will trigger after 'us' microseconds have elapsed since
+	 * session creation.
+	 */
+	virtual uint64_t trigger_at(uint64_t us) = 0;
+
+	/**
 	 * Register timeout signal handler
 	 */
 	virtual void sigh(Genode::Signal_context_capability sigh) = 0;
@@ -85,11 +93,12 @@ struct Timer::Session : Genode::Session
 
 	GENODE_RPC(Rpc_trigger_once, void, trigger_once, uint64_t);
 	GENODE_RPC(Rpc_trigger_periodic, void, trigger_periodic, uint64_t);
+	GENODE_RPC(Rpc_trigger_at, uint64_t, trigger_at, uint64_t);
 	GENODE_RPC(Rpc_sigh, void, sigh, Genode::Signal_context_capability);
 	GENODE_RPC(Rpc_elapsed_ms, uint64_t, elapsed_ms);
 	GENODE_RPC(Rpc_elapsed_us, uint64_t, elapsed_us);
 
-	GENODE_RPC_INTERFACE(Rpc_trigger_once, Rpc_trigger_periodic,
+	GENODE_RPC_INTERFACE(Rpc_trigger_once, Rpc_trigger_periodic, Rpc_trigger_at,
 	                     Rpc_sigh, Rpc_elapsed_ms, Rpc_elapsed_us);
 };
 

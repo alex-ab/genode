@@ -280,6 +280,23 @@ struct Timer::Session_component : Session_object<Timer::Session, Session_compone
 		_device.update_deadline(next_deadline(_alarms));
 	}
 
+	uint64_t trigger_at(uint64_t abs_us) override
+	{
+		Mutex::Guard guard(_alarms_mutex);
+
+		_period.destruct();
+		_alarm.destruct();
+
+		Clock const now = _device.now();
+
+		abs_us = max(abs_us + _creation_time.us, now.us + 250u);
+		_alarm.construct(_alarms, *this, Clock { abs_us });
+
+		_device.update_deadline(next_deadline(_alarms));
+
+		return now.us;
+	}
+
 	void sigh(Signal_context_capability sigh) override { _sigh = sigh; }
 
 	uint64_t elapsed_ms() const override { return _local_now_us()/1000; }
