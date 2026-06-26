@@ -15,6 +15,9 @@
 #ifndef _CORE__KERNEL__CPU_H_
 #define _CORE__KERNEL__CPU_H_
 
+#include <hw/memory_map.h>
+#include <hw/memory_consts.h>
+
 /* core includes */
 #include <board.h>
 #include <kernel/cpu_context.h>
@@ -175,6 +178,22 @@ class Kernel::Cpu : public Board::Cpu, private Irq::Pool,
 		}
 
 		[[noreturn]] void panic(Genode::Cpu_state &state);
+
+		static void with_current(auto const &fn)
+		{
+			using namespace Hw::Mm;
+
+			auto const region = cpu_local_memory();
+			addr_t addr = ((addr_t)&region & ~(CPU_LOCAL_MEMORY_SLOT_SIZE-1))
+			               + CPU_LOCAL_MEMORY_SLOT_OBJECT_OFFSET;
+
+			if (addr < region.base || addr >= region.end()) {
+				Genode::error("CPU object access outside kernel not allowed!");
+				return;
+			}
+
+			fn(*reinterpret_cast<Cpu*>(addr));
+		}
 };
 
 
@@ -195,8 +214,6 @@ class Kernel::Cpu_pool
 	public:
 
 		void initialize_executing_cpu(Pd &core_pd);
-
-		Cpu & cpu(Cpu::Id const id);
 
 		void with_cpu(Call_arg arg, auto const &fn)
 		{

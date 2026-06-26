@@ -69,13 +69,14 @@ void Kernel::Main::_handle_first_kernel_entry()
 
 	_mutex.execute_exclusive(
 		[&] () {
-			Cpu &cpu = _cpu_pool.cpu(Cpu::executing_id());
-			cpu.schedule_next_context(cpu.current_context());
-			context = &cpu.current_context();
+			Cpu::with_current([&] (Cpu &cpu) {
+				cpu.schedule_next_context(cpu.current_context());
+				context = &cpu.current_context();
+			});
 		},
 		[&] () { Genode::error("Mutex error during initial kernel run"); });
 
-	context->load();
+	if (context) context->load();
 }
 
 
@@ -86,19 +87,24 @@ void Kernel::Main::_handle_kernel_entry(Cpu_state &state)
 
 	_mutex.execute_exclusive(
 		[&] () {
-			Cpu &cpu = _cpu_pool.cpu(Cpu::executing_id());
-			Cpu::Context &recent = cpu.current_context();
-			recent.exception(state);
+			Cpu::with_current([&] (Cpu &cpu) {
+				Cpu::Context &recent = cpu.current_context();
+				recent.exception(state);
 
-			Cpu::Context_change change = cpu.schedule_next_context(recent);
+				Cpu::Context_change change = cpu.schedule_next_context(recent);
 
-			if (change == Cpu::Context_change::CHANGED)
-				recent.save(state);
+				if (change == Cpu::Context_change::CHANGED)
+					recent.save(state);
 
-			load_former_state = change == Cpu::Context_change::UNCHANGED;
-			context = &cpu.current_context();
+				load_former_state = change == Cpu::Context_change::UNCHANGED;
+				context = &cpu.current_context();
+			});
 		},
-		[&] () { _cpu_pool.cpu(Cpu::executing_id()).panic(state); });
+		[&] () { Cpu::with_current([&] (Cpu &cpu) { cpu.panic(state); });
+	});
+
+	if (!context)
+		return;
 
 	if (load_former_state) context->load(state);
 	else context->load();
@@ -149,7 +155,7 @@ void Kernel::main_initialize_and_handle_kernel_entry()
 
 				nr_of_initialized_cpus = nr_of_initialized_cpus + 1;
 
-				Main::_instance->_cpu_pool.cpu(Cpu::executing_id()).reinit_cpu();
+				Cpu::with_current([&] (Cpu &cpu) { cpu.reinit_cpu(); });
 
 				if (nr_of_initialized_cpus == nr_of_cpus)
 					Genode::raw("kernel resumed");
@@ -244,7 +250,7 @@ Kernel::main_read_idle_thread_execution_time(Call_arg arg)
 
 void Kernel::backtrace()
 {
-	Main::_instance->_cpu_pool.cpu(Cpu::executing_id()).backtrace();
+	Cpu::with_current([&] (Cpu &cpu) { cpu.backtrace(); });
 }
 
 

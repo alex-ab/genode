@@ -192,24 +192,13 @@ Cpu::Cpu(Id const id, Cpu_pool &cpu_pool, Pd &core_pd)
  ** Cpu_pool **
  **************/
 
-template <typename T>
-static inline T* cpu_object_by_id(Cpu::Id const id)
-{
-	using namespace Hw::Mm;
-	addr_t base = CPU_LOCAL_MEMORY_AREA_START +
-	              id.value * CPU_LOCAL_MEMORY_SLOT_SIZE;
-	return (T*)(base + CPU_LOCAL_MEMORY_SLOT_OBJECT_OFFSET);
-}
-
-
 void Cpu_pool::initialize_executing_cpu(Pd &core_pd)
 {
+	using namespace Hw::Mm;
+
 	Cpu::Id id = Cpu::executing_id();
-	Genode::construct_at<Cpu>(cpu_object_by_id<void>(id), id, *this, core_pd);
-}
-
-
-Cpu & Cpu_pool::cpu(Cpu::Id const id)
-{
-	return *cpu_object_by_id<Cpu>(id);
+	addr_t base = CPU_LOCAL_MEMORY_AREA_START +
+	              id.value * CPU_LOCAL_MEMORY_SLOT_SIZE
+	              + CPU_LOCAL_MEMORY_SLOT_OBJECT_OFFSET;
+	Genode::construct_at<Cpu>((void*)base, id, *this, core_pd);
 }
