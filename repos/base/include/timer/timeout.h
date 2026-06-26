@@ -96,7 +96,8 @@ class Genode::Timeout : private Noncopyable,
 		Microseconds           _deadline            { Microseconds { 0 } };
 		List_element<Timeout>  _pending_timeouts_le { this };
 		Timeout_handler       *_pending_handler     { nullptr };
-		Timeout_handler       *_handler             { nullptr };
+		Timeout_handler       &_handler;
+		bool                   _scheduled           { false };
 		bool                   _in_discard_blockade { false };
 		Blockade               _discard_blockade    { };
 
@@ -106,17 +107,15 @@ class Genode::Timeout : private Noncopyable,
 
 	public:
 
-		Timeout(Timeout_scheduler &scheduler);
+		Timeout(Timeout_scheduler &scheduler, Timeout_handler &handler);
 
-		Timeout(Timer::Connection &timer_connection);
+		Timeout(Timer::Connection &timer_connection, Timeout_handler &handler);
 
 		~Timeout();
 
-		void schedule_periodic(Microseconds     duration,
-		                       Timeout_handler &handler);
+		void schedule_periodic(Microseconds duration);
 
-		void schedule_one_shot(Microseconds     duration,
-		                       Timeout_handler &handler);
+		void schedule_one_shot(Microseconds duration);
 
 		void discard();
 
@@ -153,20 +152,17 @@ class Genode::Timeout_scheduler : private Noncopyable,
 
 		void _set_time_source_timeout(uint64_t duration_us);
 
-		void _schedule_timeout(Timeout         &timeout,
-		                       Microseconds     duration,
-		                       Microseconds     period,
-		                       Timeout_handler &handler);
+		void _schedule_timeout(Timeout      &timeout,
+		                       Microseconds  duration,
+		                       Microseconds  period);
 
 		void _discard_timeout_unsynchronized(Timeout &timeout);
 
-		void _schedule_one_shot_timeout(Timeout         &timeout,
-		                                Microseconds     duration,
-		                                Timeout_handler &handler);
+		void _schedule_one_shot_timeout(Timeout      &timeout,
+		                                Microseconds  duration);
 
-		void _schedule_periodic_timeout(Timeout         &timeout,
-		                                Microseconds     period,
-		                                Timeout_handler &handler);
+		void _schedule_periodic_timeout(Timeout      &timeout,
+		                                Microseconds  period);
 
 		void _discard_timeout(Timeout &timeout);
 

@@ -47,9 +47,9 @@ struct Timer::Periodic_io_timeout : private Genode::Noncopyable,
 
 		typedef void (HANDLER::*Handler_method)(Duration);
 
-		Timeout               _timeout;
 		HANDLER              &_object;
 		Handler_method const  _method;
+		Timeout               _timeout;
 
 
 		/*********************
@@ -66,11 +66,11 @@ struct Timer::Periodic_io_timeout : private Genode::Noncopyable,
 		                    Handler_method  method,
 		                    Microseconds    duration)
 		:
-			_timeout { timer },
 			_object  { object },
-			_method  { method }
+			_method  { method },
+			_timeout { timer, *this }
 		{
-			_timeout.schedule_periodic(duration, *this);
+			_timeout.schedule_periodic(duration);
 		}
 };
 
@@ -90,9 +90,9 @@ class Timer::One_shot_io_timeout : private Genode::Noncopyable,
 
 		typedef void (HANDLER::*Handler_method)(Duration);
 
-		Timeout               _timeout;
 		HANDLER              &_object;
 		Handler_method const  _method;
+		Timeout               _timeout;
 
 
 		/*********************
@@ -108,13 +108,13 @@ class Timer::One_shot_io_timeout : private Genode::Noncopyable,
 		                    HANDLER        &object,
 		                    Handler_method  method)
 		:
-			_timeout { timer },
 			_object  { object },
-			_method  { method }
+			_method  { method },
+			_timeout { timer, *this }
 		{ }
 
 		void schedule(Microseconds duration) {
-			_timeout.schedule_one_shot(duration, *this); }
+			_timeout.schedule_one_shot(duration); }
 
 		void discard() { _timeout.discard(); }
 

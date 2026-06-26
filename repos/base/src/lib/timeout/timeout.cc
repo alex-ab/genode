@@ -22,29 +22,28 @@ using namespace Genode;
  ** Timeout **
  *************/
 
-void Timeout::schedule_periodic(Microseconds     duration,
-                                Timeout_handler &handler)
+void Timeout::schedule_periodic(Microseconds duration)
 {
-	_scheduler._schedule_periodic_timeout(*this, duration, handler);
+	_scheduler._schedule_periodic_timeout(*this, duration);
 }
 
 
-void Timeout::schedule_one_shot(Microseconds     duration,
-                                Timeout_handler &handler)
+void Timeout::schedule_one_shot(Microseconds duration)
 {
-	_scheduler._schedule_one_shot_timeout(*this, duration, handler);
+	_scheduler._schedule_one_shot_timeout(*this, duration);
 }
 
 
-Timeout::Timeout(Timeout_scheduler &scheduler)
+Timeout::Timeout(Timeout_scheduler &scheduler, Timeout_handler &handler)
 :
-	_scheduler(scheduler)
+	_scheduler(scheduler), _handler(handler)
 { }
 
 
-Timeout::Timeout(Timer::Connection &timer_connection)
+Timeout::Timeout(Timer::Connection &timer_connection, Timeout_handler &handler)
 :
-	_scheduler(timer_connection._switch_to_timeout_framework_mode())
+	_scheduler(timer_connection._switch_to_timeout_framework_mode()),
+	_handler(handler)
 { }
 
 
@@ -52,7 +51,7 @@ Timeout::~Timeout() { _scheduler._destruct_timeout(*this); }
 
 void Timeout::discard() { _scheduler._discard_timeout(*this); }
 
-bool Timeout::scheduled() { return _handler != nullptr; }
+bool Timeout::scheduled() { return _scheduled; }
 
 
 /***********************
@@ -108,7 +107,7 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 				 * a second thread calls 'discard' on another pending
 				 * timeout just before that handlers call to 'schedule'.
 				 */
-				timeout._pending_handler = timeout._handler;
+				timeout._pending_handler = &timeout._handler;
 
 			} else {
 
@@ -125,7 +124,7 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 			if (timeout._period.value == 0) {
 
 				/* discard one-shot timeouts */
-				timeout._handler = nullptr;
+				timeout._scheduled = false;
 
 			} else {
 
@@ -232,17 +231,15 @@ void Timeout_scheduler::_set_time_source_timeout(uint64_t duration_us)
 }
 
 
-void Timeout_scheduler::_schedule_one_shot_timeout(Timeout         &timeout,
-                                                   Microseconds     duration,
-                                                   Timeout_handler &handler)
+void Timeout_scheduler::_schedule_one_shot_timeout(Timeout      &timeout,
+                                                   Microseconds  duration)
 {
-	_schedule_timeout(timeout, duration, Microseconds { 0 }, handler);
+	_schedule_timeout(timeout, duration, Microseconds { 0 });
 }
 
 
-void Timeout_scheduler::_schedule_periodic_timeout(Timeout         &timeout,
-                                                   Microseconds     period,
-                                                   Timeout_handler &handler)
+void Timeout_scheduler::_schedule_periodic_timeout(Timeout      &timeout,
+                                                   Microseconds  period)
 {
 
 	/* prevent using a period of 0 */
@@ -250,14 +247,13 @@ void Timeout_scheduler::_schedule_periodic_timeout(Timeout         &timeout,
 		error("attempt to schedule a periodic timeout of 0");
 		return;
 	}
-	_schedule_timeout(timeout, Microseconds { 0 }, period, handler);
+	_schedule_timeout(timeout, Microseconds { 0 }, period);
 }
 
 
-void Timeout_scheduler::_schedule_timeout(Timeout         &timeout,
-                                          Microseconds     duration,
-                                          Microseconds     period,
-                                          Timeout_handler &handler)
+void Timeout_scheduler::_schedule_timeout(Timeout      &timeout,
+                                          Microseconds  duration,
+                                          Microseconds  period)
 {
 	/* acquire scheduler and timeout mutex */
 	Mutex::Guard const scheduler_guard { _mutex };
@@ -267,7 +263,7 @@ void Timeout_scheduler::_schedule_timeout(Timeout         &timeout,
 	Mutex::Guard const timeout_guard(timeout._mutex);
 
 	/* prevent inserting a timeout twice */
-	if (timeout._handler != nullptr) {
+	if (timeout.scheduled()) {
 		_timeouts.remove(&timeout);
 	}
 	/* determine timeout deadline */
@@ -279,7 +275,7 @@ void Timeout_scheduler::_schedule_timeout(Timeout         &timeout,
 			curr_time_us + duration.value : ~(uint64_t)0 };
 
 	/* set up timeout object and insert into timeouts list */
-	timeout._handler = &handler;
+	timeout._scheduled = true;
 	timeout._deadline = Microseconds { deadline_us };
 	timeout._period = period;
 	_insert_into_timeouts_list(timeout);
@@ -365,7 +361,7 @@ void Timeout_scheduler::_discard_timeout_unsynchronized(Timeout &timeout)
 		timeout._in_discard_blockade = false;
 	}
 	_timeouts.remove(&timeout);
-	timeout._handler = nullptr;
+	timeout._scheduled = false;
 }
 
 
