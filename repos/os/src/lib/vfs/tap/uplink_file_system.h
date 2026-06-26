@@ -36,9 +36,11 @@ class Vfs_uplink::File_system : public Single_file_system
 
 		using Vfs_handle = Uplink_vfs_handle;
 
-		File_system(char const *name)
-		: Single_file_system(Node_type::TRANSACTIONAL_FILE, name,
-		                     Node_rwx::rw(), Node())
+		File_system(Parent_fs &parent_fs, char const *name)
+		:
+			Single_file_system(parent_fs,
+			                   Node_type::TRANSACTIONAL_FILE, name,
+			                   Node_rwx::rw(), Node())
 		{ }
 };
 

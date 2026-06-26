@@ -32,7 +32,7 @@ struct Genode::Vfs::File_system_factory : Interface
 	 * \param env         Env of VFS root
 	 * \param config      file-system configuration
 	 */
-	virtual File_system *create(Env &env, Node const &config) = 0;
+	virtual File_system *create(Env &env, Parent_fs &, Node const &config) = 0;
 };
 
 
@@ -60,7 +60,7 @@ class Genode::Vfs::Global_file_system_factory : public File_system_factory
 		template <typename FILE_SYSTEM>
 		void _add_builtin_fs();
 
-		File_system *_try_create(Env &env, Node const &config);
+		File_system *_try_create(Env &env, Parent_fs &, Node const &config);
 
 		/**
 		 * Return name of factory provided by the shared library
@@ -99,7 +99,7 @@ class Genode::Vfs::Global_file_system_factory : public File_system_factory
 		/**
 		 * File_system_factory interface
 		 */
-		File_system *create(Env&, Node const &) override;
+		File_system *create(Env &, Parent_fs &, Node const &) override;
 
 		/**
 		 * Register an additional factory for new file-system type

@@ -36,6 +36,8 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 		Vfs::Env &_env;
 
+		Parent_fs &_parent_fs;
+
 		Allocator_avl _fs_packet_alloc { &_env.alloc() };
 
 		using Label_string = String<64>;
@@ -570,9 +572,9 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 	public:
 
-		File_system(Vfs::Env &env, Node const &config)
+		File_system(Vfs::Env &env, Parent_fs &parent_fs, Node const &config)
 		:
-			_env(env),
+			_env(env), _parent_fs(parent_fs),
 			_label(config.attribute_value("label", Label_string("/"))),
 			_fs(_env.env(), _fs_packet_alloc,
 			    _label,

@@ -207,14 +207,16 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 
 	public:
 
-		Data_file_system(Entrypoint           &ep,
+		Data_file_system(Parent_fs            &parent_fs,
+		                 Entrypoint           &ep,
 		                 Vfs::Env::User       &vfs_user,
 		                 Terminal::Connection &terminal,
 		                 Name           const &name,
 		                 Interrupt_handler    &interrupt_handler,
 		                 bool                  raw)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, name.string(),
+			Single_file_system(parent_fs,
+			                   Node_type::TRANSACTIONAL_FILE, name.string(),
 			                   Node_rwx::rw(), Node()),
 			_name(name), _ep(ep), _vfs_user(vfs_user), _terminal(terminal),
 			_interrupt_handler(interrupt_handler),
@@ -275,7 +277,7 @@ struct Vfs_terminal::File_system : Dir_file_system, File_system_factory,
 
 	bool const _raw;
 
-	Data_file_system _data_fs { _env.ep(), _vfs_user, _terminal, _name, *this, _raw };
+	Data_file_system _data_fs { *this, _env.ep(), _vfs_user, _terminal, _name, *this, _raw };
 
 	struct Info
 	{
@@ -300,10 +302,10 @@ struct Vfs_terminal::File_system : Dir_file_system, File_system_factory,
 	 */
 	unsigned _interrupts = 0;
 
-	Readonly_value_file_system<Info>     _info_fs       { "info",       Info{} };
-	Readonly_value_file_system<unsigned> _rows_fs       { "rows",       0 };
-	Readonly_value_file_system<unsigned> _columns_fs    { "columns",    0 };
-	Readonly_value_file_system<unsigned> _interrupts_fs { "interrupts", _interrupts };
+	Readonly_value_file_system<Info>     _info_fs       { *this, "info",       Info{} };
+	Readonly_value_file_system<unsigned> _rows_fs       { *this, "rows",       0 };
+	Readonly_value_file_system<unsigned> _columns_fs    { *this, "columns",    0 };
+	Readonly_value_file_system<unsigned> _interrupts_fs { *this, "interrupts", _interrupts };
 
 	Io_signal_handler<File_system> _size_changed_handler {
 		_env.ep(), *this, &File_system::_handle_size_changed };
@@ -331,7 +333,7 @@ struct Vfs_terminal::File_system : Dir_file_system, File_system_factory,
 		return config.attribute_value("name", Name("terminal"));
 	}
 
-	Vfs::File_system *create(Vfs::Env &, Node const &node) override
+	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
 		if (node.has_type("data"))       return &_data_fs;
 		if (node.has_type("info"))       return &_info_fs;
@@ -373,9 +375,9 @@ struct Vfs_terminal::File_system : Dir_file_system, File_system_factory,
 		return Config(Cstring(buf));
 	}
 
-	File_system(Vfs::Env &vfs_env, Node const &node)
+	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system(vfs_env, Node(_config(name(node)))),
+		Dir_file_system(vfs_env, parent_fs, Node(_config(name(node)))),
 		_label(node.attribute_value("label", Label(""))),
 		_name(name(node)),
 		_env(vfs_env.env()),

@@ -967,9 +967,10 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 
 	public:
 
-		Data_file_system(Plugin &plugin)
+		Data_file_system(Parent_fs &parent_fs, Plugin &plugin)
 		:
-			Single_file_system(Node_type::CONTINUOUS_FILE, type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, Node_type::CONTINUOUS_FILE,
+			                   type_name(), Node_rwx::rw(), Node()),
 			_plugin(plugin)
 		{ }
 
@@ -1115,9 +1116,10 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 
 	public:
 
-		Extend_file_system(Plugin &plugin)
+		Extend_file_system(Parent_fs &parent_fs, Plugin &plugin)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
+			                   type_name(), Node_rwx::rw(), Node()),
 			_plugin(plugin)
 		{
 			_plugin.manage_extend_file_system(*this);
@@ -1272,9 +1274,10 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 
 	public:
 
-		Rekey_file_system(Plugin &plugin)
+		Rekey_file_system(Parent_fs &parent_fs, Plugin &plugin)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
+			                   type_name(), Node_rwx::rw(), Node()),
 			_plugin(plugin)
 		{
 			_plugin.manage_rekey_file_system(*this);
@@ -1428,9 +1431,10 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 
 	public:
 
-		Deinitialize_file_system(Plugin &plugin)
+		Deinitialize_file_system(Parent_fs &parent_fs, Plugin &plugin)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
+			                   type_name(), Node_rwx::rw(), Node()),
 			_plugin(plugin)
 		{
 			_plugin.manage_deinit_file_system(*this);
@@ -1496,7 +1500,7 @@ struct Vfs_tresor::Current_file_system : Dir_file_system, private File_system_fa
 {
 	Data_file_system _data_fs;
 
-	Vfs::File_system *create(Vfs::Env&, Node const &node) override
+	Vfs::File_system *create(Vfs::Env&, Parent_fs &, Node const &node) override
 	{
 		if (node.has_type(Data_file_system::type_name()))
 			return &_data_fs;
@@ -1519,10 +1523,10 @@ struct Vfs_tresor::Current_file_system : Dir_file_system, private File_system_fa
 		return Config(Cstring(buf));
 	}
 
-	Current_file_system(Vfs::Env &vfs_env, Plugin &plugin)
+	Current_file_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Plugin &plugin)
 	:
-		Dir_file_system(vfs_env, Node(_config())),
-		_data_fs(plugin)
+		Dir_file_system(vfs_env, parent_fs, Node(_config())),
+		_data_fs(*this, plugin)
 	{
 		Dir_file_system::update(Node(_config()), *this);
 	}
@@ -1537,11 +1541,11 @@ struct Vfs_tresor::Control_file_system : Dir_file_system, private File_system_fa
 {
 	Plugin &_plugin;
 
-	Rekey_file_system        _rekey_fs        { _plugin };
-	Deinitialize_file_system _deinitialize_fs { _plugin };
-	Extend_file_system       _extend_fs       { _plugin };
+	Rekey_file_system        _rekey_fs        { *this, _plugin };
+	Deinitialize_file_system _deinitialize_fs { *this, _plugin };
+	Extend_file_system       _extend_fs       { *this, _plugin };
 
-	Vfs::File_system *create(Vfs::Env&, Node const &node) override
+	Vfs::File_system *create(Vfs::Env&, Parent_fs &, Node const &node) override
 	{
 		if (node.has_type(Rekey_file_system::type_name()))
 			return &_rekey_fs;
@@ -1571,9 +1575,9 @@ struct Vfs_tresor::Control_file_system : Dir_file_system, private File_system_fa
 		return Config(Cstring(buf));
 	}
 
-	Control_file_system(Vfs::Env &vfs_env, Plugin &plugin)
+	Control_file_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Plugin &plugin)
 	:
-		Dir_file_system(vfs_env, Node(_config())), _plugin(plugin)
+		Dir_file_system(vfs_env, parent_fs, Node(_config())), _plugin(plugin)
 	{
 		Dir_file_system::update(Node(_config()), *this);
 	}
@@ -1597,7 +1601,7 @@ struct Vfs_tresor::File_system : Dir_file_system, private File_system_factory
 	Current_file_system _current_fs;
 	Control_file_system _control_fs;
 
-	Vfs::File_system *create(Vfs::Env&, Node const &node) override
+	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
 		if (node.has_type(Current_file_system::type_name()))
 			return &_current_fs;
@@ -1623,12 +1627,12 @@ struct Vfs_tresor::File_system : Dir_file_system, private File_system_factory
 		return Config(Cstring(buf));
 	}
 
-	File_system(Vfs::Env &vfs_env, Node const &node, Plugin &plugin)
+	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node, Plugin &plugin)
 	:
-		Dir_file_system(vfs_env, Node(_config(node))),
+		Dir_file_system(vfs_env, parent_fs, Node(_config(node))),
 		_plugin(plugin),
-		_current_fs(vfs_env, plugin),
-		_control_fs(vfs_env, plugin)
+		_current_fs(vfs_env, *this, plugin),
+		_control_fs(vfs_env, *this, plugin)
 	{
 		Dir_file_system::update(Node(_config(node)), *this);
 	}
@@ -1856,14 +1860,16 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 			 ** File_system_factory **
 			 *************************/
 
-			Vfs::File_system *create(Vfs::Env &vfs_env, Node const &node) override
+			Vfs::File_system *create(Vfs::Env &vfs_env, Vfs::Parent_fs &parent_fs,
+			                         Node const &node) override
 			{
 				try {
 					if (!_plugin_ptr) {
 						_plugin_alloc_ptr = &vfs_env.alloc();
 						_plugin_ptr = new (_plugin_alloc_ptr) Vfs_tresor::Plugin { vfs_env, node };
 					}
-					return new (vfs_env.alloc()) Vfs_tresor::File_system(vfs_env, node, *_plugin_ptr);
+					return new (vfs_env.alloc())
+						Vfs_tresor::File_system(vfs_env, parent_fs, node, *_plugin_ptr);
 
 				} catch (...) { error("could not create 'tresor_fs' "); }
 				return nullptr;

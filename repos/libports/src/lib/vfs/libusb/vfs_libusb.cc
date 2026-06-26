@@ -88,9 +88,10 @@ class Vfs_libusb::File_system : public Vfs::Single_file_system
 
 	public:
 
-		File_system(Vfs::Env &env, Node const &config)
+		File_system(Vfs::Env &env, Parent_fs &parent_fs, Node const &config)
 		:
-			Single_file_system(Vfs::Node_type::CONTINUOUS_FILE, name(),
+			Single_file_system(parent_fs,
+			                   Vfs::Node_type::CONTINUOUS_FILE, name(),
 			                   Vfs::Node_rwx::ro(), config),
 			_env(env) { }
 
@@ -123,9 +124,10 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 	struct Factory : Vfs::File_system_factory
 	{
-		Vfs::File_system *create(Vfs::Env &env, Node const &node) override
+		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &parent_fs,
+		                         Node const &node) override
 		{
-			return new (env.alloc()) Vfs_libusb::File_system(env, node);
+			return new (env.alloc()) Vfs_libusb::File_system(env, parent_fs, node);
 		}
 	};
 

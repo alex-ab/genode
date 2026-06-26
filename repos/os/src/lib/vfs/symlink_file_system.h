@@ -60,9 +60,10 @@ class Vfs_symlink::File_system : public Single_file_system
 
 	public:
 
-		File_system(Vfs::Env &, Node const &config)
+		File_system(Vfs::Env &, Parent_fs &parent_fs, Node const &config)
 		:
-			Single_file_system(Node_type::SYMLINK, "symlink",
+			Single_file_system(parent_fs,
+			                   Node_type::SYMLINK, "symlink",
 			                   Node_rwx::rw(), config),
 			_target(config.attribute_value("target", Target()))
 		{ }

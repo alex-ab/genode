@@ -50,8 +50,8 @@ class Vfs_tap::Mac_file_system : public Value_file_system<Net::Mac_address>
 {
 	public:
 
-		Mac_file_system(Name const &name, Net::Mac_address const &mac)
-		: Value_file_system(name, mac)
+		Mac_file_system(Parent_fs &parent_fs, Name const &name, Net::Mac_address const &mac)
+		: Value_file_system(parent_fs, name, mac)
 		{ }
 
 		using Value_file_system<Net::Mac_address>::value;
@@ -121,13 +121,14 @@ class Vfs_tap::Data_file_system : public FS
 	public:
 
 		Data_file_system(Genode::Env            &env,
+		                 Parent_fs              &parent_fs,
 		                 Vfs::Env::User         &vfs_user,
 		                 Name             const &name,
 		                 Label            const &label,
 		                 Net::Mac_address const &mac,
 		                 Device_update_handler  &handler)
 		:
-			FS(name.string()),
+			FS(parent_fs, name.string()),
 			_name(name), _label(label), _default_mac(mac), _env(env),
 			_vfs_user(vfs_user), _device_update_handler(handler)
 		{ }
@@ -200,8 +201,8 @@ struct Vfs_tap::Compound_file_system : Dir_file_system,
 	Net::Mac_address const _default_mac;
 	Vfs::Env              &_env;
 
-	Data_file_system<FS>   _data_fs { _env.env(), _env.user(), _name, _label,
-	                                  _default_mac, *this };
+	Data_file_system<FS>   _data_fs { _env.env(), *this, _env.user(),
+	                                  _name, _label, _default_mac, *this };
 
 	struct Info
 	{
@@ -229,11 +230,13 @@ struct Vfs_tap::Compound_file_system : Dir_file_system,
 		}
 	};
 
-	Mac_addr_fs                          _mac_addr_fs   { "mac_addr", _default_mac };
-	Name_fs                              _name_fs       { "name",     _name };
+	Info _info { _name, _mac_addr_fs };
 
-	Info                                 _info          { _name, _mac_addr_fs };
-	Readonly_value_file_system<Info>     _info_fs       { "info",       _info };
+	using Info_fs = Readonly_value_file_system<Info>;
+
+	Mac_addr_fs _mac_addr_fs { *this, "mac_addr", _default_mac };
+	Name_fs     _name_fs     { *this, "name",     _name };
+	Info_fs     _info_fs     { *this, "info",     _info };
 
 	/********************
 	 ** Watch handlers **
@@ -277,7 +280,7 @@ struct Vfs_tap::Compound_file_system : Dir_file_system,
 	 ** Factory interface **
 	 ***********************/
 
-	Vfs::File_system *create(Vfs::Env&, Node const &node) override
+	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
 		if (node.has_type("data"))      return &_data_fs;
 		if (node.has_type("info"))      return &_info_fs;
@@ -325,9 +328,9 @@ struct Vfs_tap::Compound_file_system : Dir_file_system,
 		return Config(Cstring(buf));
 	}
 
-	Compound_file_system(Vfs::Env &vfs_env, Node const &node)
+	Compound_file_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system(vfs_env, Node(_config(name(node)))),
+		Dir_file_system(vfs_env, parent_fs, Node(_config(name(node)))),
 		_name       (name(node)),
 		_label      (node.attribute_value("label", Label(""))),
 		_mode       (node.attribute_value("mode",  Uplink_mode::NIC_CLIENT)),
@@ -349,14 +352,15 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 	struct Factory : Vfs::File_system_factory
 	{
-		Vfs::File_system *create(Vfs::Env &env, Node const &config) override
+		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &parent_fs,
+		                         Node const &config) override
 		{
 			if (config.attribute_value("mode", Vfs_tap::Uplink_mode::NIC_CLIENT) == Vfs_tap::Uplink_mode::NIC_CLIENT)
 				return new (env.alloc())
-					Vfs_tap::Compound_file_system<Vfs_nic::File_system>(env, config);
+					Vfs_tap::Compound_file_system<Vfs_nic::File_system>(env, parent_fs, config);
 			else
 				return new (env.alloc())
-					Vfs_tap::Compound_file_system<Vfs_uplink::File_system>(env, config);
+					Vfs_tap::Compound_file_system<Vfs_uplink::File_system>(env, parent_fs, config);
 		}
 	};
 

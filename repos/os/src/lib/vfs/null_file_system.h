@@ -28,9 +28,10 @@ namespace Vfs_null {
 
 struct Vfs_null::File_system : Single_file_system
 {
-	File_system(Vfs::Env &, Node const &config)
+	File_system(Vfs::Env &, Parent_fs &parent_fs, Node const &config)
 	:
-		Single_file_system(Node_type::CONTINUOUS_FILE, name(),
+		Single_file_system(parent_fs,
+		                   Node_type::CONTINUOUS_FILE, name(),
 		                   Node_rwx::rw(), config)
 	{ }
 

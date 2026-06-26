@@ -94,11 +94,13 @@ class Vfs_capture::Data_file_system : public Single_file_system
 
 	public:
 
-		Data_file_system(Name        const &name,
-		                 Label       const &label,
-		                 Genode::Env       &env)
+		Data_file_system(Parent_fs   &parent_fs,
+		                 Name  const &name,
+		                 Label const &label,
+		                 Genode::Env &env)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, name.string(),
+			Single_file_system(parent_fs,
+			                   Node_type::TRANSACTIONAL_FILE, name.string(),
 			                   Node_rwx::rw(), Node()),
 			_name(name), _label(label), _env(env)
 		{ }
@@ -182,14 +184,14 @@ struct Vfs_capture::File_system : Dir_file_system, File_system_factory
 
 	Genode::Env &_env;
 
-	Data_file_system _data_fs { _name, _label, _env };
+	Data_file_system _data_fs { *this, _name, _label, _env };
 
 	static Name name(Node const &config)
 	{
 		return config.attribute_value("name", Name("capture"));
 	}
 
-	Vfs::File_system *create(Vfs::Env&, Node const &node) override
+	Vfs::File_system *create(Vfs::Env&, Parent_fs &, Node const &node) override
 	{
 		return node.has_type("data") ? &_data_fs : nullptr;
 	}
@@ -215,9 +217,9 @@ struct Vfs_capture::File_system : Dir_file_system, File_system_factory
 		return Config(Genode::Cstring(buf));
 	}
 
-	File_system(Vfs::Env &vfs_env, Node const &node)
+	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system(vfs_env, Node(_config(name(node)))),
+		Dir_file_system(vfs_env, parent_fs, Node(_config(name(node)))),
 		_label(node.attribute_value("label", Label(""))),
 		_name(name(node)),
 		_env(vfs_env.env())
@@ -237,9 +239,10 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 	struct Factory : Vfs::File_system_factory
 	{
-		Vfs::File_system *create(Vfs::Env &env, Node const &node) override
+		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &parent_fs,
+		                         Node const &node) override
 		{
-			return new (env.alloc()) Vfs_capture::File_system(env, node);
+			return new (env.alloc()) Vfs_capture::File_system(env, parent_fs, node);
 		}
 	};
 

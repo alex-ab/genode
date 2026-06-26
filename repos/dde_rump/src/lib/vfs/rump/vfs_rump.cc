@@ -79,7 +79,8 @@ class Vfs_rump::File_system : public Vfs::File_system
 
 		using Path = Genode::Path<MAX_PATH_LEN>;
 
-		Vfs::Env &_env;
+		Vfs::Env  &_env;
+		Parent_fs &_parent_fs;
 
 		struct Rump_vfs_dir_handle;
 		struct Rump_watch_handle;
@@ -428,8 +429,8 @@ class Vfs_rump::File_system : public Vfs::File_system
 
 	public:
 
-		File_system(Vfs::Env &env, Node const &config)
-		: _env(env)
+		File_system(Vfs::Env &env, Parent_fs &parent_fs, Node const &config)
+		: _env(env), _parent_fs(parent_fs)
 		{
 			using Fs_type = String<16>;
 
@@ -932,18 +933,18 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 			}
 		}
 
-		Vfs::File_system *create(Vfs::Env &env, Node const &config) override
+		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &parent_fs, Node const &config) override
 		{
-			return new (env.alloc()) Vfs_rump::File_system(env, config);
+			return new (env.alloc()) Vfs_rump::File_system(env, parent_fs, config);
 		}
 	};
 
 	struct Extern_factory : Vfs::File_system_factory
 	{
-		Vfs::File_system *create(Vfs::Env &env, Node const &node) override
+		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &parent_fs, Node const &node) override
 		{
 			static Factory factory(env.env(), env.alloc(), env.user(), node);
-			return factory.create(env, node);
+			return factory.create(env, parent_fs, node);
 		}
 	};
 

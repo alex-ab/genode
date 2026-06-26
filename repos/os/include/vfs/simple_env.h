@@ -36,6 +36,8 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 
 		Global_file_system_factory _fs_factory { _alloc };
 
+		struct Root_parent_fs : Parent_fs { } _root_parent_fs { };
+
 		Dir_file_system _root_dir;
 
 	public:
@@ -45,7 +47,8 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 		           Node  const &config,
 		           Env::User   &user)
 		:
-			_env(env), _alloc(alloc), _user(user), _root_dir(*this, config)
+			_env(env), _alloc(alloc), _user(user),
+			_root_dir(*this, _root_parent_fs, config)
 		{
 			_root_dir.update(config, _fs_factory);
 		}

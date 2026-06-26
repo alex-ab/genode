@@ -129,9 +129,11 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 
 	public:
 
-		Value_file_system(Name const &name, Buffer const &initial_value)
+		Value_file_system(Parent_fs &parent_fs, Name const &name,
+		                  Buffer const &initial_value)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type(),
+			Single_file_system(parent_fs,
+			                   Node_type::TRANSACTIONAL_FILE, type(),
 			                   Node_rwx::rw(), Node(_config(name))),
 			_file_name(name)
 		{

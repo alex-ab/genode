@@ -24,7 +24,7 @@
 namespace Genode::Vfs { class Dir_file_system; }
 
 
-class Genode::Vfs::Dir_file_system : public File_system
+class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 {
 	public:
 
@@ -39,6 +39,8 @@ class Genode::Vfs::Dir_file_system : public File_system
 		Dir_file_system &operator = (Dir_file_system const &);
 
 		Vfs::Env &_env;
+
+		Parent_fs &_parent_fs;
 
 		/**
 		 * This instance is the root of VFS
@@ -162,6 +164,17 @@ class Genode::Vfs::Dir_file_system : public File_system
 		 * Returns if path corresponds to top directory of file system
 		 */
 		bool _top_dir(char const *path) const {	return strcmp(path, "/") == 0; }
+
+		/**
+		 * Parent_fs role for the children of this directory file system
+		 */
+		struct Parent_fs_role : Parent_fs
+		{
+			Dir_file_system &_dir;
+
+			Parent_fs_role(Dir_file_system &dir) : _dir(dir) { }
+
+		} _parent_fs_role { *this };
 
 		/**
 		 * Perform operation on a file system
@@ -360,9 +373,9 @@ class Genode::Vfs::Dir_file_system : public File_system
 
 	public:
 
-		Dir_file_system(Env &env, Node const &node)
+		Dir_file_system(Env &env, Parent_fs &parent_fs, Node const &node)
 		:
-			_env(env),
+			_env(env), _parent_fs(parent_fs),
 			_vfs_root(!node.has_type("dir")),
 			_name(_vfs_root ? Name() : node.attribute_value("name", Name()))
 		{ }
@@ -870,13 +883,13 @@ class Genode::Vfs::Dir_file_system : public File_system
 					/* traverse into <dir> nodes */
 					if (sub_node.has_type("dir")) {
 						Dir_file_system &dir = *new (_env.alloc())
-							Dir_file_system(_env, sub_node);
+							Dir_file_system(_env, _parent_fs_role, sub_node);
 						dir.update(sub_node, factory);
 						_append_file_system(&dir);
 						return;
 					}
 
-					File_system * const fs = factory.create(_env, sub_node);
+					File_system * const fs = factory.create(_env, _parent_fs_role, sub_node);
 					if (fs) {
 						fs->update(sub_node, factory);
 						_append_file_system(fs);

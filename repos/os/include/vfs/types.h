@@ -82,6 +82,8 @@ namespace Genode::Vfs {
 		}
 	};
 
+	struct Parent_fs : Noncopyable, Interface { };
+
 	struct File_system_factory;
 }
 

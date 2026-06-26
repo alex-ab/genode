@@ -218,7 +218,8 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 			}
 		};
 
-		Vfs::Env &_vfs_env;
+		Vfs::Env  &_vfs_env;
+		Parent_fs &_parent_fs;
 
 		FATFS _fatfs;
 
@@ -307,8 +308,9 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 
 	public:
 
-		File_system(Vfs::Env &env, Node const &config)
-		: _vfs_env(env)
+		File_system(Vfs::Env &env, Parent_fs &parent_fs, Node const &config)
+		:
+			_vfs_env(env), _parent_fs(parent_fs)
 		{
 			{
 				if (f_setcp(0) != FR_OK) {
@@ -809,10 +811,11 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 	struct Factory : Vfs::File_system_factory
 	{
-		Vfs::File_system *create(Vfs::Env &vfs_env, Genode::Node const &node) override
+		Vfs::File_system *create(Vfs::Env &vfs_env, Vfs::Parent_fs &parent_fs,
+		                         Genode::Node const &node) override
 		{
 			Fatfs::block_init(vfs_env.env(), vfs_env.alloc());
-			return new (vfs_env.alloc()) Vfs_fatfs::File_system(vfs_env, node);
+			return new (vfs_env.alloc()) Vfs_fatfs::File_system(vfs_env, parent_fs, node);
 		}
 	};
 

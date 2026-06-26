@@ -1127,14 +1127,15 @@ class Vfs_oss::Data_file_system : public Single_file_system
 
 	public:
 
-		Data_file_system(Entrypoint     &ep,
+		Data_file_system(Parent_fs      &parent_fs,
+		                 Entrypoint     &ep,
 		                 Vfs::Env::User &vfs_user,
 		                 Audio          &audio,
 		                 Name     const &name)
 		:
-			Single_file_system { Node_type::CONTINUOUS_FILE, name.string(),
+			Single_file_system { parent_fs,
+			                     Node_type::CONTINUOUS_FILE, name.string(),
 			                     Node_rwx::ro(), Node() },
-
 			_ep       { ep },
 			_vfs_user { vfs_user },
 			_audio    { audio }
@@ -1187,26 +1188,26 @@ struct Vfs_oss::File_system : public Dir_file_system, private File_system_factor
 	Vfs::Env &_env;
 
 	/* RO/RW files */
-	Readonly_value_file_system<unsigned>  _channels_fs          { "channels", 0U };
-	Readonly_value_file_system<unsigned>  _format_fs            { "format", 0U };
-	Value_file_system<unsigned>           _sample_rate_fs       { "sample_rate", 0U };
-	Value_file_system<unsigned>           _ifrag_total_fs       { "ifrag_total", 0U };
-	Value_file_system<unsigned>           _ifrag_size_fs        { "ifrag_size", 0U} ;
-	Readonly_value_file_system<unsigned>  _ifrag_avail_fs       { "ifrag_avail", 0U };
-	Readonly_value_file_system<unsigned>  _ifrag_bytes_fs       { "ifrag_bytes", 0U };
-	Value_file_system<unsigned>           _ofrag_total_fs       { "ofrag_total", 0U };
-	Value_file_system<unsigned>           _ofrag_size_fs        { "ofrag_size", 0U} ;
-	Readonly_value_file_system<unsigned>  _ofrag_avail_fs       { "ofrag_avail", 0U };
-	Readonly_value_file_system<unsigned>  _ofrag_bytes_fs       { "ofrag_bytes", 0U };
-	Readonly_value_file_system<long long> _optr_samples_fs      { "optr_samples", 0LL };
-	Readonly_value_file_system<unsigned>  _optr_fifo_samples_fs { "optr_fifo_samples", 0U };
-	Value_file_system<unsigned>           _play_underruns_fs    { "play_underruns", 0U };
-	Value_file_system<unsigned>           _enable_input_fs      { "enable_input", 1U };
-	Value_file_system<unsigned>           _enable_output_fs     { "enable_output", 1U };
+	Readonly_value_file_system<unsigned>  _channels_fs          { *this, "channels", 0U };
+	Readonly_value_file_system<unsigned>  _format_fs            { *this, "format", 0U };
+	Value_file_system<unsigned>           _sample_rate_fs       { *this, "sample_rate", 0U };
+	Value_file_system<unsigned>           _ifrag_total_fs       { *this, "ifrag_total", 0U };
+	Value_file_system<unsigned>           _ifrag_size_fs        { *this, "ifrag_size", 0U} ;
+	Readonly_value_file_system<unsigned>  _ifrag_avail_fs       { *this, "ifrag_avail", 0U };
+	Readonly_value_file_system<unsigned>  _ifrag_bytes_fs       { *this, "ifrag_bytes", 0U };
+	Value_file_system<unsigned>           _ofrag_total_fs       { *this, "ofrag_total", 0U };
+	Value_file_system<unsigned>           _ofrag_size_fs        { *this, "ofrag_size", 0U} ;
+	Readonly_value_file_system<unsigned>  _ofrag_avail_fs       { *this, "ofrag_avail", 0U };
+	Readonly_value_file_system<unsigned>  _ofrag_bytes_fs       { *this, "ofrag_bytes", 0U };
+	Readonly_value_file_system<long long> _optr_samples_fs      { *this, "optr_samples", 0LL };
+	Readonly_value_file_system<unsigned>  _optr_fifo_samples_fs { *this, "optr_fifo_samples", 0U };
+	Value_file_system<unsigned>           _play_underruns_fs    { *this, "play_underruns", 0U };
+	Value_file_system<unsigned>           _enable_input_fs      { *this, "enable_input", 1U };
+	Value_file_system<unsigned>           _enable_output_fs     { *this, "enable_output", 1U };
 
 	/* WO files */
-	Value_file_system<unsigned>           _halt_input_fs        { "halt_input", 0U };
-	Value_file_system<unsigned>           _halt_output_fs       { "halt_output", 0U };
+	Value_file_system<unsigned>           _halt_input_fs        { *this, "halt_input", 0U };
+	Value_file_system<unsigned>           _halt_output_fs       { *this, "halt_output", 0U };
 
 	Audio::Info _info { _channels_fs, _format_fs, _sample_rate_fs,
 	                    _ifrag_total_fs, _ifrag_size_fs,
@@ -1216,7 +1217,7 @@ struct Vfs_oss::File_system : public Dir_file_system, private File_system_factor
 	                    _optr_samples_fs, _optr_fifo_samples_fs,
 	                    _play_underruns_fs };
 
-	Readonly_value_file_system<Audio::Info, 512> _info_fs { "info", _info };
+	Readonly_value_file_system<Audio::Info, 512> _info_fs { *this, "info", _info };
 
 	Audio _audio;
 
@@ -1425,7 +1426,7 @@ struct Vfs_oss::File_system : public Dir_file_system, private File_system_factor
 	/**
 	 * File_system_factory interface
 	 */
-	Vfs::File_system *create(Vfs::Env&, Node const &node) override
+	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
 		if (node.has_type("data")) return &_data_fs;
 		if (node.has_type("info")) return &_info_fs;
@@ -1557,12 +1558,12 @@ struct Vfs_oss::File_system : public Dir_file_system, private File_system_factor
 		return Config(Cstring(buf));
 	}
 
-	File_system(Vfs::Env &vfs_env, Node const &node)
+	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system { vfs_env, Node(_config(name(node))) },
+		Dir_file_system { vfs_env, parent_fs, Node(_config(name(node))) },
 		_env     { vfs_env },
 		_audio   { _env, _info, _info_fs, node },
-		_data_fs { _env.env().ep(), _env.user(), _audio, name(node) }
+		_data_fs { *this, _env.env().ep(), _env.user(), _audio, name(node) }
 	{
 		Dir_file_system::update(Node(_config(name(node))), *this);
 	}
@@ -1579,9 +1580,10 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 	struct Factory : Vfs::File_system_factory
 	{
-		Vfs::File_system *create(Vfs::Env &env, Node const &config) override
+		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &parent_fs,
+		                         Node const &config) override
 		{
-			return new (env.alloc()) Vfs_oss::File_system(env, config);
+			return new (env.alloc()) Vfs_oss::File_system(env, parent_fs, config);
 		}
 	};
 

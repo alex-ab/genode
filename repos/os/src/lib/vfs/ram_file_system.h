@@ -494,6 +494,8 @@ class Vfs_ram::File_system : public Vfs::File_system
 
 		Vfs::Env &_env;
 
+		Parent_fs &_parent_fs;
+
 		Directory  _root = { "" };
 
 		Node *lookup(char const *path, bool return_parent = false)
@@ -564,7 +566,10 @@ class Vfs_ram::File_system : public Vfs::File_system
 
 	public:
 
-		File_system(Vfs::Env &env, Genode::Node const &) : _env(env) { }
+		File_system(Vfs::Env &env, Parent_fs &parent_fs, Genode::Node const &)
+		:
+			_env(env), _parent_fs(parent_fs)
+		{ }
 
 		~File_system() { _root.empty(_env.alloc()); }
 

@@ -93,9 +93,11 @@ class Genode::Vfs::Readonly_value_file_system : public Single_file_system
 
 	public:
 
-		Readonly_value_file_system(Name const &name, T const &initial_value)
+		Readonly_value_file_system(Parent_fs &parent_fs, Name const &name,
+		                           T const &initial_value)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type(),
+			Single_file_system(parent_fs,
+			                   Node_type::TRANSACTIONAL_FILE, type(),
 			                   Node_rwx::ro(), Node(_config(name))),
 			_file_name(name)
 		{

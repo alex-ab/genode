@@ -24,6 +24,8 @@ class Genode::Vfs::Single_file_system : public File_system
 {
 	private:
 
+		Parent_fs &_parent_fs;
+
 		Node_type const _type;
 		Node_rwx  const _rwx;
 
@@ -146,12 +148,13 @@ class Genode::Vfs::Single_file_system : public File_system
 
 	public:
 
-		Single_file_system(Node_type   node_type,
+		Single_file_system(Parent_fs  &parent_fs,
+		                   Node_type   node_type,
 		                   char const *type_name,
 		                   Node_rwx    rwx,
 		                   Node const &config)
 		:
-			_type(node_type), _rwx(rwx),
+			_parent_fs(parent_fs), _type(node_type), _rwx(rwx),
 			_filename(config.attribute_value("name", Filename(type_name)))
 		{ }
 

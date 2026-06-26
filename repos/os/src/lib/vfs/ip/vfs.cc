@@ -899,13 +899,14 @@ class Vfs_ip::Ip_error_file : public Vfs_ip::File
 
 		using Open_result = Vfs::Directory_service::Open_result;
 
-		Error_file_system _error_fs { };
+		Error_file_system _error_fs;
 
 	public:
 
-		Ip_error_file(char const *name)
+		Ip_error_file(Parent_fs &parent_fs, char const *name)
 		:
-			File(name) { }
+			File(name), _error_fs(parent_fs)
+		{ }
 
 		Open_result open(char const *path, Vfs::Vfs_handle **out_handle,
 		                 Allocator &alloc) {
@@ -923,9 +924,10 @@ class Vfs_ip::Ip_sockopt_dir : public Vfs_ip::Directory
 
 	public:
 
-		Ip_sockopt_dir(Vfs::Env &env, genode_socket_handle &sock)
-		: Directory(Sockopt_file_system::type_name()),
-		  _sockopt_fs(env, sock)
+		Ip_sockopt_dir(Vfs::Env &env, Parent_fs &parent_fs, genode_socket_handle &sock)
+		:
+			Directory(Sockopt_file_system::type_name()),
+			_sockopt_fs(env, parent_fs, sock)
 		{ }
 
 		Vfs_ip::Node *child(char const *name) override
@@ -979,6 +981,7 @@ class Vfs_ip::Ip_socket_dir final : public Socket_dir
 	private:
 
 		Vfs::Env             &_env;
+		Parent_fs            &_parent_fs;
 		Allocator            &_alloc;
 		Protocol_dir         &_parent;
 		genode_socket_handle &_sock;
@@ -1004,8 +1007,8 @@ class Vfs_ip::Ip_socket_dir final : public Socket_dir
 		Ip_remote_file  _remote_file  { *this, _sock };
 
 		/* next generation */
-		Ip_sockopt_dir    _sockopt_fs { _env, _sock };
-		Ip_error_file     _error_fs   { "error" };
+		Ip_sockopt_dir    _sockopt_fs { _env, _parent_fs, _sock };
+		Ip_error_file     _error_fs   { _parent_fs, "error" };
 
 		struct Accept_socket_file : Vfs_ip::File
 		{
@@ -1023,12 +1026,13 @@ class Vfs_ip::Ip_socket_dir final : public Socket_dir
 		unsigned const id;
 
 		Ip_socket_dir(Vfs::Env &env,
+		              Parent_fs &parent_fs,
 		              Allocator &alloc,
 		              Protocol_dir &parent,
 		              genode_socket_handle &sock)
 		:
 			Socket_dir(_name),
-			_env(env), _alloc(alloc), _parent(parent),
+			_env(env), _parent_fs(parent_fs), _alloc(alloc), _parent(parent),
 			_sock(sock), id(parent.adopt_socket(*this))
 		{
 			Format::snprintf(_name, sizeof(_name), "%u", id);
@@ -1195,13 +1199,14 @@ struct Vfs_ip::Ip_socket_handle final : Vfs_ip::Ip_vfs_handle
 		Ip_socket_dir socket_dir;
 
 		Ip_socket_handle(Vfs::Env &env,
+		                 Parent_fs &parent_fs,
 		                 File_system &fs,
 		                 Allocator &alloc,
 		                 Protocol_dir &parent,
 		                 genode_socket_handle &sock)
 		:
 			Ip_vfs_handle(fs, alloc, 0),
-			socket_dir(env, alloc, parent, sock)
+			socket_dir(env, parent_fs, alloc, parent, sock)
 		{ }
 
 		bool read_ready() const override { return true; }
@@ -1235,7 +1240,7 @@ Vfs_ip::Ip_socket_dir::_accept_new_socket(File_system &fs,
 
 	try {
 		Vfs_ip::Ip_socket_handle *handle = new (alloc)
-			Vfs_ip::Ip_socket_handle(_env, fs, alloc, _parent, *new_sock);
+			Vfs_ip::Ip_socket_handle(_env, _parent_fs, fs, alloc, _parent, *new_sock);
 		*out_handle = handle;
 		return Directory_service::Open_result::OPEN_OK;
 	}
@@ -1254,6 +1259,7 @@ class Vfs_ip::Protocol_dir_impl : public Protocol_dir
 	private:
 
 		Vfs::Env    &_env;
+		Parent_fs   &_parent_fs;
 		Allocator   &_alloc;
 		File_system &_parent;
 
@@ -1324,7 +1330,7 @@ class Vfs_ip::Protocol_dir_impl : public Protocol_dir
 
 			try {
 				Vfs_ip::Ip_socket_handle *handle = new (alloc)
-					Vfs_ip::Ip_socket_handle(_env, fs, alloc, *this, *sock);
+					Vfs_ip::Ip_socket_handle(_env, _parent_fs, fs, alloc, *this, *sock);
 				*out_handle = handle;
 				return Directory_service::Open_result::OPEN_OK;
 			}
@@ -1342,13 +1348,14 @@ class Vfs_ip::Protocol_dir_impl : public Protocol_dir
 	public:
 
 		Protocol_dir_impl(Vfs::Env          &env,
+		                  Parent_fs         &parent_fs,
 		                  Allocator         &alloc,
 		                  File_system       &parent,
 		                  char        const *name,
 		                  Protocol_dir::Type type)
 		:
 			Protocol_dir(name),
-			_env(env), _alloc(alloc), _parent(parent), _type(type)
+			_env(env), _parent_fs(parent_fs), _alloc(alloc), _parent(parent), _type(type)
 		{
 			for (size_t i = 0; i < MAX_NODES; i++) {
 				_nodes[i] = nullptr;
@@ -1616,6 +1623,7 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 	private:
 
 		Vfs::Env        &_env;
+		Parent_fs       &_parent_fs;
 		Entrypoint      &_ep       { _env.env().ep() };
 		Allocator       &_alloc    { _env.alloc()    };
 		Vfs::Env::User  &_vfs_user { _env.user()     };
@@ -1624,9 +1632,9 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 		genode_socket_wakeup _wakeup_remote { };
 
 		Protocol_dir_impl _tcp_dir {
-			_env, _alloc, *this, "tcp", Protocol_dir::TYPE_STREAM };
+			_env, _parent_fs, _alloc, *this, "tcp", Protocol_dir::TYPE_STREAM };
 		Protocol_dir_impl _udp_dir {
-			_env, _alloc, *this, "udp", Protocol_dir::TYPE_DGRAM  };
+			_env, _parent_fs, _alloc, *this, "udp", Protocol_dir::TYPE_DGRAM  };
 
 		Ip_address_file    _address    { "address",    _info.ip_addr,    *this };
 		Ip_address_file    _netmask    { "netmask",    _info.netmask,    *this };
@@ -1699,9 +1707,9 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 
 	public:
 
-		Ip_file_system(Vfs::Env &env, Genode::Node const &)
+		Ip_file_system(Vfs::Env &env, Parent_fs &parent_fs, Genode::Node const &)
 		:
-			Directory(""), _env(env)
+			Directory(""), _env(env), _parent_fs(parent_fs)
 		{
 			_wakeup_remote.data     = this;
 			_wakeup_remote.callback = _schedule_wakeup;
@@ -2054,7 +2062,7 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 		struct genode_socket_io_progress io_progress { };
 
-		Vfs::File_system *create(Vfs::Env &env, Node const &config) override
+		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &parent_fs, Node const &config) override
 		{
 			io_progress.data = &env;
 			io_progress.callback = socket_progress;
@@ -2063,7 +2071,7 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 			if (genode_socket_init(genode_env_ptr(env.env()), &io_progress,
 			                       config.attribute_value("label", Label("")).string()))
-				return new (env.alloc()) Vfs_ip::Ip_file_system(env, config);
+				return new (env.alloc()) Vfs_ip::Ip_file_system(env, parent_fs, config);
 
 			struct Socket_init_failed { };
 			throw Socket_init_failed();

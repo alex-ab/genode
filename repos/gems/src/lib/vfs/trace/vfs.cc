@@ -161,13 +161,15 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 			bool write_ready() const override { return false; }
 		};
 
-		Trace_buffer_file_system(Vfs::Env &env,
+		Trace_buffer_file_system(Vfs::Env &env, Parent_fs &parent_fs,
 		                         Trace::Connection &trace,
 		                         Trace::Policy_id policy,
 		                         Trace::Subject_id id)
-		: Single_file_system(Node_type::TRANSACTIONAL_FILE, type_name(),
-		                     Node_rwx::rw(), Node(_config())),
-		  _env(env), _trace(trace), _policy(policy), _id(id)
+		:
+			Single_file_system(parent_fs,
+			                   Node_type::TRANSACTIONAL_FILE, type_name(),
+			                   Node_rwx::rw(), Node(_config())),
+			_env(env), _trace(trace), _policy(policy), _id(id)
 		{ }
 
 		static char const *type_name() { return "trace_buffer"; }
@@ -253,12 +255,12 @@ struct Vfs_trace::Subject : Dir_file_system, private File_system_factory
 {
 	Vfs::Env &_env;
 
-	Value_file_system<bool, 6>             _enabled_fs { "enable", "false\n"};
-	Value_file_system<Number_of_bytes, 16> _buffer_size_fs { "buffer_size", "1M\n"};
+	Value_file_system<bool, 6>             _enabled_fs { *this, "enable", "false\n"};
+	Value_file_system<Number_of_bytes, 16> _buffer_size_fs { *this, "buffer_size", "1M\n"};
 	String<17>                             _buffer_string { _buffer_size_fs.buffer() };
 	Trace_buffer_file_system               _trace_fs;
 
-	Vfs::File_system *create(Vfs::Env &, Node const &node) override
+	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
 		if (node.has_type(Value_file_system<unsigned>::type_name())) {
 			if (_enabled_fs.matches(node))     return &_enabled_fs;
@@ -320,11 +322,11 @@ struct Vfs_trace::Subject : Dir_file_system, private File_system_factory
 		return Config(Cstring(buf));
 	}
 
-	Subject(Vfs::Env &env, Trace::Connection &trace,
+	Subject(Vfs::Env &env, Parent_fs &parent_fs, Trace::Connection &trace,
 	        Trace::Policy_id policy, Node const &node)
 	:
-		Dir_file_system(env, Node(_config(node))),
-		_env(env), _trace_fs(env, trace, policy, { node.attribute_value("id", 0u) })
+		Dir_file_system(env, parent_fs, Node(_config(node))),
+		_env(env), _trace_fs(env, *this, trace, policy, { node.attribute_value("id", 0u) })
 	{
 		Dir_file_system::update(Node(_config(node)), *this);
 	}
@@ -386,14 +388,14 @@ struct Vfs_trace::File_system : Dir_file_system, private File_system_factory
 	/**
 	 * File_system_factory interface
 	 */
-	Vfs::File_system *create(Vfs::Env&, Node const &node) override
+	Vfs::File_system *create(Vfs::Env &, Parent_fs &parent_fs, Node const &node) override
 	{
 		Vfs::File_system *result = nullptr;
 
 		if (node.has_type(Subject::type_name()))
 			_policy_id.with_result(
 				[&] (Trace::Policy_id const id) {
-					result = new (_env.alloc()) Subject(_env, _trace, id, node); },
+					result = new (_env.alloc()) Subject(_env, parent_fs, _trace, id, node); },
 				[&] (Trace::Connection::Alloc_policy_error) { });
 
 		return result;
@@ -414,9 +416,9 @@ struct Vfs_trace::File_system : Dir_file_system, private File_system_factory
 			});
 	}
 
-	File_system(Vfs::Env &vfs_env, Node const &node)
+	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system(vfs_env, Node(_config(vfs_env, _directory))),
+		Dir_file_system(vfs_env, parent_fs, Node(_config(vfs_env, _directory))),
 		_env(vfs_env), _trace(vfs_env.env(), _config_session_ram(node), 512*1024)
 	{
 		Dir_file_system::update(Node(_config(vfs_env, _directory)), *this);
@@ -447,10 +449,10 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 	struct Factory : Vfs::File_system_factory
 	{
-		Vfs::File_system *create(Vfs::Env &vfs_env, Node const &node) override
+		Vfs::File_system *create(Vfs::Env &vfs_env, Vfs::Parent_fs &parent_fs, Node const &node) override
 		{
 			try { return new (vfs_env.alloc())
-				Vfs_trace::File_system(vfs_env, node); }
+				Vfs_trace::File_system(vfs_env, parent_fs, node); }
 			catch (...) { error("could not create 'trace_fs' "); }
 			return nullptr;
 		}

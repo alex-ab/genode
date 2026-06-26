@@ -117,9 +117,11 @@ class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 
 	public:
 
-		Sockopt_value_file_system(Name const &name, genode_socket_handle &sock)
+		Sockopt_value_file_system(Parent_fs &parent_fs, Name const &name,
+		                          genode_socket_handle &sock)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type(),
+			Single_file_system(parent_fs,
+			                   Node_type::TRANSACTIONAL_FILE, type(),
 			                   Node_rwx::rw(), Node(_config(name))),
 			_file_name(name), _sock(sock) { }
 
@@ -190,16 +192,16 @@ struct Vfs_ip::Sockopt_file_system : Dir_file_system, File_system_factory
 
 	genode_socket_handle &_sock;
 
-	Readonly_sockopt<GENODE_SO_ERROR> _so_error { "so_error", _sock };
+	Readonly_sockopt<GENODE_SO_ERROR> _so_error { *this, "so_error", _sock };
 
-	Sockopt<GENODE_SO_KEEPALIVE> _so_keepalive  { "so_keepalive", _sock };
-	Sockopt<GENODE_SO_REUSEADDR> _so_reuseaddr  { "so_reuseaddr", _sock };
+	Sockopt<GENODE_SO_KEEPALIVE> _so_keepalive  { *this, "so_keepalive", _sock };
+	Sockopt<GENODE_SO_REUSEADDR> _so_reuseaddr  { *this, "so_reuseaddr", _sock };
 
-	Tcpopt<GENODE_TCP_KEEPCNT>   _tcp_keepcnt   { "tcp_keepcnt"  , _sock };
-	Tcpopt<GENODE_TCP_KEEPIDLE>  _tcp_keepidle  { "tcp_keepidle" , _sock };
-	Tcpopt<GENODE_TCP_KEEPINTVL> _tcp_keepintvl { "tcp_keepintvl", _sock };
+	Tcpopt<GENODE_TCP_KEEPCNT>   _tcp_keepcnt   { *this, "tcp_keepcnt"  , _sock };
+	Tcpopt<GENODE_TCP_KEEPIDLE>  _tcp_keepidle  { *this, "tcp_keepidle" , _sock };
+	Tcpopt<GENODE_TCP_KEEPINTVL> _tcp_keepintvl { *this, "tcp_keepintvl", _sock };
 
-	Vfs::File_system *create(Vfs::Env &, Genode::Node const &node) override
+	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
 		if (node.has_type(Sockopt<GENODE_SO_INVALID>::type_name())) {
 			if (_so_error.matches(node))      return &_so_error;
@@ -238,9 +240,9 @@ struct Vfs_ip::Sockopt_file_system : Dir_file_system, File_system_factory
 		return Config(Genode::Cstring(buf));
 	}
 
-	Sockopt_file_system(Vfs::Env &env, genode_socket_handle &sock)
+	Sockopt_file_system(Vfs::Env &env, Parent_fs &parent_fs, genode_socket_handle &sock)
 	:
-		Dir_file_system(env, Node(_config())),
+		Dir_file_system(env, parent_fs, Node(_config())),
 		_sock(sock)
 	{
 		Dir_file_system::update(Node(_config()), *this);

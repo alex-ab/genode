@@ -99,12 +99,12 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_respon
 
 	Reconstructible<Font> _font;
 
-	Vfs_glyphs::File_system _glyphs_fs { _font->cached_font };
+	Vfs_glyphs::File_system _glyphs_fs { *this, _font->cached_font };
 
-	Readonly_value_file_system<unsigned> _baseline_fs   { "baseline",   0 };
-	Readonly_value_file_system<unsigned> _height_fs     { "height",     0 };
-	Readonly_value_file_system<unsigned> _max_width_fs  { "max_width",  0 };
-	Readonly_value_file_system<unsigned> _max_height_fs { "max_height", 0 };
+	Readonly_value_file_system<unsigned> _baseline_fs   { *this, "baseline",   0 };
+	Readonly_value_file_system<unsigned> _height_fs     { *this, "height",     0 };
+	Readonly_value_file_system<unsigned> _max_width_fs  { *this, "max_width",  0 };
+	Readonly_value_file_system<unsigned> _max_height_fs { *this, "max_height", 0 };
 
 	Watcher _watcher;
 
@@ -116,7 +116,7 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_respon
 		_max_height_fs.value(_font->font.font().bounding_box().h);
 	}
 
-	Vfs::File_system *create(Vfs::Env&, Node const &node) override
+	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
 		if (node.has_type(Vfs_glyphs::File_system::type_name()))
 			return &_glyphs_fs;
@@ -165,9 +165,9 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_respon
 		return Config(Cstring(buf));
 	}
 
-	File_system(Vfs::Env &vfs_env, Node const &node)
+	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system(vfs_env, Node(_config(node))),
+		Dir_file_system(vfs_env, parent_fs, Node(_config(node))),
 		_env(vfs_env),
 		_font_config(node),
 		_font(vfs_env, _font_config),
@@ -190,10 +190,11 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 	struct Factory : Vfs::File_system_factory
 	{
-		Vfs::File_system *create(Vfs::Env &vfs_env, Node const &node) override
+		Vfs::File_system *create(Vfs::Env &vfs_env, Vfs::Parent_fs &parent_fs,
+		                         Node const &node) override
 		{
 			try { return new (vfs_env.alloc())
-				Vfs_ttf::File_system(vfs_env, node); }
+				Vfs_ttf::File_system(vfs_env, parent_fs, node); }
 			catch (...) { }
 			return nullptr;
 		}

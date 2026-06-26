@@ -120,9 +120,10 @@ class Vfs_glyphs::File_system : public Single_file_system
 
 	public:
 
-		File_system(Font const &font)
+		File_system(Parent_fs &parent_fs, Font const &font)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type(),
+			Single_file_system(parent_fs,
+			                   Node_type::TRANSACTIONAL_FILE, type(),
 			                   Node_rwx::ro(), Node()),
 			_font(font)
 		{ }

@@ -84,9 +84,10 @@ class Vfs_ip::Error_file_system : public Single_file_system
 
 	public:
 
-		Error_file_system()
+		Error_file_system(Parent_fs &parent_fs)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type(),
+			Single_file_system(parent_fs,
+			                   Node_type::TRANSACTIONAL_FILE, type(),
 			                   Node_rwx::rw(), Node(_config()))
 		{ }
 

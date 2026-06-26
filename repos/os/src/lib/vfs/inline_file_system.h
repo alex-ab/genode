@@ -145,9 +145,10 @@ class Vfs_inline::File_system : public Single_file_system
 		 * the object after construction time. The underlying backing store
 		 * must be kept in tact during the lifefile of the object.
 		 */
-		File_system(Vfs::Env &env, Node const &config)
+		File_system(Vfs::Env &env, Parent_fs &parent_fs, Node const &config)
 		:
-			Single_file_system(Node_type::CONTINUOUS_FILE, name(),
+			Single_file_system(parent_fs,
+			                   Node_type::CONTINUOUS_FILE, name(),
 			                   Node_rwx::rx(), config),
 			_data(env.alloc(), config)
 		{ }

@@ -140,9 +140,10 @@ class Vfs_rom::File_system : public Single_file_system
 
 	public:
 
-		File_system(Vfs::Env &env, Node const &config)
+		File_system(Vfs::Env &env, Parent_fs &parent_fs, Node const &config)
 		:
-			Single_file_system(Node_type::CONTINUOUS_FILE, name(),
+			Single_file_system(parent_fs,
+			                   Node_type::CONTINUOUS_FILE, name(),
 			                   Node_rwx::ro(), config),
 			_env(env.env()), _vfs_user(env.user()),
 

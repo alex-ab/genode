@@ -542,7 +542,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 
 	public:
 
-		File_system(Vfs::Env &env, Genode::Node const &config)
+		File_system(Vfs::Env &env, Parent_fs &, Genode::Node const &config)
 		:
 			_env(env.env()), _alloc(env.alloc()),
 			_rom_name(config.attribute_value("name", Rom_name())),

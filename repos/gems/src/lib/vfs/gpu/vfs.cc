@@ -97,12 +97,10 @@ struct Vfs_gpu::File_system : Single_file_system
 
 	Id_space<Gpu_vfs_handle> _handle_space { };
 
-	File_system(Vfs::Env &env, Node const &config)
+	File_system(Vfs::Env &env, Parent_fs &parent_fs, Node const &config)
 	:
-	  Single_file_system(Node_type::CONTINUOUS_FILE,
-	                     type_name(),
-	                     Node_rwx::ro(),
-	                     config),
+	  Single_file_system(parent_fs, Node_type::CONTINUOUS_FILE,
+	                     type_name(), Node_rwx::ro(), config),
 	  _env(env)
 	{ }
 
@@ -175,11 +173,12 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 	struct Factory : Vfs::File_system_factory
 	{
-		Vfs::File_system *create(Vfs::Env &vfs_env, Node const &node) override
+		Vfs::File_system *create(Vfs::Env &vfs_env, Vfs::Parent_fs &parent_fs,
+		                         Node const &node) override
 		{
 			_env = &vfs_env;
 			try {
-				_fs = new (vfs_env.alloc()) Vfs_gpu::File_system(vfs_env, node);
+				_fs = new (vfs_env.alloc()) Vfs_gpu::File_system(vfs_env, parent_fs, node);
 				return _fs;
 			}
 			catch (...) { error("could not create 'gpu_fs' "); }

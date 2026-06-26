@@ -120,9 +120,9 @@ class Vfs_tresor_crypto::Encrypt_file_system : public Vfs::Single_file_system
 
 	public:
 
-		Encrypt_file_system(Tresor_crypto::Interface &crypto, uint32_t key_id)
+		Encrypt_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto, uint32_t key_id)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::rw(), Node()),
 			_crypto(crypto), _key_id(key_id)
 		{ }
 
@@ -245,9 +245,9 @@ class Vfs_tresor_crypto::Decrypt_file_system : public Single_file_system
 
 	public:
 
-		Decrypt_file_system(Tresor_crypto::Interface &crypto, uint32_t key_id)
+		Decrypt_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto, uint32_t key_id)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::rw(), Node()),
 			_crypto(crypto), _key_id(key_id)
 		{ }
 
@@ -303,7 +303,7 @@ class Vfs_tresor_crypto::Key_file_system : public Dir_file_system,
 		Encrypt_file_system _encrypt_fs;
 		Decrypt_file_system _decrypt_fs;
 
-		Vfs::File_system *create(Vfs::Env &, Node const &node) override
+		Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 		{
 			if (node.has_type(Encrypt_file_system::type_name()))
 				return &_encrypt_fs;
@@ -336,12 +336,14 @@ class Vfs_tresor_crypto::Key_file_system : public Dir_file_system,
 
 	public:
 
-		Key_file_system(Vfs::Env &vfs_env,
+		Key_file_system(Vfs::Env &vfs_env, Parent_fs &parent_fs,
 		                Tresor_crypto::Interface &crypto,
 		                uint32_t key_id)
 		:
-			Dir_file_system(vfs_env, Node(_config(key_id))), _key_id(key_id),
-			_encrypt_fs(crypto, key_id), _decrypt_fs(crypto, key_id)
+			Dir_file_system(vfs_env, parent_fs, Node(_config(key_id))),
+			_key_id(key_id),
+			_encrypt_fs(*this, crypto, key_id),
+			_decrypt_fs(*this, crypto, key_id)
 		{
 			Dir_file_system::update(Node(_config(key_id)), *this);
 		}
@@ -366,8 +368,14 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system
 		bool _root_dir(char const *path) { return strcmp(path, "/keys") == 0; }
 		bool _top_dir(char const *path) { return strcmp(path, "/") == 0; }
 
+		/**
+		 * Parent_fs role for the children of this directory file system
+		 */
+		struct Parent_fs_role : Parent_fs { } _parent_fs_role { };
+
 		struct Key_registry
 		{
+			Parent_fs &_parent_fs;
 			Allocator &_alloc;
 			Tresor_crypto::Interface &_crypto;
 
@@ -378,9 +386,9 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system
 
 			Registry<Registered<Key_file_system>> _key_fs { };
 
-			Key_registry(Allocator &alloc, Tresor_crypto::Interface &crypto)
+			Key_registry(Parent_fs &parent_fs, Allocator &alloc, Tresor_crypto::Interface &crypto)
 			:
-				_alloc(alloc), _crypto(crypto)
+				_parent_fs(parent_fs), _alloc(alloc), _crypto(crypto)
 			{ }
 
 			void update(Vfs::Env &vfs_env)
@@ -395,7 +403,7 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system
 
 					if (!already_known) {
 						new (_alloc) Registered<Key_file_system>(
-							_key_fs, vfs_env, _crypto, id);
+							_key_fs, vfs_env, _parent_fs, _crypto, id);
 						++_number_of_keys;
 					}
 				});
@@ -627,7 +635,7 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system
 
 		Keys_file_system(Vfs::Env &vfs_env, Tresor_crypto::Interface &crypto)
 		:
-			_vfs_env(vfs_env), _key_reg(vfs_env.alloc(), crypto)
+			_vfs_env(vfs_env), _key_reg(_parent_fs_role, vfs_env.alloc(), crypto)
 		{ }
 
 		static char const *type_name() { return "keys"; }
@@ -975,9 +983,11 @@ class Vfs_tresor_crypto::Management_file_system : public Single_file_system
 
 	public:
 
-		Management_file_system(Tresor_crypto::Interface &crypto, Type type, char const *type_name)
+		Management_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto,
+		                       Type type, char const *type_name)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type_name, Node_rwx::wo(), Node()),
+			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
+			                   type_name, Node_rwx::wo(), Node()),
 			_type(type), _crypto(crypto), _type_name(type_name)
 		{ }
 
@@ -1023,23 +1033,24 @@ class Vfs_tresor_crypto::Management_file_system : public Single_file_system
 };
 
 
-struct Vfs_tresor_crypto::Add_key_file_system : public Vfs_tresor_crypto::Management_file_system
+struct Vfs_tresor_crypto::Add_key_file_system : Vfs_tresor_crypto::Management_file_system
 {
 	static char const *type_name() { return "add_key"; }
 
-	Add_key_file_system(Tresor_crypto::Interface &crypto)
-	: Management_file_system(crypto, Management_file_system::ADD_KEY, type_name()) { }
+	Add_key_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto)
+	:
+		Management_file_system(parent_fs, crypto, Management_file_system::ADD_KEY, type_name()) { }
 
 	char const *type() override { return type_name(); }
 };
 
 
-struct Vfs_tresor_crypto::Remove_key_file_system : public Vfs_tresor_crypto::Management_file_system
+struct Vfs_tresor_crypto::Remove_key_file_system : Vfs_tresor_crypto::Management_file_system
 {
 	static char const *type_name() { return "remove_key"; }
 
-	Remove_key_file_system(Tresor_crypto::Interface &crypto)
-	: Management_file_system(crypto, Management_file_system::REMOVE_KEY, type_name()) { }
+	Remove_key_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto)
+	: Management_file_system(parent_fs, crypto, Management_file_system::REMOVE_KEY, type_name()) { }
 
 	char const *type() override { return type_name(); }
 };
@@ -1055,7 +1066,7 @@ struct Vfs_tresor_crypto::File_system : Dir_file_system, File_system_factory
 		Add_key_file_system    _add_key_fs;
 		Remove_key_file_system _remove_key_fs;
 
-		Vfs::File_system *create(Vfs::Env&, Node const &node) override
+		Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 		{
 			if (node.has_type(Add_key_file_system::type_name()))    return &_add_key_fs;
 			if (node.has_type(Remove_key_file_system::type_name())) return &_remove_key_fs;
@@ -1087,13 +1098,13 @@ struct Vfs_tresor_crypto::File_system : Dir_file_system, File_system_factory
 
 	public:
 
-		File_system(Vfs::Env &vfs_env, Node const &node)
+		File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 		:
-			Dir_file_system(vfs_env, Node(_config(node))),
+			Dir_file_system(vfs_env, parent_fs, Node(_config(node))),
 			_crypto(Tresor_crypto::get_interface()),
 			_keys_fs(vfs_env, _crypto),
-			_add_key_fs(_crypto),
-			_remove_key_fs(_crypto)
+			_add_key_fs(*this, _crypto),
+			_remove_key_fs(*this, _crypto)
 		{
 			Dir_file_system::update(Node(_config(node)), *this);
 		}
@@ -1107,14 +1118,15 @@ struct Vfs_tresor_crypto::File_system : Dir_file_system, File_system_factory
 extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 {
 	using namespace Genode;
+	using namespace Genode::Vfs;
 
-	struct Factory : Vfs::File_system_factory
+	struct Factory : File_system_factory
 	{
-		Vfs::File_system *create(Vfs::Env &vfs_env, Node const &node) override
+		File_system *create(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node) override
 		{
 			try {
 				return new (vfs_env.alloc())
-					Vfs_tresor_crypto::File_system(vfs_env, node);
+					Vfs_tresor_crypto::File_system(vfs_env, parent_fs, node);
 			} catch (...) {
 				error("could not create 'tresor_crypto' file system");
 			}

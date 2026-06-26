@@ -551,9 +551,11 @@ class Vfs_block::Data_file_system : public Single_file_system
 
 	public:
 
-		Data_file_system(Vfs::Env &env, Block_connection &block, Name const &name)
+		Data_file_system(Vfs::Env &env, Parent_fs &parent_fs,
+		                 Block_connection &block, Name const &name)
 		:
-			Single_file_system { Node_type::CONTINUOUS_FILE, name.string(),
+			Single_file_system { parent_fs,
+			                     Node_type::CONTINUOUS_FILE, name.string(),
 			                     block.info().writeable ? Node_rwx::rw()
 			                                            : Node_rwx::ro(),
 			                     Node() },
@@ -653,9 +655,9 @@ struct Vfs_block::File_system : Dir_file_system, File_system_factory
 		}
 	};
 
-	Readonly_value_file_system<Info>     _info_fs        { "info",        Info { } };
-	Readonly_value_file_system<uint64_t> _block_count_fs { "block_count", 0 };
-	Readonly_value_file_system<size_t>   _block_size_fs  { "block_size",  0 };
+	Readonly_value_file_system<Info>     _info_fs        { *this, "info",        Info { } };
+	Readonly_value_file_system<uint64_t> _block_count_fs { *this, "block_count", 0 };
+	Readonly_value_file_system<size_t>   _block_size_fs  { *this, "block_size",  0 };
 
 	static Name name(Node const &config) {
 		return config.attribute_value("name", Name("block")); }
@@ -666,7 +668,7 @@ struct Vfs_block::File_system : Dir_file_system, File_system_factory
 	static size_t io_buffer(Node const &config) {
 		return config.attribute_value("io_buffer", DEFAULT_IO_BUFFER_SIZE); }
 
-	Vfs::File_system *create(Vfs::Env &, Node const &node) override
+	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
 		if (node.has_type("data"))        return &_data_fs;
 		if (node.has_type("info"))        return &_info_fs;
@@ -705,15 +707,15 @@ struct Vfs_block::File_system : Dir_file_system, File_system_factory
 		return Config(Cstring(buf));
 	}
 
-	File_system(Vfs::Env &vfs_env, Node const &node)
+	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system { vfs_env, Node(_config(name(node))) },
-		_label   { node.attribute_value("label", Label("")) },
-		_name    { name(node) },
-		_env     { vfs_env },
-		_block   { _env.env(), &_tx_block_alloc, io_buffer(node) + (64u << 10),
-		           _label.string() },
-		_data_fs { _env, _block, name(node) }
+		Dir_file_system { vfs_env, parent_fs, Node(_config(name(node))) },
+		_label     { node.attribute_value("label", Label("")) },
+		_name      { name(node) },
+		_env       { vfs_env },
+		_block     { _env.env(), &_tx_block_alloc, io_buffer(node) + (64u << 10),
+		             _label.string() },
+		_data_fs   { _env, *this, _block, name(node) }
 	{
 		if (node.has_attribute("block_buffer_count"))
 			warning("'block_buffer_count' attribute is superseded by 'io_buffer'");

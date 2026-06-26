@@ -215,9 +215,10 @@ struct Vfs_xoroshiro::File_system : Single_file_system
 		bool write_ready() const override { return false; }
 	};
 
-	File_system(Vfs::Env &vfs_env, Node const &config)
+	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &config)
 	:
-		Single_file_system { Node_type::CONTINUOUS_FILE, name(),
+		Single_file_system { parent_fs,
+		                     Node_type::CONTINUOUS_FILE, name(),
 		                     Node_rwx::ro(), config },
 		_alloc             { vfs_env.alloc() },
 		_root_dir          { Directory(vfs_env) },
@@ -269,9 +270,10 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 	struct Factory : Vfs::File_system_factory
 	{
-		Vfs::File_system *create(Vfs::Env &env, Node const &node) override
+		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &parent_fs,
+		                         Node const &node) override
 		{
-			return new (env.alloc()) Vfs_xoroshiro::File_system(env, node);
+			return new (env.alloc()) Vfs_xoroshiro::File_system(env, parent_fs, node);
 		}
 	};
 

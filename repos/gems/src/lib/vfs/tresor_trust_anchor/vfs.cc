@@ -1347,9 +1347,10 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 
 	public:
 
-		Hashsum_file_system(Trust_anchor &ta)
+		Hashsum_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::ro(), Node()),
+			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
+			                   type_name(), Node_rwx::ro(), Node()),
 			_trust_anchor(ta)
 		{ }
 
@@ -1451,9 +1452,10 @@ class Vfs_tresor_trust_anchor::Generate_key_file_system : public Single_file_sys
 
 	public:
 
-		Generate_key_file_system(Trust_anchor &ta)
+		Generate_key_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::ro(), Node()),
+			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
+			                   type_name(), Node_rwx::ro(), Node()),
 			_trust_anchor(ta)
 		{ }
 
@@ -1575,9 +1577,10 @@ class Vfs_tresor_trust_anchor::Encrypt_file_system : public Single_file_system
 
 	public:
 
-		Encrypt_file_system(Trust_anchor &ta)
+		Encrypt_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
+			                   type_name(), Node_rwx::rw(), Node()),
 			_trust_anchor(ta)
 		{ }
 
@@ -1698,9 +1701,10 @@ class Vfs_tresor_trust_anchor::Decrypt_file_system : public Single_file_system
 
 	public:
 
-		Decrypt_file_system(Trust_anchor &ta)
+		Decrypt_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
+			                   type_name(), Node_rwx::rw(), Node()),
 			_trust_anchor(ta)
 		{ }
 
@@ -1837,9 +1841,10 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 
 	public:
 
-		Initialize_file_system(Trust_anchor &ta)
+		Initialize_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
-			Single_file_system(Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
+			                   type_name(), Node_rwx::rw(), Node()),
 			_trust_anchor(ta)
 		{ }
 
@@ -1890,11 +1895,11 @@ struct Vfs_tresor_trust_anchor::File_system : Dir_file_system, File_system_facto
 {
 	Trust_anchor _trust_anchor;
 
-	Decrypt_file_system      _decrypt_fs;
-	Encrypt_file_system      _encrypt_fs;
-	Generate_key_file_system _gen_key_fs;
-	Hashsum_file_system      _hash_fs;
-	Initialize_file_system   _init_fs;
+	Decrypt_file_system      _decrypt_fs { *this, _trust_anchor };
+	Encrypt_file_system      _encrypt_fs { *this, _trust_anchor };
+	Generate_key_file_system _gen_key_fs { *this, _trust_anchor };
+	Hashsum_file_system      _hash_fs    { *this, _trust_anchor };
+	Initialize_file_system   _init_fs    { *this, _trust_anchor };
 
 	using Storage_path = String<256>;
 	static Storage_path _storage_path(Node const &node)
@@ -1907,7 +1912,7 @@ struct Vfs_tresor_trust_anchor::File_system : Dir_file_system, File_system_facto
 		return node.attribute_value("storage_dir", Storage_path());
 	}
 
-	Vfs::File_system *create(Vfs::Env&, Node const &node) override
+	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
 		if (node.has_type(Decrypt_file_system::type_name())) {
 			return &_decrypt_fs;
@@ -1955,12 +1960,10 @@ struct Vfs_tresor_trust_anchor::File_system : Dir_file_system, File_system_facto
 		return Config(Cstring(buf));
 	}
 
-	File_system(Vfs::Env &vfs_env, Node const &node)
+	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system(vfs_env, Node(_config(node))),
-		_trust_anchor(vfs_env, _storage_path(node).string()),
-		_decrypt_fs(_trust_anchor), _encrypt_fs(_trust_anchor),
-		_gen_key_fs(_trust_anchor), _hash_fs(_trust_anchor), _init_fs(_trust_anchor)
+		Dir_file_system(vfs_env, parent_fs, Node(_config(node))),
+		_trust_anchor(vfs_env, _storage_path(node).string())
 	{
 		Dir_file_system::update(Node(_config(node)), *this);
 	}
@@ -1977,11 +1980,12 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 	struct Factory : Vfs::File_system_factory
 	{
-		Vfs::File_system *create(Vfs::Env &vfs_env, Node const &node) override
+		Vfs::File_system *create(Vfs::Env &vfs_env, Vfs::Parent_fs &parent_fs,
+		                         Node const &node) override
 		{
 			try {
 				return new (vfs_env.alloc())
-					Vfs_tresor_trust_anchor::File_system(vfs_env, node);
+					Vfs_tresor_trust_anchor::File_system(vfs_env, parent_fs, node);
 
 			} catch (...) {
 				error("could not create 'tresor_trust_anchor'");
