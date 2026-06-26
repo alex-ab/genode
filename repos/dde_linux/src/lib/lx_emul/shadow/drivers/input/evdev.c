@@ -114,14 +114,47 @@ static enum evdev_motion evdev_motion(struct input_dev const *dev)
 	return MOTION_TOUCHSCREEN;
 }
 
+struct evdev_mt_pos
+{
+	bool set;   /* value was set */
+	int  value; /* actual value */
+};
+
+static void reset_mt_pos(struct evdev_mt_pos *p)
+{
+	p->set = false;
+}
+
+static void set_mt_pos(struct evdev_mt_pos *p, int v)
+{
+	p->set   = true;
+	p->value = v;
+}
 
 struct evdev_mt_slot
 {
+	bool pending;
 	bool touch;
 	int  finger;
-	int  x, y, ox, oy;
+
+	struct evdev_mt_pos x, y, ox, oy;
 };
-#define INIT_MT_SLOT (struct evdev_mt_slot){ false, -1, -1, -1, -1, -1 }
+
+static void reset_mt_slot(struct evdev_mt_slot *s)
+{
+	*s = (struct evdev_mt_slot){ false, false, -1, { }, { }, { }, { } };
+}
+
+static void update_mt_slot(struct evdev_mt_slot *s)
+{
+	if (s->x.set) set_mt_pos(&s->ox, s->x.value);
+	if (s->y.set) set_mt_pos(&s->oy, s->y.value);
+}
+
+static bool pending_mt_slot(struct evdev_mt_slot *s)
+{
+	return s->pending && s->x.set && s->y.set;
+}
 
 
 /*
@@ -134,8 +167,7 @@ enum { MAX_MT_SLOTS = 16 };
 
 struct evdev_mt
 {
-	bool                 touched;
-	bool                 pending;
+	unsigned             pending;
 	unsigned             num_slots;
 	unsigned             cur_slot;
 	struct evdev_mt_slot slots[MAX_MT_SLOTS];
@@ -149,6 +181,22 @@ struct evdev_mt
 #define for_each_mt_slot(slot, mt) \
 	array_for_each_element(slot, (mt)->slots)
 
+static void charge_mt_slot(struct evdev_mt *mt, struct evdev_mt_slot *s)
+{
+	if (!s->pending) {
+		s->pending = true;
+		mt->pending++;
+	}
+}
+
+static void complete_mt_slot(struct evdev_mt *mt, struct evdev_mt_slot *s)
+{
+	if (s->pending) {
+		s->pending = false;
+		mt->pending--;
+	}
+}
+
 
 struct evdev_key
 {
@@ -158,8 +206,16 @@ struct evdev_key
 
 	typeof(jiffies) jiffies;
 };
-#define INIT_KEY (struct evdev_key){ false, 0, false }
-#define EVDEV_KEY(code, press) (struct evdev_key){ true, code, press, jiffies }
+
+static void reset_key(struct evdev_key *k)
+{
+	*k = (struct evdev_key){ false, 0, false };
+}
+
+static void set_key(struct evdev_key *k, unsigned code, bool press)
+{
+	*k = (struct evdev_key){ true, code, press, jiffies };
+}
 
 struct evdev_keys
 {
@@ -175,13 +231,35 @@ struct evdev_keys
 	if ((keys)->pending) \
 		for_each_key(key, keys, true)
 
+static void charge_key(struct evdev_keys *keys, unsigned code, bool press)
+{
+	struct evdev_key *key;
+	for_each_key(key, keys, false) {
+		if (!key->pending) {
+			set_key(key, code, press);
+			keys->pending++;
+			break;
+		}
+	}
+}
+
+static void complete_key(struct evdev_keys *keys, struct evdev_key *k)
+{
+	k->pending = false;
+	keys->pending--;
+}
+
 
 struct evdev_xy
 {
 	bool pending;
 	int  x, y;
 };
-#define INIT_XY (struct evdev_xy){ false, 0, 0 }
+
+static void reset_xy(struct evdev_xy *xy)
+{
+	*xy = (struct evdev_xy){ false, 0, 0 };
+}
 
 
 struct evdev_touchpad
@@ -191,6 +269,12 @@ struct evdev_touchpad
 	bool            palm;             /* hardware detected palm */
 
 	struct { double x, y; } normalize;
+};
+
+
+struct evdev_touchscreen
+{
+	bool touched; /* track contacts to report BTN_TOUCH press/release */
 };
 
 
@@ -210,7 +294,8 @@ struct evdev
 
 	/* motion-device-specific state machine */
 	union {
-		struct evdev_touchpad touchpad;
+		struct evdev_touchpad    touchpad;
+		struct evdev_touchscreen touchscreen;
 	};
 };
 
@@ -244,8 +329,8 @@ static bool record_abs(struct evdev *evdev, struct input_value const *v)
 		return false;
 
 	switch (v->code) {
-	case ABS_X:      evdev->abs.pending   = true; evdev->abs.x    = v->value; break;
-	case ABS_Y:      evdev->abs.pending   = true; evdev->abs.y    = v->value; break;
+	case ABS_X: evdev->abs.pending = true; evdev->abs.x = v->value; break;
+	case ABS_Y: evdev->abs.pending = true; evdev->abs.y = v->value; break;
 
 	default:
 		return false;
@@ -295,6 +380,8 @@ static bool record_mt(struct evdev_mt *mt, struct input_value const *v)
 	if (v->type != EV_ABS || !mt->num_slots)
 		return false;
 
+	struct evdev_mt_slot * const cur_slot = &mt->slots[mt->cur_slot];
+
 	switch (v->code) {
 	case ABS_MT_SLOT:
 		mt->cur_slot = (v->value >= 0 ? v->value : 0);
@@ -303,23 +390,23 @@ static bool record_mt(struct evdev_mt *mt, struct input_value const *v)
 
 	case ABS_MT_TRACKING_ID:
 		if (mt->cur_slot < mt->num_slots) {
-			mt->slots[mt->cur_slot].touch  = v->value >= 0;
-			mt->slots[mt->cur_slot].finger = mt->cur_slot;
-			mt->pending = true;
+			cur_slot->touch  = v->value >= 0;
+			cur_slot->finger = mt->cur_slot;
+			charge_mt_slot(mt, cur_slot);
 		}
 		break;
 
 	case ABS_MT_POSITION_X:
 		if (mt->cur_slot < mt->num_slots) {
-			mt->slots[mt->cur_slot].x = v->value;
-			mt->pending = true;
+			set_mt_pos(&cur_slot->x, v->value);
+			charge_mt_slot(mt, cur_slot);
 		}
 		break;
 
 	case ABS_MT_POSITION_Y:
 		if (mt->cur_slot < mt->num_slots) {
-			mt->slots[mt->cur_slot].y = v->value;
-			mt->pending = true;
+			set_mt_pos(&cur_slot->y, v->value);
+			charge_mt_slot(mt, cur_slot);
 		}
 		break;
 
@@ -393,19 +480,10 @@ static bool record_key(struct evdev *evdev, struct input_value const *v)
 	if (v->code == KEY_FN)
 		return true;
 
-	if (is_tool_key(v->code)) {
+	if (is_tool_key(v->code))
 		evdev->tool = v->value ? v->code : 0;
-	} else {
-		struct evdev_key *key;
-		for_each_key(key, keys, false) {
-			if (key->pending)
-				continue;
-
-			*key = EVDEV_KEY(v->code, !!v->value);
-			keys->pending++;
-			break;
-		}
-	}
+	else
+		charge_key(keys, v->code, !!v->value);
 
 	return true;
 }
@@ -422,8 +500,7 @@ static void submit_press_release(struct evdev_key *key, struct evdev_keys *keys,
 	else
 		submit->release(submit, lx_emul_event_keycode(key->code));
 
-	*key = INIT_KEY;
-	keys->pending--;
+	complete_key(keys, key);
 }
 
 
@@ -446,12 +523,12 @@ static void submit_mouse(struct evdev *evdev, struct genode_event_submit *submit
 
 	if (evdev->rel.pending) {
 		submit->rel_motion(submit, evdev->rel.x, evdev->rel.y);
-		evdev->rel = INIT_XY;
+		reset_xy(&evdev->rel);
 	}
 
 	if (evdev->wheel.pending) {
 		submit->wheel(submit, evdev->wheel.x, evdev->wheel.y);
-		evdev->wheel = INIT_XY;
+		reset_xy(&evdev->wheel);
 	}
 }
 
@@ -463,12 +540,12 @@ static void submit_pointer(struct evdev *evdev, struct genode_event_submit *subm
 
 	if (evdev->abs.pending) {
 		submit->abs_motion(submit, evdev->abs.x, evdev->abs.y);
-		evdev->abs.pending = false;
+		reset_xy(&evdev->abs);
 	}
 
 	if (evdev->wheel.pending) {
 		submit->wheel(submit, evdev->wheel.x, evdev->wheel.y);
-		evdev->wheel = INIT_XY;
+		reset_xy(&evdev->wheel);
 	}
 }
 
@@ -484,7 +561,7 @@ static void submit_touchtool(struct evdev *evdev, struct genode_event_submit *su
 
 	if (evdev->abs.pending) {
 		submit->abs_motion(submit, evdev->abs.x, evdev->abs.y);
-		evdev->abs.pending = false;
+		reset_xy(&evdev->abs);
 	}
 
 	/* submit recorded tool on BTN_TOUCH */
@@ -499,16 +576,18 @@ static void submit_touchtool(struct evdev *evdev, struct genode_event_submit *su
 }
 
 
-static void touchpad_tap_to_click(struct evdev_keys *keys, struct evdev_touchpad *tp,
-                                  struct genode_event_submit *submit)
+static void touchpad_tap_to_click(struct evdev *evdev, struct genode_event_submit *submit)
 {
+	struct evdev_keys     * const keys = &evdev->keys;
+	struct evdev_touchpad * const tp   = &evdev->touchpad;
+
 	enum { TAP_TIME = 130 /* max touch duration in ms */ };
 
-	struct evdev_key *key;
-
+	/* BTN_TOUCH must be pending to begin/end tap-to-click tracking */
 	if (!keys->pending)
 		return;
 
+	struct evdev_key *key;
 	for_each_pending_key(key, keys) {
 		if (key->code != BTN_TOUCH)
 			continue;
@@ -523,58 +602,84 @@ static void touchpad_tap_to_click(struct evdev_keys *keys, struct evdev_touchpad
 			tp->touch_time = 0;
 		}
 
-		*key = INIT_KEY;
-		keys->pending--;
+		complete_key(keys, key);
 		break;
 	}
 }
 
 
+static void touchpad_relative_motion(struct evdev *evdev, struct evdev_mt_slot *slot,
+                                     struct genode_event_submit *submit)
+{
+	if (!slot->pending)
+		return;
+
+	bool const  x = slot->x.set;
+	bool const  y = slot->y.set;
+	bool const ox = slot->ox.set;
+	bool const oy = slot->oy.set;
+
+	int dx = 0, dy = 0;
+	if (ox && oy) {
+		/* translate position changes to relative motion and update ox/oy */
+		if (x) {
+			dx = (int)(evdev->touchpad.normalize.x*(slot->x.value - slot->ox.value));
+
+			if (dx) set_mt_pos(&slot->ox, slot->x.value);
+		}
+		if (y) {
+			dy = (int)(evdev->touchpad.normalize.y*(slot->y.value - slot->oy.value));
+
+			if (dy) set_mt_pos(&slot->oy, slot->y.value);
+		}
+
+		if (dx || dy )
+			submit->rel_motion(submit, dx, dy);
+	} else {
+		/* initial position */
+		if (x && !ox) set_mt_pos(&slot->ox, slot->x.value);
+		if (y && !oy) set_mt_pos(&slot->oy, slot->y.value);
+	}
+
+	complete_mt_slot(&evdev->mt, slot);
+}
+
+
+/*
+ * Future device-state model additions
+ *
+ * - click without small motion (if pad is pressable button)
+ * - two-finger scrolling
+ * - edge scrolling
+ *
+ * https://wayland.freedesktop.org/libinput/doc/latest/features.html
+ */
 static void submit_touchpad(struct evdev *evdev, struct genode_event_submit *submit)
 {
+	if (evdev->motion != MOTION_TOUCHPAD)
+		return;
+
 	struct evdev_mt * const mt = &evdev->mt;
 
 	struct evdev_mt_slot *slot;
 
-	if (evdev->motion != MOTION_TOUCHPAD)
-		return;
+	for_each_mt_slot(slot, mt) {
+		if (!mt->pending)
+			break;
 
-	/*
-	 * TODO device state model
-	 *
-	 * - click without small motion (if pad is pressable button)
-	 * - two-finger scrolling
-	 * - edge scrolling
-	 * - virtual-button regions
-	 *
-	 * https://wayland.freedesktop.org/libinput/doc/latest/features.html
-	 */
+		if (!slot->pending)
+			continue;
 
-	if (mt->pending) {
-		for_each_mt_slot(slot, mt) {
-			if (!slot->touch) {
-				*slot = INIT_MT_SLOT;
-				continue;
-			}
-
-			int dx = 0, dy = 0;
-			if (slot->ox != -1 && slot->oy != -1) {
-				dx = (int)(evdev->touchpad.normalize.x*(slot->x - slot->ox));
-				dy = (int)(evdev->touchpad.normalize.y*(slot->y - slot->oy));
-
-				if (dx || dy )
-					submit->rel_motion(submit, dx, dy);
-			}
-
-			/* initial or processed position */
-			if (slot->ox == -1 || dx) slot->ox = slot->x;
-			if (slot->oy == -1 || dy) slot->oy = slot->y;
+		/* reset slot on release */
+		if (!slot->touch) {
+			reset_mt_slot(slot);
+			continue;
 		}
 
-		mt->pending = false;
+		touchpad_relative_motion(evdev, slot, submit);
 	}
 
-	touchpad_tap_to_click(&evdev->keys, &evdev->touchpad, submit);
+	touchpad_tap_to_click(evdev, submit);
 }
 
 
@@ -583,49 +688,49 @@ static void submit_touchscreen(struct evdev *evdev, struct genode_event_submit *
 	struct evdev_mt * const mt = &evdev->mt;
 	struct evdev_keys * const keys = &evdev->keys;
 
-	struct evdev_key *key;
-	struct evdev_mt_slot *slot;
-
 	if (evdev->motion != MOTION_TOUCHSCREEN)
 		return;
 
-	if (mt->pending) {
-		for_each_mt_slot(slot, mt) {
-			if (!slot->touch && slot->ox != -1 && slot->oy != -1) {
-				submit->touch_release(submit, slot->finger);
+	struct evdev_mt_slot *slot;
+	for_each_mt_slot(slot, mt) {
+		if (!mt->pending)
+			break;
 
-				*slot = INIT_MT_SLOT;
-				continue;
-			}
+		if (!slot->touch && slot->ox.set && slot->oy.set) {
+			submit->touch_release(submit, slot->finger);
 
-			/* skip unchanged slots */
-			if (slot->ox == slot->x && slot->oy == slot->y)
-				continue;
-
-			if (slot->x != -1 && slot->y != -1) {
-				struct genode_event_touch_args args = {
-					.finger = slot->finger,
-					.xpos   = slot->x,
-					.ypos   = slot->y,
-					.width  = 1
-				};
-				submit->touch(submit, &args);
-			}
-
-			slot->ox = slot->x;
-			slot->oy = slot->y;
+			complete_mt_slot(mt, slot);
+			reset_mt_slot(slot);
+			continue;
 		}
 
-		mt->pending = false;
+		/* skip unchanged slots */
+		if (slot->ox.value == slot->x.value && slot->oy.value == slot->y.value) {
+			complete_mt_slot(mt, slot);
+			continue;
+		}
+
+		if (pending_mt_slot(slot)) {
+			struct genode_event_touch_args args = {
+				.finger = slot->finger,
+				.xpos   = slot->x.value,
+				.ypos   = slot->y.value,
+				.width  = 1
+			};
+			submit->touch(submit, &args);
+		}
+
+		update_mt_slot(slot);
+		complete_mt_slot(mt, slot);
 	}
 
 	/* filter low-level BTN_TOUCH */
+	struct evdev_key *key;
 	for_each_pending_key(key, keys) {
 		if (key->code != BTN_TOUCH)
 			continue;
 
-		*key = INIT_KEY;
-		keys->pending--;
+		complete_key(keys, key);
 		break;
 	}
 
@@ -634,12 +739,12 @@ static void submit_touchscreen(struct evdev *evdev, struct genode_event_submit *
 	for_each_mt_slot(slot, mt)
 		touched |= slot->touch;
 
-	if (mt->touched != touched) {
+	if (evdev->touchscreen.touched != touched) {
 		if (touched)
 			submit->press(submit, lx_emul_event_keycode(BTN_TOUCH));
 		else
 			submit->release(submit, lx_emul_event_keycode(BTN_TOUCH));
-		mt->touched = touched;
+		evdev->touchscreen.touched = touched;
 	}
 }
 
@@ -727,7 +832,7 @@ static void init_evdev_mt(struct evdev *evdev, struct input_dev *dev)
 	mt->num_slots = min(dev->mt->num_slots, MAX_MT_SLOTS);
 	mt->cur_slot = 0;
 	for_each_mt_slot(slot, mt)
-		*slot = INIT_MT_SLOT;
+		reset_mt_slot(slot);
 }
 
 
