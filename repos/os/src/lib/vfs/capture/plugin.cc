@@ -25,7 +25,6 @@ namespace Vfs_capture
 	using Name = String<64>;
 
 	struct Data_file_system;
-	struct Local_factory;
 	struct File_system;
 };
 
@@ -173,12 +172,13 @@ class Vfs_capture::Data_file_system : public Single_file_system
 };
 
 
-struct Vfs_capture::Local_factory : File_system_factory
+struct Vfs_capture::File_system : Dir_file_system, File_system_factory
 {
+	using Name  = Vfs_capture::Name;
 	using Label = Genode::String<64>;
-	Label const _label;
 
-	Name const _name;
+	Label const _label;
+	Name  const _name;
 
 	Genode::Env &_env;
 
@@ -189,61 +189,45 @@ struct Vfs_capture::Local_factory : File_system_factory
 		return config.attribute_value("name", Name("capture"));
 	}
 
-	Local_factory(Vfs::Env &env, Node const &config)
-	:
-		_label(config.attribute_value("label", Label(""))),
-		_name(name(config)),
-		_env(env.env())
-	{ }
-
 	Vfs::File_system *create(Vfs::Env&, Node const &node) override
 	{
 		return node.has_type("data") ? &_data_fs : nullptr;
 	}
-};
 
+	using Config = String<200>;
+	static Config _config(Name const &name)
+	{
+		char buf[Config::capacity()] { };
 
-class Vfs_capture::File_system : private Local_factory,
-                                 public  Vfs::Dir_file_system
-{
-	private:
+		/*
+		 * By not using the node type "dir", we operate the
+		 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
+		 * to be present at the mount point.
+		 */
+		Genode::Generator::generate({ buf, sizeof(buf) }, "compound",
+			[&] (Genode::Generator &g) {
+				g.node("data", [&] { g.attribute("name", name); });
+				g.node("dir",  [&] { g.attribute("name", Name(".", name)); });
+		}).with_error([] (Genode::Buffer_error) {
+			Genode::warning("VFS-capture compound exceeds maximum buffer size");
+		});
 
-		using Name = Vfs_capture::Name;
+		return Config(Genode::Cstring(buf));
+	}
 
-		using Config = String<200>;
-		static Config _config(Name const &name)
-		{
-			char buf[Config::capacity()] { };
+	File_system(Vfs::Env &vfs_env, Node const &node)
+	:
+		Dir_file_system(vfs_env, Node(_config(name(node)))),
+		_label(node.attribute_value("label", Label(""))),
+		_name(name(node)),
+		_env(vfs_env.env())
+	{
+		Dir_file_system::update(Node(_config(name(node))), *this);
+	}
 
-			/*
-			 * By not using the node type "dir", we operate the
-			 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
-			 * to be present at the mount point.
-			 */
-			Genode::Generator::generate({ buf, sizeof(buf) }, "compound",
-				[&] (Genode::Generator &g) {
-					g.node("data", [&] { g.attribute("name", name); });
-					g.node("dir",  [&] { g.attribute("name", Name(".", name)); });
-			}).with_error([] (Genode::Buffer_error) {
-				Genode::warning("VFS-capture compound exceeds maximum buffer size");
-			});
+	static const char *name() { return "capture"; }
 
-			return Config(Genode::Cstring(buf));
-		}
-
-	public:
-
-		File_system(Vfs::Env &vfs_env, Node const &node)
-		:
-			Local_factory(vfs_env, node),
-			Dir_file_system(vfs_env, Node(_config(Local_factory::name(node))))
-		{
-			Dir_file_system::update(Node(_config(Local_factory::name(node))), *this);
-		}
-
-		static const char *name() { return "capture"; }
-
-		char const *type() override { return name(); }
+	char const *type() override { return name(); }
 };
 
 

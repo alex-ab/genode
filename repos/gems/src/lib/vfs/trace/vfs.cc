@@ -31,9 +31,7 @@ namespace Vfs_trace {
 	using Name = String<32>;
 
 	struct File_system;
-	class  Local_factory;
 	class  Subject;
-	struct Subject_factory;
 	class  Trace_buffer_file_system;
 }
 
@@ -251,7 +249,7 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 };
 
 
-struct Vfs_trace::Subject_factory : File_system_factory
+struct Vfs_trace::Subject : Dir_file_system, private File_system_factory
 {
 	Vfs::Env &_env;
 
@@ -259,12 +257,6 @@ struct Vfs_trace::Subject_factory : File_system_factory
 	Value_file_system<Number_of_bytes, 16> _buffer_size_fs { "buffer_size", "1M\n"};
 	String<17>                             _buffer_string { _buffer_size_fs.buffer() };
 	Trace_buffer_file_system               _trace_fs;
-
-	Subject_factory(Vfs::Env &env,
-	                Trace::Connection &trace,
-	                Trace::Policy_id policy,
-	                Trace::Subject_id id)
-	: _env(env), _trace_fs(env, trace, policy, id) { }
 
 	Vfs::File_system *create(Vfs::Env &, Node const &node) override
 	{
@@ -278,85 +270,72 @@ struct Vfs_trace::Subject_factory : File_system_factory
 
 		return nullptr;
 	}
+
+	Io::Watch_handler<Subject> _enable_handler {
+	  _enabled_fs, "/enable",
+	  Subject::_env.alloc(),
+	  *this, &Subject::_enable_subject };
+
+	Io::Watch_handler<Subject> _buffer_size_handler {
+	  _buffer_size_fs, "/buffer_size",
+	  Subject::_env.alloc(),
+	  *this, &Subject::_buffer_size };
+
+	void _enable_subject()
+	{
+		_enabled_fs.value(_enabled_fs.value() ? "true\n" : "false\n");
+		_trace_fs.trace(_enabled_fs.value());
+	}
+
+	void _buffer_size()
+	{
+		Trace::Buffer_size const size { _buffer_size_fs.value() };
+
+		if (_trace_fs.resize_buffer(size) == false) {
+			/* restore old value */
+			_buffer_size_fs.value(_buffer_string);
+			return;
+		}
+
+		_buffer_string = _buffer_size_fs.buffer();
+	}
+
+	using Config = String<200>;
+
+	static Config _config(Node const &node)
+	{
+		char buf[Config::capacity()] { };
+
+		Generator::generate({ buf, sizeof(buf) }, "dir",
+			[&] (Generator &g) {
+
+				g.attribute("name", node.attribute_value("name", Vfs_trace::Name()));
+				g.node("value", [&] () { g.attribute("name", "enable"); });
+				g.node("value", [&] () { g.attribute("name", "buffer_size"); });
+				g.node(Trace_buffer_file_system::type_name(), [&] () {});
+		}).with_error([] (Genode::Buffer_error) {
+			warning("VFS-trace compound exceeds maximum buffer size");
+		});
+
+		return Config(Cstring(buf));
+	}
+
+	Subject(Vfs::Env &env, Trace::Connection &trace,
+	        Trace::Policy_id policy, Node const &node)
+	:
+		Dir_file_system(env, Node(_config(node))),
+		_env(env), _trace_fs(env, trace, policy, { node.attribute_value("id", 0u) })
+	{
+		Dir_file_system::update(Node(_config(node)), *this);
+	}
+
+	static char const *type_name() { return "trace_node"; }
+
+	char const *type() override { return type_name(); }
 };
 
 
-class Vfs_trace::Subject : private Subject_factory, public Dir_file_system
-{
-	private:
-
-		using Config = String<200>;
-
-		Io::Watch_handler<Subject> _enable_handler {
-		  _enabled_fs, "/enable",
-		  Subject_factory::_env.alloc(),
-		  *this, &Subject::_enable_subject };
-
-		Io::Watch_handler<Subject> _buffer_size_handler {
-		  _buffer_size_fs, "/buffer_size",
-		  Subject_factory::_env.alloc(),
-		  *this, &Subject::_buffer_size };
-
-
-		static Config _config(Node const &node)
-		{
-			char buf[Config::capacity()] { };
-
-			Generator::generate({ buf, sizeof(buf) }, "dir",
-				[&] (Generator &g) {
-
-					g.attribute("name", node.attribute_value("name", Vfs_trace::Name()));
-					g.node("value", [&] () { g.attribute("name", "enable"); });
-					g.node("value", [&] () { g.attribute("name", "buffer_size"); });
-					g.node(Trace_buffer_file_system::type_name(), [&] () {});
-			}).with_error([] (Genode::Buffer_error) {
-				warning("VFS-trace compound exceeds maximum buffer size");
-			});
-
-			return Config(Cstring(buf));
-		}
-
-
-		/********************
-		 ** Watch handlers **
-		 ********************/
-
-		void _enable_subject()
-		{
-			_enabled_fs.value(_enabled_fs.value() ? "true\n" : "false\n");
-			_trace_fs.trace(_enabled_fs.value());
-		}
-
-		void _buffer_size()
-		{
-			Trace::Buffer_size const size { _buffer_size_fs.value() };
-
-			if (_trace_fs.resize_buffer(size) == false) {
-				/* restore old value */
-				_buffer_size_fs.value(_buffer_string);
-				return;
-			}
-
-			_buffer_string = _buffer_size_fs.buffer();
-		}
-
-	public:
-
-		Subject(Vfs::Env &env, Trace::Connection &trace,
-		        Trace::Policy_id policy, Node const &node)
-		:
-			Subject_factory(env, trace, policy, { node.attribute_value("id", 0u) }),
-			Dir_file_system(env, Node(_config(node)))
-		{
-			Dir_file_system::update(Node(_config(node)), *this);
-		}
-
-		static char const *type_name() { return "trace_node"; }
-		char const *type() override { return type_name(); }
-};
-
-
-struct Vfs_trace::Local_factory : File_system_factory
+struct Vfs_trace::File_system : Dir_file_system, private File_system_factory
 {
 	using Policy_id = Trace::Connection::Alloc_policy_result;
 
@@ -404,22 +383,9 @@ struct Vfs_trace::Local_factory : File_system_factory
 		return config.attribute_value("ram", Number_of_bytes(0));
 	}
 
-	Local_factory(Vfs::Env &env, Node const &config)
-	:
-		_env(env), _trace(env.env(), _config_session_ram(config), 512*1024)
-	{
-		_trace.for_each_subject_info([&] (Trace::Subject_id   const id,
-		                                  Trace::Subject_info const &info) {
-
-			if (info.state() == Trace::Subject_info::DEAD)
-				return;
-
-			_directory.insert(info, id);
-		});
-
-		_install_null_policy();
-	}
-
+	/**
+	 * File_system_factory interface
+	 */
 	Vfs::File_system *create(Vfs::Env&, Node const &node) override
 	{
 		Vfs::File_system *result = nullptr;
@@ -432,39 +398,42 @@ struct Vfs_trace::Local_factory : File_system_factory
 
 		return result;
 	}
-};
 
+	static Const_byte_range_ptr _config(Vfs::Env &vfs_env, Trace_directory &directory)
+	{
+		char *buf = (char *)vfs_env.alloc().alloc(512*1024);
 
-class Vfs_trace::File_system : private Local_factory, public Dir_file_system
-{
-	private:
+		return Generator::generate({ buf, sizeof(buf) }, "node",
+			[&] (Generator &g) { directory.generate(g); }
+		).convert<Const_byte_range_ptr>(
+			[&] (size_t num_bytes) {
+				return Const_byte_range_ptr(buf, num_bytes); },
+			[&] (Buffer_error) {
+				warning("VFS-trace node exceeds maximum buffer size");
+				return Const_byte_range_ptr(nullptr, 0);
+			});
+	}
 
-		static Const_byte_range_ptr _config(Vfs::Env &vfs_env, Trace_directory &directory)
-		{
-			char *buf = (char *)vfs_env.alloc().alloc(512*1024);
+	File_system(Vfs::Env &vfs_env, Node const &node)
+	:
+		Dir_file_system(vfs_env, Node(_config(vfs_env, _directory))),
+		_env(vfs_env), _trace(vfs_env.env(), _config_session_ram(node), 512*1024)
+	{
+		Dir_file_system::update(Node(_config(vfs_env, _directory)), *this);
 
-			return Generator::generate({ buf, sizeof(buf) }, "node",
-				[&] (Generator &g) { directory.generate(g); }
-			).convert<Const_byte_range_ptr>(
-				[&] (size_t num_bytes) {
-					return Const_byte_range_ptr(buf, num_bytes); },
-				[&] (Buffer_error) {
-					warning("VFS-trace node exceeds maximum buffer size");
-					return Const_byte_range_ptr(nullptr, 0);
-				});
-		}
+		_trace.for_each_subject_info([&] (Trace::Subject_id   const id,
+		                                  Trace::Subject_info const &info) {
 
-	public:
+			if (info.state() == Trace::Subject_info::DEAD)
+				return;
 
-		File_system(Vfs::Env &vfs_env, Node const &node)
-		:
-			Local_factory(vfs_env, node),
-			Dir_file_system(vfs_env, Node(_config(vfs_env, _directory)))
-		{
-			Dir_file_system::update(Node(_config(vfs_env, _directory)), *this);
-		}
+			_directory.insert(info, id);
+		});
 
-		char const *type() override { return "trace"; }
+		_install_null_policy();
+	}
+
+	char const *type() override { return "trace"; }
 };
 
 

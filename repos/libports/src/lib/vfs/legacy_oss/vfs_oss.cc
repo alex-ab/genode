@@ -58,7 +58,6 @@ namespace Vfs_oss {
 
 	struct Audio;
 	struct Data_file_system;
-	struct Local_factory;
 	struct File_system;
 };
 
@@ -774,9 +773,12 @@ class Vfs_oss::Data_file_system : public Single_file_system
 };
 
 
-struct Vfs_oss::Local_factory : File_system_factory
+struct Vfs_oss::File_system : Dir_file_system, File_system_factory
 {
+	using Name  = Vfs_oss::Name;
 	using Label = Genode::String<64>;
+	using This  = File_system;
+
 	Label const _label;
 	Name  const _name;
 
@@ -816,59 +818,59 @@ struct Vfs_oss::Local_factory : File_system_factory
 
 	Audio _audio { _env.env(), _info, _info_fs };
 
-	Io::Watch_handler<Local_factory> _enable_input_handler {
+	Io::Watch_handler<This> _enable_input_handler {
 		_enable_input_fs, "/enable_input",
 		_env.alloc(),
 		*this,
-		&Local_factory::_enable_input_changed };
+		&This::_enable_input_changed };
 
-	Io::Watch_handler<Local_factory> _enable_output_handler {
+	Io::Watch_handler<This> _enable_output_handler {
 		_enable_output_fs, "/enable_output",
 		_env.alloc(),
 		*this,
-		&Local_factory::_enable_output_changed };
+		&This::_enable_output_changed };
 
-	Io::Watch_handler<Local_factory> _halt_input_handler {
+	Io::Watch_handler<This> _halt_input_handler {
 		_halt_input_fs, "/halt_input",
 		_env.alloc(),
 		*this,
-		&Local_factory::_halt_input_changed };
+		&This::_halt_input_changed };
 
-	Io::Watch_handler<Local_factory> _halt_output_handler {
+	Io::Watch_handler<This> _halt_output_handler {
 		_halt_output_fs, "/halt_output",
 		_env.alloc(),
 		*this,
-		&Local_factory::_halt_output_changed };
+		&This::_halt_output_changed };
 
-	Io::Watch_handler<Local_factory> _ifrag_total_handler {
+	Io::Watch_handler<This> _ifrag_total_handler {
 		_ifrag_total_fs, "/ifrag_total",
 		_env.alloc(),
 		*this,
-		&Local_factory::_ifrag_total_changed };
+		&This::_ifrag_total_changed };
 
-	Io::Watch_handler<Local_factory> _ifrag_size_handler {
+	Io::Watch_handler<This> _ifrag_size_handler {
 		_ifrag_size_fs, "/ifrag_size",
 		_env.alloc(),
 		*this,
-		&Local_factory::_ofrag_size_changed };
+		&This::_ofrag_size_changed };
 
-	Io::Watch_handler<Local_factory> _ofrag_total_handler {
+	Io::Watch_handler<This> _ofrag_total_handler {
 		_ofrag_total_fs, "/ofrag_total",
 		_env.alloc(),
 		*this,
-		&Local_factory::_ofrag_total_changed };
+		&This::_ofrag_total_changed };
 
-	Io::Watch_handler<Local_factory> _ofrag_size_handler {
+	Io::Watch_handler<This> _ofrag_size_handler {
 		_ofrag_size_fs, "/ofrag_size",
 		_env.alloc(),
 		*this,
-		&Local_factory::_ofrag_size_changed };
+		&This::_ofrag_size_changed };
 
-	Io::Watch_handler<Local_factory> _play_underruns_handler {
+	Io::Watch_handler<This> _play_underruns_handler {
 		_play_underruns_fs, "/play_underruns",
 		_env.alloc(),
 		*this,
-		&Local_factory::_play_underruns_changed };
+		&This::_play_underruns_changed };
 
 	static constexpr size_t _ifrag_total_min { 2 };
 	static constexpr size_t _ifrag_size_min { _audio_in_stream_packet_size };
@@ -996,14 +998,6 @@ struct Vfs_oss::Local_factory : File_system_factory
 
 	Data_file_system _data_fs;
 
-	Local_factory(Vfs::Env &env, Node const &config)
-	:
-		_label   { config.attribute_value("label", Label("")) },
-		_name    { name(config) },
-		_env     { env },
-		_data_fs { _env.env().ep(), env.user(), _audio, name(config) }
-	{ }
-
 	Vfs::File_system *create(Vfs::Env&, Node const &node) override
 	{
 		if (node.has_type("data")) {
@@ -1094,125 +1088,118 @@ struct Vfs_oss::Local_factory : File_system_factory
 
 		return nullptr;
 	}
-};
 
+	using Config = String<1024>;
+	static Config _config(Name const &name)
+	{
+		char buf[Config::capacity()] { };
 
-class Vfs_oss::File_system : private Local_factory, public Vfs::Dir_file_system
-{
-	private:
+		/*
+		 * By not using the node type "dir", we operate the
+		 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
+		 * to be present at the mount point.
+		 */
+		(void)Genode::Generator::generate({ buf, sizeof(buf) }, "compound",
+		                                  [&] (Genode::Generator &g) {
 
-		using Name = Vfs_oss::Name;
+			g.node("data", [&] () {
+				g.attribute("name", name); });
 
-		using Config = String<1024>;
-		static Config _config(Name const &name)
-		{
-			char buf[Config::capacity()] { };
+			g.node("dir", [&] () {
+				g.attribute("name", Name(".", name));
+				g.node("info", [&] () { });
 
-			/*
-			 * By not using the node type "dir", we operate the
-			 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
-			 * to be present at the mount point.
-			 */
-			(void)Genode::Generator::generate({ buf, sizeof(buf) }, "compound",
-			                                  [&] (Genode::Generator &g) {
+				g.node("readonly_value", [&] {
+					g.attribute("name", "channels");
+				});
 
-				g.node("data", [&] () {
-					g.attribute("name", name); });
+				g.node("readonly_value", [&] {
+					 g.attribute("name", "sample_rate");
+				});
 
-				g.node("dir", [&] () {
-					g.attribute("name", Name(".", name));
-					g.node("info", [&] () { });
+				g.node("readonly_value", [&] {
+					g.attribute("name", "format");
+				});
 
-					g.node("readonly_value", [&] {
-						g.attribute("name", "channels");
-					});
+				g.node("value", [&] {
+					g.attribute("name", "enable_input");
+				});
 
-					g.node("readonly_value", [&] {
-						 g.attribute("name", "sample_rate");
-					});
+				g.node("value", [&] {
+					g.attribute("name", "enable_output");
+				});
 
-					g.node("readonly_value", [&] {
-						g.attribute("name", "format");
-					});
+				g.node("value", [&] {
+					g.attribute("name", "halt_input");
+				});
 
-					g.node("value", [&] {
-						g.attribute("name", "enable_input");
-					});
+				g.node("value", [&] {
+					g.attribute("name", "halt_output");
+				});
 
-					g.node("value", [&] {
-						g.attribute("name", "enable_output");
-					});
+				g.node("value", [&] {
+					g.attribute("name", "ifrag_total");
+				});
 
-					g.node("value", [&] {
-						g.attribute("name", "halt_input");
-					});
+				g.node("value", [&] {
+					 g.attribute("name", "ifrag_size");
+				});
 
-					g.node("value", [&] {
-						g.attribute("name", "halt_output");
-					});
+				g.node("readonly_value", [&] {
+					 g.attribute("name", "ifrag_avail");
+				});
 
-					g.node("value", [&] {
-						g.attribute("name", "ifrag_total");
-					});
+				g.node("readonly_value", [&] {
+					 g.attribute("name", "ifrag_bytes");
+				});
 
-					g.node("value", [&] {
-						 g.attribute("name", "ifrag_size");
-					});
+				g.node("value", [&] {
+					g.attribute("name", "ofrag_total");
+				});
 
-					g.node("readonly_value", [&] {
-						 g.attribute("name", "ifrag_avail");
-					});
+				g.node("value", [&] {
+					 g.attribute("name", "ofrag_size");
+				});
 
-					g.node("readonly_value", [&] {
-						 g.attribute("name", "ifrag_bytes");
-					});
+				g.node("readonly_value", [&] {
+					 g.attribute("name", "ofrag_avail");
+				});
 
-					g.node("value", [&] {
-						g.attribute("name", "ofrag_total");
-					});
+				g.node("readonly_value", [&] {
+					 g.attribute("name", "ofrag_bytes");
+				});
 
-					g.node("value", [&] {
-						 g.attribute("name", "ofrag_size");
-					});
+				g.node("readonly_value", [&] {
+					 g.attribute("name", "optr_samples");
+				});
 
-					g.node("readonly_value", [&] {
-						 g.attribute("name", "ofrag_avail");
-					});
+				g.node("readonly_value", [&] {
+					 g.attribute("name", "optr_fifo_samples");
+				});
 
-					g.node("readonly_value", [&] {
-						 g.attribute("name", "ofrag_bytes");
-					});
-
-					g.node("readonly_value", [&] {
-						 g.attribute("name", "optr_samples");
-					});
-
-					g.node("readonly_value", [&] {
-						 g.attribute("name", "optr_fifo_samples");
-					});
-
-					g.node("value", [&] {
-						 g.attribute("name", "play_underruns");
-					});
+				g.node("value", [&] {
+					 g.attribute("name", "play_underruns");
 				});
 			});
+		});
 
-			return Config(Genode::Cstring(buf));
-		}
+		return Config(Genode::Cstring(buf));
+	}
 
-	public:
+	File_system(Vfs::Env &vfs_env, Node const &node)
+	:
+		Dir_file_system { vfs_env, Node(_config(name(node))) },
+		_label   { node.attribute_value("label", Label("")) },
+		_name    { name(node) },
+		_env     { vfs_env },
+		_data_fs { vfs_env.env().ep(), vfs_env.user(), _audio, name(node) }
+	{
+		Dir_file_system::update(Node(_config(name(node))), *this);
+	}
 
-		File_system(Vfs::Env &vfs_env, Node const &node)
-		:
-			Local_factory { vfs_env, node },
-			Dir_file_system { vfs_env, Node(_config(Local_factory::name(node))) }
-		{
-			Dir_file_system::update(Node(_config(Local_factory::name(node))), *this);
-		}
+	static const char *name() { return "legacy_oss"; }
 
-		static const char *name() { return "legacy_oss"; }
-
-		char const *type() override { return name(); }
+	char const *type() override { return name(); }
 };
 
 

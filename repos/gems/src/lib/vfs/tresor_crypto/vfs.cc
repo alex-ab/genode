@@ -29,16 +29,13 @@ namespace Vfs_tresor_crypto {
 	class Encrypt_file_system;
 	class Decrypt_file_system;
 
-	class Key_local_factory;
 	class Key_file_system;
-
 	class Keys_file_system;
 
 	class  Management_file_system;
 	struct Add_key_file_system;
 	struct Remove_key_file_system;
 
-	struct Local_factory;
 	class  File_system;
 }
 
@@ -296,35 +293,26 @@ class Vfs_tresor_crypto::Decrypt_file_system : public Single_file_system
 };
 
 
-struct Vfs_tresor_crypto::Key_local_factory : File_system_factory
-{
-	Encrypt_file_system _encrypt_fs;
-	Decrypt_file_system _decrypt_fs;
-
-	Key_local_factory(Tresor_crypto::Interface &crypto, uint32_t key_id)
-	:
-		_encrypt_fs(crypto, key_id), _decrypt_fs(crypto, key_id)
-	{ }
-
-	Vfs::File_system *create(Vfs::Env &, Node const &node) override
-	{
-		if (node.has_type(Encrypt_file_system::type_name()))
-			return &_encrypt_fs;
-
-		if (node.has_type(Decrypt_file_system::type_name()))
-			return &_decrypt_fs;
-
-		return nullptr;
-	}
-};
-
-
-class Vfs_tresor_crypto::Key_file_system : private Key_local_factory,
-                                           public Dir_file_system
+class Vfs_tresor_crypto::Key_file_system : public Dir_file_system,
+                                           private File_system_factory
 {
 	private:
 
 		uint32_t _key_id;
+
+		Encrypt_file_system _encrypt_fs;
+		Decrypt_file_system _decrypt_fs;
+
+		Vfs::File_system *create(Vfs::Env &, Node const &node) override
+		{
+			if (node.has_type(Encrypt_file_system::type_name()))
+				return &_encrypt_fs;
+
+			if (node.has_type(Decrypt_file_system::type_name()))
+				return &_decrypt_fs;
+
+			return nullptr;
+		}
 
 		using Config = String<128>;
 
@@ -349,11 +337,11 @@ class Vfs_tresor_crypto::Key_file_system : private Key_local_factory,
 	public:
 
 		Key_file_system(Vfs::Env &vfs_env,
-		                Tresor_crypto::Interface   &crypto,
-		                uint32_t  key_id)
+		                Tresor_crypto::Interface &crypto,
+		                uint32_t key_id)
 		:
-			Key_local_factory(crypto, key_id),
-			Dir_file_system(vfs_env, Node(_config(key_id))), _key_id(key_id)
+			Dir_file_system(vfs_env, Node(_config(key_id))), _key_id(key_id),
+			_encrypt_fs(crypto, key_id), _decrypt_fs(crypto, key_id)
 		{
 			Dir_file_system::update(Node(_config(key_id)), *this);
 		}
@@ -1057,39 +1045,24 @@ struct Vfs_tresor_crypto::Remove_key_file_system : public Vfs_tresor_crypto::Man
 };
 
 
-struct Vfs_tresor_crypto::Local_factory : File_system_factory
-{
-	Keys_file_system       _keys_fs;
-	Add_key_file_system    _add_key_fs;
-	Remove_key_file_system _remove_key_fs;
-
-	Local_factory(Vfs::Env &env, Tresor_crypto::Interface &crypto)
-	:
-		_keys_fs(env, crypto), _add_key_fs(crypto), _remove_key_fs(crypto)
-	{ }
-
-	Vfs::File_system *create(Vfs::Env&, Node const &node) override
-	{
-		if (node.has_type(Add_key_file_system::type_name())) {
-			return &_add_key_fs;
-		}
-
-		if (node.has_type(Remove_key_file_system::type_name())) {
-			return &_remove_key_fs;
-		}
-
-		if (node.has_type(Keys_file_system::type_name())) {
-			return &_keys_fs;
-		}
-
-		return nullptr;
-	}
-};
-
-
-class Vfs_tresor_crypto::File_system : private Local_factory, public Dir_file_system
+struct Vfs_tresor_crypto::File_system : Dir_file_system, File_system_factory
 {
 	private:
+
+		Tresor_crypto::Interface &_crypto;
+
+		Keys_file_system       _keys_fs;
+		Add_key_file_system    _add_key_fs;
+		Remove_key_file_system _remove_key_fs;
+
+		Vfs::File_system *create(Vfs::Env&, Node const &node) override
+		{
+			if (node.has_type(Add_key_file_system::type_name()))    return &_add_key_fs;
+			if (node.has_type(Remove_key_file_system::type_name())) return &_remove_key_fs;
+			if (node.has_type(Keys_file_system::type_name()))       return &_keys_fs;
+
+			return nullptr;
+		}
 
 		using Config = String<128>;
 
@@ -1116,13 +1089,14 @@ class Vfs_tresor_crypto::File_system : private Local_factory, public Dir_file_sy
 
 		File_system(Vfs::Env &vfs_env, Node const &node)
 		:
-			Local_factory(vfs_env, Tresor_crypto::get_interface()),
-			Dir_file_system(vfs_env, Node(_config(node)))
+			Dir_file_system(vfs_env, Node(_config(node))),
+			_crypto(Tresor_crypto::get_interface()),
+			_keys_fs(vfs_env, _crypto),
+			_add_key_fs(_crypto),
+			_remove_key_fs(_crypto)
 		{
 			Dir_file_system::update(Node(_config(node)), *this);
 		}
-
-		~File_system() { }
 };
 
 

@@ -39,7 +39,6 @@ namespace Vfs_tap {
 
 	using Name  = String<64>;
 
-	template <typename> struct Local_factory;
 	template <typename> struct Data_file_system;
 	template <typename> struct Compound_file_system;
 
@@ -186,8 +185,11 @@ class Vfs_tap::Data_file_system : public FS
 
 
 template <typename FS>
-struct Vfs_tap::Local_factory : File_system_factory, Device_update_handler
+struct Vfs_tap::Compound_file_system : Dir_file_system,
+                                       private File_system_factory,
+                                       private Device_update_handler
 {
+	using Name        = Vfs_tap::Name;
 	using Label       = typename FS::Vfs_handle::Label;
 	using Name_fs     = Readonly_value_file_system<Name>;
 	using Mac_addr_fs = Mac_file_system;
@@ -237,11 +239,11 @@ struct Vfs_tap::Local_factory : File_system_factory, Device_update_handler
 	 ** Watch handlers **
 	 ********************/
 
-	Io::Watch_handler<Local_factory<FS>> _mac_addr_changed_handler {
+	Io::Watch_handler<Compound_file_system> _mac_addr_changed_handler {
 		_mac_addr_fs, "/mac_addr",
 		_env.alloc(),
 		*this,
-		&Local_factory<FS>::_mac_addr_changed };
+		&Compound_file_system::_mac_addr_changed };
 
 	void _mac_addr_changed()
 	{
@@ -294,67 +296,50 @@ struct Vfs_tap::Local_factory : File_system_factory, Device_update_handler
 		return config.attribute_value("name", Name("tap"));
 	}
 
-	Local_factory(Vfs::Env &env, Node const &config)
+	using Config = String<200>;
+	static Config _config(Name const &name)
+	{
+		char buf[Config::capacity()] { };
+
+		/*
+		 * By not using the node type "dir", we operate the
+		 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
+		 * to be present at the mount point.
+		 */
+		Generator::generate({ buf, sizeof(buf) }, "compound",
+			[&] (Generator &g) {
+
+				g.node("data", [&] () {
+					g.attribute("name", name); });
+
+				g.node("dir", [&] () {
+					g.attribute("name", Name(".", name));
+					g.node("info");
+					g.node("mac_addr");
+					g.node("name");
+				});
+		}).with_error([] (Buffer_error) {
+			warning("VFS-tap compound exceeds maximum buffer size");
+		});
+
+		return Config(Cstring(buf));
+	}
+
+	Compound_file_system(Vfs::Env &vfs_env, Node const &node)
 	:
-		_name       (name(config)),
-		_label      (config.attribute_value("label", Label(""))),
-		_mode       (config.attribute_value("mode",  Uplink_mode::NIC_CLIENT)),
-		_default_mac(config.attribute_value("mac",   Net::Mac_address { 0x02 })),
-		_env(env)
-	{ }
-};
+		Dir_file_system(vfs_env, Node(_config(name(node)))),
+		_name       (name(node)),
+		_label      (node.attribute_value("label", Label(""))),
+		_mode       (node.attribute_value("mode",  Uplink_mode::NIC_CLIENT)),
+		_default_mac(node.attribute_value("mac",   Net::Mac_address { 0x02 })),
+		_env(vfs_env)
+	{
+		Dir_file_system::update(Node(_config(name(node))), *this);
+	}
 
+	static const char *name() { return "tap"; }
 
-template <typename FS>
-class Vfs_tap::Compound_file_system : private Local_factory<FS>,
-                                      public  Vfs::Dir_file_system
-{
-	private:
-
-		using Name = Vfs_tap::Name;
-
-		using Config = String<200>;
-		static Config _config(Name const &name)
-		{
-			char buf[Config::capacity()] { };
-
-			/*
-			 * By not using the node type "dir", we operate the
-			 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
-			 * to be present at the mount point.
-			 */
-			Generator::generate({ buf, sizeof(buf) }, "compound",
-				[&] (Generator &g) {
-
-					g.node("data", [&] () {
-						g.attribute("name", name); });
-
-					g.node("dir", [&] () {
-						g.attribute("name", Name(".", name));
-						g.node("info");
-						g.node("mac_addr");
-						g.node("name");
-					});
-			}).with_error([] (Buffer_error) {
-				warning("VFS-tap compound exceeds maximum buffer size");
-			});
-
-			return Config(Cstring(buf));
-		}
-
-	public:
-
-		Compound_file_system(Vfs::Env &vfs_env, Node const &node)
-		:
-			Local_factory<FS>(vfs_env, node),
-			Dir_file_system(vfs_env, Node(_config(Local_factory<FS>::name(node))))
-		{
-			Dir_file_system::update(Node(_config(Local_factory<FS>::name(node))), *this);
-		}
-
-		static const char *name() { return "tap"; }
-
-		char const *type() override { return name(); }
+	char const *type() override { return name(); }
 };
 
 

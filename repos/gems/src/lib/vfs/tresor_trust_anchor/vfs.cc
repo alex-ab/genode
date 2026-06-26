@@ -41,8 +41,7 @@ namespace Vfs_tresor_trust_anchor {
 	class Decrypt_file_system;
 	class Initialize_file_system;
 
-	struct Local_factory;
-	class  File_system;
+	struct File_system;
 }
 
 
@@ -1887,7 +1886,7 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 };
 
 
-struct Vfs_tresor_trust_anchor::Local_factory : File_system_factory
+struct Vfs_tresor_trust_anchor::File_system : Dir_file_system, File_system_factory
 {
 	Trust_anchor _trust_anchor;
 
@@ -1907,13 +1906,6 @@ struct Vfs_tresor_trust_anchor::Local_factory : File_system_factory
 		}
 		return node.attribute_value("storage_dir", Storage_path());
 	}
-
-	Local_factory(Vfs::Env &vfs_env, Node const &config)
-	:
-		_trust_anchor(vfs_env, _storage_path(config).string()),
-		_decrypt_fs(_trust_anchor), _encrypt_fs(_trust_anchor),
-		_gen_key_fs(_trust_anchor), _hash_fs(_trust_anchor), _init_fs(_trust_anchor)
-	{ }
 
 	Vfs::File_system *create(Vfs::Env&, Node const &node) override
 	{
@@ -1939,47 +1931,39 @@ struct Vfs_tresor_trust_anchor::Local_factory : File_system_factory
 
 		return nullptr;
 	}
-};
 
+	using Config = String<128>;
 
-class Vfs_tresor_trust_anchor::File_system : private Local_factory,
-                                             public Dir_file_system
-{
-	private:
+	static Config _config(Node const &node)
+	{
+		char buf[Config::capacity()] { };
 
-		using Config = String<128>;
+		Generator::generate({ buf, sizeof(buf) }, "dir", [&] (Generator &g) {
 
-		static Config _config(Node const &node)
-		{
-			char buf[Config::capacity()] { };
+			g.attribute("name", node.attribute_value("name", String<32>("")));
 
-			Generator::generate({ buf, sizeof(buf) }, "dir", [&] (Generator &g) {
+			g.node("decrypt");
+			g.node("encrypt");
+			g.node("generate_key");
+			g.node("hash");
+			g.node("initialize");
 
-				g.attribute("name", node.attribute_value("name", String<32>("")));
+		}).with_error([] (Buffer_error) {
+			warning("VFS-tresor_trust_anchor config exceeds maximum buffer size");
+		});
 
-				g.node("decrypt");
-				g.node("encrypt");
-				g.node("generate_key");
-				g.node("hash");
-				g.node("initialize");
+		return Config(Cstring(buf));
+	}
 
-			}).with_error([] (Buffer_error) {
-				warning("VFS-tresor_trust_anchor config exceeds maximum buffer size");
-			});
-
-			return Config(Cstring(buf));
-		}
-
-	public:
-
-		File_system(Vfs::Env &vfs_env, Node const &node)
-		:
-			Local_factory(vfs_env, node), Dir_file_system(vfs_env, Node(_config(node)))
-		{
-			Dir_file_system::update(Node(_config(node)), *this);
-		}
-
-		~File_system() { }
+	File_system(Vfs::Env &vfs_env, Node const &node)
+	:
+		Dir_file_system(vfs_env, Node(_config(node))),
+		_trust_anchor(vfs_env, _storage_path(node).string()),
+		_decrypt_fs(_trust_anchor), _encrypt_fs(_trust_anchor),
+		_gen_key_fs(_trust_anchor), _hash_fs(_trust_anchor), _init_fs(_trust_anchor)
+	{
+		Dir_file_system::update(Node(_config(node)), *this);
+	}
 };
 
 

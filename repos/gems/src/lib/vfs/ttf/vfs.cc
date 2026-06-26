@@ -29,7 +29,6 @@ namespace Vfs_ttf {
 	using namespace Genode::Vfs;
 
 	class Font_from_file;
-	class Local_factory;
 	class File_system;
 
 	using Font = Text_painter::Font;
@@ -64,7 +63,7 @@ struct Vfs_ttf::Font_from_file
 };
 
 
-struct Vfs_ttf::Local_factory : File_system_factory, Watch_response_handler
+struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_response_handler
 {
 	Vfs::Env &_env;
 
@@ -117,16 +116,6 @@ struct Vfs_ttf::Local_factory : File_system_factory, Watch_response_handler
 		_max_height_fs.value(_font->font.font().bounding_box().h);
 	}
 
-	Local_factory(Vfs::Env &env, Node const &config)
-	:
-		_env(env),
-		_font_config(config),
-		_font(env, _font_config),
-		_watcher(env, _font_config.path, *this)
-	{
-		_update_attributes();
-	}
-
 	Vfs::File_system *create(Vfs::Env&, Node const &node) override
 	{
 		if (node.has_type(Vfs_glyphs::File_system::type_name()))
@@ -142,7 +131,7 @@ struct Vfs_ttf::Local_factory : File_system_factory, Watch_response_handler
 		return nullptr;
 	}
 
-	void update(Node const &config)
+	void update(Node const &config, File_system_factory &) override
 	{
 		_font_config = Font_config(config);
 		_font.construct(_env, _font_config);
@@ -156,48 +145,38 @@ struct Vfs_ttf::Local_factory : File_system_factory, Watch_response_handler
 		_update_attributes();
 		_glyphs_fs.trigger_watch_response();
 	}
-};
 
+	using Config = String<200>;
+	static Config _config(Node const &node)
+	{
+		char buf[Config::capacity()] { };
 
-class Vfs_ttf::File_system : private Local_factory, public  Dir_file_system
-{
-	private:
+		Generator::generate({ buf, sizeof(buf) }, "dir", [&] (Generator &g) {
+			using Name = String<64>;
+			g.attribute("name", node.attribute_value("name", Name()));
+			g.node("glyphs");
+			g.node("readonly_value", [&] { g.attribute("name", "baseline");   });
+			g.node("readonly_value", [&] { g.attribute("name", "height");     });
+			g.node("readonly_value", [&] { g.attribute("name", "max_width");  });
+			g.node("readonly_value", [&] { g.attribute("name", "max_height"); });
+		}).with_error([] (Buffer_error) {
+			warning("VFS-TTF compound exceeds maximum buffer size");
+		});
+		return Config(Cstring(buf));
+	}
 
-		using Config = String<200>;
-		static Config _config(Node const &node)
-		{
-			char buf[Config::capacity()] { };
+	File_system(Vfs::Env &vfs_env, Node const &node)
+	:
+		Dir_file_system(vfs_env, Node(_config(node))),
+		_env(vfs_env),
+		_font_config(node),
+		_font(vfs_env, _font_config),
+		_watcher(vfs_env, _font_config.path, *this)
+	{
+		Dir_file_system::update(Node(_config(node)), *this);
+	}
 
-			Generator::generate({ buf, sizeof(buf) }, "dir", [&] (Generator &g) {
-				using Name = String<64>;
-				g.attribute("name", node.attribute_value("name", Name()));
-				g.node("glyphs");
-				g.node("readonly_value", [&] { g.attribute("name", "baseline");   });
-				g.node("readonly_value", [&] { g.attribute("name", "height");     });
-				g.node("readonly_value", [&] { g.attribute("name", "max_width");  });
-				g.node("readonly_value", [&] { g.attribute("name", "max_height"); });
-			}).with_error([] (Buffer_error) {
-				warning("VFS-TTF compound exceeds maximum buffer size");
-			});
-			return Config(Cstring(buf));
-		}
-
-	public:
-
-		File_system(Vfs::Env &vfs_env, Node const &node)
-		:
-			Local_factory(vfs_env, node),
-			Dir_file_system(vfs_env, Node(_config(node)))
-		{
-			Dir_file_system::update(Node(_config(node)), *this);
-		}
-
-		char const *type() override { return "ttf"; }
-
-		void update(Node const &node, File_system_factory &) override
-		{
-			Local_factory::update(node);
-		}
+	char const *type() override { return "ttf"; }
 };
 
 

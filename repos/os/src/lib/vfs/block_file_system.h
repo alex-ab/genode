@@ -44,7 +44,6 @@ namespace Vfs_block {
 
 	struct Block_job;
 	struct Block_connection;
-	struct Local_factory;
 	struct Data_file_system;
 	struct File_system;
 }
@@ -612,9 +611,11 @@ class Vfs_block::Data_file_system : public Single_file_system
 };
 
 
-struct Vfs_block::Local_factory : File_system_factory
+struct Vfs_block::File_system : Dir_file_system, File_system_factory
 {
 	using Label = String<64>;
+	using Name  = Vfs_block::Name;
+
 	Label const _label;
 
 	Name const _name;
@@ -625,8 +626,8 @@ struct Vfs_block::Local_factory : File_system_factory
 
 	Block_connection _block;
 
-	Io_signal_handler<Local_factory> _block_signal_handler {
-		_env.env().ep(), *this, &Local_factory::_handle_block_signal };
+	Io_signal_handler<File_system> _block_signal_handler {
+		_env.env().ep(), *this, &File_system::_handle_block_signal };
 
 	void _handle_block_signal()
 	{
@@ -665,24 +666,6 @@ struct Vfs_block::Local_factory : File_system_factory
 	static size_t io_buffer(Node const &config) {
 		return config.attribute_value("io_buffer", DEFAULT_IO_BUFFER_SIZE); }
 
-	Local_factory(Vfs::Env &env, Node const &config)
-	:
-		_label   { config.attribute_value("label", Label("")) },
-		_name    { name(config) },
-		_env     { env },
-		_block   { _env.env(), &_tx_block_alloc, io_buffer(config) + (64u << 10),
-		           _label.string() },
-		_data_fs { _env, _block, name(config) }
-	{
-		if (config.has_attribute("block_buffer_count"))
-			warning("'block_buffer_count' attribute is superseded by 'io_buffer'");
-
-		_block.sigh(_block_signal_handler);
-		_info_fs       .value(Info { _block.info() });
-		_block_count_fs.value(_block.info().block_count);
-		_block_size_fs .value(_block.info().block_size);
-	}
-
 	Vfs::File_system *create(Vfs::Env &, Node const &node) override
 	{
 		if (node.has_type("data"))        return &_data_fs;
@@ -691,57 +674,61 @@ struct Vfs_block::Local_factory : File_system_factory
 		if (node.has_type("block_size"))  return &_block_size_fs;
 		return nullptr;
 	}
-};
 
+	using Config = String<200>;
 
-class Vfs_block::File_system : private Local_factory, public Dir_file_system
-{
-	private:
+	static Config _config(Name const &name)
+	{
+		char buf[Config::capacity()] { };
 
-		using Name   = Vfs_block::Name;
-		using Config = String<200>;
+		/*
+		 * By not using the node type "dir", we operate the
+		 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
+		 * to be present at the mount point.
+		 */
+		Generator::generate({ buf, sizeof(buf) }, "compound",
+			[&] (Generator &g) {
 
-		static Config _config(Name const &name)
-		{
-			char buf[Config::capacity()] { };
+				g.node("data", [&] { g.attribute("name", name); });
 
-			/*
-			 * By not using the node type "dir", we operate the
-			 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
-			 * to be present at the mount point.
-			 */
-			Generator::generate({ buf, sizeof(buf) }, "compound",
-				[&] (Generator &g) {
+				g.node("dir", [&] {
+					g.attribute("name", Name(".", name));
+					g.node("info");
+					g.node("block_count");
+					g.node("block_size");
+				});
 
-					g.node("data", [&] { g.attribute("name", name); });
+		}).with_error([&] (Buffer_error) {
+			warning("VFS-block compound exceeds maximum buffer size");
+		});
 
-					g.node("dir", [&] {
-						g.attribute("name", Name(".", name));
-						g.node("info");
-						g.node("block_count");
-						g.node("block_size");
-					});
+		return Config(Cstring(buf));
+	}
 
-			}).with_error([&] (Buffer_error) {
-				warning("VFS-block compound exceeds maximum buffer size");
-			});
+	File_system(Vfs::Env &vfs_env, Node const &node)
+	:
+		Dir_file_system { vfs_env, Node(_config(name(node))) },
+		_label   { node.attribute_value("label", Label("")) },
+		_name    { name(node) },
+		_env     { vfs_env },
+		_block   { _env.env(), &_tx_block_alloc, io_buffer(node) + (64u << 10),
+		           _label.string() },
+		_data_fs { _env, _block, name(node) }
+	{
+		if (node.has_attribute("block_buffer_count"))
+			warning("'block_buffer_count' attribute is superseded by 'io_buffer'");
 
-			return Config(Cstring(buf));
-		}
+		_block.sigh(_block_signal_handler);
+		_info_fs       .value(Info { _block.info() });
+		_block_count_fs.value(_block.info().block_count);
+		_block_size_fs .value(_block.info().block_size);
 
-	public:
+		Dir_file_system::update(Node(_config(name(node))), *this);
+	}
 
-		File_system(Vfs::Env &vfs_env, Node const &node)
-		:
-			Local_factory { vfs_env, node },
-			Dir_file_system { vfs_env, Node(_config(Local_factory::name(node))) }
-		{
-			Dir_file_system::update(Node(_config(Local_factory::name(node))), *this);
-		}
+	static const char *name() { return "block"; }
 
-		static const char *name() { return "block"; }
-
-		char const *type() override { return name(); }
+	char const *type() override { return name(); }
 };
 
 #endif /* _INCLUDE__VFS__BLOCK_FILE_SYSTEM_H_ */
