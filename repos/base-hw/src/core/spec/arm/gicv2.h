@@ -19,6 +19,8 @@
 
 namespace Board {
 
+	class Cpu;
+
 	using Hw::Global_interrupt_controller;
 
 	/**
@@ -26,8 +28,11 @@ namespace Board {
 	 * implementation in namespace Hw, because Local_interrupt_controller
 	 * needs to be forward declared in kernel/irq.h
 	 */
-	struct Local_interrupt_controller : Hw::Local_interrupt_controller {
-		using Hw::Local_interrupt_controller::Local_interrupt_controller; };
+	struct Local_interrupt_controller : Hw::Local_interrupt_controller
+	{
+		Local_interrupt_controller(Global_interrupt_controller &distr, Cpu &)
+		: Hw::Local_interrupt_controller(distr) {}
+	};
 }
 
 #endif /* _CORE__SPEC__ARM__GICV2_H_ */

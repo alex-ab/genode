@@ -48,7 +48,7 @@ void Arm_cpu::Context::print(Output &output) const
 }
 
 
-Arm_cpu::Context::Context(bool privileged)
+Arm_cpu::Context::Context(bool privileged, Arm_cpu &)
 {
 	using Psr = Arm_cpu::Psr;
 

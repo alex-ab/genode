@@ -16,9 +16,45 @@
 #define _SRC__LIB__HW__SPEC__X86_64__CPU_H_
 
 #include <hw/id.h>
-#include <hw/spec/x86_64/register_macros.h>
+#include <util/register.h>
 
-namespace Hw { struct X86_64_cpu; struct Suspend_type; }
+#define X86_64_CR_REGISTER(name, cr, ...) \
+	struct name : Genode::Register<64> \
+	{ \
+		static access_t read() \
+		{ \
+			access_t v; \
+			asm volatile ("mov %%" #cr ", %0" : "=r" (v) :: ); \
+			return v; \
+		} \
+ \
+		static void write(access_t const v) { \
+			asm volatile ("mov %0, %%" #cr :: "r" (v) : ); } \
+ \
+		__VA_ARGS__; \
+	};
+
+#define X86_64_MSR_REGISTER(name, msr, ...) \
+	struct name : Genode::Register<64> \
+	{ \
+		static access_t read() \
+		{ \
+			access_t low; \
+			access_t high; \
+			asm volatile ("rdmsr" : "=a" (low), "=d" (high) : "c" (msr)); \
+			return (high << 32) | (low & ~0U); \
+		} \
+ \
+		static void write(access_t const value) { \
+			asm volatile ("wrmsr" : : "a" (value), "d" (value >> 32), "c" (msr)); \
+		} \
+ \
+		__VA_ARGS__; \
+	};
+namespace Hw {
+	struct X86_64_cpu;
+	struct Suspend_type;
+}
 
 
 /*
@@ -100,7 +136,18 @@ struct Hw::X86_64_cpu
 		struct Smap       : Bitfield<21, 1> { }; /* SMAP Enable */
 	);
 
-	X86_64_XCR_REGISTER(Xcr0, 0);
+	struct Xcr0 : Genode::Register<64>
+	{
+		static access_t read()
+		{
+			access_t low, high;
+			asm volatile ("xgetbv" : "=d" (high), "=a" (low) : "c" (0));
+			return (high << 32) | (low & ~0U);
+		}
+
+		static void write(access_t const v) {
+			asm volatile ("xsetbv" :: "d" (v >> 32), "a" (v), "c" (0)); }
+	};
 
 	enum Msr {
 		IA32_PLATFORM_ID             = 0x17,
@@ -174,14 +221,16 @@ struct Hw::X86_64_cpu
 
 	};
 
-	X86_64_MSR_REGISTER(IA32_apic_base, IA32_APIC_BASE,
+	X86_64_MSR_REGISTER(Ia32_apic_base, IA32_APIC_BASE,
 		struct Bsp    : Bitfield<  8,  1> { }; /* Bootstrap processor */
 		struct X2apic : Bitfield< 10,  1> { }; /* Enable/disable X2APIC */
 		struct Lapic  : Bitfield< 11,  1> { }; /* Enable/disable local APIC */
 		struct Base   : Bitfield< 12, 24> { }; /* Base address of APIC registers */
+
+		static Genode::addr_t base() { return Base::masked(read()); }
 	);
 
-	X86_64_MSR_REGISTER(IA32_pat, IA32_PAT,
+	X86_64_MSR_REGISTER(Ia32_pat, IA32_PAT,
 		struct Pa1 : Bitfield <8, 3> {
 			enum { WRITE_COMBINING = 0b001 };
 		};
@@ -392,63 +441,256 @@ struct Hw::X86_64_cpu
 
 	X86_64_MSR_REGISTER(Ia32_xss, IA32_XSS);
 
-	X86_64_CPUID_REGISTER(Cpuid_0_eax, 0, 0, eax);
-	X86_64_CPUID_REGISTER(Cpuid_0_ebx, 0, 0, ebx);
-	X86_64_CPUID_REGISTER(Cpuid_0_ecx, 0, 0, ecx);
-	X86_64_CPUID_REGISTER(Cpuid_0_edx, 0, 0, edx);
+	template <unsigned ID>
+	struct Cpuid_leaf
+	{
+		using reg_t = Genode::uint32_t;
 
-	X86_64_CPUID_REGISTER(Cpuid_1_eax, 1, 0, eax);
+		reg_t eax { 0 };
+		reg_t ebx { 0 };
+		reg_t ecx { 0 };
+		reg_t edx { 0 };
+		bool const avail;
 
-	X86_64_CPUID_REGISTER(Cpuid_1_ebx, 1, 0, ebx,
-		struct Apic_id : Bitfield<24, 8> { };
-	);
+		void read(unsigned subid)
+		{
+			if (!avail)
+				return;
 
-	X86_64_CPUID_REGISTER(Cpuid_1_ecx, 1, 0, ecx,
-		struct Vmx          : Bitfield< 5, 1> { };
-		struct Pcid         : Bitfield<17, 1> { };
-		struct X2apic       : Bitfield<21, 1> { };
-		struct Tsc_deadline : Bitfield<24, 1> { };
-		struct Xsave        : Bitfield<26, 1> { };
-	);
+			eax = ID;
+			ecx = subid;
+			ebx = edx = 0;
+			asm volatile ("cpuid" : "+a" (eax), "=b" (ebx),
+			                        "+c" (ecx), "=d" (edx));
+		}
 
-	X86_64_CPUID_REGISTER(Cpuid_1_edx, 1, 0, edx,
-		struct Pat  : Bitfield<16, 1> { };
-		struct Acpi : Bitfield<22, 1> { };
-	);
+		Cpuid_leaf(Genode::size_t max_leaf, unsigned subid)
+		:
+			avail(max_leaf >= ID)
+		{
+			read(subid);
+		}
 
-	X86_64_CPUID_REGISTER(Cpuid_power_thermal_eax, 6, 0, eax,
-		struct Pkg_therm_mgmt  : Bitfield<6, 1> { };
-		struct Hwp             : Bitfield<7, 1> { };
-		struct Hwp_request_pkg : Bitfield<11,1> { };
-	);
+		Cpuid_leaf(Genode::size_t max_leaf)
+		: Cpuid_leaf(max_leaf, 0) {}
 
-	X86_64_CPUID_REGISTER(Cpuid_power_thermal_ecx, 6, 0, ecx,
-		struct Mperf_aperf      : Bitfield<0,1> { };
-		struct Energy_perf_bias : Bitfield<0,3> { };
-	);
+		bool valid() const { return avail; }
+	};
 
-	X86_64_CPUID_REGISTER(Cpuid_xcr0_low, 0xd, 0, eax);
-	X86_64_CPUID_REGISTER(Cpuid_xsave_bytes_enabled, 0xd, 0, ebx);
+	enum class Vendor {
+		INTEL,
+		AMD,
+		KVM,
+		MICROSOFT,
+		VMWARE,
+		XEN,
+		UNKNOWN,
+	};
 
-	X86_64_CPUID_REGISTER(Cpuid_d_1_eax, 0xd, 1, eax,
-		struct Xsaveopt : Bitfield<0, 1> { };
-		struct Xsaves   : Bitfield<3, 1> { };
-	);
+	struct Cpuid_0 : Cpuid_leaf<0>
+	{
+		Cpuid_0() : Cpuid_leaf(0) {};
 
-	X86_64_CPUID_REGISTER(Cpuid_ia32_xss_low,  0xd, 1, ecx);
-	X86_64_CPUID_REGISTER(Cpuid_ia32_xss_high, 0xd, 1, edx);
+		Genode::size_t max_leaf() const { return eax; }
 
-	X86_64_CPUID_REGISTER(Cpuid_8000000A_edx, 0x8000000A, 0, edx,
-		struct Np : Bitfield<0, 1> { }; /* Nested paging */
-	);
+		Vendor vendor() const
+		{
+			static constexpr char const * const str[] {
+				"GenuineIntel",
+				"AuthenticAMD",
+				"KVMKVMKVM",
+				"Microsoft Hv",
+				"VMwareVMware",
+				"XenVMMXenVMM"
+				"Unknown",
+			};
 
-	X86_64_CPUID_REGISTER(Cpuid_80000007_eax, 0x80000007, 0, eax,
-		struct Invariant_tsc : Bitfield<2, 1> { }; /* Invariant TSC */
-	);
+			for (unsigned v = 0; v <= (unsigned)Vendor::UNKNOWN; v++)
+				if (*reinterpret_cast<reg_t const *>(str[v] + 0) == ebx &&
+				    *reinterpret_cast<reg_t const *>(str[v] + 4) == edx &&
+				    *reinterpret_cast<reg_t const *>(str[v] + 8) == ecx)
+					return Vendor(v);
 
-	X86_64_CPUID_REGISTER(Cpuid_80000001_ecx, 0x80000001, 0, ecx,
-		struct Svm : Bitfield<2, 1> { };
-	);
+			return Vendor::UNKNOWN;
+		}
+	};
+
+	struct Cpuid_1 : Cpuid_leaf<1>
+	{
+		struct Eax : Genode::Register<32>
+		{
+			struct Model_id      : Bitfield<4,  4> {};
+			struct Family_id     : Bitfield<8,  4> {};
+			struct Ext_model_id  : Bitfield<16, 4> {};
+			struct Ext_family_id : Bitfield<20, 8> {};
+		};
+
+		struct Ebx : Genode::Register<32>
+		{
+			struct Apic_id_space : Bitfield<16, 8> { };
+			struct Apic_id : Bitfield<24, 8> { };
+		};
+
+		struct Ecx : Genode::Register<32>
+		{
+			struct Vmx          : Bitfield< 5, 1> { };
+			struct Pcid         : Bitfield<17, 1> { };
+			struct X2apic       : Bitfield<21, 1> { };
+			struct Tsc_deadline : Bitfield<24, 1> { };
+			struct Xsave        : Bitfield<26, 1> { };
+		};
+
+		struct Edx : Genode::Register<32>
+		{
+			struct Pat  : Bitfield<16, 1> { };
+			struct Acpi : Bitfield<22, 1> { };
+			struct Htt  : Bitfield<28, 1> { };
+		};
+
+		unsigned family() const
+		{
+			unsigned id = Eax::Family_id::get(eax);
+			return (id == 0xf) ? id + Eax::Ext_family_id::get(eax) : id;
+		}
+
+		unsigned model() const
+		{
+			unsigned family = Eax::Family_id::get(eax);
+			return (family == 0x6 || family == 0xf)
+				? Eax::Model_id::get(eax) + (Eax::Ext_model_id::get(eax) << 4)
+				: Eax::Model_id::get(eax);
+		}
+
+		bool acpi() const { return Edx::Acpi::get(edx); }
+
+		Genode::uint8_t apic_id() const { return Ebx::Apic_id::get(ebx); }
+
+		Genode::size_t apic_id_space() const {
+			return Ebx::Apic_id_space::get(ebx); }
+
+		bool htt() const { return Edx::Htt::get(edx); }
+
+		bool pat() const { return Edx::Pat::get(edx); }
+
+		bool pcid() const { return Ecx::Pcid::get(ecx); }
+
+		bool vmx() const { return Ecx::Vmx::get(ecx); }
+
+		bool x2apic() const { return Ecx::X2apic::get(ecx); }
+
+		bool xsave() const { return Ecx::Xsave::get(ecx); }
+	};
+
+	struct Cpuid_6 : Cpuid_leaf<6>
+	{
+		struct Eax : Genode::Register<32>
+		{
+			struct Pkg_therm_mgmt  : Bitfield<6, 1> { };
+			struct Hwp             : Bitfield<7, 1> { };
+			struct Hwp_request_pkg : Bitfield<11,1> { };
+		};
+
+		struct Ecx : Genode::Register<32>
+		{
+			struct Mperf_aperf      : Bitfield<0,1> { };
+			struct Energy_perf_bias : Bitfield<3,1> { };
+		};
+
+		bool pkg_therm_mgmt() const {
+			return Eax::Pkg_therm_mgmt::get(eax); }
+
+		bool hwp() const { return Eax::Hwp::get(eax); }
+
+		bool hwp_request_pkg() const {
+			return Eax::Hwp_request_pkg::get(eax); }
+
+		bool mperf_aperf() const {
+			return Ecx::Mperf_aperf::get(ecx); }
+
+		bool energy_perf_bias() const {
+			return Ecx::Energy_perf_bias::get(ecx); }
+	};
+
+	struct Cpuid_d_0 : Cpuid_leaf<0xd>
+	{
+		void read() {
+			Cpuid_leaf<0xd>::read(0); }
+
+		Genode::uint64_t xcr0() const {
+			return eax | ((Genode::uint64_t)edx) << 32; }
+
+		Genode::size_t xsave_bytes_enabled() const {
+			return ebx; }
+	};
+
+	struct Cpuid_d_1 : Cpuid_leaf<0xd>
+	{
+		struct Eax : Genode::Register<32>
+		{
+			struct Xsaveopt : Bitfield<0, 1> { };
+			struct Xsaves   : Bitfield<3, 1> { };
+		};
+
+		Cpuid_d_1(Genode::size_t max_leaf)
+		: Cpuid_leaf(max_leaf, 1) {}
+
+		bool xsaveopt() const {
+			return Eax::Xsaveopt::get(eax); }
+
+		bool xsaves() const {
+			return Eax::Xsaves::get(eax); }
+	};
+
+	template <unsigned ID>
+	struct Cpuid_ext_leaf : Cpuid_leaf<0x80000000+ID>
+	{
+		Cpuid_ext_leaf(Genode::size_t max_leaf)
+		: Cpuid_leaf<0x80000000+ID>(0x80000000+max_leaf) {}
+	};
+
+	struct Cpuid_ext_0 : Cpuid_ext_leaf<0>
+	{
+		Cpuid_ext_0() : Cpuid_ext_leaf(0) {};
+
+		reg_t max_leaf() const { return eax; }
+	};
+
+	struct Cpuid_ext_1 : Cpuid_ext_leaf<1>
+	{
+		struct Ecx : Genode::Register<32>
+		{
+			/*
+			 * Following definitions only valid for AMD
+			 */
+			struct Amd_svm : Bitfield<2, 1> { };
+		};
+
+		bool amd_svm() const {
+			return Ecx::Amd_svm::get(ecx); }
+	};
+
+	struct Cpuid_ext_7 : Cpuid_ext_leaf<7>
+	{
+		struct Edx : Genode::Register<32>
+		{
+			struct Invariant_tsc : Bitfield<8, 1> { };
+		};
+
+		bool invariant_tsc() const {
+			return Edx::Invariant_tsc::get(edx); }
+	};
+
+	struct Cpuid_ext_a : Cpuid_ext_leaf<0xa>
+	{
+		struct Edx : Genode::Register<32>
+		{
+			/* only valid for AMD */
+			struct Amd_np : Bitfield<0, 1> { }; /* Nested paging */
+		};
+
+		bool amd_nested_paging() const {
+			return Edx::Amd_np::get(edx); }
+	};
 
 	/*
 	 * XSAVE feature set comprises different state components,
@@ -469,11 +711,27 @@ struct Hw::X86_64_cpu
 
 	Suspend_type suspend;
 
-	static bool x2apic_support()
+	/*
+	 * Provide serialized access to the Timestamp Counter
+	 *
+	 * See #5430 for more information.
+	 */
+	static Genode::uint64_t rdtsc()
 	{
-		Cpuid_1_ecx::access_t ecx = Cpuid_1_ecx::read();
-		return Cpuid_1_ecx::X2apic::get(ecx);
+		Genode::uint32_t low, high;
+		asm volatile(
+			"lfence;"
+			"rdtsc;"
+			"lfence;"
+			: "=a"(low), "=d"(high)
+			:
+			: "memory"
+		);
+		return (Genode::uint64_t)(high) << 32 | low;
 	}
 };
+
+#undef X86_64_CR_REGISTER
+#undef X86_64_MSR_REGISTER
 
 #endif /* _SRC__LIB__HW__SPEC__X86_64__CPU_H_ */

@@ -74,7 +74,7 @@ struct Board::Cpu : Hw::Arm_64_cpu
 		uint128_t q[32];
 		uint64_t  fpcr { };
 
-		Context(bool privileged);
+		Context(bool privileged, Cpu &);
 
 		void print(Output &output) const;
 

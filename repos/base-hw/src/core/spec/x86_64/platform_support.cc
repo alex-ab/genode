@@ -16,7 +16,6 @@
 #include <platform.h>
 #include <kernel/cpu.h>
 #include <map_local.h>
-#include <hw/spec/x86_64/x86_64.h>
 
 using namespace Core;
 
@@ -55,12 +54,12 @@ void Core::Platform::_init_additional_platform_info(Generator &g)
 	});
 	g.node("hardware", [&] {
 		g.node("features", [&] {
-			g.attribute("svm", Hw::Virtualization_support::has_svm());
-			g.attribute("vmx", Hw::Virtualization_support::has_vmx());
+			g.attribute("svm", _boot_info().plat_info.has_svm);
+			g.attribute("vmx", _boot_info().plat_info.has_vmx);
 		});
 		g.node("tsc", [&] {
-			g.attribute("invariant", Hw::Tsc::invariant_tsc());
-			g.attribute("freq_khz", _boot_info().plat_info.tsc_freq_khz);
+			g.attribute("invariant", _boot_info().plat_info.invariant_tsc);
+			g.attribute("freq_khz",  _boot_info().plat_info.tsc_freq_khz);
 		});
 	});
 }
@@ -77,7 +76,7 @@ bool Core::Platform::alloc_msi_vector(addr_t &address, addr_t &value)
 {
 	return msi_allocator().alloc().convert<bool>(
 		[&] (addr_t const v) {
-			address = Hw::Cpu_memory_map::lapic_phys_base();
+			address = Hw::X86_64_cpu::Ia32_apic_base::base();
 			value = Board::Local_interrupt_controller::IPI - 1 - v;
 			return true;
 		},

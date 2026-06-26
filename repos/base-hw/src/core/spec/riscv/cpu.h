@@ -51,7 +51,7 @@ class Board::Cpu : public Hw::Riscv_cpu
 
 		struct alignas(8) Context : Genode::Cpu_state
 		{
-			Context(bool);
+			Context(bool, Cpu &);
 
 			void print(Output &output) const;
 

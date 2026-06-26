@@ -18,7 +18,10 @@
 #include <kernel/types.h>
 #include <hw/spec/arm/cpu.h>
 
-namespace Board { class Timer; }
+namespace Board {
+	class Cpu;
+	class Timer;
+}
 
 
 struct Board::Timer
@@ -27,7 +30,7 @@ struct Board::Timer
 
 	unsigned const ticks_per_ms;
 
-	Timer(Hw::Arm_cpu::Id);
+	Timer(Cpu &);
 
 	void init();
 };

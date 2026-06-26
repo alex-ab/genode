@@ -23,6 +23,12 @@ namespace Hw::Pc_board {
 	struct Serial;
 	enum Dummies { UART_BASE, UART_CLOCK };
 
+	enum {
+		IOAPIC_BASE = 0xfec00000,
+		IOAPIC_SIZE = 0x1000,
+		LAPIC_SIZE  = 0xe34,
+	};
+
 	/**
 	 * The constant 'NR_OF_CPUS' defines the _maximum_ of cpus currently
 	 * supported on x86. The actual number is detected at booting.
@@ -48,6 +54,10 @@ struct Hw::Pc_board::Boot_info
 	Genode::uint32_t tsc_freq_khz     { 0 };
 	Genode::uint32_t apic_freq_khz    { 0 };
 	Genode::uint8_t  apic_div         { 0 };
+
+	bool invariant_tsc { false };
+	bool has_svm { false };
+	bool has_vmx { false };
 
 	Boot_info() {}
 };

@@ -12,7 +12,7 @@
  */
 
 /* core includes */
-#include <cpu.h>
+#include <kernel/cpu.h>
 #include <kernel/thread.h>
 #include <kernel/pd.h>
 
@@ -58,7 +58,9 @@ void Cpu::Context::print(Output &output) const
 }
 
 
-Cpu::Context::Context(bool core)
+Cpu::Context::Context(bool core, Cpu &cpu)
+:
+	fc(cpu)
 {
 	eflags = EFLAGS_IF_SET;
 	cs     = core ? 0x8 : 0x1b;
@@ -66,104 +68,55 @@ Cpu::Context::Context(bool core)
 }
 
 
-static bool xsave_avail()
-{
-	using Id = Cpu::Cpuid_1_ecx;
-	static bool avail = Id::Xsave::get(Id::read());
-	return avail;
-}
-
-
-static bool xsaves_avail()
-{
-	using Id = Cpu::Cpuid_d_1_eax;
-	static bool avail = Id::Xsaves::get(Id::read());
-	return avail;
-}
-
-static bool xsaveopt_avail()
-{
-	using Id = Cpu::Cpuid_d_1_eax;
-	static bool avail = Id::Xsaveopt::get(Id::read());
-	return avail;
-}
-
-static uint32_t xcr0_low()
-{
-	static constexpr uint32_t hw_supported =
-		Cpu::Xstate_components::X87::bits(1) |
-		Cpu::Xstate_components::Sse::bits(1) |
-		Cpu::Xstate_components::Avx::bits(1) |
-		Cpu::Xstate_components::Avx_512::bits(0b111);
-	static uint32_t xcr0 = Cpu::Cpuid_xcr0_low::read();
-	return xcr0 & hw_supported;
-}
-
-
-Cpu::Fpu::Fpu()
-{
-	if (!xsave_avail())
-		return;
-
-	Cpu::Cr4::access_t cr4 = Cpu::Cr4::read();
-	Cpu::Cr4::Osxsave::set(cr4, 1);
-	Cpu::Cr4::write(cr4);
-
-	/* we don't make use of the extended supervisor state save/restore */
-	if (xsaves_avail()) Cpu::Ia32_xss::write(0);
-
-	Cpu::Xcr0::write(xcr0_low());
-
-	if (Cpu::Cpuid_xsave_bytes_enabled::read() > Cpu::Fpu_context::SIZE)
-		error("XSAVE state is bigger than kernel's specified size!");
-}
-
-
-Cpu::Fpu_context::Fpu_context()
+Cpu::Fpu_context::Fpu_context(Cpu &cpu)
+:
+	xstate_support(cpu.xstate_support), xcr0(cpu.xcr0)
 {
 	Context init({ _data, SIZE });
 	init.write<Context::Fpu_control>(0x37f);    /* mask exceptions SysV ABI */
 	init.write<Context::Simd_control_status>(0x1f80);
-	if (xsaves_avail())
+
+	if (xstate_support == Xstate_support::XSAVES)
 		init.write<Context::Xcomp>(Context::Xcomp::Compact::bits(1));
 }
 
 
 void Cpu::Fpu_context::save()
 {
-	if (!xsave_avail()) {
-		asm volatile("fxsave (%0)" :: "r" (this));
-		return;
-	}
-
-	if (xsaves_avail()) {
+	switch (xstate_support) {
+	case Xstate_support::XSAVES:
 		asm volatile ("xsaves64 (%0)"
-		              :: "r" (this), "d" (0), "a" (xcr0_low()) : "memory");
+		              :: "r" (this), "d" (0), "a" (xcr0) : "memory");
 		return;
-	}
-
-	if (xsaveopt_avail())
-		asm volatile ("xsaveopt (%0)"
-		              :: "r" (this), "d" (0), "a" (xcr0_low()) : "memory");
-	else
+	case Xstate_support::XSAVE:
 		asm volatile ("xsave64 (%0)"
-		              :: "r" (this), "d" (0), "a" (xcr0_low()) : "memory");
+		              :: "r" (this), "d" (0), "a" (xcr0) : "memory");
+		return;
+	case Xstate_support::XSAVEOPT:
+		asm volatile ("xsaveopt (%0)"
+		              :: "r" (this), "d" (0), "a" (xcr0) : "memory");
+		return;
+	case Xstate_support::LEGACY:
+		asm volatile("fxsave (%0)" :: "r" (this));
+	}
 }
 
 
 void Cpu::Fpu_context::load() const
 {
-	if (!xsave_avail()) {
-		asm volatile("fxrstor (%0)" :: "r" (this));
-		return;
-	}
-
-	if (xsaves_avail())
+	switch (xstate_support) {
+	case Xstate_support::XSAVES:
 		asm volatile ("xrstors64 (%0)"
-		              :: "r" (this), "d" (0), "a" (xcr0_low()) : "memory");
-	else
+		              :: "r" (this), "d" (0), "a" (xcr0) : "memory");
+		return;
+	case Xstate_support::XSAVE:
+	case Xstate_support::XSAVEOPT:
 		asm volatile ("xrstor64 (%0)"
-		              :: "r" (this), "d" (0), "a" (xcr0_low()) : "memory");
+		              :: "r" (this), "d" (0), "a" (xcr0) : "memory");
+		return;
+	case Xstate_support::LEGACY:
+		asm volatile("fxrstor (%0)" :: "r" (this));
+	}
 }
 
 
@@ -171,7 +124,8 @@ Cpu::Mmu_context::Mmu_context(addr_t table, addr_t id)
 :
 	cr3(Cr3::Pdb::masked(table))
 {
-	if (pcid_avail()) Cr3::Pcid::set(cr3, id);
+	Kernel::Cpu::with_current([&] (auto &cpu) {
+		if (cpu.cpuid_1.pcid()) Cr3::Pcid::set(cr3, id); });
 }
 
 
@@ -243,14 +197,15 @@ bool Cpu::active(Mmu_context &mmu_context)
 void Cpu::switch_to(Mmu_context &mmu_context)
 {
 	Cr3::access_t cr3 = mmu_context.cr3;
-	if (pcid_avail()) Cr3::Tlb_ignore::set(cr3, 1);
+	if (cpuid_1.pcid()) Cr3::Tlb_ignore::set(cr3, 1);
 	Cr3::write(cr3);
 }
 
 
 Cpu::Id Cpu::executing_id()
 {
-	return { Cpu::Cpuid_1_ebx::Apic_id::get(Cpu::Cpuid_1_ebx::read()) };
+	Cpuid_1 id { 0x1 };
+	return { id.apic_id() };
 }
 
 
@@ -277,25 +232,19 @@ void Cpu::single_step(Context &regs, bool on)
 }
 
 
-bool Cpu::pcid_avail()
-{
-	static bool avail = Cpuid_1_ecx::Pcid::get(Cpuid_1_ecx::read());
-	return avail;
-}
-
-
 void Cpu::invalidate_tlb(Mmu_context &mmu_context, addr_t addr, size_t size, bool core)
 {
 	/* non global entries get deleted by CR3 re-loading */
 	if (!core) {
-		if (pcid_avail()) {
-			Cr3::access_t cr3 = Cr3::read();
-			Cr3::write(mmu_context.cr3);
-			if (pcid_avail()) Cr3::Tlb_ignore::set(cr3, 1);
-			Cr3::write(cr3);
-		} else {
+		if (!cpuid_1.pcid()) {
 			Cr3::write(Cr3::read());
+			return;
 		}
+
+		Cr3::access_t cr3 = Cr3::read();
+		Cr3::write(mmu_context.cr3);
+		Cr3::Tlb_ignore::set(cr3, 1);
+		Cr3::write(cr3);
 		return;
 	}
 
@@ -322,8 +271,8 @@ bool Cpu::user_msr_read(addr_t const msr, addr_t &value)
 {
 	uint32_t msr_addr = msr & 0xffffffff;
 
-	static unsigned const family = Hw::Vendor::get_family();
-	static unsigned const model  = Hw::Vendor::get_model();
+	unsigned const family = cpuid_1.family();
+	unsigned const model  = cpuid_1.model();
 
 	bool const nehalem_or_newer     = (family == 0x6);
 	bool const sandybridge_or_newer = (family == 0x6) && (model >= 0x2a);
@@ -336,21 +285,19 @@ bool Cpu::user_msr_read(addr_t const msr, addr_t &value)
 	case IA32_APERF:
 	case IA32_MPERF:
 		{
-			using Id = Cpuid_power_thermal_ecx;
-			if (!Id::Mperf_aperf::get(Id::read()))
+			if (!cpuid_6.mperf_aperf())
 				return false;
 			break;
 		}
 	case IA32_THERM_STATUS:
 		{
-			if (!Cpuid_1_edx::Acpi::get(Cpuid_1_edx::read()))
+			if (!cpuid_1.acpi())
 				return false;
 			break;
 		}
 	case IA32_PACKAGE_THERM_STATUS:
 		{
-			using Id = Cpuid_power_thermal_eax;
-			if (!Id::Pkg_therm_mgmt::get(Id::read()))
+			if (!cpuid_6.pkg_therm_mgmt())
 				return false;
 			break;
 		}
@@ -358,22 +305,19 @@ bool Cpu::user_msr_read(addr_t const msr, addr_t &value)
 	case IA32_HWP_CAPABILITIES:
 	case IA32_HWP_REQUEST:
 		{
-			using Id = Cpuid_power_thermal_eax;
-			if (!Id::Hwp::get(Id::read()))
+			if (!cpuid_6.hwp())
 				return false;
 			break;
 		}
 	case IA32_HWP_REQUEST_PKG:
 		{
-			using Id = Cpuid_power_thermal_eax;
-			if (!Id::Hwp_request_pkg::get(Id::read()))
+			if (!cpuid_6.hwp_request_pkg())
 				return false;
 			break;
 		}
 	case IA32_ENERGY_PERF_BIAS:
 		{
-			using Id = Cpuid_power_thermal_ecx;
-			if (!Id::Energy_perf_bias::get(Id::read()))
+			if (!cpuid_6.energy_perf_bias())
 				return false;
 			break;
 		}
@@ -433,22 +377,19 @@ bool Cpu::user_msr_write(addr_t const msr, addr_t const value)
 	case IA32_PM_ENABLE:
 	case IA32_HWP_REQUEST:
 		{
-			using Id = Cpuid_power_thermal_eax;
-			if (!Id::Hwp::get(Id::read()))
+			if (!cpuid_6.hwp())
 				return false;
 			break;
 		}
 	case IA32_HWP_REQUEST_PKG:
 		{
-			using Id = Cpuid_power_thermal_eax;
-			if (!Id::Hwp_request_pkg::get(Id::read()))
+			if (!cpuid_6.hwp_request_pkg())
 				return false;
 			break;
 		}
 	case IA32_ENERGY_PERF_BIAS:
 		{
-			using Id = Cpuid_power_thermal_ecx;
-			if (!Id::Energy_perf_bias::get(Id::read()))
+			if (!cpuid_6.energy_perf_bias())
 				return false;
 			break;
 		}
@@ -458,4 +399,40 @@ bool Cpu::user_msr_write(addr_t const msr, addr_t const value)
 
 	asm volatile ("wrmsr" :: "a" (value), "d" (value>>32), "c" (msr_addr));
 	return true;
+}
+
+
+Cpu::Cpu()
+{
+	if (!cpuid_1.xsave() || !cpuid_d_0.valid())
+		return;
+
+	xstate_support = Xstate_support::XSAVE;
+
+	Cpu::Cr4::access_t cr4 = Cpu::Cr4::read();
+	Cpu::Cr4::Osxsave::set(cr4, 1);
+	Cpu::Cr4::write(cr4);
+
+	if (cpuid_d_1.xsaveopt())
+		xstate_support = Xstate_support::XSAVEOPT;
+
+	if (cpuid_d_1.xsaves()) {
+		xstate_support = Xstate_support::XSAVES;
+
+		/* we don't make use of the extended supervisor state save/restore */
+		Cpu::Ia32_xss::write(0);
+	}
+
+	static constexpr uint64_t hw_supported =
+		Cpu::Xstate_components::X87::bits(1) |
+		Cpu::Xstate_components::Sse::bits(1) |
+		Cpu::Xstate_components::Avx::bits(1) |
+		Cpu::Xstate_components::Avx_512::bits(0b111);
+	xcr0 = cpuid_d_0.xcr0() & hw_supported;
+	Cpu::Xcr0::write(xcr0);
+
+	/* we have to re-read CPUID 0DH after setting XCR0 */
+	cpuid_d_0.read();
+	if (cpuid_d_0.xsave_bytes_enabled() > Cpu::Fpu_context::SIZE)
+		error("XSAVE state is bigger than kernel's specified size!");
 }

@@ -17,7 +17,6 @@
 #include <hw/spec/x86_64/pc_board.h>
 #include <hw/spec/x86_64/page_table.h>
 #include <hw/spec/x86_64/cpu.h>
-#include <hw/spec/x86_64/x86_64.h>
 
 namespace Board {
 	using namespace Hw::Pc_board;

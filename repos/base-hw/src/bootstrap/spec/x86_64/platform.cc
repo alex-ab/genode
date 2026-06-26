@@ -24,7 +24,6 @@
 #include <hw/memory_consts.h>
 #include <hw/spec/x86_64/acpi.h>
 #include <hw/spec/x86_64/apic.h>
-#include <hw/spec/x86_64/x86_64.h>
 
 using namespace Genode;
 
@@ -74,14 +73,9 @@ static void disable_pit()
  *     Revision 5.09.23
  *     Mitigation G-2
  */
-static void amd_enable_serializing_lfence()
+static void amd_enable_serializing_lfence(unsigned family)
 {
 	using Cpu = Hw::X86_64_cpu;
-
-	if (Hw::Vendor::get_vendor_id() != Hw::Vendor::Vendor_id::AMD)
-		return;
-
-	unsigned const family = Hw::Vendor::get_family();
 
 	/*
 	 * In family 0Fh and 11h, lfence is always dispatch serializing and
@@ -226,11 +220,13 @@ static inline void parse_multi_boot_2(::Board::Boot_info      &info,
 Bootstrap::Platform::Board::Board()
 :
 	core_mmio(Memory_region { 0, 0x1000 },
-	          Memory_region { Hw::Cpu_memory_map::lapic_phys_base(), 0x1000 },
-	          Memory_region { Hw::Cpu_memory_map::MMIO_IOAPIC_BASE,
-	                          Hw::Cpu_memory_map::MMIO_IOAPIC_SIZE },
+	          Memory_region { Hw::X86_64_cpu::Ia32_apic_base::base(), 0x1000 },
+	          Memory_region { Hw::Pc_board::IOAPIC_BASE,
+	                          Hw::Pc_board::IOAPIC_SIZE },
 	          Memory_region { __initial_bx & ~0xFFFUL, PAGE_SIZE })
 {
+	using Cpu = Hw::X86_64_cpu;
+
 	switch (__initial_ax) {
 	case Multiboot_info::MAGIC:
 		parse_multi_boot_1(early_ram_regions, late_ram_regions);
@@ -241,6 +237,9 @@ Bootstrap::Platform::Board::Board()
 	default:
 		error("invalid multiboot magic value: ", Hex(__initial_ax));
 	};
+
+	Cpu::Cpuid_0 cpuid_0 {};
+	Cpu::Cpuid_1 cpuid_1 { cpuid_0.max_leaf() };
 
 	if (rsdp_addr) {
 		Hw::Acpi::Rsdp rsdp(rsdp_addr);
@@ -276,11 +275,13 @@ Bootstrap::Platform::Board::Board()
 				 * to do it already here to obtain the most acurate results
 				 * when calibrating the TSC frequency.
 				 */
-				amd_enable_serializing_lfence();
-				info.tsc_freq_khz = fadt.calibrate_freq_khz(10, []() {
-					return Hw::Tsc::rdtsc(); });
+				if (cpuid_0.vendor() == Cpu::Vendor::AMD)
+					amd_enable_serializing_lfence(cpuid_1.family());
 
-				Hw::Apic apic(Hw::Cpu_memory_map::lapic_phys_base());
+				info.tsc_freq_khz = fadt.calibrate_freq_khz(10, []() {
+					return Cpu::rdtsc(); });
+
+				Hw::Apic apic(Cpu::Ia32_apic_base::base(), cpuid_1.x2apic());
 				auto result = apic.timer_calibrate(fadt);
 				info.apic_freq_khz = result.freq_khz;
 				info.apic_div = result.div;
@@ -303,6 +304,26 @@ Bootstrap::Platform::Board::Board()
 	/* copy 16 bit boot code for AP CPUs and for ACPI resume */
 	addr_t ap_code_size = (addr_t)&_start - (addr_t)&_ap;
 	memcpy((void *)AP_BOOT_CODE_PAGE, &_ap, ap_code_size);
+
+	/*
+	 * Check for additional CPU features
+	 */
+	Cpu::Cpuid_ext_0 cpuid_ext_0 {};
+	Cpu::Cpuid_ext_1 cpuid_ext_1 { cpuid_ext_0.max_leaf() };
+	Cpu::Cpuid_ext_7 cpuid_ext_7 { cpuid_ext_0.max_leaf() };
+
+	if (cpuid_0.vendor() == Cpu::Vendor::AMD &&
+	    cpuid_ext_1.valid() && cpuid_ext_1.amd_svm())
+		info.has_svm = Cpu::Amd_vm_cr::Svmdis::get(Cpu::Amd_vm_cr::read());
+
+	if (cpuid_0.vendor() == Cpu::Vendor::INTEL && cpuid_1.vmx()) {
+		/* Check if VMX feature is off and locked */
+		auto feat_ctrl = Cpu::Ia32_feature_control::read();
+		info.has_vmx = Cpu::Ia32_feature_control::Vmx_no_smx::get(feat_ctrl) ||
+		               !Cpu::Ia32_feature_control::Lock::get(feat_ctrl);
+	}
+
+	info.invariant_tsc = cpuid_ext_7.valid() && cpuid_ext_7.invariant_tsc();
 
 
 	/************************
@@ -350,27 +371,30 @@ static inline void wake_up_all_cpus(Hw::Apic &apic)
 Bootstrap::Platform::Cpu_id Bootstrap::Platform::enable_mmu()
 {
 	using ::Board::Cpu;
-	auto const cpu_id =
-		Cpu_id(Cpu::Cpuid_1_ebx::Apic_id::get(Cpu::Cpuid_1_ebx::read()));
+
+	Cpu::Cpuid_0 cpuid_0 {};
+	Cpu::Cpuid_1 cpuid_1 { cpuid_0.max_leaf() };
+
+	auto const cpu_id = Cpu_id(cpuid_1.apic_id());
 	static auto const boot_cpu_id = cpu_id;
 	bool boot_cpu = boot_cpu_id == cpu_id;
 
-	Hw::Apic apic(Hw::Cpu_memory_map::lapic_phys_base());
+	Hw::Apic apic(Cpu::Ia32_apic_base::base(), cpuid_1.x2apic());
 	if (boot_cpu && board.cpus > 1) wake_up_all_cpus(apic);
 
 	/* last booted CPU resets assembly counter (crt0.s), required for resume */
 	if (__cpus_booted >= board.cpus) __cpus_booted = 0;
 
 	/* enable serializing lfence on supported AMD processors. */
-	amd_enable_serializing_lfence();
+	if (cpuid_0.vendor() == Cpu::Vendor::AMD)
+		amd_enable_serializing_lfence(cpuid_1.family());
 
 	/* enable PAT if available */
-	Cpu::Cpuid_1_edx::access_t cpuid1 = Cpu::Cpuid_1_edx::read();
-	if (Cpu::Cpuid_1_edx::Pat::get(cpuid1)) {
-		Cpu::IA32_pat::access_t pat = Cpu::IA32_pat::read();
-		if (Cpu::IA32_pat::Pa1::get(pat) != Cpu::IA32_pat::Pa1::WRITE_COMBINING) {
-			Cpu::IA32_pat::Pa1::set(pat, Cpu::IA32_pat::Pa1::WRITE_COMBINING);
-			Cpu::IA32_pat::write(pat);
+	if (cpuid_1.pat()) {
+		Cpu::Ia32_pat::access_t pat = Cpu::Ia32_pat::read();
+		if (Cpu::Ia32_pat::Pa1::get(pat) != Cpu::Ia32_pat::Pa1::WRITE_COMBINING) {
+			Cpu::Ia32_pat::Pa1::set(pat, Cpu::Ia32_pat::Pa1::WRITE_COMBINING);
+			Cpu::Ia32_pat::write(pat);
 		}
 	}
 
@@ -382,9 +406,7 @@ Bootstrap::Platform::Cpu_id Bootstrap::Platform::enable_mmu()
 	Cpu::Cr4::Pge::set(cr4, 1);
 
 	/* enable PCID if available */
-	Cpu::Cpuid_1_ecx::access_t cpu_id1_ecx = Cpu::Cpuid_1_ecx::read();
-	if (Cpu::Cpuid_1_ecx::Pcid::get(cpu_id1_ecx))
-		Cpu::Cr4::Pcide::set(cr4, 1);
+	if (cpuid_1.pcid()) Cpu::Cr4::Pcide::set(cr4, 1);
 
 	Cpu::Cr4::write(cr4);
 

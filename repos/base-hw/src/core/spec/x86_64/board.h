@@ -17,7 +17,6 @@
 #include <session/session.h>
 
 #include <cpu/vcpu_state.h>
-#include <hw/spec/x86_64/x86_64.h>
 #include <spec/x86_64/svm.h>
 #include <spec/x86_64/vmx.h>
 #include <phys_allocated.h>
@@ -93,12 +92,12 @@ struct Board::Vcpu_context
 
 	using Id = Genode::Attempt<addr_t, Genode::Bit_array_base::Error>;
 
-	Vcpu_context(Id id, Vcpu_state &vcpu_data);
+	Vcpu_context(Id id, Vcpu_state &vcpu_data, Cpu &cpu);
 	void initialize(Board::Cpu &cpu, addr_t table_phys_addr);
 	void load(Genode::Vcpu_state &state);
 	void store(Genode::Vcpu_state &state);
 
-	Genode::Align_at<Cpu::Context> regs { true };
+	Genode::Align_at<Cpu::Context> regs;
 
 	Virt_interface &virt;
 

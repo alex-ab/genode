@@ -20,6 +20,7 @@ namespace Board {
 
 	using Hw::Global_interrupt_controller;
 	class Local_interrupt_controller;
+	class Cpu;
 };
 
 
@@ -57,7 +58,7 @@ class Board::Local_interrupt_controller : public Hw::Local_interrupt_controller
 		bool ack_virtual_irq(Virtual_context &c);
 		void insert_virtual_irq(Virtual_context &c, unsigned irq);
 
-		Local_interrupt_controller(Global_interrupt_controller &gic)
+		Local_interrupt_controller(Global_interrupt_controller &gic, Cpu &)
 		:
 			Hw::Local_interrupt_controller(gic) {}
 };

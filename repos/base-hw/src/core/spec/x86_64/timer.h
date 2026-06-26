@@ -35,7 +35,7 @@ struct Board::Timer: public Hw::Apic
 	Genode::uint32_t         ticks_per_ms     = 0;
 	Genode::Trace::Timestamp tsc_ticks_per_ms = 0;
 
-	Timer(Hw::X86_64_cpu::Id);
+	Timer(Cpu &cpu);
 
 	void init();
 };

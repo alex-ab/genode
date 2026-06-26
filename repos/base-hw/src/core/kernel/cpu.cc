@@ -167,7 +167,7 @@ Cpu::Cpu(Id const id, Cpu_pool &cpu_pool, Pd &core_pd)
 :
 	_pool      { cpu_pool },
 	_id        { id },
-	_pic       { cpu_pool._global_irq_ctrl },
+	_pic       { cpu_pool._global_irq_ctrl, *this },
 	_timer     { *this },
 	_idle      { *this, core_pd },
 	_scheduler { _timer, _idle },

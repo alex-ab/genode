@@ -16,7 +16,7 @@
 
 #include <hw/spec/x86_64/acpi.h>
 #include <hw/spec/x86_64/cpu.h>
-#include <hw/spec/x86_64/x86_64.h>
+#include <hw/spec/x86_64/pc_board.h>
 
 /* Genode includes */
 #include <drivers/timer/util.h>
@@ -86,9 +86,9 @@ class Hw::Msr_mmio_access
 
 
 struct Hw::Apic
-: Msr_mmio_access, Register_set<Msr_mmio_access, Hw::Cpu_memory_map::LAPIC_SIZE>
+: Msr_mmio_access, Register_set<Msr_mmio_access, Hw::Pc_board::LAPIC_SIZE>
 {
-	static constexpr size_t SIZE = Hw::Cpu_memory_map::LAPIC_SIZE;
+	static constexpr size_t SIZE = Hw::Pc_board::LAPIC_SIZE;
 
 	struct Eoi : Register<0x0b0, 32, true> { };
 
@@ -208,7 +208,7 @@ struct Hw::Apic
 
 	void enable()
 	{
-		using Apic_msr = Hw::X86_64_cpu::IA32_apic_base;
+		using Apic_msr = Hw::X86_64_cpu::Ia32_apic_base;
 
 		/* we like to use local APIC */
 		Apic_msr::access_t apic_msr = Apic_msr::read();
@@ -263,9 +263,9 @@ struct Hw::Apic
 		return result;
 	}
 
-	Apic(addr_t const addr)
+	Apic(addr_t const addr, bool x2apic)
 	:
-		Msr_mmio_access({(char*)addr, SIZE}, X86_64_cpu::x2apic_support()),
+		Msr_mmio_access({(char*)addr, SIZE}, x2apic),
 		Register_set<Msr_mmio_access, SIZE>(*static_cast<Msr_mmio_access*>(this))
 	{ enable(); }
 };

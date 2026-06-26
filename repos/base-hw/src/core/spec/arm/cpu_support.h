@@ -48,7 +48,7 @@ struct Board::Arm_cpu : public Hw::Arm_cpu
 
 	struct alignas(8) Context : Cpu_state, Fpu_context
 	{
-		Context(bool privileged);
+		Context(bool privileged, Arm_cpu &);
 
 		void print(Output &output) const;
 

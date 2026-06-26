@@ -13,7 +13,6 @@
 
 #include <base/internal/page_size.h>
 #include <base/log.h>
-#include <hw/spec/x86_64/x86_64.h>
 #include <hw/memory_consts.h>
 #include <kernel/cpu.h>
 #include <platform.h>
@@ -269,7 +268,7 @@ void Vmcb::store(Genode::Vcpu_state &state)
 	/* Guest activity state (actv) not used by SVM */
 	state.actv_state.set_charged();
 
-	state.tsc.charge(Hw::Tsc::rdtsc());
+	state.tsc.charge(Hw::X86_64_cpu::rdtsc());
 	state.tsc_offset.charge(v.read<Vmcb_buf::Tsc_offset>());
 
 	state.efer.charge(v.read<Vmcb_buf::Efer>());

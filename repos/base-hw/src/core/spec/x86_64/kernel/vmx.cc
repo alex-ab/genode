@@ -13,7 +13,6 @@
 
 #include <base/log.h>
 #include <cpu/cpu_state.h>
-#include <hw/spec/x86_64/x86_64.h>
 #include <hw/memory_consts.h>
 #include <kernel/cpu.h>
 #include <platform.h>
@@ -623,7 +622,7 @@ void Vmcs::store(Genode::Vcpu_state &state)
 	state.actv_state.charge(
 	    static_cast<uint32_t>(read(E_GUEST_ACTIVITY_STATE)));
 
-	state.tsc.charge(Hw::Tsc::rdtsc());
+	state.tsc.charge(Hw::X86_64_cpu::rdtsc());
 	state.tsc_offset.charge(read(E_TSC_OFFSET));
 
 	state.efer.charge(read(E_GUEST_IA32_EFER));

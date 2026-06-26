@@ -13,7 +13,7 @@
  * under the terms of the GNU Affero General Public License version 3.
  */
 
-#include <hw/spec/x86_64/x86_64.h>
+#include <hw/spec/x86_64/cpu.h>
 
 /* core includes */
 #include <kernel/timer.h>
@@ -22,9 +22,10 @@
 using namespace Core;
 using namespace Kernel;
 
-Board::Timer::Timer(Hw::X86_64_cpu::Id)
+Board::Timer::Timer(Cpu &cpu)
 :
-	Apic(Core::Platform::mmio_to_virt(Hw::Cpu_memory_map::lapic_phys_base()))
+	Apic(Core::Platform::mmio_to_virt(Hw::X86_64_cpu::Ia32_apic_base::base()),
+	     cpu.cpuid_1.x2apic())
 {
 	Core::Platform::apply_with_boot_info([&](auto const &boot_info) {
 		tsc_ticks_per_ms = boot_info.plat_info.tsc_freq_khz;

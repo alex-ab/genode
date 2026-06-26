@@ -21,6 +21,7 @@ namespace Board {
 	using Hw::Global_interrupt_controller;
 
 	class Local_interrupt_controller;
+	class Cpu;
 };
 
 
@@ -61,7 +62,7 @@ class Board::Local_interrupt_controller : public Hw::Local_interrupt_controller
 			c.lr     = irq | 1ULL << 41 | 1ULL << 60 | 1ULL << 62;
 		}
 
-		Local_interrupt_controller(Global_interrupt_controller &gic)
+		Local_interrupt_controller(Global_interrupt_controller &gic, Cpu &)
 		: Hw::Local_interrupt_controller(gic) { }
 };
 

@@ -19,9 +19,11 @@
 #include <util/mmio.h>
 #include <hw/spec/x86_64/apic.h>
 #include <hw/spec/x86_64/cpu.h>
-#include <hw/spec/x86_64/x86_64.h>
+#include <hw/spec/x86_64/pc_board.h>
 
 namespace Board {
+
+	class Cpu;
 
 	/**
 	 * IO advanced programmable interrupt controller
@@ -35,7 +37,7 @@ namespace Board {
 }
 
 
-class Board::Global_interrupt_controller : public Genode::Mmio<Hw::Cpu_memory_map::MMIO_IOAPIC_SIZE>
+class Board::Global_interrupt_controller : public Genode::Mmio<Hw::Pc_board::IOAPIC_SIZE>
 {
 	public:
 
@@ -151,7 +153,7 @@ class Board::Local_interrupt_controller : private Hw::Apic
 		/**
 		 * Constructor
 		 */
-		Local_interrupt_controller(Global_interrupt_controller &global_irq_ctrl);
+		Local_interrupt_controller(Global_interrupt_controller &, Cpu &);
 
 		bool take_request(unsigned &irq);
 

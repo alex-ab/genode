@@ -76,13 +76,29 @@ Core::Vm_root::Create_result Vm_root::_create_session(const char *args)
 	using Vmx_session_component = Vm_session_component<Hw::Ept>;
 	using Svm_session_component = Vm_session_component<Hw::Hpt>;
 
-	if (Hw::Virtualization_support::has_svm())
+	struct Virt_support
+	{
+		bool svm { false };
+		bool vmx { false };
+
+		Virt_support()
+		{
+			Core::Platform::apply_with_boot_info([&](auto const &boot_info) {
+				svm = boot_info.plat_info.has_svm;
+				vmx = boot_info.plat_info.has_vmx;
+			});
+		}
+	};
+
+	static Virt_support const vsupport {};
+
+	if (vsupport.svm)
 		return ::_create<Svm_session_component>(*md_alloc(), _registry,
 		                                        _vmid_alloc, *ep(), args,
 		                                        _ram_allocator, _mapped_ram,
 		                                        _local_rm, _trace_sources);
 
-	if (Hw::Virtualization_support::has_vmx())
+	if (vsupport.vmx)
 		return ::_create<Vmx_session_component>(*md_alloc(), _registry,
 		                                        _vmid_alloc, *ep(), args,
 		                                        _ram_allocator, _mapped_ram,

@@ -21,6 +21,8 @@
 #include <kernel/types.h>
 #include <hw/spec/arm/cpu.h>
 
+namespace Kernel { class Cpu; }
+
 namespace Board { class Timer; }
 
 
@@ -61,7 +63,7 @@ struct Board::Timer : Genode::Mmio<0x18>
 
 	Kernel::time_t current_ticks() const;
 
-	Timer(Hw::Arm_cpu::Id);
+	Timer(Kernel::Cpu &);
 
 	void init();
 };

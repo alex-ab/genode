@@ -634,7 +634,7 @@ Thread::Thread(Cpu &cpu, Pd &pd)
 	_pd            { pd },
 	_state         { AWAITS_START },
 	_label         { "idle" },
-	regs           { true }
+	regs           { true, cpu }
 { }
 
 
@@ -646,7 +646,7 @@ Thread::Thread(Cpu &cpu, Pd &pd, char const *const label)
 	_pd            { pd },
 	_state         { AWAITS_START },
 	_label         { label },
-	regs           { true }
+	regs           { true, cpu }
 { }
 
 
@@ -661,7 +661,7 @@ Thread::Thread(Cpu &cpu,
 	_pd            { pd },
 	_state         { AWAITS_START },
 	_label         { label },
-	regs           { false }
+	regs           { false, cpu }
 { }
 
 

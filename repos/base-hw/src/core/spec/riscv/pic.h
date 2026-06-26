@@ -32,6 +32,7 @@ namespace Board {
 		static constexpr unsigned NR_OF_IRQ = Plic::NR_OF_IRQ;
 	};
 	class Local_interrupt_controller;
+	class Cpu;
 }
 
 
@@ -52,7 +53,7 @@ class Board::Local_interrupt_controller
 			IPI = Global_interrupt_controller::NR_OF_IRQ + 1,
 		};
 
-		Local_interrupt_controller(Global_interrupt_controller &);
+		Local_interrupt_controller(Global_interrupt_controller &, Cpu &);
 
 		bool take_request(unsigned &irq)
 		{

@@ -37,7 +37,7 @@ struct Board::Timer
 
 	Kernel::time_t stime() const;
 
-	Timer(Hw::Riscv_cpu::Id);
+	Timer(Hw::Riscv_cpu &);
 
 	void init();
 };

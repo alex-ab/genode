@@ -38,7 +38,7 @@ void Cpu::Context::print(Output &output) const
 }
 
 
-Cpu::Context::Context(bool privileged)
+Cpu::Context::Context(bool privileged, Cpu &)
 {
 	Spsr::El::set(pstate, privileged ? 1 : 0);
 }

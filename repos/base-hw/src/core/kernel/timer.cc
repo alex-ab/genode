@@ -105,7 +105,7 @@ void Timer::_process_timeouts()
 
 Timer::Timer(Cpu &cpu)
 :
-	_device(cpu.id()), _irq(interrupt_id(), cpu)
+	_device(cpu), _irq(interrupt_id(), cpu)
 {
 	/*
 	 * The timer frequency should allow a good accuracy on the smallest

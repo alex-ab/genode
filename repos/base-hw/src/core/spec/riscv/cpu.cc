@@ -61,7 +61,7 @@ void Cpu::Context::print(Output &output) const
 }
 
 
-Cpu::Context::Context(bool)
+Cpu::Context::Context(bool, Cpu &)
 {
 	/*
 	 * initialize cpu_exception with something that gets ignored in

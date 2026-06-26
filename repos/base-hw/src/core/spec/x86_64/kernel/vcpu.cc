@@ -21,7 +21,6 @@
 #include <kernel/vcpu.h>
 #include <kernel/main.h>
 
-#include <hw/spec/x86_64/x86_64.h>
 #include <svm.h>
 #include <vmx.h>
 
@@ -41,7 +40,7 @@ Vcpu::Vcpu(Cpu                    &cpu,
 	_state(state),
 	_context(context),
 	_id(id),
-	_vcpu_context(id.id, state) { }
+	_vcpu_context(id.id, state, cpu) { }
 
 
 Vcpu::~Vcpu() { }
@@ -100,36 +99,6 @@ void Vcpu::pause()
 }
 
 
-static bool xsave_avail()
-{
-	using Id = Cpu::Cpuid_1_ecx;
-	static bool avail = Id::Xsave::get(Id::read());
-	return avail;
-}
-
-
-static Cpu::Xcr0::access_t xcr0()
-{
-	static constexpr auto hw_supported =
-		Cpu::Xstate_components::X87::bits(1) |
-		Cpu::Xstate_components::Sse::bits(1) |
-		Cpu::Xstate_components::Avx::bits(1) |
-		Cpu::Xstate_components::Avx_512::bits(0b111);
-	static auto v = Cpu::Cpuid_xcr0_low::read();
-	return v & hw_supported;
-}
-
-
-static size_t xstates_size()
-{
-	static size_t size = (xsave_avail())
-		? min((size_t)Cpu::Cpuid_xsave_bytes_enabled::read(),
-		      Cpu::Fpu_context::SIZE)
-		: 512;
-	return size;
-}
-
-
 void Vcpu::load(Cpu_state &state)
 {
 	_vcpu_context.virt.switch_world(state, _cpu().stack_start());
@@ -141,23 +110,29 @@ void Vcpu::load()
 	Cpu::Ia32_tsc_aux::write(
 	    (Cpu::Ia32_tsc_aux::access_t)_vcpu_context.tsc_aux_guest);
 
+	bool const xsave_avail = _vcpu_context.regs->fpu_context().xstate_support
+	                         != Cpu::Xstate_support::LEGACY;
+	size_t xstates_size = xsave_avail
+		? min(_cpu().cpuid_d_0.xsave_bytes_enabled(), Cpu::Fpu_context::SIZE)
+		: 512;
+
 	_state.with_state([&] (auto &state) {
 		if (state.fpu.charged())
 			state.fpu.with_state([&](auto const &fpu) {
 				memcpy(&_vcpu_context.regs->fpu_context(), &fpu,
-				       xstates_size());
+				       xstates_size);
 			});
 	});
 	_vcpu_context.regs->fpu_context().load();
 
-	if (xsave_avail() && _vcpu_context.xcr0 != xcr0()) {
+	if (xsave_avail && _vcpu_context.xcr0 != _cpu().xcr0) {
 		/*
 		 * Sanity check delivered xcr0 value to only use
 		 * xstates supported by hw kernel, (and thereby cleaned),
 		 * and to fulfill hardware restrictions that otherwise lead
 		 * to hardware exceptions
 		 */
-		auto v = _vcpu_context.xcr0 & xcr0();
+		auto v = _vcpu_context.xcr0 & _cpu().xcr0;
 		Cpu::Xstate_components::X87::set(v, 1);
 		if (Cpu::Xstate_components::Avx_512::get(v))
 			Cpu::Xstate_components::Avx::set(v, 1);
@@ -175,14 +150,20 @@ void Vcpu::save(Cpu_state &state)
 {
 	Genode::memcpy(&*_vcpu_context.regs, &state, sizeof(Cpu_state));
 
-	if (xsave_avail() && _vcpu_context.xcr0 != xcr0())
-		Cpu::Xcr0::write(xcr0());
+	bool const xsave_avail = _vcpu_context.regs->fpu_context().xstate_support
+	                         != Cpu::Xstate_support::LEGACY;
+	size_t xstates_size = xsave_avail
+		? min(_cpu().cpuid_d_0.xsave_bytes_enabled(), Cpu::Fpu_context::SIZE)
+		: 512;
+
+	if (xsave_avail && _vcpu_context.xcr0 != _cpu().xcr0)
+		Cpu::Xcr0::write(_cpu().xcr0);
 
 	_vcpu_context.regs->fpu_context().save();
 	_state.with_state([&] (auto &state) {
 		state.fpu.charge([&](auto &fpu) {
-			memcpy(&fpu, &_vcpu_context.regs->fpu_context(), xstates_size());
-			return xstates_size();
+			memcpy(&fpu, &_vcpu_context.regs->fpu_context(), xstates_size);
+			return xstates_size;
 		});
 	});
 
@@ -274,10 +255,26 @@ Board::Vcpu_context::detect_virtualization(Vcpu_state &state, Id &id)
 		vmid = 255;
 	});
 
-	if (Hw::Virtualization_support::has_svm())
+	struct Virt_support
+	{
+		bool svm { false };
+		bool vmx { false };
+
+		Virt_support()
+		{
+			Core::Platform::apply_with_boot_info([&](auto const &boot_info) {
+				svm = boot_info.plat_info.has_svm;
+				vmx = boot_info.plat_info.has_vmx;
+			});
+		}
+	};
+
+	static Virt_support const vsupport {};
+
+	if (vsupport.svm)
 		return *Genode::construct_at<Vmcb>((void*)state.vmc_addr(),
 		                                   state, vmid);
-	if (Hw::Virtualization_support::has_vmx())
+	if (vsupport.vmx)
 		return *Genode::construct_at<Vmcs>((void*)state.vmc_addr(), state);
 
 	Genode::error( "No virtualization support detected.");
@@ -286,8 +283,9 @@ Board::Vcpu_context::detect_virtualization(Vcpu_state &state, Id &id)
 }
 
 
-Board::Vcpu_context::Vcpu_context(Id id, Board::Vcpu_state &state)
+Board::Vcpu_context::Vcpu_context(Id id, Board::Vcpu_state &state, Cpu &cpu)
 :
+	regs(true, cpu),
 	virt(detect_virtualization(state, id))
 {
 	regs->trapno = TRAP_VMEXIT;
@@ -357,7 +355,7 @@ void Board::Vcpu_context::store(Genode::Vcpu_state &state)
 	state.r14.charge(regs->r14);
 	state.r15.charge(regs->r15);
 
-	state.tsc.charge(Hw::Tsc::rdtsc());
+	state.tsc.charge(Hw::X86_64_cpu::rdtsc());
 	state.tsc_aux.charge(tsc_aux_guest);
 
 	state.xcr0.charge(xcr0);
