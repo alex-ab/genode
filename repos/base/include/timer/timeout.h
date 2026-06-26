@@ -143,12 +143,9 @@ class Genode::Timeout_scheduler : private Noncopyable,
 		Time_source        &_time_source;
 		Microseconds const  _max_sleep_time     { min(_time_source.max_timeout().value, max_sleep_time_us) };
 		List<Timeout>       _timeouts           { };
-		Microseconds        _current_time       { 0 };
 		bool                _destructor_called  { false };
 
 		void _insert_into_timeouts_list(Timeout &timeout);
-
-		void _set_time_source_timeout();
 
 		void _set_time_source_timeout(uint64_t duration_us);
 

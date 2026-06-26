@@ -67,7 +67,6 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 		if (_destructor_called) {
 			return;
 		}
-		_current_time = curr_time.trunc_to_plain_us();
 
 		/*
 		 * Filter out all pending timeouts to a local list first. The
@@ -78,7 +77,7 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 		while (Timeout *timeout = _timeouts.first()) {
 
 			timeout->_mutex.acquire();
-			if (timeout->_deadline.value > _current_time.value) {
+			if (timeout->_deadline.value > curr_time.trunc_to_plain_us().value) {
 				timeout->_mutex.release();
 				break;
 			}
@@ -130,13 +129,13 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 
 				/* determine new timeout deadline */
 				uint64_t const nr_of_periods {
-					((_current_time.value - timeout._deadline.value) /
+					((curr_time.trunc_to_plain_us().value - timeout._deadline.value) /
 					 timeout._period.value) + 1 };
 
 				uint64_t deadline_us { timeout._deadline.value +
 				                       nr_of_periods * timeout._period.value };
 
-				if (deadline_us < _current_time.value) {
+				if (deadline_us < curr_time.trunc_to_plain_us().value) {
 					deadline_us = ~(uint64_t)0;
 				}
 				/* re-insert timeout into timeouts list */
@@ -145,7 +144,9 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 			}
 			timeout._mutex.release();
 		}
-		_set_time_source_timeout();
+		_set_time_source_timeout(_timeouts.first() ?
+			_timeouts.first()->_deadline.value - curr_time.trunc_to_plain_us().value :
+			~(uint64_t)0);
 	}
 	/* call the handler of each pending timeout */
 	while (List_element<Timeout> const *elem = pending_timeouts.first()) {
@@ -182,7 +183,7 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 Timeout_scheduler::Timeout_scheduler(Time_source  &time_source)
 : _time_source { time_source }
 {
-	_set_time_source_timeout();
+	_set_time_source_timeout(~(uint64_t)0);
 }
 
 
@@ -210,15 +211,6 @@ Timeout_scheduler::~Timeout_scheduler()
 		Mutex::Guard const timeout_guard { timeout->_mutex };
 		_discard_timeout_unsynchronized(*timeout);
 	}
-}
-
-
-void Timeout_scheduler::_set_time_source_timeout()
-{
-	_set_time_source_timeout(
-		_timeouts.first() ?
-			_timeouts.first()->_deadline.value - _current_time.value :
-			~(uint64_t)0);
 }
 
 
