@@ -21,6 +21,7 @@
 #include <base/entrypoint.h>
 #include <timer/timeout.h>
 #include <trace/timestamp.h>
+#include <cpu/memory_barrier.h>
 
 namespace Timer
 {
@@ -139,10 +140,11 @@ class Timer::Periodic_timeout : private Genode::Noncopyable
 
 		typedef void (HANDLER::*Handler_method)(Duration);
 
-		Io_timeout            _io_timeout;
+		volatile bool         _in_discard { false };
 		HANDLER              &_object;
 		Handler_method const  _method;
 		Signal_handler        _timeout_handler;
+		Io_timeout            _io_timeout;
 
 		Duration              _curr_time { Microseconds { 0 } };
 
@@ -152,8 +154,12 @@ class Timer::Periodic_timeout : private Genode::Noncopyable
 			_timeout_handler.local_submit();
 		}
 
-		void _handle_timeout() {
-			(_object.*_method)(_curr_time); }
+		void _handle_timeout()
+		{
+			if (_in_discard) return;
+
+			(_object.*_method)(_curr_time);
+		}
 
 	public:
 
@@ -161,6 +167,12 @@ class Timer::Periodic_timeout : private Genode::Noncopyable
 		                 HANDLER        &object,
 		                 Handler_method  method,
 		                 Microseconds    duration);
+
+		~Periodic_timeout()
+		{
+			_in_discard = true;
+			Genode::memory_barrier();
+		}
 };
 
 
@@ -176,24 +188,39 @@ class Timer::One_shot_timeout : private Genode::Noncopyable
 		using Io_timeout        = Timer::One_shot_io_timeout<One_shot_timeout>;
 		using Microseconds      = Genode::Microseconds;
 		using Signal_handler    = Genode::Signal_handler<One_shot_timeout>;
+		using Blockade          = Genode::Blockade;
 
 		typedef void (HANDLER::*Handler_method)(Duration);
 
-		Io_timeout            _io_timeout;
+		volatile bool         _handler_pending { false };
+		volatile bool         _in_discard      { false };
+		Blockade              _blockade        { };
 		HANDLER              &_object;
 		Handler_method const  _method;
 		Signal_handler        _timeout_handler;
+		Io_timeout            _io_timeout;
 
 		Duration              _curr_time { Microseconds { 0 } };
 
 		void _handle_io_timeout(Duration curr_time)
 		{
+			_handler_pending = true;
+			Genode::memory_barrier();
+
 			_curr_time = curr_time;
 			_timeout_handler.local_submit();
 		}
 
-		void _handle_timeout() {
-			(_object.*_method)(_curr_time); }
+		void _handle_timeout()
+		{
+			(_object.*_method)(_curr_time);
+
+			/* wakeup discard() */
+			if (_in_discard)
+				_blockade.wakeup();
+
+			_handler_pending = false;
+		}
 
 	public:
 
@@ -201,10 +228,31 @@ class Timer::One_shot_timeout : private Genode::Noncopyable
 		                 HANDLER        &object,
 		                 Handler_method  method);
 
+		~One_shot_timeout()
+		{
+			_in_discard = true;
+			Genode::memory_barrier();
+
+			if (_handler_pending)
+				_blockade.block();
+		}
+
 		void schedule(Microseconds duration) {
 			_io_timeout.schedule(duration); }
 
-		void discard() { _io_timeout.discard(); }
+		void discard()
+		{
+			_in_discard = true;
+			Genode::memory_barrier();
+
+			_io_timeout.discard();
+
+			/* block until _handle_timeout() finished */
+			if (_handler_pending)
+				_blockade.block();
+
+			_in_discard = false;
+		}
 
 		bool scheduled() { return _io_timeout.scheduled(); }
 
@@ -437,10 +485,10 @@ Timer::Periodic_timeout<T>::Periodic_timeout(
 	Periodic_timeout<T>::Handler_method  method,
 	Genode::Microseconds                 duration)
 :
-	_io_timeout      { timer, *this, &Periodic_timeout::_handle_io_timeout, duration },
 	_object          { object },
 	_method          { method },
-	_timeout_handler { timer._ep, *this, &Periodic_timeout::_handle_timeout }
+	_timeout_handler { timer._ep, *this, &Periodic_timeout::_handle_timeout },
+	_io_timeout      { timer, *this, &Periodic_timeout::_handle_io_timeout, duration }
 { }
 
 
@@ -450,10 +498,10 @@ Timer::One_shot_timeout<T>::One_shot_timeout(
 	T                                   &object,
 	One_shot_timeout<T>::Handler_method  method)
 :
-	_io_timeout      { timer, *this, &One_shot_timeout::_handle_io_timeout },
 	_object          { object },
 	_method          { method },
-	_timeout_handler { timer._ep, *this, &One_shot_timeout::_handle_timeout }
+	_timeout_handler { timer._ep, *this, &One_shot_timeout::_handle_timeout },
+	_io_timeout      { timer, *this, &One_shot_timeout::_handle_io_timeout }
 { }
 
 #endif /* _INCLUDE__TIMER_SESSION__CONNECTION_H_ */
