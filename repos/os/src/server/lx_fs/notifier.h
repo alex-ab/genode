@@ -141,7 +141,7 @@ class Lx_fs::Notifier final : public Thread
 
 		bool _watched(char const *path) const;
 		void _add_to_watched(char const *path);
-		int _add_node(char const *path, Watch_node &node);
+		void _add_node(char const *path, Watch_node &node);
 		Watches_list_element *_remove_node(Watches_list_element *node);
 
 	public:
@@ -149,7 +149,7 @@ class Lx_fs::Notifier final : public Thread
 		Notifier(Env &env);
 		~Notifier();
 
-		int add_watch(const char *path, Watch_node& node);
+		void add_watch(const char *path, Watch_node& node);
 		void remove_watch(char const *path, Watch_node &node);
 };
 

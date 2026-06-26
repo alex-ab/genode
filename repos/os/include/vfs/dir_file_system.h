@@ -95,47 +95,6 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				Dir_vfs_handle &operator = (Dir_vfs_handle const &);
 		};
 
-		struct Dir_watch_handle : Vfs_watch_handle
-		{
-			struct Watch_handle_element;
-
-			using Watch_handle_registry = Registry<Watch_handle_element>;
-
-			struct Watch_handle_element : Watch_handle_registry::Element
-			{
-				Vfs_watch_handle &watch_handle;
-				Watch_handle_element(Watch_handle_registry &registry,
-				                     Vfs_watch_handle &handle)
-				: Watch_handle_registry::Element(registry, *this),
-				  watch_handle(handle) { }
-			};
-
-			Watch_handle_registry  handle_registry { };
-
-			Dir_watch_handle(File_system &fs, Allocator &alloc)
-			: Vfs_watch_handle(fs, alloc) { }
-
-			~Dir_watch_handle()
-			{
-				/* close all sub-handles */
-				auto f = [&] (Watch_handle_element &e) {
-					e.watch_handle.close();
-					destroy(alloc(), &e);
-				};
-				handle_registry.for_each(f);
-			}
-
-			/**
-			 * Propagate the response handler to each sub-handle
-			 */
-			void handler(Watch_response_handler *h) override
-			{
-				handle_registry.for_each( [&] (Watch_handle_element &elem) {
-					elem.watch_handle.handler(h); } );
-			}
-		};
-
-
 		/* pointer to first child file system */
 		File_system *_first_file_system = nullptr;
 
@@ -168,13 +127,16 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 		/**
 		 * Parent_fs role for the children of this directory file system
 		 */
-		struct Parent_fs_role : Parent_fs
+		void notify_watchers(Span const &rel_path) override
 		{
-			Dir_file_system &_dir;
-
-			Parent_fs_role(Dir_file_system &dir) : _dir(dir) { }
-
-		} _parent_fs_role { *this };
+			using Path = String<MAX_PATH_LEN>;
+			if (_vfs_root)
+				_parent_fs.notify_watchers(rel_path);
+			else
+				Path { "/", _name, Cstring(rel_path.start, rel_path.num_bytes) }
+					.with_span([&] (Span const &s) {
+						_parent_fs.notify_watchers(s); });
+		}
 
 		/**
 		 * Perform operation on a file system
@@ -755,69 +717,30 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				destroy(handle->alloc(), handle);
 		}
 
-		Watch_result watch(char const      *path,
-		                   Vfs_watch_handle **handle,
-		                   Allocator        &alloc) override
+		Watch_result watch(char const *path) override
 		{
-			Watch_result res = WATCH_ERR_UNACCESSIBLE;
-			Dir_watch_handle *meta_handle = nullptr;
+			Watch_result result = Ok();
 
 			char const *sub_path = _sub_path(path);
-			if (!sub_path) return res;
-
-			for (File_system *fs = _first_file_system; fs; fs = fs->next) {
-				Vfs_watch_handle *sub_handle;
-
-				Watch_result r = fs->watch(sub_path, &sub_handle, alloc);
-				switch (r) {
-				case WATCH_OK:
-					if (meta_handle == nullptr) {
-						/* at least one non-static FS, allocate handle */
-						try {
-							meta_handle = new (alloc) Dir_watch_handle(*this, alloc);
-							*handle = meta_handle;
-							res = WATCH_OK;
-						} catch (Out_of_ram) {
-							fs->close(sub_handle);
-							return WATCH_ERR_OUT_OF_RAM;
-						} catch (Out_of_caps) {
-							fs->close(sub_handle);
-							return WATCH_ERR_OUT_OF_CAPS;
-						}
-					}
-
-					try {
-						/* attach child FS handle to returned handle */
-						new (alloc)
-							Dir_watch_handle::Watch_handle_element(
-								meta_handle->handle_registry, *sub_handle);
-					} catch (Out_of_ram) {
-						destroy(alloc, meta_handle);
-						fs->close(sub_handle);
-						return WATCH_ERR_OUT_OF_RAM;
-					} catch (Out_of_caps) {
-						destroy(alloc, meta_handle);
-						fs->close(sub_handle);
-						return WATCH_ERR_OUT_OF_CAPS;
-					}
-
-					break;
-				case WATCH_ERR_STATIC:
-				case WATCH_ERR_UNACCESSIBLE:
-					break;
-				case WATCH_ERR_OUT_OF_RAM:
-				case WATCH_ERR_OUT_OF_CAPS:
-					return r;
+			if (sub_path)
+				for (File_system *fs = _first_file_system; fs; fs = fs->next) {
+					result = fs->watch(sub_path);
+					if (result.failed())
+						break;
 				}
-			}
 
-			return res;
+			if (result.failed())
+				unwatch(path);
+
+			return result;
 		}
 
-		void close(Vfs_watch_handle *handle) override
+		void unwatch(char const *path) override
 		{
-			if (handle && (&handle->fs() == this))
-				destroy(handle->alloc(), handle);
+			char const *sub_path = _sub_path(path);
+			if (sub_path)
+				for (File_system *fs = _first_file_system; fs; fs = fs->next)
+					fs->unwatch(sub_path);
 		}
 
 		Unlink_result unlink(char const *path) override
@@ -883,13 +806,13 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 					/* traverse into <dir> nodes */
 					if (sub_node.has_type("dir")) {
 						Dir_file_system &dir = *new (_env.alloc())
-							Dir_file_system(_env, _parent_fs_role, sub_node);
+							Dir_file_system(_env, *this, sub_node);
 						dir.update(sub_node, factory);
 						_append_file_system(&dir);
 						return;
 					}
 
-					File_system * const fs = factory.create(_env, _parent_fs_role, sub_node);
+					File_system * const fs = factory.create(_env, *this, sub_node);
 					if (fs) {
 						fs->update(sub_node, factory);
 						_append_file_system(fs);

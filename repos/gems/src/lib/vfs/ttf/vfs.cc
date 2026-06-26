@@ -63,7 +63,7 @@ struct Vfs_ttf::Font_from_file
 };
 
 
-struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_response_handler
+struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_handle::Handler
 {
 	Vfs::Env &_env;
 
@@ -106,7 +106,7 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_respon
 	Readonly_value_file_system<unsigned> _max_width_fs  { *this, "max_width",  0 };
 	Readonly_value_file_system<unsigned> _max_height_fs { *this, "max_height", 0 };
 
-	Watcher _watcher;
+	Watch_handle _watch_handle;
 
 	void _update_attributes()
 	{
@@ -136,14 +136,18 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_respon
 		_font_config = Font_config(config);
 		_font.construct(_env, _font_config);
 		_update_attributes();
-		_glyphs_fs.trigger_watch_response();
 	}
 
-	void watch_response() override
+	/**
+	 * Watch_handle::Handler interface
+	 */
+	void io_handle_watch() override
 	{
+		/* called whenever the TTF input file changes */
+
 		_font.construct(_env, _font_config);
 		_update_attributes();
-		_glyphs_fs.trigger_watch_response();
+		_glyphs_fs.notify_watchers();
 	}
 
 	using Config = String<200>;
@@ -171,7 +175,7 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_respon
 		_env(vfs_env),
 		_font_config(node),
 		_font(vfs_env, _font_config),
-		_watcher(vfs_env, _font_config.path, *this)
+		_watch_handle(vfs_env.watch_handles(), vfs_env.root_dir(), _font_config.path, *this)
 	{
 		Dir_file_system::update(Node(_config(node)), *this);
 	}

@@ -17,10 +17,9 @@
 #include <vfs/directory_service.h>
 
 namespace Genode::Vfs {
+	struct Env;
 	struct Read_ready_response_handler;
-	struct Watch_response_handler;
 	class Vfs_handle;
-	class Vfs_watch_handle;
 	class File_io_service;
 	class File_system;
 }
@@ -39,19 +38,6 @@ struct Genode::Vfs::Read_ready_response_handler : Interface
 	 * Respond to a resource becoming readable
 	 */
 	virtual void read_ready_response() = 0;
-};
-
-
-/**
- * Object for encapsulating application-level
- * handlers of VFS responses.
- *
- * This response should be assumed to be called
- * during I/O signal dispatch.
- */
-struct Genode::Vfs::Watch_response_handler : Interface
-{
-	virtual void watch_response() = 0;
 };
 
 
@@ -164,56 +150,6 @@ class Genode::Vfs::Vfs_handle
 		 * This leaves the handle pointer in an invalid and unsafe state.
 		 */
 		inline void close() { ds().close(this); }
-};
-
-
-class Genode::Vfs::Vfs_watch_handle
-{
-	private:
-
-		Directory_service      &_fs;
-		Allocator              &_alloc;
-		Watch_response_handler *_handler = nullptr;
-
-		/*
-		 * Noncopyable
-		 */
-		Vfs_watch_handle(Vfs_watch_handle const &);
-		Vfs_watch_handle &operator = (Vfs_watch_handle const &);
-
-	public:
-
-		Vfs_watch_handle(Directory_service &fs, Allocator &alloc)
-		:
-			_fs(fs), _alloc(alloc)
-		{ }
-
-		virtual ~Vfs_watch_handle() { }
-
-		Directory_service &fs() { return _fs; }
-		Allocator &alloc() { return _alloc; }
-
-		/**
-		 * Set response handler, unset with nullptr
-		 */
-		virtual void handler(Watch_response_handler *handler) {
-			_handler = handler; }
-
-		/**
-		 * Notify application through response handler
-		 */
-		void watch_response()
-		{
-			if (_handler)
-				_handler->watch_response();
-		}
-
-		/**
-		 * Close handle at backing file-system.
-		 *
-		 * This leaves the handle pointer in an invalid and unsafe state.
-		 */
-		inline void close() { fs().close(this); }
 };
 
 #endif /* _INCLUDE__VFS__VFS_HANDLE_H_ */

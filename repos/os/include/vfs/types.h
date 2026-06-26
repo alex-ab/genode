@@ -82,7 +82,25 @@ namespace Genode::Vfs {
 		}
 	};
 
-	struct Parent_fs : Noncopyable, Interface { };
+	struct Parent_fs : Noncopyable, Interface
+	{
+		virtual void notify_watchers(Span const &) = 0;
+	};
+
+	static inline void with_compound_dir(Span const &path, auto const &fn)
+	{
+		char const *s = path.start; size_t n = path.num_bytes;
+
+		/* if path is directory, drop trailing slash, ignore multiple slashes */
+		while (n > 0 && s[n - 1] == '/') n--;
+
+		/* search from end to front for the slash of the compound directory */
+		while (n > 0 && s[n - 1] != '/') n--;
+
+		if (n) fn(Span(s, n));
+	}
+
+	using Watch_result = Attempt<Ok, Alloc_error>;
 
 	struct File_system_factory;
 }

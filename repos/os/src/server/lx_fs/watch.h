@@ -49,6 +49,8 @@ class Lx_fs::Watch_node final : public Lx_fs::Node
 			virtual void handle_watch_node_response(Watch_node &) = 0;
 		};
 
+		using Path = Genode::String<MAX_ABSOLUTE_PATH_LEN>;
+
 	private:
 
 		using Signal_handler = Genode::Signal_handler<Watch_node>;
@@ -60,20 +62,24 @@ class Lx_fs::Watch_node final : public Lx_fs::Node
 		Watch_node &operator = (Watch_node const &) = delete;
 
 		Genode::Env        &_env;
+		Path          const _path;             /* desired content, may not exist yet */
+		Path                _watched_path { }; /* part of '_path' that exists */
 		Response_handler   &_response_handler;
 		Notifier           &_notifier;
 		Signal_handler      _notify_handler { _env.ep(), *this, &Watch_node::_handle_notify };
 		Packet_descriptor   _acked_packet { };
 		Fs_open_node       *_open_node { nullptr };
 
-		void _handle_notify();
+		bool _subscribed() const { return _watched_path == _path; }
 
-		unsigned long _inode(char const *path);
+		void _try_subscribe();
+
+		void _handle_notify();
 
 	public:
 
 		Watch_node(Genode::Env      &env,
-		           char const       *path,
+		           Path       const &path,
 		           Response_handler &response_handler,
 		           Notifier         &notifier);
 

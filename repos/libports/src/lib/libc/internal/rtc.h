@@ -19,7 +19,7 @@
 namespace Libc { struct Rtc; }
 
 
-struct Libc::Rtc : Vfs::Watch_response_handler
+struct Libc::Rtc
 {
 	using Allocator = Genode::Allocator;
 
@@ -27,11 +27,7 @@ struct Libc::Rtc : Vfs::Watch_response_handler
 
 	Allocator &_alloc;
 
-	Vfs::Vfs_watch_handle *_watch_handle { nullptr };
-
 	Rtc_path const _rtc_path;
-
-	Watch &_watch;
 
 	time_t _rtc_value { 0 };
 
@@ -40,6 +36,10 @@ struct Libc::Rtc : Vfs::Watch_response_handler
 	Milliseconds _msecs_when_rtc_updated { 0 };
 
 	bool const _rtc_path_valid = (_rtc_path != "");
+
+	Constructible<Io::Watch_handler<Rtc>> _watch_io_handler { };
+
+	void _handle_watch() { _rtc_value_out_of_date = true; }
 
 	void _update_rtc_value_from_file()
 	{
@@ -64,29 +64,16 @@ struct Libc::Rtc : Vfs::Watch_response_handler
 		}
 	}
 
-	Rtc(Directory &root_dir, Allocator &alloc, Rtc_path const &rtc_path, Watch &watch)
+	Rtc(Directory &root_dir, Allocator &alloc, Rtc_path const &rtc_path)
 	:
-		_root_dir(root_dir), _alloc(alloc), _rtc_path(rtc_path), _watch(watch)
+		_root_dir(root_dir), _alloc(alloc), _rtc_path(rtc_path)
 	{
 		if (!_rtc_path_valid) {
 			warning("rtc not configured, returning ", _rtc_value);
 			return;
 		}
 
-		_watch_handle = _watch.alloc_watch_handle(_rtc_path.string());
-
-		if (_watch_handle)
-			_watch_handle->handler(this);
-	}
-
-
-	/******************************************
-	 ** Vfs::Watch_reponse_handler interface **
-	 ******************************************/
-
-	void watch_response() override
-	{
-		_rtc_value_out_of_date = true;
+		_watch_io_handler.construct(_root_dir, _rtc_path, *this, &Rtc::_handle_watch);
 	}
 
 	timespec read(Duration current_time)

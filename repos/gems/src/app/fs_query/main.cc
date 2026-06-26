@@ -46,15 +46,23 @@ struct Fs_query::Watched_file
 
 	Node_rwx const _rwx;
 
-	Constructible<Watcher> _watcher { };
+	struct Action : Interface, Noncopyable
+	{
+		virtual void io_watched_file_or_dir_changed() = 0;
+
+	} &_action;
+
+	Constructible<Io::Watch_handler<Watched_file>> _watch_handler { };
+
+	void _io_handle_watch() { _action.io_watched_file_or_dir_changed(); }
 
 	Watched_file(Directory const &dir, File_content::Path name, Node_rwx rwx,
-	             Vfs::Watch_response_handler &handler)
+	             Action &action)
 	:
-		_name(name), _rwx(rwx)
+		_name(name), _rwx(rwx), _action(action)
 	{
 		if (_rwx.readable)
-			_watcher.construct(dir, name, handler);
+			_watch_handler.construct(dir, name, *this, &Watched_file::_io_handle_watch);
 	}
 
 	virtual ~Watched_file() { }
@@ -120,15 +128,21 @@ struct Fs_query::Watched_directory
 
 	Directory const _dir;
 
-	Watcher _watcher;
+	using Action = Watched_file::Action;
+
+	Action &_action;
+
+	Io::Watch_handler<Watched_directory> _watch_handler;
+
+	void _io_handle_watch() { _action.io_watched_file_or_dir_changed(); }
 
 	Registry<Registered<Watched_file> > _files { };
 
 	Watched_directory(Allocator &alloc, Directory &other, Directory::Path const &rel_path,
-	                  Vfs::Watch_response_handler &handler)
+	                  Action &action)
 	:
-		_alloc(alloc), _rel_path(rel_path),
-		_dir(other, rel_path), _watcher(other, rel_path, handler)
+		_alloc(alloc), _rel_path(rel_path), _dir(other, rel_path), _action(action),
+		_watch_handler(other, rel_path, *this, &Watched_directory::_io_handle_watch)
 	{
 		_dir.for_each_entry([&] (Directory::Entry const &entry) {
 
@@ -138,7 +152,7 @@ struct Fs_query::Watched_directory
 			if (file) {
 				try {
 					new (_alloc) Registered<Watched_file>(_files, _dir, entry.name(),
-					                                      entry.rwx(), handler);
+					                                      entry.rwx(), _action);
 				} catch (...) { }
 			}
 		});
@@ -200,7 +214,7 @@ struct Fs_query::Watched_directory
 };
 
 
-struct Fs_query::Main : Vfs::Watch_response_handler
+struct Fs_query::Main : Watched_file::Action
 {
 	Env &_env;
 
@@ -210,10 +224,11 @@ struct Fs_query::Main : Vfs::Watch_response_handler
 
 	Vfs::Global_file_system_factory _fs_factory { _heap };
 
+
 	/**
-	 * Vfs::Watch_response_handler interface
+	 * Watched_file::Action interface
 	 */
-	void watch_response() override
+	void io_watched_file_or_dir_changed() override
 	{
 		Signal_transmitter(_config_handler).submit();
 	}

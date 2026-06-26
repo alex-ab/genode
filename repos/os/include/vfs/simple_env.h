@@ -34,9 +34,25 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 
 		Deferred_wakeups _deferred_wakeups { };
 
+		Watch_handles _watch_handles { };
+
 		Global_file_system_factory _fs_factory { _alloc };
 
-		struct Root_parent_fs : Parent_fs { } _root_parent_fs { };
+		struct Root_parent_fs : Parent_fs
+		{
+			Watch_handles &_watch_handles;
+
+			void notify_watchers(Span const &path) override
+			{
+				_watch_handles.for_each([&] (Watch_handle const &handle) {
+					handle.path.with_span([&] (Span const &s) {
+						if (s.equals(path))
+							handle.handler.io_handle_watch(); }); });
+			}
+
+			Root_parent_fs(Watch_handles &handles) : _watch_handles(handles) { }
+
+		} _root_parent_fs { _watch_handles };
 
 		Dir_file_system _root_dir;
 
@@ -66,6 +82,7 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 		Genode::Env      &env()              override { return _env; }
 		Allocator        &alloc()            override { return _alloc; }
 		File_system      &root_dir()         override { return _root_dir; }
+		Watch_handles    &watch_handles()    override { return _watch_handles; }
 		Deferred_wakeups &deferred_wakeups() override { return _deferred_wakeups; }
 		Env::Io          &io()               override { return *this; }
 		Env::User        &user()             override { return _user; }

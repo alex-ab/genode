@@ -359,19 +359,15 @@ class Vfs_tresor_crypto::Key_file_system : public Dir_file_system,
 };
 
 
-class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system
+class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs::Parent_fs
 {
 	private:
 
-		Vfs::Env &_vfs_env;
+		Vfs::Env  &_vfs_env;
+		Parent_fs &_parent_fs;
 
 		bool _root_dir(char const *path) { return strcmp(path, "/keys") == 0; }
 		bool _top_dir(char const *path) { return strcmp(path, "/") == 0; }
-
-		/**
-		 * Parent_fs role for the children of this directory file system
-		 */
-		struct Parent_fs_role : Parent_fs { } _parent_fs_role { };
 
 		struct Key_registry
 		{
@@ -632,10 +628,20 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system
 			return path;
 		}
 
+		/**
+		 * Parent_fs role for the children of this file system
+		 */
+		void notify_watchers(Span const &rel_path) override
+		{
+			using Path = String<MAX_PATH_LEN>;
+			Path { type_name(), "/", Cstring(rel_path.start, rel_path.num_bytes) }
+				.with_span([&] (Span const &s) {
+					_parent_fs.notify_watchers(s); });
+		}
 
-		Keys_file_system(Vfs::Env &vfs_env, Tresor_crypto::Interface &crypto)
+		Keys_file_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Tresor_crypto::Interface &crypto)
 		:
-			_vfs_env(vfs_env), _key_reg(_parent_fs_role, vfs_env.alloc(), crypto)
+			_vfs_env(vfs_env), _parent_fs(parent_fs), _key_reg(*this, vfs_env.alloc(), crypto)
 		{ }
 
 		static char const *type_name() { return "keys"; }
@@ -1102,7 +1108,7 @@ struct Vfs_tresor_crypto::File_system : Dir_file_system, File_system_factory
 		:
 			Dir_file_system(vfs_env, parent_fs, Node(_config(node))),
 			_crypto(Tresor_crypto::get_interface()),
-			_keys_fs(vfs_env, _crypto),
+			_keys_fs(vfs_env, *this, _crypto),
 			_add_key_fs(*this, _crypto),
 			_remove_key_fs(*this, _crypto)
 		{

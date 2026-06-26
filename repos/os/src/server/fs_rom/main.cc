@@ -55,8 +55,6 @@ class Fs_rom::Rom_session_component : public  Rpc_object<Rom_session>
 		Sessions             &_sessions;
 		File_system::Session &_fs;
 
-		Constructible<Sessions::Element> _watch_elem { };
-
 		enum { PATH_MAX_LEN = 512 };
 		using Path = Genode::Path<PATH_MAX_LEN>;
 
@@ -64,11 +62,6 @@ class Fs_rom::Rom_session_component : public  Rpc_object<Rom_session>
 		 * Name of requested file, interpreted at path into the file system
 		 */
 		Path const _file_path;
-
-		/**
-		 * Wandering notification handle
-		 */
-		Constructible<File_system::Watch_handle> _watch_handle { };
 
 		/**
 		 * Handle of associated file opened during read loop
@@ -102,15 +95,9 @@ class Fs_rom::Rom_session_component : public  Rpc_object<Rom_session>
 		Version _curr_version       { 0 };
 		Version _handed_out_version { 0 };
 
-		/**
-		 * Track if the session file or a directory is being watched
-		 */
-		bool _watching_file = false;
+		File_system::Watch_handle const _watch_handle;
 
-		/*
-		 * Exception
-		 */
-		struct Watch_failed { };
+		Sessions::Element const _watch_elem;
 
 		/**
 		 * Watch a path or some parent directory
@@ -120,101 +107,101 @@ class Fs_rom::Rom_session_component : public  Rpc_object<Rom_session>
 		 * the watch handle refers to the given path (true) or to a parent
 		 * directory (false). Otherwise, 'Watch_failed' is thrown.
 		 */
-		File_system::Watch_handle _open_watch_handle_helper(Path watch_path,
-		                                                    bool &path_watched)
-		{
-			try {
-				File_system::Watch_handle watch_handle = _fs.watch(watch_path.base());
-				path_watched = true;
-				return watch_handle;
-			}
-			catch (File_system::Lookup_failed) { }
-			catch (File_system::Unavailable) { }
-
-			/* watching the given path failed, try to watch a parent directory */
-
-			if (watch_path == "/")
-				throw Watch_failed();
-
-			try {
-
-				Path immediate_parent_watch_path { watch_path };
-				immediate_parent_watch_path.strip_last_element();
-
-				bool immediate_parent_watched = false;
-
-				File_system::Watch_handle some_parent_watch_handle =
-					_open_watch_handle_helper(immediate_parent_watch_path,
-					                          immediate_parent_watched);
-
-				if (immediate_parent_watched) {
-
-					/*
-					 * Watching the immediate parent directory succeeded, now
-					 * try to watch the original path again, in case it has
-					 * been created in the meantime.
-					 */
-
-					try {
-						File_system::Watch_handle watch_handle = _fs.watch(watch_path.base());
-						_fs.close(some_parent_watch_handle);
-						path_watched = true;
-						return watch_handle;
-					}
-					catch (File_system::Lookup_failed) { }
-					catch (File_system::Unavailable) { }
-				}
-
-				/*
-				 * Watching the immediate parent directory or the original path
-				 * again failed, so pass on the received parent watch handle.
-				 */
-				path_watched = false;
-				return some_parent_watch_handle;
-
-			} catch (Watch_failed) {
-				/* None of the parent directories could be watched */
-				throw;
-			}
-		}
-
-		/**
-		 * Watch the session ROM file or some parent directory
-		 */
-		void _open_watch_handle()
-		{
-			using namespace File_system;
-
-			_close_watch_handle();
-
-			Path watch_path(_file_path);
-
-			_watching_file = false;
-
-			try {
-				Watch_handle watch_handle = _open_watch_handle_helper(watch_path.base(),
-					                                                  _watching_file);
-				_watch_handle.construct(watch_handle);
-				_watch_elem.construct(
-					*this, _sessions, Sessions::Id{_watch_handle->value});
-				return;
-			} catch (File_system::Out_of_ram) {
-				error("not enough RAM to watch '", watch_path, "'");
-			} catch (File_system::Out_of_caps) {
-				error("not enough caps to watch '", watch_path, "'");
-			}
-			throw Watch_failed();
-		}
-
-		void _close_watch_handle()
-		{
-			if (_watch_handle.constructed()) {
-				_watch_elem.destruct();
-				_fs.close(*_watch_handle);
-				_watch_handle.destruct();
-			}
-			_watching_file = false;
-		}
+//		File_system::Watch_handle _open_watch_handle_helper(Path watch_path,
+//		                                                    bool &path_watched)
+//		{
+//			try {
+//				File_system::Watch_handle watch_handle = _fs.watch(watch_path.base());
+//				path_watched = true;
+//				return watch_handle;
+//			}
+//			catch (File_system::Lookup_failed) { }
+//			catch (File_system::Unavailable) { }
+//
+//			/* watching the given path failed, try to watch a parent directory */
+//
+//			if (watch_path == "/")
+//				throw Watch_failed();
+//
+//			try {
+//
+//				Path immediate_parent_watch_path { watch_path };
+//				immediate_parent_watch_path.strip_last_element();
+//
+//				bool immediate_parent_watched = false;
+//
+//				File_system::Watch_handle some_parent_watch_handle =
+//					_open_watch_handle_helper(immediate_parent_watch_path,
+//					                          immediate_parent_watched);
+//
+//				if (immediate_parent_watched) {
+//
+//					/*
+//					 * Watching the immediate parent directory succeeded, now
+//					 * try to watch the original path again, in case it has
+//					 * been created in the meantime.
+//					 */
+//
+//					try {
+//						File_system::Watch_handle watch_handle = _fs.watch(watch_path.base());
+//						_fs.close(some_parent_watch_handle);
+//						path_watched = true;
+//						return watch_handle;
+//					}
+//					catch (File_system::Lookup_failed) { }
+//					catch (File_system::Unavailable) { }
+//				}
+//
+//				/*
+//				 * Watching the immediate parent directory or the original path
+//				 * again failed, so pass on the received parent watch handle.
+//				 */
+//				path_watched = false;
+//				return some_parent_watch_handle;
+//
+//			} catch (Watch_failed) {
+//				/* None of the parent directories could be watched */
+//				throw;
+//			}
+//		}
+//
+//		/**
+//		 * Watch the session ROM file or some parent directory
+//		 */
+//		void _open_watch_handle()
+//		{
+//			using namespace File_system;
+//
+//			_close_watch_handle();
+//
+//			Path watch_path(_file_path);
+//
+//			_watching_file = false;
+//
+//			try {
+//				Watch_handle watch_handle = _open_watch_handle_helper(watch_path.base(),
+//					                                                  _watching_file);
+//				_watch_handle.construct(watch_handle);
+//				_watch_elem.construct(
+//					*this, _sessions, Sessions::Id{_watch_handle->value});
+//				return;
+//			} catch (File_system::Out_of_ram) {
+//				error("not enough RAM to watch '", watch_path, "'");
+//			} catch (File_system::Out_of_caps) {
+//				error("not enough caps to watch '", watch_path, "'");
+//			}
+//			throw Watch_failed();
+//		}
+//
+//		void _close_watch_handle()
+//		{
+//			if (_watch_handle.constructed()) {
+//				_watch_elem.destruct();
+//				_fs.close(*_watch_handle);
+//				_watch_handle.destruct();
+//			}
+//			_watching_file = false;
+//		}
 
 		enum { UPDATE_OR_REPLACE = false, UPDATE_ONLY = true };
 
@@ -300,9 +287,6 @@ class Fs_rom::Rom_session_component : public  Rpc_object<Rom_session>
 		{
 			using namespace File_system;
 
-			try { _open_watch_handle(); }
-			catch (Watch_failed) { }
-
 			try { return _read_dataspace(update_only); }
 			catch (Lookup_failed) {
 				if (_file_size > 0) {
@@ -357,43 +341,21 @@ class Fs_rom::Rom_session_component : public  Rpc_object<Rom_session>
 
 	public:
 
-		/**
-		 * Constructor
-		 *
-		 * \param fs        file-system session to read the file from
-		 * \param filename  requested file name
-		 * \param sig_rec   signal receiver used to get notified about changes
-		 *                  within the compound directory (in the case when
-		 *                  the requested file could not be found at session-
-		 *                  creation time)
-		 */
-		Rom_session_component(Env &env,
-		                      Sessions &sessions,
-		                      File_system::Session &fs,
-		                      const char *file_path)
+		Rom_session_component(Env &env, Sessions &sessions,
+		                      File_system::Session &fs, const char *file_path)
 		:
 			_env(env), _sessions(sessions), _fs(fs),
 			_file_path(file_path),
-			_file_ds(env.ram(), env.rm(), 0) /* realloc later */
+			_file_ds(env.ram(), env.rm(), 0), /* realloc later */
+			_watch_handle(_fs.watch(_file_path.base())),
+			_watch_elem(*this, sessions, Sessions::Id { _watch_handle.value })
 		{
-			try { _open_watch_handle(); }
-			catch (Watch_failed) { }
-
-			/**
-			 * XXX: fix for live-lock, this constructor is called when this
-			 * component handles a sesson_requests ROM signal, and preparing
-			 * the dataspace now will hopefully prevent any interaction with
-			 * the parent when the dataspace RPC method is called.
-			 */
 			_try_read_dataspace(UPDATE_OR_REPLACE);
 		}
 
-		/**
-		 * Destructor
-		 */
 		~Rom_session_component()
 		{
-			_close_watch_handle();
+			_fs.close(_watch_handle);
 		}
 
 		/**
@@ -417,11 +379,6 @@ class Fs_rom::Rom_session_component : public  Rpc_object<Rom_session>
 		{
 			_sigh = sigh;
 
-			if (_sigh.valid()) {
-				try { _open_watch_handle(); }
-				catch (Watch_failed) { }
-			}
-
 			_notify_client_about_new_version();
 		}
 
@@ -439,19 +396,12 @@ class Fs_rom::Rom_session_component : public  Rpc_object<Rom_session>
 			switch (packet.operation()) {
 
 			case File_system::Packet_descriptor::CONTENT_CHANGED:
-				if (!(packet.handle() == *_watch_handle))
+				if (!(packet.handle() == _watch_handle))
 					return;
 
-				if (!_watching_file) {
-					/* try and get closer to the file */
-					_open_watch_handle();
-				}
-
-				if (_watching_file) {
-					/* notify the client of the change */
-					_curr_version = Version { _curr_version.value + 1 };
-					_notify_client_about_new_version();
-				}
+				/* notify the client of the change */
+				_curr_version = Version { _curr_version.value + 1 };
+				_notify_client_about_new_version();
 				return;
 
 			case File_system::Packet_descriptor::READ: {

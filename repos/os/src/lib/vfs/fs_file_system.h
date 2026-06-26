@@ -434,22 +434,22 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			}
 		};
 
-		struct Fs_vfs_watch_handle final : Vfs_watch_handle,
-		                                   private ::File_system::Node,
-		                                   private Handle_space::Element
+		using Watched_path = String<MAX_PATH_LEN>;
+
+		struct Fs_watch_handle : private ::File_system::Node,
+		                         private Handle_space::Element
 		{
 			friend Id_space<::File_system::Node>;
 
-			::File_system::Watch_handle const  fs_handle;
+			Watched_path const path;
 
-			Fs_vfs_watch_handle(Vfs::File_system            &fs,
-			                    Allocator                   &alloc,
-			                    Handle_space                &space,
-			                    ::File_system::Watch_handle  handle)
+			::File_system::Watch_handle const fs_handle;
+
+			Fs_watch_handle(Watched_path const &path, Handle_space &space,
+			                ::File_system::Watch_handle handle)
 			:
-				Vfs_watch_handle(fs, alloc),
 				Handle_space::Element(*this, space, handle),
-				fs_handle(handle)
+				path(path), fs_handle(handle)
 			{ }
 		};
 
@@ -544,8 +544,9 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 				try {
 					if (packet.operation() == Packet_descriptor::CONTENT_CHANGED) {
-						_watch_handle_space.apply<Fs_vfs_watch_handle>(id, [&] (Fs_vfs_watch_handle &handle) {
-							handle.watch_response(); });
+						_watch_handle_space.apply<Fs_watch_handle>(id, [&] (Fs_watch_handle &handle) {
+							handle.path.with_span([&] (Span const &s) {
+								_parent_fs.notify_watchers(s); }); });
 					} else {
 						_handle_space.apply<Fs_vfs_handle>(id, handle_fn);
 					}
@@ -850,40 +851,42 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			destroy(fs_handle->alloc(), fs_handle);
 		}
 
-		Watch_result watch(char const      *path,
-		                   Vfs_watch_handle **handle,
-		                   Allocator        &alloc) override
+		Watch_result watch(char const *path) override
 		{
 			using namespace ::File_system;
 
-			Watch_result res = WATCH_ERR_UNACCESSIBLE;
 			::File_system::Watch_handle fs_handle { -1UL };
 
 			try { fs_handle = _fs.watch(path); }
-			catch (Unavailable)       { return WATCH_ERR_UNACCESSIBLE; }
-			catch (Lookup_failed)     { return WATCH_ERR_UNACCESSIBLE; }
-			catch (Permission_denied) { return WATCH_ERR_STATIC; }
-			catch (Out_of_ram)        { return WATCH_ERR_OUT_OF_RAM; }
-			catch (Out_of_caps)       { return WATCH_ERR_OUT_OF_CAPS; }
+			catch (Out_of_ram)  { return Alloc_error::OUT_OF_RAM; }
+			catch (Out_of_caps) { return Alloc_error::OUT_OF_CAPS; }
+			catch (...)         { return Alloc_error::DENIED; }
 
+			Watch_result result = Alloc_error::DENIED;
 			try {
-				*handle = new (alloc)
-					Fs_vfs_watch_handle(
-						*this, alloc, _watch_handle_space, fs_handle);
-				return WATCH_OK;
+				new (_env.alloc())
+					Fs_watch_handle(path, _watch_handle_space, fs_handle);
+				return Ok();
 			}
-			catch (Out_of_ram)  { res = WATCH_ERR_OUT_OF_RAM;  }
-			catch (Out_of_caps) { res = WATCH_ERR_OUT_OF_CAPS; }
+			catch (Out_of_ram)  { result = Alloc_error::OUT_OF_RAM; }
+			catch (Out_of_caps) { result = Alloc_error::OUT_OF_CAPS; }
+			catch (...)         { result = Alloc_error::DENIED; }
 			_fs.close(fs_handle);
-			return res;
+			return result;
 		}
 
-		void close(Vfs_watch_handle *vfs_handle) override
+		void unwatch(char const *path) override
 		{
-			Fs_vfs_watch_handle *handle =
-				static_cast<Fs_vfs_watch_handle *>(vfs_handle);
-			_fs.close(handle->fs_handle);
-			destroy(handle->alloc(), handle);
+			/* look up watch handle for the given path */
+			Fs_watch_handle const *ptr = nullptr;
+			_watch_handle_space.for_each<Fs_watch_handle>(
+				[&] (Fs_watch_handle const &handle) {
+					if (handle.path == path)
+						ptr = &handle; });
+			if (ptr) {
+				_fs.close(ptr->fs_handle);
+				destroy(_env.alloc(), const_cast<Fs_watch_handle *>(ptr));
+			}
 		};
 
 

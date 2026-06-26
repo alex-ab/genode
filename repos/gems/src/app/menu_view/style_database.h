@@ -134,7 +134,7 @@ class Menu_view::Style_database
 			Vfs_font           _vfs_font;
 			Cached_font        _cached_font;
 
-			Watch_handler<Font_entry> _glyphs_changed_handler;
+			Io::Watch_handler<Font_entry> _glyphs_changed_handler;
 
 			void _handle_glyphs_changed()
 			{
@@ -152,7 +152,7 @@ class Menu_view::Style_database
 			 *
 			 * \throw Reading_failed
 			 */
-			Font_entry(Entrypoint &ep, Directory const &font_dir,
+			Font_entry(Directory const &font_dir,
 			           Path const &path, Allocator &alloc,
 			           Style_database const &style_database)
 			try :
@@ -160,7 +160,7 @@ class Menu_view::Style_database
 				_style_database(style_database),
 				_vfs_font(alloc, font_dir, path),
 				_cached_font(alloc, _vfs_font, _font_cache_limit),
-				_glyphs_changed_handler(ep, font_dir, Path(path, "/glyphs"),
+				_glyphs_changed_handler(font_dir, Path(path, "/glyphs"),
 				                        *this, &Font_entry::_handle_glyphs_changed)
 			{ }
 			catch (...) { throw Reading_failed(); }
@@ -280,7 +280,7 @@ class Menu_view::Style_database
 			 */
 			try {
 				Font_entry *e = new (_alloc)
-					Font_entry(_ep, _font_dir, path, _alloc, *this);
+					Font_entry(_font_dir, path, _alloc, *this);
 
 				_fonts.insert(e);
 				return &e->font();

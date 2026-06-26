@@ -287,6 +287,7 @@ class Vfs_tresor::Data_operation : private Noncopyable
 		}
 };
 
+
 class Vfs_tresor::Rekey_operation : private Noncopyable
 {
 	public:
@@ -897,10 +898,6 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 					Single_vfs_handle(dir_service, file_io_service, alloc, 0), _plugin(plugin)
 				{ }
 
-				/***********************
-				 ** Single_vfs_handle **
-				 ***********************/
-
 				Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
 				{
 					out_count = 0;
@@ -976,9 +973,7 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 
 		static char const *type_name() { return "data"; }
 
-		/************************
-		 ** Single_file_system **
-		 ************************/
+		void notify_watchers() { Single_file_system::_notify_watchers(); }
 
 		Stat_result stat(char const *path, Stat &out) override
 		{
@@ -1009,8 +1004,6 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 {
 	private:
 
-		using Registered_watch_handle = Registered<Vfs_watch_handle>;
-		using Watch_handle_registry = Registry<Registered_watch_handle>;
 		using Content_string = String<11>;
 
 		class Vfs_handle : private Noncopyable, public Single_vfs_handle
@@ -1111,7 +1104,6 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 				bool write_ready() const override { return true; }
 		};
 
-		Watch_handle_registry _handle_registry { };
 		Plugin &_plugin;
 
 	public:
@@ -1127,33 +1119,7 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 
 		static char const *type_name() { return "extend"; }
 
-		void trigger_watch_response()
-		{
-			_handle_registry.for_each([this] (Registered_watch_handle &handle) {
-				handle.watch_response(); });
-		}
-
-		/************************
-		 ** Single_file_system **
-		 ************************/
-
-		Watch_result watch(char const *path, Vfs_watch_handle **handle, Allocator &alloc) override
-		{
-			if (!_single_file(path))
-				return WATCH_ERR_UNACCESSIBLE;
-
-			try {
-				*handle = new (alloc) Registered_watch_handle(_handle_registry, *this, alloc);
-				return WATCH_OK;
-			}
-			catch (Out_of_ram) { return WATCH_ERR_OUT_OF_RAM;  }
-			catch (Out_of_caps) { return WATCH_ERR_OUT_OF_CAPS; }
-		}
-
-		void close(Vfs_watch_handle *handle) override
-		{
-			destroy(handle->alloc(), static_cast<Registered_watch_handle *>(handle));
-		}
+		void notify_watchers() { Single_file_system::_notify_watchers(); }
 
 		char const *type() override { return type_name(); }
 
@@ -1184,11 +1150,6 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_system
 {
 	private:
-
-		using Registered_watch_handle = Registered<Vfs_watch_handle>;
-		using Watch_handle_registry = Registry<Registered_watch_handle>;
-
-		Watch_handle_registry _handle_registry { };
 
 		Plugin &_plugin;
 
@@ -1285,35 +1246,9 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 
 		static char const *type_name() { return "rekey"; }
 
-		void trigger_watch_response()
-		{
-			_handle_registry.for_each([this] (Registered_watch_handle &handle) {
-				handle.watch_response(); });
-		}
-
-		/************************
-		 ** Single_file_system **
-		 ************************/
+		void notify_watchers() { Single_file_system::_notify_watchers(); }
 
 		char const *type() override { return type_name(); }
-
-		Watch_result watch(char const *path, Vfs_watch_handle **handle, Allocator &alloc) override
-		{
-			if (!_single_file(path))
-				return WATCH_ERR_UNACCESSIBLE;
-
-			try {
-				*handle = new (alloc) Registered_watch_handle(_handle_registry, *this, alloc);
-				return WATCH_OK;
-			}
-			catch (Out_of_ram) { return WATCH_ERR_OUT_OF_RAM;  }
-			catch (Out_of_caps) { return WATCH_ERR_OUT_OF_CAPS; }
-		}
-
-		void close(Vfs_watch_handle *handle) override
-		{
-			destroy(handle->alloc(), static_cast<Registered_watch_handle *>(handle));
-		}
 
 		Open_result open(char const *path, unsigned, Vfs::Vfs_handle **out_handle, Allocator &alloc) override
 		{
@@ -1343,11 +1278,8 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 {
 	private:
 
-		using Registered_watch_handle = Registered<Vfs_watch_handle>;
-		using Watch_handle_registry = Registry<Registered_watch_handle>;
 		using Content_string = String<11>;
 
-		Watch_handle_registry _handle_registry { };
 		Plugin &_plugin;
 
 		class Vfs_handle : public Single_vfs_handle
@@ -1370,10 +1302,6 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 				:
 					Single_vfs_handle(dir_service, file_io_service, alloc, 0), _plugin(plugin)
 				{ }
-
-				/***********************
-				 ** Single_vfs_handle **
-				 ***********************/
 
 				Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
 				{
@@ -1442,35 +1370,9 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 
 		static char const *type_name() { return "deinitialize"; }
 
-		void trigger_watch_response()
-		{
-			_handle_registry.for_each([this] (Registered_watch_handle &handle) {
-				handle.watch_response(); });
-		}
-
-		/************************
-		 ** Single_file_system **
-		 ************************/
-
 		char const *type() override { return type_name(); }
 
-		Watch_result watch(char const *path, Vfs_watch_handle **handle, Allocator &alloc) override
-		{
-			if (!_single_file(path))
-				return WATCH_ERR_UNACCESSIBLE;
-
-			try {
-				*handle = new (alloc) Registered_watch_handle(_handle_registry, *this, alloc);
-				return WATCH_OK;
-			}
-			catch (Out_of_ram) { return WATCH_ERR_OUT_OF_RAM;  }
-			catch (Out_of_caps) { return WATCH_ERR_OUT_OF_CAPS; }
-		}
-
-		void close(Vfs_watch_handle *handle) override
-		{
-			destroy(handle->alloc(), static_cast<Registered_watch_handle *>(handle));
-		}
+		void notify_watchers() { Single_file_system::_notify_watchers(); }
 
 		Open_result open(char const  *path, unsigned, Vfs::Vfs_handle **out_handle, Allocator &alloc) override
 		{
@@ -1663,7 +1565,7 @@ bool Vfs_tresor::Rekey_operation::execute(Execute_attr const &attr)
 					_success = true;
 					_state = COMPLETE;
 					if (attr.rekey_fs_ptr)
-						attr.rekey_fs_ptr->trigger_watch_response();
+						attr.rekey_fs_ptr->notify_watchers();
 					if (_verbose)
 						log("rekey succeeded");
 				} else
@@ -1672,7 +1574,7 @@ bool Vfs_tresor::Rekey_operation::execute(Execute_attr const &attr)
 				_success = false;
 				_state = COMPLETE;
 				if (attr.rekey_fs_ptr)
-					attr.rekey_fs_ptr->trigger_watch_response();
+					attr.rekey_fs_ptr->notify_watchers();
 				if (_verbose)
 					log("rekey failed");
 			}
@@ -1718,7 +1620,7 @@ bool Vfs_tresor::Extend_operation::execute(Execute_attr const &attr)
 					_success = true;
 					_state = COMPLETE;
 					if (attr.extend_fs_ptr)
-						attr.extend_fs_ptr->trigger_watch_response();
+						attr.extend_fs_ptr->notify_watchers();
 					if (_verbose)
 						log("extend free tree succeeded");
 				} else
@@ -1727,7 +1629,7 @@ bool Vfs_tresor::Extend_operation::execute(Execute_attr const &attr)
 				_success = false;
 				_state = COMPLETE;
 				if (attr.extend_fs_ptr)
-					attr.extend_fs_ptr->trigger_watch_response();
+					attr.extend_fs_ptr->notify_watchers();
 				if (_verbose)
 					log("extend free tree failed");
 			}
@@ -1763,7 +1665,7 @@ bool Vfs_tresor::Extend_operation::execute(Execute_attr const &attr)
 					_success = true;
 					_state = COMPLETE;
 					if (attr.extend_fs_ptr)
-						attr.extend_fs_ptr->trigger_watch_response();
+						attr.extend_fs_ptr->notify_watchers();
 					if (_verbose)
 						log("extend virtual block device succeeded");
 				} else
@@ -1772,7 +1674,7 @@ bool Vfs_tresor::Extend_operation::execute(Execute_attr const &attr)
 				_success = false;
 				_state = COMPLETE;
 				if (attr.extend_fs_ptr)
-					attr.extend_fs_ptr->trigger_watch_response();
+					attr.extend_fs_ptr->notify_watchers();
 				if (_verbose)
 					log("extend virtual block device failed");
 			}
@@ -1826,7 +1728,7 @@ bool Vfs_tresor::Deinitialize_operation::execute(Execute_attr const &attr)
 			}
 			_deinit_sb_control.destruct();
 			if (attr.deinit_fs_ptr)
-				attr.deinit_fs_ptr->trigger_watch_response();
+				attr.deinit_fs_ptr->notify_watchers();
 			progress = true;
 		}
 		break;

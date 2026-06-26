@@ -32,6 +32,7 @@ namespace Genode {
 	class  New_file;
 	class  Watcher;
 	namespace Io {
+		struct Watch_handler_base;
 		template <typename>
 		class Watch_handler;
 	}
@@ -116,17 +117,16 @@ struct Genode::Directory : Noncopyable, Interface
 
 		Path const _path;
 
-		Vfs::File_system &_fs;
-
-		Vfs::Env::Io &_io;
-
-		Allocator &_alloc;
+		Vfs::Env         &_vfs_env;
+		Vfs::File_system &_fs    = _vfs_env.root_dir();
+		Vfs::Env::Io     &_io    = _vfs_env.io();
+		Allocator        &_alloc = _vfs_env.alloc();
 
 		Vfs::Vfs_handle *_handle = nullptr;
 
 		friend class Readonly_file;
 		friend class Root_directory;
-		friend class Watcher;
+		friend class Io::Watch_handler_base;
 		friend class Writeable_file;
 		friend class Append_file;
 		friend class New_file;
@@ -199,10 +199,7 @@ struct Genode::Directory : Noncopyable, Interface
 		 *
 		 * \throw Open_failed
 		 */
-		Directory(Vfs::Env &vfs_env)
-		:
-			_path(""), _fs(vfs_env.root_dir()),
-			_io(vfs_env.io()), _alloc(vfs_env.alloc())
+		Directory(Vfs::Env &vfs_env) : _path(""), _vfs_env(vfs_env)
 		{
 			if (_fs.opendir("/", false, &_handle, _alloc) !=
 			    Vfs::Directory_service::OPENDIR_OK)
@@ -216,8 +213,7 @@ struct Genode::Directory : Noncopyable, Interface
 		 */
 		Directory(Directory const &other, Path const &rel_path)
 		:
-			_path(join(other._path, rel_path)), _fs(other._fs), _io(other._io),
-			_alloc(other._alloc)
+			_path(join(other._path, rel_path)), _vfs_env(other._vfs_env)
 		{
 			if (_fs.opendir(_path.string(), false, &_handle, _alloc) !=
 			    Vfs::Directory_service::OPENDIR_OK)
@@ -280,6 +276,12 @@ struct Genode::Directory : Noncopyable, Interface
 				return false;
 
 			return stat.type == Vfs::Node_type::SYMLINK;
+		}
+
+		bool entry_exists(Path const &rel_path) const
+		{
+			Vfs::Directory_service::Stat stat { };
+			return _stat(rel_path, stat) == Vfs::Directory_service::STAT_OK;
 		}
 
 		/**
@@ -999,55 +1001,29 @@ class Genode::New_file : public Writeable_file
 };
 
 
-class Genode::Watcher
+/**
+ * Helper with access to 'Directory::_vfs_env' and 'Directory::_path'
+ *
+ * \noapi
+ */
+struct Genode::Io::Watch_handler_base : Vfs::Watch_handle::Handler
 {
-	private:
+	Vfs::Watch_handle _handle;
 
-		/*
-		 * Noncopyable
-		 */
-		Watcher(Watcher const &);
-		Watcher &operator = (Watcher const &);
+	static Directory &_mutable(Directory const &dir)
+	{
+		return const_cast<Directory &>(dir);
+	}
 
-		Vfs::Vfs_watch_handle mutable *_handle { nullptr };
+	Watch_handler_base(Directory const &dir, Directory::Path const &rel_path)
+	:
+		_handle(_mutable(dir)._vfs_env.watch_handles(),
+		        _mutable(dir)._vfs_env.root_dir(),
+		        Directory::join(dir._path, rel_path),
+		        *this)
+	{ }
 
-		void _watch(Vfs::File_system &fs, Allocator &alloc, Directory::Path const path,
-		            Vfs::Watch_response_handler &handler)
-		{
-			Vfs::Directory_service::Watch_result res =
-				fs.watch(path.string(), &_handle, alloc);
-
-			if (res == Vfs::Directory_service::WATCH_OK)
-				_handle->handler(&handler);
-			else
-				error("failed to watch '", path, "'");
-		}
-
-		static Directory &_mutable(Directory const &dir)
-		{
-			return const_cast<Directory &>(dir);
-		}
-
-	public:
-
-		Watcher(Directory const &dir, Directory::Path const &rel_path,
-		        Vfs::Watch_response_handler &handler)
-		{
-			_watch(_mutable(dir)._fs, _mutable(dir)._alloc,
-			       Directory::join(dir._path, rel_path), handler);
-		}
-
-		Watcher(Vfs::File_system &fs, Directory::Path const &rel_path,
-		        Genode::Allocator &alloc, Vfs::Watch_response_handler &handler)
-		{
-			_watch(fs, alloc, rel_path, handler);
-		}
-
-		~Watcher()
-		{
-			if (_handle)
-				_handle->fs().close(_handle);
-		}
+	Vfs::Watch_result watch() { return _handle.watch(); }
 };
 
 
@@ -1055,65 +1031,70 @@ class Genode::Watcher
  * Watch handler that operates on I/O signal level
  */
 template <typename T>
-class Genode::Io::Watch_handler : public Vfs::Watch_response_handler,
-                                  private Watcher
-
+class Genode::Io::Watch_handler : private Io::Watch_handler_base
 {
 	private:
 
 		T  &_obj;
 		void (T::*_member) ();
+
+		/**
+		 * Vfs::Watch_handle::Handler interface
+		 */
+		void io_handle_watch() override { (_obj.*_member)(); }
 
 	public:
 
 		Watch_handler(Directory const &dir, Directory::Path const &rel_path,
 		              T &obj, void (T::*member)())
 		:
-			Watcher(dir, rel_path, *this), _obj(obj), _member(member)
+			Io::Watch_handler_base(dir, rel_path),
+			_obj(obj), _member(member)
 		{ }
 
-		Watch_handler(Vfs::File_system &fs, Directory::Path const &rel_path,
-		              Genode::Allocator &alloc, T &obj, void (T::*member)())
-		:
-			Watcher(fs,rel_path, alloc, *this), _obj(obj), _member(member)
-		{ }
-
-		void watch_response() override { (_obj.*_member)(); }
+		using Io::Watch_handler_base::watch;
 };
 
 
 /**
  * Watch handler that operates on application signal level
+ *
+ * If the watched file exists at construction time, the handler triggers
+ * once immedialy.
  */
 template <typename T>
 class Genode::Watch_handler : public Signal_handler<Watch_handler<T>>
 {
 	private:
 
-		Io::Watch_handler<Watch_handler> _io_watch_handler;
+		using This = Watch_handler<T>;
+
+		Io::Watch_handler<This> _io_watch_handler;
+
+		void _io_handle_watch() { This::local_submit(); }
 
 		T  &_obj;
 		void (T::*_member) ();
 
-		void _handle_watch_response()
-		{
-			Signal_handler<Watch_handler<T>>::local_submit();
-		}
-
-		void _handle_signal()
-		{
-			(_obj.*_member)();
-		}
+		void _handle_signal() { (_obj.*_member)(); }
 
 	public:
 
 		Watch_handler(Genode::Entrypoint &ep, Directory const &dir,
 		              Directory::Path const &rel_path,
 		              T &obj, void (T::*member)())
-		: Signal_handler<Watch_handler<T>>(ep, *this, &Watch_handler<T>::_handle_signal),
-		  _io_watch_handler(dir, rel_path, *this, &Watch_handler<T>::_handle_watch_response),
-		  _obj(obj), _member(member)
-		{ }
+		:
+			Signal_handler<This>(ep, *this, &This::_handle_signal),
+			_io_watch_handler(dir, rel_path, *this, &This::_io_handle_watch),
+			_obj(obj), _member(member)
+		{
+			if (_io_watch_handler.watch().failed())
+				warning("VFS unable to watch ", rel_path);
+
+			/* deliver initial watch notification if watched dir entry exists */
+			if (dir.entry_exists(rel_path))
+				This::local_submit();
+		}
 };
 
 #endif /* _INCLUDE__OS__VFS_H_ */

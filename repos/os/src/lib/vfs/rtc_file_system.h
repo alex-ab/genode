@@ -111,21 +111,11 @@ class Vfs_rtc::File_system : public Single_file_system
 				bool write_ready() const override { return false; }
 		};
 
-		using Registered_watch_handle = Registered<Vfs_watch_handle>;
-		using Watch_handle_registry   = Registry<Registered_watch_handle>;
-
 		Rtc::Connection _rtc;
-
-		Watch_handle_registry _handle_registry { };
 
 		Io_signal_handler<File_system> _set_signal_handler;
 
-		void _handle_set_signal()
-		{
-			_handle_registry.for_each([] (Registered_watch_handle &handle) {
-				handle.watch_response();
-			});
-		}
+		void _handle_set_signal() { Single_file_system::_notify_watchers(); }
 
 	public:
 
@@ -173,30 +163,6 @@ class Vfs_rtc::File_system : public Single_file_system
 			}
 
 			return result;
-		}
-
-		Watch_result watch(char const        *path,
-		                   Vfs_watch_handle **handle,
-		                   Allocator         &alloc) override
-		{
-			if (!_single_file(path))
-				return WATCH_ERR_UNACCESSIBLE;
-
-			try {
-				Vfs_watch_handle &watch_handle = *new (alloc)
-					Registered_watch_handle(_handle_registry, *this, alloc);
-
-				*handle = &watch_handle;
-				return WATCH_OK;
-			}
-			catch (Out_of_ram)  { return WATCH_ERR_OUT_OF_RAM;  }
-			catch (Out_of_caps) { return WATCH_ERR_OUT_OF_CAPS; }
-		}
-
-		void close(Vfs_watch_handle *handle) override
-		{
-			destroy(handle->alloc(),
-			        static_cast<Registered_watch_handle *>(handle));
 		}
 };
 

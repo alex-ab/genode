@@ -86,11 +86,6 @@ class Genode::Vfs::Readonly_value_file_system : public Single_file_system
 			return Config(Cstring(buf));
 		}
 
-		using Registered_watch_handle = Registered<Vfs_watch_handle>;
-		using Watch_handle_registry   = Registry<Registered_watch_handle>;
-
-		Watch_handle_registry _handle_registry { };
-
 	public:
 
 		Readonly_value_file_system(Parent_fs &parent_fs, Name const &name,
@@ -110,10 +105,12 @@ class Genode::Vfs::Readonly_value_file_system : public Single_file_system
 
 		void value(T const &value)
 		{
+			Buffer const orig_buffer = _buffer;
+
 			_buffer = Buffer(value);
 
-			_handle_registry.for_each([] (Registered_watch_handle &handle) {
-				handle.watch_response(); });
+			if (_buffer != orig_buffer)
+				Single_file_system::_notify_watchers();
 		}
 
 		bool matches(Node const &node) const
@@ -150,30 +147,7 @@ class Genode::Vfs::Readonly_value_file_system : public Single_file_system
 			return result;
 		}
 
-		Watch_result watch(char const        *path,
-		                   Vfs_watch_handle **handle,
-		                   Allocator         &alloc) override
-		{
-			if (!_single_file(path))
-				return WATCH_ERR_UNACCESSIBLE;
-
-			try {
-				*handle = new (alloc)
-					Registered_watch_handle(_handle_registry, *this, alloc);
-
-				return WATCH_OK;
-			}
-			catch (Out_of_ram)  { return WATCH_ERR_OUT_OF_RAM;  }
-			catch (Out_of_caps) { return WATCH_ERR_OUT_OF_CAPS; }
-		}
-
 		using Single_file_system::close;
-
-		void close(Vfs_watch_handle *handle) override
-		{
-			destroy(handle->alloc(),
-			        static_cast<Registered_watch_handle *>(handle));
-		}
 };
 
 #endif /* _INCLUDE__VFS__READONLY_VALUE_FILE_SYSTEM_H_ */

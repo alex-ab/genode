@@ -113,11 +113,6 @@ class Vfs_glyphs::File_system : public Single_file_system
 			bool write_ready() const override { return false; }
 		};
 
-		using Registered_watch_handle = Registered<Vfs_watch_handle>;
-		using Watch_handle_registry   = Registry<Registered_watch_handle>;
-
-		Watch_handle_registry _handle_registry { };
-
 	public:
 
 		File_system(Parent_fs &parent_fs, Font const &font)
@@ -132,15 +127,7 @@ class Vfs_glyphs::File_system : public Single_file_system
 
 		char const *type() override { return type_name(); }
 
-
-		/**
-		 * Propagate font change to watch handlers
-		 */
-		void trigger_watch_response()
-		{
-			_handle_registry.for_each([] (Registered_watch_handle &handle) {
-				handle.watch_response(); });
-		}
+		void notify_watchers() { Single_file_system::_notify_watchers(); }
 
 
 		/*********************************
@@ -168,29 +155,6 @@ class Vfs_glyphs::File_system : public Single_file_system
 			Stat_result result = Single_file_system::stat(path, out);
 			out.size = FILE_SIZE;
 			return result;
-		}
-
-		Watch_result watch(char const        *path,
-		                   Vfs_watch_handle **handle,
-		                   Allocator         &alloc) override
-		{
-			if (!_single_file(path))
-				return WATCH_ERR_UNACCESSIBLE;
-
-			try {
-				*handle = new (alloc)
-					Registered_watch_handle(_handle_registry, *this, alloc);
-
-				return WATCH_OK;
-			}
-			catch (Out_of_ram)  { return WATCH_ERR_OUT_OF_RAM;  }
-			catch (Out_of_caps) { return WATCH_ERR_OUT_OF_CAPS; }
-		}
-
-		void close(Vfs_watch_handle *handle) override
-		{
-			destroy(handle->alloc(),
-			        static_cast<Registered_watch_handle *>(handle));
 		}
 };
 

@@ -33,6 +33,8 @@ class Genode::Vfs::Single_file_system : public File_system
 
 		Filename _filename { };
 
+		bool _watched = false;
+
 	protected:
 
 		struct Single_vfs_handle : Vfs_handle
@@ -146,6 +148,13 @@ class Genode::Vfs::Single_file_system : public File_system
 			       (strcmp(&path[1], _filename.string()) == 0);
 		}
 
+		void _notify_watchers()
+		{
+			using Path = String<Filename::capacity()>;
+			Path { "/", _filename }.with_span([&] (Span const &s) {
+				_parent_fs.notify_watchers({ s.start, s.num_bytes }); });
+		}
+
 	public:
 
 		Single_file_system(Parent_fs  &parent_fs,
@@ -248,6 +257,20 @@ class Genode::Vfs::Single_file_system : public File_system
 			if (_single_file(from) || _single_file(to))
 				return RENAME_ERR_NO_PERM;
 			return RENAME_ERR_NO_ENTRY;
+		}
+
+		Watch_result watch(char const *path) override
+		{
+			if (_filename == path)
+				_watched = true;
+
+			return Ok();
+		}
+
+		void unwatch(char const *path) override
+		{
+			if (_filename == path)
+				_watched = false;
 		}
 
 

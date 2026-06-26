@@ -31,7 +31,6 @@
 #include <internal/resume.h>
 #include <internal/current_time.h>
 #include <internal/kernel_timer_accessor.h>
-#include <internal/watch.h>
 #include <internal/signal.h>
 #include <internal/monitor.h>
 #include <internal/pthread.h>
@@ -106,7 +105,6 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
                             Monitor,
                             Current_time,
                             Current_real_time,
-                            Watch,
                             Cwd
 {
 	private:
@@ -649,17 +647,6 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 		}
 
 		/**
-		 * Watch interface
-		 */
-		Vfs::Vfs_watch_handle *alloc_watch_handle(char const *path) override
-		{
-			Vfs::Vfs_watch_handle *watch_handle { nullptr };
-			using Result = Vfs::Directory_service::Watch_result;
-			return _libc_env.vfs().watch(path, &watch_handle, _heap) == Result::WATCH_OK
-				? watch_handle : nullptr;
-		}
-
-		/**
 		 * Cwd interface
 		 */
 		Cwd_path &cwd() override { return _cwd; }
@@ -677,7 +664,7 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 		timespec current_real_time() override
 		{
 			if (!_rtc.constructed())
-				_rtc.construct(_root_dir, _heap, _config.rtc, *this);
+				_rtc.construct(_root_dir, _heap, _config.rtc);
 
 			return _rtc->read(current_time());
 		}

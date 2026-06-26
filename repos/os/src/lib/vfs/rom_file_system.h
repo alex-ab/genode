@@ -122,21 +122,9 @@ class Vfs_rom::File_system : public Single_file_system
 				bool write_ready() const override { return false; }
 		};
 
-		using Registered_watch_handle = Registered<Vfs_watch_handle>;
-		using Watch_handle_registry   = Registry<Registered_watch_handle>;
+		void _handle_rom_changed() { Single_file_system::_notify_watchers(); }
 
-		Watch_handle_registry _handle_registry { };
-
-		void _handle_rom_changed()
-		{
-			_handle_registry.for_each([] (Registered_watch_handle &handle) {
-				handle.watch_response(); });
-
-			_vfs_user.wakeup_vfs_user();
-		}
-
-		Constructible<Io_signal_handler<File_system>>
-			_rom_changed_handler { };
+		Constructible<Io_signal_handler<File_system>> _rom_changed_handler { };
 
 	public:
 
@@ -211,12 +199,9 @@ class Vfs_rom::File_system : public Single_file_system
 			return result;
 		}
 
-		Watch_result watch(char const        *path,
-		                   Vfs_watch_handle **handle,
-		                   Allocator         &alloc) override
+		Watch_result watch(char const *path) override
 		{
-			if (!_single_file(path))
-				return WATCH_ERR_UNACCESSIBLE;
+			Watch_result const result = Single_file_system::watch(path);
 
 			if (!_rom_changed_handler.constructed()) {
 				_rom_changed_handler.construct(_env.ep(), *this,
@@ -224,18 +209,7 @@ class Vfs_rom::File_system : public Single_file_system
 				_rom.sigh(*_rom_changed_handler);
 			}
 
-			try {
-				*handle = new (alloc)
-					Registered_watch_handle(_handle_registry, *this, alloc);
-				return WATCH_OK;
-			}
-			catch (Out_of_ram)  { return WATCH_ERR_OUT_OF_RAM;  }
-			catch (Out_of_caps) { return WATCH_ERR_OUT_OF_CAPS; }
-		}
-
-		void close(Vfs_watch_handle *handle) override
-		{
-			destroy(handle->alloc(), static_cast<Registered_watch_handle *>(handle));
+			return result;
 		}
 };
 

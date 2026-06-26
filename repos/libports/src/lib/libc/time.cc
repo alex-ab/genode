@@ -27,7 +27,6 @@
 #include <internal/errno.h>
 #include <internal/init.h>
 #include <internal/current_time.h>
-#include <internal/watch.h>
 
 static Libc::Current_time      *_current_time_ptr;
 static Libc::Current_real_time *_current_real_time_ptr;

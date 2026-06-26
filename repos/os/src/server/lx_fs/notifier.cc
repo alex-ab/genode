@@ -163,17 +163,16 @@ void Lx_fs::Notifier::_add_to_watched(char const *fullname)
 }
 
 
-int Lx_fs::Notifier::_add_node(char const *path, Watch_node &node)
+void Lx_fs::Notifier::_add_node(char const *path, Watch_node &node)
 {
 	for (Watches_list_element *e = _watched_nodes.first(); e != nullptr; e = e->next()) {
 		if (e->path.full_path == path) {
-			Single_watch_list_element *c { new (_heap) Single_watch_list_element { node } };
-			e->add_node(c);
-			return e->watch_fd;
+			e->add_node(new (_heap) Single_watch_list_element { node } );;
+			return;
 		}
-	};
+	}
 
-	throw File_system::Lookup_failed { };
+	warning("Notifier::_add_node unable to relate '", path, "' to watch_fd");
 }
 
 
@@ -367,7 +366,7 @@ void Lx_fs::Notifier::entry()
 }
 
 
-int Lx_fs::Notifier::add_watch(const char* path, Watch_node &node)
+void Lx_fs::Notifier::add_watch(const char* path, Watch_node &node)
 {
 	{
 		Mutex::Guard guard { _watched_nodes_mutex };
@@ -377,7 +376,7 @@ int Lx_fs::Notifier::add_watch(const char* path, Watch_node &node)
 		}
 	}
 
-	return _add_node(path, node);
+	_add_node(path, node);
 }
 
 

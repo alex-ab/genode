@@ -78,8 +78,7 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 				_buffer = Buffer(Cstring(src.start, len));
 				out_count = len;
 
-				/* inform watchers */
-				_value_fs._watch_response();
+				Single_file_system::_notify_watchers();
 
 				return WRITE_OK;
 			}
@@ -93,27 +92,6 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 			Vfs_handle &operator = (Vfs_handle const &); 
 		};
 
-		struct Watch_handle;
-		using Watch_handle_registry = Registry<Watch_handle>;
-
-		struct Watch_handle : Vfs_watch_handle
-		{
-			typename Watch_handle_registry::Element elem;
-
-			Watch_handle(Watch_handle_registry &registry,
-			             File_system &fs, Allocator &alloc)
-			: Vfs_watch_handle(fs, alloc), elem(registry, *this) { }
-		};
-
-		Watch_handle_registry _watch_handle_registry { };
-
-
-		void _watch_response() {
-			_watch_handle_registry.for_each([&] (Watch_handle &h) {
-				h.watch_response();
-			});
-		}
-
 		using Config = String<200>;
 		Config _config(Name const &name) const
 		{
@@ -125,7 +103,6 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 			});
 			return Config(Cstring(buf));
 		}
-
 
 	public:
 
@@ -205,30 +182,7 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 			return result;
 		}
 
-		Watch_result watch(char const      *path,
-		                   Vfs_watch_handle **handle,
-		                   Allocator        &alloc) override
-		{
-			if (!_single_file(path))
-				return WATCH_ERR_UNACCESSIBLE;
-
-			try {
-				Watch_handle *wh = new (alloc)
-					Watch_handle(_watch_handle_registry, *this, alloc);
-				*handle = wh;
-				return WATCH_OK;
-			}
-			catch (Out_of_ram)  { return WATCH_ERR_OUT_OF_RAM;  }
-			catch (Out_of_caps) { return WATCH_ERR_OUT_OF_CAPS; }
-		}
-
 		using Single_file_system::close;
-
-		void close(Vfs_watch_handle *handle) override
-		{
-			if (handle && (&handle->fs() == this))
-				destroy(handle->alloc(), handle);
-		}
 };
 
 #endif /* _VALUE_FILE_SYSTEM_H_ */

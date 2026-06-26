@@ -81,8 +81,9 @@ class Vfs_server::Session_component : private Session_resources,
 
 	private:
 
-		Vfs::File_system &_vfs;
-		Vfs::Env::Io     &_io;
+		Vfs::File_system   &_vfs;
+		Vfs::Watch_handles &_watch_handles;
+		Vfs::Env::Io       &_io;
 
 		Entrypoint &_ep;
 
@@ -438,6 +439,7 @@ class Vfs_server::Session_component : private Session_resources,
 		                  Cap_quota            cap_quota,
 		                  size_t               tx_buf_size,
 		                  Vfs::File_system    &vfs,
+		                  Vfs::Watch_handles  &watch_handles,
 		                  Vfs::Env::Io        &io,
 		                  Session_queue       &active_sessions,
 		                  Io_progress_handler &io_progress_handler,
@@ -447,6 +449,7 @@ class Vfs_server::Session_component : private Session_resources,
 			Session_resources(env.ram(), env.rm(), ram_quota, cap_quota, tx_buf_size),
 			Session_rpc_object(_packet_ds.cap(), env.rm(), env.ep().rpc_ep()),
 			_vfs(vfs),
+			_watch_handles(watch_handles),
 			_io(io),
 			_ep(env.ep()),
 			_io_progress_handler(io_progress_handler),
@@ -566,36 +569,26 @@ class Vfs_server::Session_component : private Session_resources,
 		{
 			char const *path_str = path.string();
 
-			_assert_valid_path(path_str);
+			if (path.string()[0] != '/')
+				return Watch_handle { ~0ul };
 
 			/* re-root the path */
 			Path const sub_path(path_str + 1, _root_path.base());
 			path_str = sub_path.base();
 
-			Vfs::Vfs_watch_handle *vfs_handle = nullptr;
-			using Result = Directory_service::Watch_result;
-			switch (_vfs.watch(path_str, &vfs_handle, _alloc)) {
-			case Result::WATCH_OK: break;
-			case Result::WATCH_ERR_UNACCESSIBLE:
-				throw Lookup_failed();
-			case Result::WATCH_ERR_STATIC:
-				throw Unavailable();
-			case Result::WATCH_ERR_OUT_OF_RAM:
-				throw Out_of_ram();
-			case Result::WATCH_ERR_OUT_OF_CAPS:
-				throw Out_of_caps();
-			}
+			Watch_node &node = *new (_alloc)
+				Watch_node(_node_space, _watch_handles, _vfs, path_str, *this);
 
-			try {
-				Node_base &node = *new (_alloc)
-					Watch_node(_node_space, path_str, *vfs_handle, *this);
-
-				return Watch_handle { node.id().value };
-			}
-			catch (...) {
-				vfs_handle->close();
-				throw;
-			}
+			return node.watch().convert<Watch_handle>(
+				[&] (Ok) {
+					return Watch_handle { node.id().value };
+				},
+				[&] (Alloc_error e) {
+					if (e == Alloc_error::OUT_OF_RAM)  throw Out_of_ram();
+					if (e == Alloc_error::OUT_OF_CAPS) throw Out_of_caps();
+					warning("unable to watch ", path_str);
+					return Watch_handle { ~0ul };
+				});
 		}
 
 		void close(Node_handle handle) override
@@ -845,6 +838,7 @@ class Vfs_server::Root : public Root_component<Session_component>
 				                  Ram_quota{ram_quota},
 				                  Cap_quota{cap_quota},
 				                  tx_buf_size, _vfs_env.root_dir(),
+				                  _vfs_env.watch_handles(),
 				                  _vfs_env.io(),
 				                  _active_sessions, _io_progress_handler,
 				                  session_root.base(), writeable);

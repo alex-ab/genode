@@ -50,7 +50,6 @@ namespace Vfs_ram {
 	using Seek = ::File_system::Chunk_base::Seek;
 
 	struct Io_handle;
-	struct Watch_handle;
 
 	class Node;
 	class File;
@@ -84,19 +83,6 @@ struct Vfs_ram::Io_handle final : Vfs_handle, private List<Io_handle>::Element
 };
 
 
-struct Vfs_ram::Watch_handle final : public  Vfs_watch_handle,
-                                     private List<Watch_handle>::Element
-{
-	friend List<Watch_handle>;
-	using List<Watch_handle>::Element::next;
-
-	Vfs_ram::Node &node;
-
-	Watch_handle(Vfs::File_system &fs, Allocator &alloc, Node &node)
-	: Vfs_watch_handle(fs, alloc), node(node) { }
-};
-
-
 class Vfs_ram::Node : private Avl_node<Node>
 {
 	private:
@@ -105,14 +91,11 @@ class Vfs_ram::Node : private Avl_node<Node>
 		friend class Avl_tree<Node>;
 		friend class List<Io_handle>;
 		friend class List<Io_handle>::Element;
-		friend class List<Watch_handle>;
-		friend class List<Watch_handle>::Element;
-		friend class Watch_handle;
 		friend class Directory;
 
 		char _name[MAX_NAME_LEN];
-		List<Io_handle>       _io_handles { };
-		List<Watch_handle> _watch_handles { };
+
+		List<Io_handle> _io_handles { };
 
 		/**
 		 * Generate unique inode number
@@ -144,21 +127,13 @@ class Vfs_ram::Node : private Avl_node<Node>
 		virtual size_t length() = 0;
 
 		void open(Io_handle &handle) { _io_handles.insert(&handle); }
-		void open(Watch_handle &handle) { _watch_handles.insert(&handle); }
 
 		bool opened() const
 		{
 			return _io_handles.first() != nullptr;
 		}
 
-		void close(Io_handle &handle)    {    _io_handles.remove(&handle); }
-		void close(Watch_handle &handle) { _watch_handles.remove(&handle); }
-
-		void notify()
-		{
-			for (Watch_handle *h = _watch_handles.first(); h; h = h->next())
-				h->watch_response();
-		}
+		void close(Io_handle &handle) { _io_handles.remove(&handle); }
 
 		void mark_as_unlinked() { _marked_as_unlinked = true; }
 
@@ -552,16 +527,32 @@ class Vfs_ram::File_system : public Vfs::File_system
 			destroy(_env.alloc(), node);
 		}
 
-		void _try_complete_unlink(Directory *parent_ptr, Node &node)
+		void _try_complete_unlink(Io_handle::Path const &path,
+		                          Directory *parent_ptr, Node &node)
 		{
 			if (node.marked_as_unlinked() && !node.opened()) {
-				if (parent_ptr) {
+				if (parent_ptr)
 					parent_ptr->release(&node);
-					parent_ptr->notify();
-				}
-				node.notify();
 				remove(&node);
+
+				/* notify watchers for the unlinked node and its compound dir */
+				path.with_span([&] (Span const &s) {
+					_parent_fs.notify_watchers(s);
+					with_compound_dir(s, [&] (Span const &dir_path) {
+						_parent_fs.notify_watchers(dir_path); });
+				});
 			}
+		}
+
+		void _notify_watchers(char const *path)
+		{
+			_parent_fs.notify_watchers(Span::from_cstring(path));
+		}
+
+		void _notify_compound_dir_watchers(char const *path)
+		{
+			with_compound_dir(Span::from_cstring(path), [&] (Span const &dir_path) {
+				_parent_fs.notify_watchers(dir_path); });
 		}
 
 	public:
@@ -620,7 +611,7 @@ class Vfs_ram::File_system : public Vfs::File_system
 				try { file = new (_env.alloc()) File(name, _env.alloc()); }
 				catch (Out_of_memory) { return OPEN_ERR_NO_SPACE; }
 				parent->adopt(file);
-				parent->notify();
+				_notify_compound_dir_watchers(path);
 			} else {
 				Node * const node = lookup(path);
 				if (!node) return OPEN_ERR_UNACCESSIBLE;
@@ -675,7 +666,7 @@ class Vfs_ram::File_system : public Vfs::File_system
 				catch (Out_of_memory) { return OPENDIR_ERR_NO_SPACE; }
 
 				parent->adopt(dir);
-				parent->notify();
+				_notify_compound_dir_watchers(path);
 			} else {
 
 				Node * const node = lookup(path);
@@ -731,7 +722,7 @@ class Vfs_ram::File_system : public Vfs::File_system
 				catch (Out_of_memory) { return OPENLINK_ERR_NO_SPACE; }
 
 				parent->adopt(link);
-				parent->notify();
+				_notify_compound_dir_watchers(path);
 			} else {
 
 				if (!node)
@@ -768,17 +759,19 @@ class Vfs_ram::File_system : public Vfs::File_system
 				static_cast<Io_handle *>(vfs_handle);
 
 			Node &node = ram_handle->node;
-			bool node_modified = ram_handle->modifying;
+			bool const   node_modified = ram_handle->modifying;
+			Io_handle::Path const path = ram_handle->path;
 
-			Directory * const parent_ptr = lookup_parent(ram_handle->path.string());
+			Directory * const parent_ptr = lookup_parent(path.string());
 
 			node.close(*ram_handle);
 			destroy(vfs_handle->alloc(), ram_handle);
 
 			if (node_modified)
-				node.notify();
+				path.with_span([&] (Span const &s) {
+					_parent_fs.notify_watchers(s); });
 
-			_try_complete_unlink(parent_ptr, node);
+			_try_complete_unlink(path, parent_ptr, node);
 		}
 
 		Stat_result stat(char const *path, Stat &stat) override
@@ -840,9 +833,6 @@ class Vfs_ram::File_system : public Vfs::File_system
 				/* detach node to be replaced from directory */
 				to_dir->release(to_node);
 
-				/* notify the node being replaced */
-				to_node->notify();
-
 				/* free the node that is replaced */
 				remove(to_node);
 			}
@@ -851,8 +841,10 @@ class Vfs_ram::File_system : public Vfs::File_system
 			from_node->name(new_name);
 			to_dir->adopt(from_node);
 
-			from_dir->notify();
-			to_dir->notify();
+			_notify_watchers(from);
+			_notify_watchers(to);
+			_notify_compound_dir_watchers(from);
+			_notify_compound_dir_watchers(to);
 
 			return RENAME_OK;
 		}
@@ -870,7 +862,7 @@ class Vfs_ram::File_system : public Vfs::File_system
 			/* defer unlink of a node that is still referenced by an Io_handle */
 			node->mark_as_unlinked();
 
-			_try_complete_unlink(parent, *node);
+			_try_complete_unlink({ Cstring(path) }, parent, *node);
 
 			return UNLINK_OK;
 		}
@@ -912,32 +904,6 @@ class Vfs_ram::File_system : public Vfs::File_system
 			_env.env().ram().free(
 				static_cap_cast<Ram_dataspace>(ds_cap));
 		}
-
-		Watch_result watch(char const * const path, Vfs_watch_handle **handle,
-		                   Allocator &alloc) override
-		{
-			Node * const node = lookup(path);
-			if (!node)
-				return WATCH_ERR_UNACCESSIBLE;
-
-			try {
-				Watch_handle * const watch_handle = new(alloc)
-					Watch_handle(*this, alloc, *node);
-				node->open(*watch_handle);
-				*handle = watch_handle;
-				return WATCH_OK;
-			}
-			catch (Out_of_ram)  { return WATCH_ERR_OUT_OF_RAM;  }
-			catch (Out_of_caps) { return WATCH_ERR_OUT_OF_CAPS; }
-		}
-
-		void close(Vfs_watch_handle * const vfs_handle) override
-		{
-			Watch_handle * const watch_handle =
-				static_cast<Watch_handle *>(vfs_handle);
-			watch_handle->node.close(*watch_handle);
-			destroy(watch_handle->alloc(), watch_handle);
-		};
 
 
 		/************************
@@ -1004,7 +970,7 @@ class Vfs_ram::File_system : public Vfs::File_system
 			if (handle.modifying) {
 				handle.modifying = false;
 				handle.node.close(handle);
-				handle.node.notify();
+				_notify_watchers(handle.path.string());
 				handle.node.open(handle);
 			}
 			return SYNC_OK;

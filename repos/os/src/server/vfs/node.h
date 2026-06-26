@@ -52,6 +52,7 @@ namespace Vfs_server {
 	using Packet_descriptor = File_system::Packet_descriptor;
 
 	using Out_of_memory = Allocator::Out_of_memory;
+	using Watch_handle = File_system::Watch_handle;
 
 	struct Payload_ptr { char *ptr; };
 
@@ -505,7 +506,7 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 
 
 class Vfs_server::Watch_node final : public Vfs_server::Node_base,
-                                     public Vfs::Watch_response_handler
+                                     public Vfs::Watch_handle::Handler
 {
 	public:
 
@@ -522,35 +523,31 @@ class Vfs_server::Watch_node final : public Vfs_server::Node_base,
 		Watch_node(Watch_node const &);
 		Watch_node &operator = (Watch_node const &);
 
-		Vfs::Vfs_watch_handle &_watch_handle;
+		Vfs::Watch_handle _watch_handle;
 
 		Watch_node_response_handler &_watch_node_response_handler;
 
 	public:
 
 		Watch_node(Node_space                  &space,
+		           Vfs::Watch_handles          &handles,
+		           Vfs::File_system            &root_dir,
 		           char                  const *path,
-		           Vfs::Vfs_watch_handle       &handle,
 		           Watch_node_response_handler &watch_node_response_handler)
 		:
 			Node_base(space, path),
-			_watch_handle(handle),
+			_watch_handle(handles, root_dir, path, *this),
 			_watch_node_response_handler(watch_node_response_handler)
-		{
-			_watch_handle.handler(this);
-		}
+		{ }
 
-		~Watch_node()
-		{
-			_watch_handle.close();
-		}
+		Watch_result watch() { return _watch_handle.watch(); }
 
 
-		/*******************************************
-		 ** Vfs::Watch_response_handler interface **
-		 *******************************************/
+		/******************************************
+		 ** Vfs::Watch_handle::Handler interface **
+		 ******************************************/
 
-		void watch_response() override
+		void io_handle_watch() override
 		{
 			_acked_packet = Packet_descriptor(Packet_descriptor(),
 			                                  Node_handle { id().value },

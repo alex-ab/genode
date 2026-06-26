@@ -94,26 +94,6 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 			                                  size_t &out_count) = 0;
 		};
 
-		struct Fatfs_file_watch_handle : Vfs_watch_handle,  Fatfs_watch_handles::Element
-		{
-			File *file;
-
-			Fatfs_file_watch_handle(Vfs::File_system &fs,
-			                        Allocator        &alloc,
-			                        File             &file)
-			: Vfs_watch_handle(fs, alloc), file(&file) { }
-		};
-
-		struct Fatfs_dir_watch_handle : Vfs_watch_handle, Fatfs_dir_watch_handles::Element
-		{
-			Path const path;
-
-			Fatfs_dir_watch_handle(Vfs::File_system &fs,
-			                       Allocator        &alloc,
-			                       Path       const &path)
-			: Vfs_watch_handle(fs, alloc), path(path) { }
-		};
-
 		struct Fatfs_file_handle : Fatfs_handle, Fatfs_file_handles::Element
 		{
 			File *file = nullptr;
@@ -223,9 +203,6 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 
 		FATFS _fatfs;
 
-		/* List of all open directory handles */
-		Fatfs_dir_watch_handles _dir_watchers;
-
 		/* Tree of open FatFS file objects */
 		Avl_tree<File> _open_files;
 
@@ -246,8 +223,7 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 		 */
 		void _notify(File &file)
 		{
-			for (Fatfs_file_watch_handle *h = file.watchers.first(); h; h = h->next())
-				h->watch_response();
+			_parent_fs.notify_watchers(Span::from_cstring(file.path.base()));
 		}
 
 		/**
@@ -256,12 +232,8 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 		 */
 		void _notify_parent_of(char const *path)
 		{
-			Path parent(path);
-			parent.strip_last_element();
-
-			for (Fatfs_dir_watch_handle *h = _dir_watchers.first(); h; h = h->next())
-				if (h->path == parent)
-					h->watch_response();
+			with_compound_dir(Span::from_cstring(path), [&] (Span const &dir_path) {
+				_parent_fs.notify_watchers(dir_path); });
 		}
 
 		/**
@@ -296,13 +268,6 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				file.handles.remove(handle);
 			}
 
-			for (auto *handle = file.watchers.first();
-			     handle; handle = file.watchers.first())
-			{
-				handle->file = nullptr;
-				file.watchers.remove(handle);
-				handle->watch_response();
-			}
 			_close(file);
 		}
 
@@ -474,76 +439,6 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				}
 			}
 		}
-
-		Watch_result watch(char const      *path,
-		                   Vfs_watch_handle **handle,
-		                   Allocator        &alloc) override
-		{
-			/*
-			 * checking for the presence of an open file is
-			 * cheaper than calling dircetory and reading blocks
-			 */
-			File *file = _opened_file(path);
-
-			if (!file && directory(path)) {
-				auto *watch_handle = new (alloc)
-					Fatfs_dir_watch_handle(*this, alloc, path);
-				_dir_watchers.insert(watch_handle);
-				*handle = watch_handle;
-				return WATCH_OK;
-			} else {
-				if (!file) {
-					if (!_next_file)
-						_next_file = new (_vfs_env.alloc()) File();
-
-					file = _next_file;
-					FRESULT fres = f_open(
-						&file->fil, (TCHAR const *)path,
-						FA_READ | FA_WRITE | FA_OPEN_EXISTING);
-					if (fres != FR_OK) {
-						return WATCH_ERR_UNACCESSIBLE;
-					}
-
-					file->path.import(path);
-					_open_files.insert(file);
-					_next_file = nullptr;
-				}
-
-				auto *watch_handle = new (alloc)
-					Fatfs_file_watch_handle(*this, alloc, *file);
-				file->watchers.insert(watch_handle);
-				*handle = watch_handle;
-				return WATCH_OK;
-			}
-			return WATCH_ERR_UNACCESSIBLE;
-		}
-
-		void close(Vfs_watch_handle *vfs_handle) override
-		{
-			{
-				auto *handle =
-					dynamic_cast<Fatfs_file_watch_handle *>(vfs_handle);
-
-				if (handle) {
-					File *file = handle->file;
-					if (file)
-						file->watchers.remove(handle);
-					destroy(handle->alloc(), handle);
-					return;
-				}
-			}
-
-			{
-				auto *handle =
-					dynamic_cast<Fatfs_dir_watch_handle *>(vfs_handle);
-
-				if (handle) {
-					_dir_watchers.remove(handle);
-					destroy(handle->alloc(), handle);
-				}
-			}
-		}
-
 
 		Dataspace_capability dataspace(char const *path) override
 		{

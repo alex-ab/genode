@@ -18,7 +18,6 @@
 
 namespace Genode::Vfs {
 	class Vfs_handle;
-	class Vfs_watch_handle;
 	struct Directory_service;
 }
 
@@ -109,31 +108,22 @@ struct Genode::Vfs::Directory_service : Interface
 	 */
 	virtual void close(Vfs_handle *handle) = 0;
 
-	enum Watch_result
-	{
-		WATCH_ERR_UNACCESSIBLE,
-		WATCH_ERR_STATIC,
-		WATCH_ERR_OUT_OF_RAM,
-		WATCH_ERR_OUT_OF_CAPS,
-		WATCH_OK
-	};
+	/**
+	 * Subscribe to watch notifications for the given relative path
+	 *
+	 * The file system is expected to call 'Parent_dir::notify_watchers'
+	 * whenver the given file or directory is modified.
+	 *
+	 * If the file or directory exists at 'watch' time, 'notify_watchers'
+	 * is expected to be called immediately.
+	 */
+	virtual Watch_result watch(char const *) { return Ok(); }
 
 	/**
-	 * Watch a file-system node for changes.
+	 * Unsubscribe from watch notifications for the given relative path
 	 */
-	virtual Watch_result watch(char const *path,
-	                           Vfs_watch_handle**,
-	                           Allocator&)
-	{
-		/* default implementation for static file-systems */
-		return (dir_entry_exists(path)) ? WATCH_ERR_STATIC : WATCH_ERR_UNACCESSIBLE;
-	}
+	virtual void unwatch(char const *) { }
 
-	virtual void close(Vfs_watch_handle *)
-	{
-		error("watch handle closed at invalid file-system");
-		throw ~0;
-	};
 
 	/**********
 	 ** Stat **
