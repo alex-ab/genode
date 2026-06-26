@@ -36,6 +36,7 @@ namespace Genode {
 
 	int memcmp(void const *, void const *, size_t);
 	void *memcpy(void *, const void *, size_t);
+	size_t strlen(const char *);
 }
 
 
@@ -204,6 +205,8 @@ struct Genode::Span : Noncopyable
 	constexpr ~Span() { }
 
 	void print(Output &out) const { out.out_string(start, num_bytes); }
+
+	static Span from_cstring(char const *s) { return Span(s, strlen(s)); }
 };
 
 
