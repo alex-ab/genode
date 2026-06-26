@@ -144,9 +144,10 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 			}
 			timeout._mutex.release();
 		}
-		_set_time_source_timeout(_timeouts.first() ?
-			_timeouts.first()->_deadline.value - curr_time.trunc_to_plain_us().value :
-			~(uint64_t)0);
+
+		Duration const alarm_time { _timeouts.first() ? _timeouts.first()->_deadline
+		                                              : Microseconds(~(uint64_t)0) };
+		_time_source.set_alarm(alarm_time);
 	}
 	/* call the handler of each pending timeout */
 	while (List_element<Timeout> const *elem = pending_timeouts.first()) {
@@ -182,9 +183,7 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 
 Timeout_scheduler::Timeout_scheduler(Time_source  &time_source)
 : _time_source { time_source }
-{
-	_set_time_source_timeout(~(uint64_t)0);
-}
+{ }
 
 
 Timeout_scheduler::~Timeout_scheduler()
@@ -211,15 +210,6 @@ Timeout_scheduler::~Timeout_scheduler()
 		Mutex::Guard const timeout_guard { timeout->_mutex };
 		_discard_timeout_unsynchronized(*timeout);
 	}
-}
-
-
-void Timeout_scheduler::_set_time_source_timeout(uint64_t duration_us)
-{
-	if (duration_us > _max_sleep_time.value) {
-		duration_us = _max_sleep_time.value;
-	}
-	_time_source.set_timeout(Microseconds(duration_us));
 }
 
 
@@ -276,9 +266,8 @@ void Timeout_scheduler::_schedule_timeout(Timeout      &timeout,
 	 * If the new timeout is the first to trigger, we have to  update the
 	 * time-source timeout.
 	 */
-	if (_timeouts.first() == &timeout) {
-		_set_time_source_timeout(deadline_us - curr_time_us);
-	}
+	if (_timeouts.first() == &timeout)
+		_time_source.set_alarm(Duration(timeout._deadline));
 }
 
 

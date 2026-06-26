@@ -106,13 +106,21 @@ void Timer::Connection::_handle_timeout()
 }
 
 
-void Timer::Connection::set_timeout(Microseconds duration)
+void Timer::Connection::set_alarm(Duration deadline)
 {
+	Duration const now = curr_time();
 
-	if (duration.value > REAL_TIME_UPDATE_PERIOD_US)
-		duration.value = REAL_TIME_UPDATE_PERIOD_US;
+	/* trigger locally, if deadline already passed */
+	if (deadline.less_than(now)) {
+		_signal_handler.local_submit();
+		return;
+	}
 
-	trigger_once(duration.value);
+	uint64_t const adjusted_deadline =
+		min(deadline.trunc_to_plain_us().value,
+	      now.trunc_to_plain_us().value + REAL_TIME_UPDATE_PERIOD_US);
+
+	trigger_at(adjusted_deadline);
 }
 
 
@@ -140,5 +148,8 @@ Timeout_scheduler &Timer::Connection::_switch_to_timeout_framework_mode()
 	for (unsigned i = 0; i < NR_OF_INITIAL_CALIBRATIONS; i++) {
 		_update_real_time();
 	}
+
+	/* trigger periodic real-time-update */
+	trigger_at(_real_time.trunc_to_plain_us().value + REAL_TIME_UPDATE_PERIOD_US);
 	return *_timeout_scheduler;
 };

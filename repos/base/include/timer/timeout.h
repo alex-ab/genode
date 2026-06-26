@@ -62,16 +62,11 @@ struct Genode::Time_source : Interface
 	virtual Duration curr_time() = 0;
 
 	/**
-	 * Return the maximum timeout duration that the source can handle
-	 */
-	virtual Microseconds max_timeout() const = 0;
-
-	/**
-	 * Install a timeout, overrides the last timeout if any
+	 * Install an alarm, overrides the last timeout if any
 	 *
-	 * \param duration  timeout duration
+	 * \param deadline    absolute alarm time
 	 */
-	virtual void set_timeout(Microseconds duration) = 0;
+	virtual void set_alarm(Duration deadline) = 0;
 };
 
 
@@ -137,17 +132,12 @@ class Genode::Timeout_scheduler : private Noncopyable,
 
 	private:
 
-		static constexpr uint64_t max_sleep_time_us { 60'000'000 };
-
 		Mutex               _mutex              { };
 		Time_source        &_time_source;
-		Microseconds const  _max_sleep_time     { min(_time_source.max_timeout().value, max_sleep_time_us) };
 		List<Timeout>       _timeouts           { };
 		bool                _destructor_called  { false };
 
 		void _insert_into_timeouts_list(Timeout &timeout);
-
-		void _set_time_source_timeout(uint64_t duration_us);
 
 		void _schedule_timeout(Timeout      &timeout,
 		                       Microseconds  duration,
