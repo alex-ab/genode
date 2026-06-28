@@ -156,10 +156,12 @@ Launchpad_child *Launchpad::start_child(Launchpad_child::Name const &binary_name
 	Launchpad_child::Name const unique_name = _get_unique_child_name(binary_name);
 	log("using unique child name \"", unique_name, "\"");
 
-	if (ram_quota.value > _env.pd().avail_ram().value) {
+	Pd_session::Stats const stats = _env.pd().stats();
+
+	if (ram_quota.value > stats.ram.avail().value) {
 		warning("child's ram quota is higher than our available quota, using available quota");
 
-		size_t const avail     = _env.pd().avail_ram().value;
+		size_t const avail     = stats.ram.avail().value;
 		size_t const preserved = 256*1024;
 
 		if (avail < preserved) {
@@ -169,7 +171,7 @@ Launchpad_child *Launchpad::start_child(Launchpad_child::Name const &binary_name
 		ram_quota = Ram_quota { avail - preserved };
 	}
 
-	size_t const avail_caps = _env.pd().avail_caps().value;
+	size_t const avail_caps = stats.caps.avail().value;
 
 	if (cap_quota.value > avail_caps) {
 		warning("child's cap quota (", cap_quota.value, ") exceeds the "

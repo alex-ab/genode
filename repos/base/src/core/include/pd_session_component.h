@@ -309,24 +309,18 @@ class Core::Pd_session_component : public Session_object<Pd_session>
 		Transfer_result transfer_quota(Capability<Pd_account>, Cap_quota) override;
 		Transfer_result transfer_quota(Capability<Pd_account>, Ram_quota) override;
 
-		Cap_quota cap_quota() const override
+		Stats stats() const override
 		{
-			return _cap_account.constructed() ? _cap_account->limit() : Cap_quota { 0 };
-		}
-
-		Cap_quota used_caps() const override
-		{
-			return _cap_account.constructed() ? _cap_account->used() : Cap_quota { 0 };
-		}
-
-		Ram_quota ram_quota() const override
-		{
-			return _ram_account.constructed() ? _ram_account->limit() : Ram_quota { 0 };
-		}
-
-		Ram_quota used_ram() const override
-		{
-			return _ram_account.constructed() ? _ram_account->used() : Ram_quota { 0 };
+			return {
+				.ram = _ram_account.constructed()
+					? Stats::Budget<Ram_quota> { .limit = _ram_account->limit(),
+					                              .used  = _ram_account->used() }
+					: Stats::Budget<Ram_quota> { },
+				.caps = _cap_account.constructed()
+					? Stats::Budget<Cap_quota> { .limit = _cap_account->limit(),
+					                             .used  = _cap_account->used() }
+					: Stats::Budget<Cap_quota> { }
+				};
 		}
 
 

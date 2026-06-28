@@ -28,7 +28,8 @@ namespace Test {
 
 static void print_quota_stats(Genode::Pd_session &pd)
 {
-	Genode::log("quota: avail=", pd.avail_ram().value, " used=", pd.used_ram().value);
+	Genode::Pd_session::Stats s = pd.stats();
+	Genode::log("quota: avail=", s.ram.avail().value, " used=", s.ram.used.value);
 }
 
 
@@ -158,7 +159,7 @@ void Component::construct(Genode::Env &env)
 	 * Consume initial quota to let the test trigger the corner cases of
 	 * exceeded quota.
 	 */
-	size_t const avail_quota = env.pd().avail_ram().value;
+	size_t const avail_quota = env.pd().stats().ram.avail().value;
 	enum { KEEP_QUOTA = 64*1024 };
 	size_t const wasted_quota = (avail_quota >= KEEP_QUOTA)
 	                          ?  avail_quota -  KEEP_QUOTA : 0;
@@ -192,7 +193,7 @@ void Component::construct(Genode::Env &env)
 			dummy_handlers[i].destruct();
 	}
 	print_quota_stats(env.pd());
-	size_t const used_quota_after_draining_session = env.pd().used_ram().value;
+	size_t const used_quota_after_draining_session = env.pd().stats().ram.used.value;
 
 	/*
 	 * When creating a new session, we try to donate RAM quota to the server.
@@ -203,7 +204,7 @@ void Component::construct(Genode::Env &env)
 	static Pd_connection pd(env);
 	pd.ref_account(env.pd_session_cap());
 	print_quota_stats(env.pd());
-	size_t const used_quota_after_session_request = env.pd().used_ram().value;
+	size_t const used_quota_after_session_request = env.pd().stats().ram.used.value;
 
 	/*
 	 * Quota transfers from the component's RAM session may result in resource
@@ -212,7 +213,7 @@ void Component::construct(Genode::Env &env)
 	log("\n-- out-of-memory during transfer-quota --");
 	env.pd().transfer_quota(pd.cap(), Ram_quota{512*1024});
 	print_quota_stats(env.pd());
-	size_t const used_quota_after_transfer = env.pd().used_ram().value;
+	size_t const used_quota_after_transfer = env.pd().stats().ram.used.value;
 
 	/*
 	 * Finally, resource requests could be caused by a regular allocation,
@@ -221,7 +222,7 @@ void Component::construct(Genode::Env &env)
 	log("\n-- out-of-memory during RAM allocation --");
 	env.ram().alloc(512*1024);
 	print_quota_stats(env.pd());
-	size_t const used_quota_after_alloc = env.pd().used_ram().value;
+	size_t const used_quota_after_alloc = env.pd().stats().ram.used.value;
 
 	/*
 	 * Validate asserted effect of the individual steps on the used quota.

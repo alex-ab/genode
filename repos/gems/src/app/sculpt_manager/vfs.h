@@ -106,7 +106,7 @@ struct Sculpt::Vfs
 
 		if (file_size == 0) return;
 
-		if (file_size + 512*1024 > _env.pd().avail_ram().value) {
+		if (file_size + 512*1024 > _env.pd().stats().ram.avail().value) {
 			error("refusing to copy file '", from, "' (", file_size, " bytes)");
 			return;
 		}

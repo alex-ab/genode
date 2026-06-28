@@ -44,9 +44,9 @@ void Component::construct(Genode::Env &env)
 	log("attach operation succeeded");
 
 	log("free dataspace from legitimate RAM session");
-	Ram_quota const quota_before_free { pd_1.avail_ram() };
+	Ram_quota const quota_before_free { pd_1.stats().ram.avail() };
 	ram_1.free(ds);
-	Ram_quota const quota_after_free { pd_1.avail_ram() };
+	Ram_quota const quota_after_free { pd_1.stats().ram.avail() };
 
 	if (quota_after_free.value > quota_before_free.value)
 		log("test succeeded");

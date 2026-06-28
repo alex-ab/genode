@@ -72,8 +72,7 @@ struct Genode::Pd_session_client : Rpc_client<Pd_session>
 		return call<Rpc_transfer_cap_quota>(pd, amount);
 	}
 
-	Cap_quota cap_quota() const override { return call<Rpc_cap_quota>(); }
-	Cap_quota used_caps() const override { return call<Rpc_used_caps>(); }
+	Stats stats() const override { return call<Rpc_stats>(); }
 
 	Alloc_ram_result alloc_ram(size_t size, Cache cache = CACHED) override
 	{
@@ -92,9 +91,6 @@ struct Genode::Pd_session_client : Rpc_client<Pd_session>
 	{
 		return call<Rpc_transfer_ram_quota>(pd, amount);
 	}
-
-	Ram_quota ram_quota() const override { return call<Rpc_ram_quota>(); }
-	Ram_quota used_ram()  const override { return call<Rpc_used_ram>(); }
 
 	Capability<Native_pd> native_pd() override { return call<Rpc_native_pd>(); }
 

@@ -25,8 +25,7 @@
 struct Genode::Sandbox::Library : ::Sandbox::State_reporter::Producer,
                                   ::Sandbox::Child::Default_route_accessor,
                                   ::Sandbox::Child::Default_quota_accessor,
-                                  ::Sandbox::Child::Ram_limit_accessor,
-                                  ::Sandbox::Child::Cap_limit_accessor,
+                                  ::Sandbox::Child::Quota_limit_accessor,
                                   ::Sandbox::Start_model::Factory,
                                   ::Sandbox::Parent_provides_model::Factory,
                                   ::Sandbox::Child::Heartbeat_alarm_trigger
@@ -45,6 +44,8 @@ struct Genode::Sandbox::Library : ::Sandbox::State_reporter::Producer,
 	using Prio_levels    = ::Sandbox::Prio_levels;
 	using Ram_info       = ::Sandbox::Ram_info;
 	using Cap_info       = ::Sandbox::Cap_info;
+	using Default_quota  = ::Sandbox::Default_quota;
+	using Quota_limit    = ::Sandbox::Quota_limit;
 	using Config_model   = ::Sandbox::Config_model;
 	using Start_model    = ::Sandbox::Start_model;
 	using Preservation   = ::Sandbox::Preservation;
@@ -65,8 +66,7 @@ struct Genode::Sandbox::Library : ::Sandbox::State_reporter::Producer,
 	Reconstructible<Verbose>       _verbose        { };
 	Config_model::Version          _version        { };
 	Constructible<Buffered_node>   _default_route  { };
-	Cap_quota                      _default_caps   { 0 };
-	Ram_quota                      _default_ram    { 0 };
+	Default_quota                  _default_quota  { };
 	Prio_levels                    _prio_levels    { };
 	Constructible<Affinity::Space> _affinity_space { };
 	Preservation                   _preservation   { };
@@ -94,44 +94,37 @@ struct Genode::Sandbox::Library : ::Sandbox::State_reporter::Producer,
 
 	unsigned _child_cnt = 0;
 
-	Ram_quota _avail_ram() const
-	{
-		Ram_quota avail_ram = _env.pd().avail_ram();
+	struct Avail { Ram_quota ram; Cap_quota caps; };
 
-		if (_preservation.ram.value > avail_ram.value) {
-			error("RAM preservation exceeds available memory");
-			return Ram_quota { 0 };
-		}
+	Avail _avail() const
+	{
+		Pd_session::Stats const stats = _env.pd().stats();
 
 		/* deduce preserved quota from available quota */
-		return Ram_quota { avail_ram.value - _preservation.ram.value };
-	}
+		auto without_preserved = [&] (auto const &r, auto const preserved)
+		{
+			auto const avail = r.avail().value;
+			using Quota = decltype(r.limit);
+			return preserved <= avail ? Quota { avail - preserved } : Quota { };
+		};
 
-	Cap_quota _avail_caps() const
-	{
-		Cap_quota avail_caps { _env.pd().avail_caps().value };
+		Ram_quota const ram  = without_preserved(stats.ram,  _preservation.ram.value);
+		Cap_quota const caps = without_preserved(stats.caps, _preservation.caps.value);
 
-		if (_preservation.caps.value > avail_caps.value) {
-			error("Capability preservation exceeds available capabilities");
-			return Cap_quota { 0 };
-		}
+		if (ram.value  == 0) error("RAM preservation exceeds available memory");
+		if (caps.value == 0) error("Capability preservation exceeds available capabilities");
 
-		/* deduce preserved quota from available quota */
-		return Cap_quota { avail_caps.value - _preservation.caps.value };
+		return { .ram = ram, .caps = caps };
 	}
 
 	/**
 	 * Child::Ram_limit_accessor interface
 	 */
-	Ram_quota resource_limit(Ram_quota const &) const override
+	Quota_limit quota_limit() const override
 	{
-		return _avail_ram();
+		Avail const avail = _avail();
+		return { avail.ram, avail.caps };
 	}
-
-	/**
-	 * Child::Cap_limit_accessor interface
-	 */
-	Cap_quota resource_limit(Cap_quota const &) const override { return _avail_caps(); }
 
 	/**
 	 * State_reporter::Producer interface
@@ -139,11 +132,12 @@ struct Genode::Sandbox::Library : ::Sandbox::State_reporter::Producer,
 	void produce_state_report(Generator &g, Report_detail const &detail) const override
 	{
 		g.tabular([&] {
+			Pd_session::Stats const stats = _env.pd().stats();
 			if (detail.init_ram())
-				g.node("ram",  [&] () { Ram_info::from_pd(_env.pd()).generate(g); });
+				g.node("ram",  [&] () { Ram_info::from_pd_stats(stats).generate(g); });
 
 			if (detail.init_caps())
-				g.node("caps", [&] () { Cap_info::from_pd(_env.pd()).generate(g); });
+				g.node("caps", [&] () { Cap_info::from_pd_stats(stats).generate(g); });
 		});
 
 		if (detail.children())
@@ -170,8 +164,7 @@ struct Genode::Sandbox::Library : ::Sandbox::State_reporter::Producer,
 	/**
 	 * Default_quota_accessor interface
 	 */
-	Cap_quota default_caps() override { return _default_caps; }
-	Ram_quota default_ram()  override { return _default_ram;  }
+	Default_quota default_quota() override { return _default_quota; }
 
 	void _update_aliases_from_config(Node const &);
 	void _update_parent_services_from_config(Node const &);
@@ -367,7 +360,7 @@ bool Genode::Sandbox::Library::ready_to_create_child(Start_model::Name    const 
 		Child &child = *new (_heap)
 			Child(_env, _heap, *_verbose,
 			      Child::Id { ++_child_cnt }, _state_reporter, *this,
-			      start_node, *this, *this, _children, *this, *this,
+			      start_node, *this, *this, _children, *this,
 			      _prio_levels, _effective_affinity_space(),
 			      _parent_services, _child_services, _local_services,
 			      _pd_intrinsics);
@@ -430,8 +423,7 @@ void Genode::Sandbox::Library::apply_config(Node const &config)
 	                               _version,
 	                               _preservation,
 	                               _default_route,
-	                               _default_caps,
-	                               _default_ram,
+	                               _default_quota,
 	                               _prio_levels,
 	                               _affinity_space,
 	                               *this, *this, _server,

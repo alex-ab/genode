@@ -98,7 +98,7 @@ void Test::Child::_handle_periodic_timeout()
 {
 	size_t const chunk_size = 1024*1024;
 
-	if (_env.pd().avail_ram().value < chunk_size) {
+	if (_env.pd().stats().ram.avail().value < chunk_size) {
 
 		if (_expand) {
 			log("quota consumed, request additional resources");
@@ -196,8 +196,9 @@ class Test::Parent
 		void _print_status()
 		{
 			_child.with_pd([&] (Pd_session &pd) {
-				log("quota: ", pd.ram_quota().value / 1024, " KiB  "
-				    "used: ",  pd.used_ram().value  / 1024, " KiB");
+				Pd_session::Stats const stats = pd.stats();
+				log("quota: ", stats.ram.limit.value / 1024, " KiB  "
+				    "used: ",  stats.ram.used.value  / 1024, " KiB");
 			}, [&] { });
 		}
 
@@ -230,7 +231,7 @@ class Test::Parent
 		{
 			/* remember quantum of resources used by the child */
 			_child.with_pd([&] (Pd_session &pd) {
-				_used_ram_prior_yield = pd.used_ram().value; }, [&] { });
+				_used_ram_prior_yield = pd.stats().ram.used.value; }, [&] { });
 
 			log("request yield (ram prior yield: ", _used_ram_prior_yield);
 
@@ -261,7 +262,7 @@ class Test::Parent
 
 			/* validate that the amount of yielded resources matches the request */
 			_child.with_pd([&] (Pd_session &pd) {
-				size_t const used_after_yield = pd.used_ram().value;
+				size_t const used_after_yield = pd.stats().ram.used.value;
 				if (used_after_yield + 5*1024*1024 > _used_ram_prior_yield) {
 					error("child has not yielded enough resources");
 					throw Insufficient_yield();

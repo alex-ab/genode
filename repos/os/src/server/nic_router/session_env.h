@@ -38,8 +38,10 @@ class Genode::Session_env : public Ram_allocator,
 		{
 			size_t const max_ram_consumpt { own_ram + max_shared_ram };
 			size_t const max_cap_consumpt { own_cap + max_shared_cap };
-			size_t ram_consumpt { _env.pd().used_ram().value };
-			size_t cap_consumpt { _env.pd().used_caps().value };
+
+			Pd_session::Stats stats = _env.pd().stats();
+			size_t ram_consumpt { stats.ram .used.value };
+			size_t cap_consumpt { stats.caps.used.value };
 
 			_ram_guard.reserve(Ram_quota{max_ram_consumpt}).with_result(
 				[&] (Ram_quota_guard::Reservation &reserved_ram) {
@@ -53,8 +55,9 @@ class Genode::Session_env : public Ram_allocator,
 				},
 				[&] (Ram_quota_guard::Error) { throw Out_of_ram(); });
 
-			ram_consumpt = _env.pd().used_ram().value  - ram_consumpt;
-			cap_consumpt = _env.pd().used_caps().value - cap_consumpt;
+			stats = _env.pd().stats();
+			ram_consumpt = stats.ram .used.value - ram_consumpt;
+			cap_consumpt = stats.caps.used.value - cap_consumpt;
 
 			if (ram_consumpt > max_ram_consumpt) {
 				error("Session_env: more RAM quota consumed than expected"); }
@@ -76,11 +79,13 @@ class Genode::Session_env : public Ram_allocator,
 		                size_t      accounted_cap,
 		                auto const &functor)
 		{
-			size_t ram_replenish { _env.pd().used_ram().value };
-			size_t cap_replenish { _env.pd().used_caps().value };
+			Pd_session::Stats stats = _env.pd().stats();
+			size_t ram_replenish { stats.ram .used.value };
+			size_t cap_replenish { stats.caps.used.value };
 			functor();
-			ram_replenish = ram_replenish - _env.pd().used_ram().value;
-			cap_replenish = cap_replenish - _env.pd().used_caps().value;
+			stats = _env.pd().stats();
+			ram_replenish = ram_replenish - stats.ram .used.value;
+			cap_replenish = cap_replenish - stats.caps.used.value;
 
 			if (ram_replenish < accounted_ram) {
 				error("Session_env: less RAM quota replenished than expected"); }

@@ -127,7 +127,7 @@ struct Framebuffer::Session_component : Genode::Rpc_object<Framebuffer::Session>
 		/* calculation in bytes */
 		size_t const used      = _buffer_num_bytes,
 		             needed    = Gui::Session::ram_quota(mode),
-		             usable    = _pd.avail_ram().value,
+		             usable    = _pd.stats().ram.avail().value,
 		             preserved = 64*1024;
 
 		return used + usable > needed + preserved;

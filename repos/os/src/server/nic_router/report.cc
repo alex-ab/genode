@@ -54,14 +54,15 @@ void Net::Report::generate() const
 {
 	Reporter::Result const result = _reporter.generate([&] (Generator &g) {
 		if (_quota) {
+			Pd_session::Stats const stats = _pd.stats();
 			g.node("ram", [&] {
-				g.attribute("quota",  _pd.ram_quota().value);
-				g.attribute("used",   _pd.used_ram().value);
+				g.attribute("quota",  stats.ram.limit.value);
+				g.attribute("used",   stats.ram.used.value);
 				g.attribute("shared", _shared_quota.ram);
 			});
 			g.node("cap", [&] {
-				g.attribute("quota",  _pd.cap_quota().value);
-				g.attribute("used",   _pd.used_caps().value);
+				g.attribute("quota",  stats.caps.limit.value);
+				g.attribute("used",   stats.caps.used.value);
 				g.attribute("shared", _shared_quota.cap);
 			});
 		}

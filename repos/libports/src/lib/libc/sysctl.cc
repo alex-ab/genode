@@ -53,7 +53,7 @@ extern "C" long sysconf(int name)
 	case _SC_OPEN_MAX:         return getdtablesize();
 	case _SC_PAGESIZE:         return PAGESIZE;
 	case _SC_PHYS_PAGES:
-		return _global_env->pd().ram_quota().value / PAGESIZE;
+		return _global_env->pd().stats().ram.limit.value / PAGESIZE;
 	case _SC_NPROCESSORS_CONF:
 		[[fallthrough]];
 	case _SC_NPROCESSORS_ONLN: {
@@ -104,10 +104,10 @@ extern "C" int __sysctl(const int *name, u_int namelen,
 			case HW_USERMEM:
 				switch (*oldlenp) {
 				case 4:
-					*(Genode::int32_t*)oldp = _global_env->pd().ram_quota().value;
+					*(Genode::int32_t*)oldp = _global_env->pd().stats().ram.limit.value;
 					break;
 				case 8:
-					*(Genode::int64_t*)oldp = _global_env->pd().ram_quota().value;
+					*(Genode::int64_t*)oldp = _global_env->pd().stats().ram.limit.value;
 					break;
 				default:
 					return Errno(EINVAL);

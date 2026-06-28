@@ -399,11 +399,12 @@ void Cpu::Balancer::handle_timeout()
 			if (result.ok())
 				break;
 
-			if ((i + 1) % 5 == 0 || env.pd().avail_ram().value < 8192)
+			Pd_session::Stats const stats = env.pd().stats();
+			if ((i + 1) % 5 == 0 || stats.ram.avail().value < 8192)
 				Genode::warning(i, ". attempt to extend report "
-				                "size, ram_avail=", env.pd().avail_ram());
+				                "size, ram_avail=", stats.ram.avail());
 
-			if (env.pd().avail_ram().value < 8192) {
+			if (stats.ram.avail().value < 8192) {
 				Genode::error("not enough memory for report");
 				break;
 			}

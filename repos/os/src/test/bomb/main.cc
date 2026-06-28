@@ -190,8 +190,10 @@ struct Bomb
 
 	void construct_children()
 	{
+		Pd_session::Stats const stats = env.pd().stats();
+
 		size_t const preserved_ram = Pd_connection::RAM_QUOTA;
-		size_t const avail_ram     = env.pd().avail_ram().value;
+		size_t const avail_ram     = stats.ram.avail().value;
 
 		if (avail_ram < preserved_ram + ram_demand) {
 			error("RAM demand exceeds available RAM");
@@ -206,7 +208,7 @@ struct Bomb
 			return;
 		}
 
-		size_t const avail_caps     = env.pd().avail_caps().value;
+		size_t const avail_caps     = stats.caps.avail().value;
 		size_t const preserved_caps = children*30;
 
 		if (avail_caps < preserved_caps) {

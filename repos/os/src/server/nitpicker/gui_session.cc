@@ -415,7 +415,7 @@ Dataspace_capability Gui_session::realloc_buffer(Framebuffer::Mode mode)
 
 	enum { PRESERVED_RAM = 128*1024 };
 	bool const preserve_content =
-		(_env.pd().avail_ram().value > next_buffer_size.value + PRESERVED_RAM);
+		(_env.pd().stats().ram.avail().value > next_buffer_size.value + PRESERVED_RAM);
 
 	if (!preserve_content) {
 		warning("not enough RAM to preserve buffer content during resize");

@@ -181,11 +181,13 @@ struct Sequence::Child : Genode::Child_policy
 
 		Pd_session_capability pd_cap = _child.pd_session_cap();
 
+		Pd_session::Stats const stats = _env.pd().stats();
+
 		/* XXX: pretty simplistic math here */
 
 		if (ram.value) {
-			Ram_quota avail = _env.pd().avail_ram();
-			if (avail.value > ram.value) {
+			Ram_quota avail = stats.ram.avail();
+			if (stats.ram.avail().value > ram.value) {
 				ref_account().transfer_quota(pd_cap, ram);
 			} else {
 				ref_account().transfer_quota(pd_cap, Ram_quota{avail.value >> 1});
@@ -194,7 +196,7 @@ struct Sequence::Child : Genode::Child_policy
 		}
 
 		if (caps.value) {
-			Cap_quota avail = _env.pd().avail_caps();
+			Cap_quota avail = stats.caps.avail();
 			if (avail.value > caps.value) {
 				ref_account().transfer_quota(pd_cap, caps);
 			} else {
@@ -214,8 +216,10 @@ struct Sequence::Child : Genode::Child_policy
 	{
 		pd.ref_account(ref_account_cap());
 
-		Cap_quota caps = _env.pd().avail_caps();
-		Ram_quota ram  = _env.pd().avail_ram();
+		Pd_session::Stats const stats = _env.pd().stats();
+
+		Cap_quota caps = stats.caps.avail();
+		Ram_quota ram  = stats.ram.avail();
 
 		size_t const preserved_caps = 50, preserved_ram = 1*1024*1024;
 

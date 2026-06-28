@@ -321,7 +321,7 @@ void Terminal::Main::_handle_config()
 			                             : 0,
 			             preserved_bytes = 32*1024,
 			             needed_bytes    = snapshot_bytes + preserved_bytes,
-			             avail_bytes     = _env.pd().avail_ram().value;
+			             avail_bytes     = _env.pd().stats().ram.avail().value;
 
 			bool const preserve_content = (needed_bytes < avail_bytes);
 

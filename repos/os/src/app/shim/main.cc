@@ -49,10 +49,10 @@ class Shim::Main : public Child_policy
 		Cap_quota const _preserved_caps { Child::env_cap_quota().value + 10 };
 		Ram_quota const _preserved_ram  { Child::env_ram_quota().value + 256*1024 };
 
-		Cap_quota const _cap_quota = _forwarded_quota(_env.pd().avail_caps(),
+		Cap_quota const _cap_quota = _forwarded_quota(_env.pd().stats().caps.avail(),
 		                                              _preserved_caps);
 
-		Ram_quota const _ram_quota = _forwarded_quota(_env.pd().avail_ram(),
+		Ram_quota const _ram_quota = _forwarded_quota(_env.pd().stats().ram.avail(),
 		                                              _preserved_ram);
 
 		Parent_services _parent_services { };

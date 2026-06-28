@@ -361,7 +361,14 @@ struct Cached_fs_rom::Main final : Session_request_handler
 			File_system::Handle_guard guard(fs, handle);
 			File_system::file_size_t file_size = fs.status(handle).size;
 
-			while (env.pd().avail_ram().value < file_size || env.pd().avail_caps().value < 8) {
+			auto ram_or_caps_exhausted = [&]
+			{
+				Pd_session::Stats const stats = env.pd().stats();
+				return stats.ram .avail().value < file_size
+				    || stats.caps.avail().value < 8;
+			};
+
+			while (ram_or_caps_exhausted()) {
 				/* drop unused cache entries */
 				if (!cache_evict()) break;
 			}

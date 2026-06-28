@@ -63,22 +63,13 @@ class Sandbox::Child : Child_policy, Routed_service::Wakeup
 
 		struct Default_quota_accessor : Interface
 		{
-			virtual Cap_quota default_caps() = 0;
-			virtual Ram_quota default_ram()  = 0;
+			virtual Default_quota default_quota() = 0;
 		};
 
-		template <typename QUOTA>
-		struct Resource_limit_accessor : Interface
+		struct Quota_limit_accessor : Interface
 		{
-			/*
-			 * The argument is unused. It exists solely as an overload selector.
-			 */
-			virtual QUOTA resource_limit(QUOTA const &) const = 0;
+			virtual Quota_limit quota_limit() const = 0;
 		};
-
-		using Ram_limit_accessor = Resource_limit_accessor<Ram_quota>;
-		using Cap_limit_accessor = Resource_limit_accessor<Cap_quota>;
-		using Cpu_limit_accessor = Resource_limit_accessor<Cpu_quota>;
 
 		enum class Sample_state_result { CHANGED, UNCHANGED };
 
@@ -171,8 +162,7 @@ class Sandbox::Child : Child_policy, Routed_service::Wakeup
 
 		Default_route_accessor &_default_route_accessor;
 		Default_quota_accessor &_default_quota_accessor;
-		Ram_limit_accessor     &_ram_limit_accessor;
-		Cap_limit_accessor     &_cap_limit_accessor;
+		Quota_limit_accessor   &_quota_limit_accessor;
 
 		Name_registry &_name_registry;
 
@@ -250,47 +240,47 @@ class Sandbox::Child : Child_policy, Routed_service::Wakeup
 			long      prio_levels_log2;
 			long      priority;
 			Affinity  affinity;
-			Ram_quota assigned_ram_quota;
-			Cap_quota assigned_cap_quota;
 
-			Ram_quota effective_ram_quota() const
+			Assigned_quota assigned_quota;
+
+			Assigned_quota effective_quota() const
 			{
-				return Genode::Child::effective_quota(assigned_ram_quota);
-			}
+				auto effective_cap_quota = [&]
+				{
+					/* capabilities consumed by 'Genode::Child' */
+					Cap_quota const effective =
+						Genode::Child::effective_quota(assigned_quota.caps);
 
-			Cap_quota effective_cap_quota() const
-			{
-				/* capabilities consumed by 'Genode::Child' */
-				Cap_quota const effective =
-					Genode::Child::effective_quota(assigned_cap_quota);
+					/* capabilities additionally consumed by init */
+					enum {
+						STATIC_COSTS = 1  /* possible heap backing-store
+						                     allocation for session object */
+						             + 1  /* buffered start node */
+						             + 2  /* dynamic ROM for config */
+						             + 2  /* dynamic ROM for session requester */
+					};
 
-				/* capabilities additionally consumed by init */
-				enum {
-					STATIC_COSTS = 1  /* possible heap backing-store
-					                     allocation for session object */
-					             + 1  /* buffered start node */
-					             + 2  /* dynamic ROM for config */
-					             + 2  /* dynamic ROM for session requester */
+					if (effective.value < STATIC_COSTS)
+						return Cap_quota{0};
+
+					return Cap_quota{effective.value - STATIC_COSTS};
 				};
 
-				if (effective.value < STATIC_COSTS)
-					return Cap_quota{0};
-
-				return Cap_quota{effective.value - STATIC_COSTS};
+				return { .ram  = Genode::Child::effective_quota(assigned_quota.ram),
+				         .caps = effective_cap_quota() };
 			}
 		};
 
 		static
 		Resources _resources_from_start_node(Node const &start_node, Prio_levels prio_levels,
 		                                     Affinity::Space const &affinity_space,
-		                                     Cap_quota default_cap_quota,
-		                                     Ram_quota default_ram_quota)
+		                                     Default_quota const default_quota)
 		{
-			Number_of_bytes const default_ram { default_ram_quota.value };
+			Number_of_bytes const default_ram { default_quota.ram.value };
 
 			Number_of_bytes ram { start_node.attribute_value("ram", default_ram) };
 
-			size_t caps { start_node.attribute_value("caps", default_cap_quota.value) };
+			size_t caps { start_node.attribute_value("caps", default_quota.caps.value) };
 
 			start_node.for_each_sub_node("resource", [&] (Node const &rsc) {
 
@@ -311,8 +301,7 @@ class Sandbox::Child : Child_policy, Routed_service::Wakeup
 
 		Resources _resources;
 
-		Ram_quota _configured_ram_quota() const;
-		Cap_quota _configured_cap_quota() const;
+		Configured_quota _configured_quota() const;
 
 		Pd_intrinsics &_pd_intrinsics;
 
@@ -534,10 +523,10 @@ class Sandbox::Child : Child_policy, Routed_service::Wakeup
 			Ram_info ram;
 			Cap_info caps;
 
-			static Sampled_state from_pd(Pd_session &pd)
+			static Sampled_state from_pd_stats(Pd_session::Stats const &s)
 			{
-				return { .ram  = Ram_info::from_pd(pd),
-				         .caps = Cap_info::from_pd(pd) };
+				return { .ram  = Ram_info::from_pd_stats(s),
+				         .caps = Cap_info::from_pd_stats(s) };
 			}
 
 			bool operator != (Sampled_state const &other) const
@@ -586,8 +575,7 @@ class Sandbox::Child : Child_policy, Routed_service::Wakeup
 		      Default_route_accessor   &default_route_accessor,
 		      Default_quota_accessor   &default_quota_accessor,
 		      Name_registry            &name_registry,
-		      Ram_limit_accessor       &ram_limit_accessor,
-		      Cap_limit_accessor       &cap_limit_accessor,
+		      Quota_limit_accessor     &quota_limit_accessor,
 		      Prio_levels               prio_levels,
 		      Affinity::Space const    &affinity_space,
 		      Registry<Parent_service> &parent_services,
@@ -604,8 +592,7 @@ class Sandbox::Child : Child_policy, Routed_service::Wakeup
 
 		bool has_version(Version const &version) const { return version == _version; }
 
-		Ram_quota ram_quota() const { return _resources.assigned_ram_quota; }
-		Cap_quota cap_quota() const { return _resources.assigned_cap_quota; }
+		Assigned_quota assigned_quota() const { return _resources.assigned_quota; }
 
 		void try_start()
 		{
@@ -675,12 +662,12 @@ class Sandbox::Child : Child_policy, Routed_service::Wakeup
 		void evaluate_dependencies();
 
 		/* common code for upgrading RAM and caps */
-		template <typename QUOTA, typename LIMIT_ACCESSOR>
-		void _apply_resource_upgrade(QUOTA &, QUOTA, LIMIT_ACCESSOR const &);
+		void _apply_resource_upgrade(Assigned_quota &, Configured_quota,
+		                             Quota_limit_accessor const &);
 
-		template <typename QUOTA, typename CHILD_AVAIL_QUOTA_FN>
-		void _apply_resource_downgrade(QUOTA &, QUOTA, QUOTA,
-                                       CHILD_AVAIL_QUOTA_FN const &);
+		void _apply_resource_downgrade(Assigned_quota &,
+		                               Configured_quota, Preserved_quota,
+		                               Pd_session::Stats);
 
 		void apply_upgrade();
 		void apply_downgrade();

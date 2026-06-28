@@ -225,11 +225,7 @@ struct Monitor::Inferior_pd : Monitored_pd_session
 
 	Capability<Region_map> linker_area()   override { return _linker_area.cap(); }
 
-	Cap_quota cap_quota() const override {
-		return _real.call<Rpc_cap_quota>(); }
-
-	Cap_quota used_caps() const override {
-		return _real.call<Rpc_used_caps>(); }
+	Stats stats() const override { return _real.call<Rpc_stats>(); }
 
 	Alloc_ram_result alloc_ram(size_t size, Cache cache = CACHED) override
 	{
@@ -258,12 +254,6 @@ struct Monitor::Inferior_pd : Monitored_pd_session
 	{
 		return _real.call<Rpc_ram_size>(ds);
 	}
-
-	Ram_quota ram_quota() const override {
-		return _real.call<Rpc_ram_quota>(); }
-
-	Ram_quota used_ram()  const override {
-		return _real.call<Rpc_used_ram>(); }
 
 	Capability<Native_pd> native_pd() override {
 		return _real.call<Rpc_native_pd>(); }

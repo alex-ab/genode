@@ -42,7 +42,7 @@ namespace Sandbox {
 	{
 		T quota, used, avail;
 
-		static Resource_info from_pd(Pd_session const &pd);
+		static Resource_info from_pd_stats(Pd_session::Stats const &stats);
 
 		void generate(Generator &g) const
 		{
@@ -64,20 +64,26 @@ namespace Sandbox {
 	using Cap_info = Resource_info<Cap_quota>;
 
 	template <>
-	inline Ram_info Ram_info::from_pd(Pd_session const &pd)
+	inline Ram_info Ram_info::from_pd_stats(Pd_session::Stats const &stats)
 	{
-		return { .quota = pd.ram_quota(),
-		         .used  = pd.used_ram(),
-		         .avail = pd.avail_ram() };
+		return { .quota = stats.ram.limit,
+		         .used  = stats.ram.used,
+		         .avail = stats.ram.avail() };
 	}
 
 	template <>
-	inline Cap_info Cap_info::from_pd(Pd_session const &pd)
+	inline Cap_info Cap_info::from_pd_stats(Pd_session::Stats const &stats)
 	{
-		return { .quota = pd.cap_quota(),
-		         .used  = pd.used_caps(),
-		         .avail = pd.avail_caps() };
+		return { .quota = stats.caps.limit,
+		         .used  = stats.caps.used,
+		         .avail = stats.caps.avail() };
 	}
+
+	struct Default_quota    { Ram_quota ram; Cap_quota caps; };
+	struct Configured_quota { Ram_quota ram; Cap_quota caps; };
+	struct Assigned_quota   { Ram_quota ram; Cap_quota caps; };
+	struct Preserved_quota  { Ram_quota ram; Cap_quota caps; };
+	struct Quota_limit      { Ram_quota ram; Cap_quota caps; };
 
 	struct Preservation : private Noncopyable
 	{

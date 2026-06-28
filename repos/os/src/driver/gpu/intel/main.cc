@@ -100,7 +100,7 @@ struct Igd::Device
 						return true;
 					}, [&] (auto error) {
 						if (error == decltype(error)::OUT_OF_CAPS) {
-							if (_env.pd().avail_caps().value < UPGRADE_CAPS) {
+							if (_env.pd().stats().caps.avail().value < UPGRADE_CAPS) {
 								if (DEBUG) warning("alloc dma vram: out of caps");
 								throw Out_of_caps();
 							}
@@ -108,7 +108,7 @@ struct Igd::Device
 							return false;
 						}
 						if (error == decltype(error)::OUT_OF_RAM) {
-							if (_env.pd().avail_ram().value < size) {
+							if (_env.pd().stats().ram.avail().value < size) {
 								if (DEBUG) warning("alloc dma vram: out of ram");
 								throw Out_of_ram();
 							}
@@ -2061,10 +2061,11 @@ class Gpu::Session_component : public Genode::Session_object<Gpu::Session>
 
 		void dump_resources()
 		{
+			Genode::Pd_session::Stats const stats = _env.pd().stats();
 			Genode::error(__func__, ": session (cap: ", _cap_quota_guard(),
 			              " ram: ", _ram_quota_guard(), ") env: (cap: ",
-			              "avail=", _env.pd().avail_caps(), " used=", _env.pd().used_caps(),
-			              " ram: avail=", _env.pd().avail_ram(), " used=", _env.pd().used_ram());
+			              "avail=", stats.caps.avail(), " used=", stats.caps.used,
+			              " ram: avail=", stats.ram.avail(), " used=", stats.ram.used);
 		}
 
 		bool vgpu_active() const
@@ -2169,8 +2170,9 @@ class Gpu::Session_component : public Genode::Session_object<Gpu::Session>
 			if (_resource_guard.avail_ram(size) == false)
 				throw Out_of_ram();
 
-			size_t caps_before = _env.pd().avail_caps().value;
-			size_t ram_before  = _env.pd().avail_ram().value;
+			Pd_session::Stats const stats_before = _env.pd().stats();
+			size_t caps_before = stats_before.caps.avail().value;
+			size_t ram_before  = stats_before.ram .avail().value;
 
 			Ram_dataspace_capability ds_cap = _device.alloc_vram(_heap, size);
 			addr_t phys_addr                = _device.dma_addr(ds_cap);
@@ -2186,8 +2188,9 @@ class Gpu::Session_component : public Genode::Session_object<Gpu::Session>
 
 			new (&_heap) Vram_local(vram->cap(), size, _vram_space, id);
 
-			size_t caps_after = _env.pd().avail_caps().value;
-			size_t ram_after  = _env.pd().avail_ram().value;
+			Pd_session::Stats const stats_after = _env.pd().stats();
+			size_t caps_after = stats_after.caps.avail().value;
+			size_t ram_after  = stats_after.ram .avail().value;
 
 			/* limit to vram size for replenish */
 			vram->ram_used  = min(ram_before > ram_after ? ram_before - ram_after : 0, size);
@@ -2299,13 +2302,15 @@ class Gpu::Session_component : public Genode::Session_object<Gpu::Session>
 			if (_resource_guard.avail_ram() == false)
 				throw Out_of_ram();
 
-			size_t caps_before = _env.pd().avail_caps().value;
-			size_t ram_before  = _env.pd().avail_ram().value;
+			Pd_session::Stats const stats_before = _env.pd().stats();
+			size_t caps_before = stats_before.caps.avail().value;
+			size_t ram_before  = stats_before.ram .avail().value;
 
 			_apply_vram_local(id, lookup_and_map, [] { });
 
-			size_t caps_after = _env.pd().avail_caps().value;
-			size_t ram_after  = _env.pd().avail_ram().value;
+			Pd_session::Stats const stats_after = _env.pd().stats();
+			size_t caps_after = stats_after.caps.avail().value;
+			size_t ram_after  = stats_after.ram .avail().value;
 
 			_resource_guard.withdraw(caps_before, caps_after,
 			                         ram_before, ram_after);

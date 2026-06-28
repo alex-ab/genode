@@ -248,9 +248,9 @@ struct Genode::Pd_session : Session, Pd_account
 	virtual Capability<Region_map> linker_area() = 0;
 
 
-	/*******************************************
-	 ** Accounting for capability allocations **
-	 *******************************************/
+	/********************************
+	 ** Accounting for allocations **
+	 ********************************/
 
 	enum class Ref_account_result { OK, INVALID_SESSION };
 
@@ -260,47 +260,23 @@ struct Genode::Pd_session : Session, Pd_account
 	virtual Ref_account_result ref_account(Capability<Pd_account>) = 0;
 
 	/**
-	 * Return current capability-quota limit
+	 * Information about the limit and consumption of RAM and cap quota
 	 */
-	virtual Cap_quota cap_quota() const = 0;
-
-	/**
-	 * Return number of capabilities allocated from the session
-	 */
-	virtual Cap_quota used_caps() const = 0;
-
-	/**
-	 * Return amount of available capabilities
-	 */
-	Cap_quota avail_caps() const
+	struct Stats
 	{
-		return Cap_quota { cap_quota().value - used_caps().value };
-	}
+		template <typename QUOTA> struct Budget
+		{
+			QUOTA limit, used;
+			QUOTA avail() const
+			{
+				return { limit.value - min(limit.value, used.value) };
+			}
+		};
+		Budget<Ram_quota> ram;
+		Budget<Cap_quota> caps;
+	};
 
-
-	/***********************************
-	 ** RAM allocation and accounting **
-	 ***********************************/
-
-	/*
-	 * Note that the 'Pd_session' inherits the 'Ram_allocator' interface,
-	 * which comprises the actual allocation and deallocation operations.
-	 */
-
-	/**
-	 * Return current quota limit
-	 */
-	virtual Ram_quota ram_quota() const = 0;
-
-	/**
-	 * Return used quota
-	 */
-	virtual Ram_quota used_ram() const = 0;
-
-	/**
-	 * Return amount of available quota
-	 */
-	Ram_quota avail_ram() const { return { ram_quota().value - used_ram().value }; }
+	virtual Stats stats() const = 0;
 
 
 	/*****************************************
@@ -392,14 +368,11 @@ struct Genode::Pd_session : Session, Pd_account
 	GENODE_RPC(Rpc_stack_area,    Capability<Region_map>, stack_area);
 	GENODE_RPC(Rpc_linker_area,   Capability<Region_map>, linker_area);
 	GENODE_RPC(Rpc_ref_account, Ref_account_result, ref_account, Capability<Pd_account>);
-	GENODE_RPC(Rpc_cap_quota, Cap_quota, cap_quota);
-	GENODE_RPC(Rpc_used_caps, Cap_quota, used_caps);
+	GENODE_RPC(Rpc_stats, Stats, stats);
 	GENODE_RPC(Rpc_alloc_ram, Alloc_ram_result, alloc_ram, size_t, Cache);
 	GENODE_RPC(Rpc_free_ram, void, free_ram, Ram_dataspace_capability);
 	GENODE_RPC(Rpc_seal_ram, void, seal_ram, Ram_dataspace_capability);
 	GENODE_RPC(Rpc_ram_size, size_t, ram_size, Ram_dataspace_capability);
-	GENODE_RPC(Rpc_ram_quota, Ram_quota, ram_quota);
-	GENODE_RPC(Rpc_used_ram, Ram_quota, used_ram);
 	GENODE_RPC(Rpc_native_pd, Capability<Native_pd>, native_pd);
 	GENODE_RPC(Rpc_system_control_cap, Capability<System_control>,
 	           system_control_cap, Affinity::Location);
@@ -414,8 +387,7 @@ struct Genode::Pd_session : Session, Pd_account
 		Rpc_alloc_rpc_cap, Rpc_free_rpc_cap, Rpc_address_space,
 		Rpc_stack_area, Rpc_linker_area, Rpc_ref_account,
 		Rpc_alloc_ram, Rpc_free_ram, Rpc_seal_ram, Rpc_ram_size,
-		Rpc_cap_quota, Rpc_used_caps, Rpc_ram_quota, Rpc_used_ram,
-		Rpc_native_pd, Rpc_system_control_cap,
+		Rpc_stats, Rpc_native_pd, Rpc_system_control_cap,
 		Rpc_dma_addr, Rpc_attach_dma);
 };
 

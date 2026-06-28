@@ -82,23 +82,20 @@ struct Config_model::Default_route_node : Config_node
 
 struct Config_model::Default_node : Config_node
 {
-	static bool type_matches(Node const &node)
-	{
-		return node.has_type("default");
-	}
+	static bool type_matches(Node const &node) { return node.has_type("default"); }
 
-	Cap_quota &_default_caps;
-	Ram_quota &_default_ram;
+	Default_quota &_default_quota;
 
-	Default_node(Cap_quota &default_caps, Ram_quota &default_ram)
-	: _default_caps(default_caps), _default_ram(default_ram) { }
+	Default_node(Default_quota &default_quota) : _default_quota(default_quota) { }
 
 	bool matches(Node const &node) const override { return type_matches(node); }
 
 	void update(Node const &node) override
 	{
-		_default_caps = Cap_quota { node.attribute_value("caps", 0UL) };
-		_default_ram  = Ram_quota { node.attribute_value("ram", Number_of_bytes()) };
+		_default_quota = {
+			.ram  = Ram_quota { node.attribute_value("ram", Number_of_bytes()) },
+			.caps = Cap_quota { node.attribute_value("caps", 0UL) }
+		};
 	}
 };
 
@@ -328,8 +325,7 @@ void Config_model::update_from_node(Node                     const &node,
                                     Version                        &version,
                                     Preservation                   &preservation,
                                     Constructible<Buffered_node>   &default_route,
-                                    Cap_quota                      &default_caps,
-                                    Ram_quota                      &default_ram,
+                                    Default_quota                  &default_quota,
                                     Prio_levels                    &prio_levels,
                                     Constructible<Affinity::Space> &affinity_space,
                                     Start_model::Factory           &child_factory,
@@ -363,7 +359,7 @@ void Config_model::update_from_node(Node                     const &node,
 			return *new (alloc) Default_route_node(alloc, default_route);
 
 		if (Default_node::type_matches(node))
-			return *new (alloc) Default_node(default_caps, default_ram);
+			return *new (alloc) Default_node(default_quota);
 
 		if (Start_node::type_matches(node))
 			return *new (alloc) Start_node(child_factory, node);

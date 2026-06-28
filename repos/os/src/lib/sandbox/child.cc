@@ -194,75 +194,79 @@ void Sandbox::Child::evaluate_dependencies()
 }
 
 
-Sandbox::Ram_quota Sandbox::Child::_configured_ram_quota() const
+Sandbox::Configured_quota Sandbox::Child::_configured_quota() const
 {
 	Node const &node = *_start_node;
 
-	Number_of_bytes const default_ram { _default_quota_accessor.default_ram().value };
+	Number_of_bytes const default_ram { _default_quota_accessor.default_quota().ram.value };
 
-	size_t assigned = node.attribute_value("ram", default_ram);
+	size_t assigned_ram = node.attribute_value("ram", default_ram);
 
 	node.for_each_sub_node("resource", [&] (Node const &resource) {
 		if (resource.attribute_value("name", String<8>()) == "RAM") {
-			if (assigned)
+			if (assigned_ram)
 				warning(name(), ": ambigious RAM-quota definition");
-			assigned = resource.attribute_value("quantum", Number_of_bytes());
+			assigned_ram = resource.attribute_value("quantum", Number_of_bytes());
 		}
 	});
 
-	return Ram_quota { assigned };
+	size_t const default_caps = _default_quota_accessor.default_quota().caps.value;
+	size_t const assiged_caps = _start_node->attribute_value("caps", default_caps);
+
+	return { .ram = assigned_ram, .caps = assiged_caps };
 }
 
 
-Sandbox::Cap_quota Sandbox::Child::_configured_cap_quota() const
+void Sandbox::Child::_apply_resource_upgrade(Assigned_quota &assigned,
+                                             Configured_quota const configured,
+                                             Quota_limit_accessor const &limit_accessor)
 {
-	size_t const default_caps = _default_quota_accessor.default_caps().value;
+	auto apply_upgrade = [&] (auto &assigned, auto const configured, auto const limit)
+	{
+		if (configured.value <= assigned.value)
+			return;
 
-	return Cap_quota { _start_node->attribute_value("caps", default_caps) };
-}
+		size_t const increment = configured.value - assigned.value;
 
+		/*
+		 * If the configured quota exceeds our own quota, we donate all remaining
+		 * quota to the child.
+		 */
+		if (increment > limit.value)
+			if (_verbose.enabled())
+				warn_insuff_quota(limit.value);
 
-template <typename QUOTA, typename LIMIT_ACCESSOR>
-void Sandbox::Child::_apply_resource_upgrade(QUOTA &assigned, QUOTA const configured,
-                                             LIMIT_ACCESSOR const &limit_accessor)
-{
-	if (configured.value <= assigned.value)
-		return;
+		using Quota = decltype(limit);
 
-	QUOTA  const limit     = limit_accessor.resource_limit(QUOTA{});
-	size_t const increment = configured.value - assigned.value;
+		Quota const transfer { min(increment, limit.value) };
 
-	/*
-	 * If the configured quota exceeds our own quota, we donate all remaining
-	 * quota to the child.
-	 */
-	if (increment > limit.value)
-		if (_verbose.enabled())
-			warn_insuff_quota(limit.value);
+		/*
+		 * Remember assignment and apply upgrade to child
+		 *
+		 * Note that we remember the actually transferred amount as the assigned
+		 * amount. In the case where the value is clamped to to the limit, the
+		 * value as given in the config remains diverged from the assigned value.
+		 * This way, a future config update will attempt the completion of the
+		 * upgrade if memory become available.
+		 */
+		if (transfer.value) {
 
-	QUOTA const transfer { min(increment, limit.value) };
+			assigned.value += transfer.value;
 
-	/*
-	 * Remember assignment and apply upgrade to child
-	 *
-	 * Note that we remember the actually transferred amount as the assigned
-	 * amount. In the case where the value is clamped to to the limit, the
-	 * value as given in the config remains diverged from the assigned value.
-	 * This way, a future config update will attempt the completion of the
-	 * upgrade if memory become available.
-	 */
-	if (transfer.value) {
+			ref_account().transfer_quota(_child.pd_session_cap(), transfer);
 
-		assigned.value += transfer.value;
-
-		ref_account().transfer_quota(_child.pd_session_cap(), transfer);
-
-		/* wake up child that blocks on a resource request */
-		if (_requested_resources.constructed()) {
-			_child.notify_resource_avail();
-			_requested_resources.destruct();
+			/* wake up child that blocks on a resource request */
+			if (_requested_resources.constructed()) {
+				_child.notify_resource_avail();
+				_requested_resources.destruct();
+			}
 		}
-	}
+	};
+
+	Quota_limit const limit = limit_accessor.quota_limit();
+
+	apply_upgrade(assigned.ram,  configured.ram,  limit.ram);
+	apply_upgrade(assigned.caps, configured.caps, limit.caps);
 }
 
 
@@ -272,70 +276,71 @@ void Sandbox::Child::apply_upgrade()
 	if (_exited)
 		return;
 
-	if (_resources.effective_ram_quota().value == 0)
+	Assigned_quota const assigned_quota = _resources.effective_quota();
+
+	if (assigned_quota.ram.value == 0)
 		warning(name(), ": no valid RAM quota defined");
 
-	_apply_resource_upgrade(_resources.assigned_ram_quota,
-	                        _configured_ram_quota(), _ram_limit_accessor);
-
-	if (_resources.effective_cap_quota().value == 0)
+	if (assigned_quota.caps.value == 0)
 		warning(name(), ": no valid capability quota defined");
 
-	_apply_resource_upgrade(_resources.assigned_cap_quota,
-	                        _configured_cap_quota(), _cap_limit_accessor);
+	_apply_resource_upgrade(_resources.assigned_quota,
+	                        _configured_quota(), _quota_limit_accessor);
 }
 
 
-template <typename QUOTA, typename CHILD_AVAIL_QUOTA_FN>
-void Sandbox::Child::_apply_resource_downgrade(QUOTA &assigned, QUOTA const configured,
-                                               QUOTA const preserved,
-                                               CHILD_AVAIL_QUOTA_FN const &child_avail_quota_fn)
+void Sandbox::Child::_apply_resource_downgrade(Assigned_quota &assigned,
+                                               Configured_quota const configured,
+                                               Preserved_quota  const preserved,
+                                               Pd_session::Stats const stats)
 {
-	if (configured.value >= assigned.value)
-		return;
+	auto apply_downgrade = [&] (auto &assigned, auto configured, auto preserved, auto avail)
+	{
+		if (configured.value >= assigned.value)
+			return;
 
-	QUOTA const decrement { assigned.value - configured.value };
+		using Quota = decltype(configured);
 
-	/*
-	 * The child may concurrently consume quota from its PD session,
-	 * causing the 'transfer_quota' to fail. For this reason, we repeatedly
-	 * attempt the transfer.
-	 */
-	unsigned max_attempts = 4, attempts = 0;
-	for (; attempts < max_attempts; attempts++) {
+		Quota const decrement { assigned.value - configured.value };
 
-		/* give up if the child's available quota is exhausted */
-		size_t const avail = child_avail_quota_fn().value;
-		if (avail < preserved.value)
-			break;
+		/*
+		 * The child may concurrently consume quota from its PD session,
+		 * causing the 'transfer_quota' to fail. For this reason, we repeatedly
+		 * attempt the transfer.
+		 */
+		unsigned max_attempts = 4, attempts = 0;
+		for (; attempts < max_attempts; attempts++) {
 
-		QUOTA const transfer { min(avail - preserved.value, decrement.value) };
+			/* give up if the child's available quota is exhausted */
+			if (avail < preserved.value)
+				break;
 
-		_with_pd([&] (Pd_session &pd) {
-			auto const OK = Pd_account::Transfer_result::OK;
-			if (pd.transfer_quota(ref_account_cap(), transfer) == OK)
-				assigned.value -= transfer.value; });
-	}
+			Quota const transfer { min(avail - preserved.value, decrement.value) };
 
-	if (attempts == max_attempts)
-		warning(name(), ": downgrade failed after ", max_attempts, " attempts");
+			_with_pd([&] (Pd_session &pd) {
+				auto const OK = Pd_account::Transfer_result::OK;
+				if (pd.transfer_quota(ref_account_cap(), transfer) == OK)
+					assigned.value -= transfer.value; });
+		}
+
+		if (attempts == max_attempts)
+			warning(name(), ": downgrade failed after ", max_attempts, " attempts");
+	};
+
+	apply_downgrade(assigned.ram,  configured.ram,  preserved.ram,  stats.ram .avail().value);
+	apply_downgrade(assigned.caps, configured.caps, preserved.caps, stats.caps.avail().value);
 }
 
 
 void Sandbox::Child::apply_downgrade()
 {
-	Ram_quota const configured_ram_quota = _configured_ram_quota();
-	Cap_quota const configured_cap_quota = _configured_cap_quota();
+	Configured_quota const configured_quota = _configured_quota();
 
 	_with_pd([&] (Pd_session &pd) {
-		_apply_resource_downgrade(_resources.assigned_ram_quota,
-		                          configured_ram_quota, Ram_quota{16*1024},
-		                          [&] { return pd.avail_ram(); });
-
-		_apply_resource_downgrade(_resources.assigned_cap_quota,
-		                          configured_cap_quota, Cap_quota{5},
-		                          [&] { return pd.avail_caps(); });
-	});
+		_apply_resource_downgrade(_resources.assigned_quota,
+		                          configured_quota,
+		                          Preserved_quota { Ram_quota{16*1024}, Cap_quota { 5 } },
+		                          pd.stats()); });
 
 	/*
 	 * If designated resource quota is lower than the child's consumed quota,
@@ -344,11 +349,11 @@ void Sandbox::Child::apply_downgrade()
 	size_t demanded_ram_quota = 0;
 	size_t demanded_cap_quota = 0;
 
-	if (configured_ram_quota.value < _resources.assigned_ram_quota.value)
-		demanded_ram_quota = _resources.assigned_ram_quota.value - configured_ram_quota.value;
+	if (configured_quota.ram.value < _resources.assigned_quota.ram.value)
+		demanded_ram_quota = _resources.assigned_quota.ram.value - configured_quota.ram.value;
 
-	if (configured_cap_quota.value < _resources.assigned_cap_quota.value)
-		demanded_cap_quota = _resources.assigned_cap_quota.value - configured_cap_quota.value;
+	if (configured_quota.caps.value < _resources.assigned_quota.caps.value)
+		demanded_cap_quota = _resources.assigned_quota.caps.value - configured_quota.caps.value;
 
 	if (demanded_ram_quota || demanded_cap_quota) {
 		Parent::Resource_args const
@@ -385,32 +390,39 @@ void Sandbox::Child::report_state(Generator &g, Report_detail const &detail) con
 			g.attribute("skipped_heartbeats", _child.skipped_heartbeats());
 
 		g.tabular([&] {
-			if (detail.child_ram() && _child.pd_session_cap().valid()) {
-				g.node("ram", [&] () {
 
-					g.attribute("assigned", String<32> {
-						Number_of_bytes(_resources.assigned_ram_quota.value) });
+			if (!detail.child_ram() && !detail.child_caps())
+				return;
 
-					_with_pd([&] (Pd_session const &pd) {
-						Ram_info::from_pd(pd).generate(g); });
+			if (!_child.pd_session_cap().valid())
+				return;
 
-					if (_requested_resources.constructed() && _requested_resources->ram.value)
-						g.attribute("requested", String<32>(_requested_resources->ram));
-				});
-			}
+			_with_pd([&] (Pd_session const &pd) {
+				Pd_session::Stats const stats = pd.stats();
 
-			if (detail.child_caps() && _child.pd_session_cap().valid()) {
-				g.node("caps", [&] () {
+				if (detail.child_ram())
+					g.node("ram", [&] () {
 
-					g.attribute("assigned", String<32>(_resources.assigned_cap_quota));
+						g.attribute("assigned", String<32> {
+							Number_of_bytes(_resources.assigned_quota.ram.value) });
 
-					_with_pd([&] (Pd_session const &pd) {
-						Cap_info::from_pd(pd).generate(g); });
+						Ram_info::from_pd_stats(stats).generate(g);
 
-					if (_requested_resources.constructed() && _requested_resources->caps.value)
-						g.attribute("requested", String<32>(_requested_resources->caps));
-				});
-			}
+						if (_requested_resources.constructed() && _requested_resources->ram.value)
+							g.attribute("requested", String<32>(_requested_resources->ram));
+					});
+
+				if (detail.child_caps())
+					g.node("caps", [&] () {
+
+						g.attribute("assigned", String<32>(_resources.assigned_quota.caps));
+
+						Cap_info::from_pd_stats(stats).generate(g);
+
+						if (_requested_resources.constructed() && _requested_resources->caps.value)
+							g.attribute("requested", String<32>(_requested_resources->caps));
+					});
+			});
 		});
 
 		Session_state::Detail const
@@ -446,7 +458,8 @@ Sandbox::Child::Sample_state_result Sandbox::Child::sample_state()
 	Sampled_state const orig_state = _sampled_state;
 
 	_child.with_pd(
-		[&] (Pd_session &pd) { _sampled_state = Sampled_state::from_pd(pd); },
+		[&] (Pd_session &pd) {
+			_sampled_state = Sampled_state::from_pd_stats(pd.stats()); },
 		[&] { });
 
 	return (orig_state != _sampled_state) ? Sample_state_result::CHANGED
@@ -459,24 +472,22 @@ void Sandbox::Child::init(Pd_session &session, Pd_session_capability cap)
 	size_t const initial_session_costs =
 		session_alloc_batch_size()*_child.session_factory().session_costs();
 
-	Ram_quota ram_quota { _resources.effective_ram_quota().value > initial_session_costs
-	                    ? _resources.effective_ram_quota().value - initial_session_costs
+	Quota_limit const quota_limit = _quota_limit_accessor.quota_limit();
+
+	Ram_quota ram_quota { _resources.effective_quota().ram.value > initial_session_costs
+	                    ? _resources.effective_quota().ram.value - initial_session_costs
 	                    : 0 };
 
-	Ram_quota avail_ram = _ram_limit_accessor.resource_limit(Ram_quota());
-
-	avail_ram = Genode::Child::effective_quota(avail_ram);
+	Ram_quota const avail_ram = Genode::Child::effective_quota(quota_limit.ram);
 
 	if (ram_quota.value > avail_ram.value) {
 		warning(name(), ": configured RAM exceeds available RAM, proceed with ", avail_ram);
 		ram_quota = avail_ram;
 	}
 
-	Cap_quota cap_quota { _resources.effective_cap_quota().value };
+	Cap_quota cap_quota { _resources.effective_quota().caps.value };
 
-	Cap_quota avail_caps = _cap_limit_accessor.resource_limit(avail_caps);
-
-	avail_caps = Genode::Child::effective_quota(avail_caps);
+	Cap_quota const avail_caps = Genode::Child::effective_quota(quota_limit.caps);
 
 	if (cap_quota.value > avail_caps.value) {
 		warning(name(), ": configured caps exceed available caps, proceed with ", avail_caps);
@@ -766,8 +777,7 @@ Sandbox::Child::Child(Env                      &env,
                       Default_route_accessor   &default_route_accessor,
                       Default_quota_accessor   &default_quota_accessor,
                       Name_registry            &name_registry,
-                      Ram_limit_accessor       &ram_limit_accessor,
-                      Cap_limit_accessor       &cap_limit_accessor,
+                      Quota_limit_accessor     &quota_limit_accessor,
                       Prio_levels               prio_levels,
                       Affinity::Space const    &affinity_space,
                       Registry<Parent_service> &parent_services,
@@ -782,13 +792,11 @@ Sandbox::Child::Child(Env                      &env,
 	_start_node(_alloc, start_node),
 	_default_route_accessor(default_route_accessor),
 	_default_quota_accessor(default_quota_accessor),
-	_ram_limit_accessor(ram_limit_accessor),
-	_cap_limit_accessor(cap_limit_accessor),
+	_quota_limit_accessor(quota_limit_accessor),
 	_name_registry(name_registry),
 	_heartbeat(Heartbeat::from_start_node(start_node)),
 	_resources(_resources_from_start_node(start_node, prio_levels, affinity_space,
-	                                      default_quota_accessor.default_caps(),
-	                                      default_quota_accessor.default_ram())),
+	                                      default_quota_accessor.default_quota())),
 	_pd_intrinsics(pd_intrinsics),
 	_parent_services(parent_services),
 	_child_services(child_services),
@@ -797,8 +805,8 @@ Sandbox::Child::Child(Env                      &env,
 {
 	if (_verbose.enabled()) {
 		log("child \"",       _unique_name, "\"");
-		log("  RAM quota:  ", _resources.effective_ram_quota());
-		log("  cap quota:  ", _resources.effective_cap_quota());
+		log("  RAM quota:  ", _resources.effective_quota().ram);
+		log("  cap quota:  ", _resources.effective_quota().caps);
 		log("  ELF binary: ", _binary_name);
 		log("  priority:   ", _resources.priority);
 	}

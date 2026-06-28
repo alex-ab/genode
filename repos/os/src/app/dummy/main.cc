@@ -107,7 +107,7 @@ struct Dummy::Log_service
 			size_t const ram_quota =
 				Arg_string::find_arg(args, "ram_quota").ulong_value(0);
 
-			if (_pd.avail_ram().value >= ram_quota)
+			if (_pd.stats().ram.avail().value >= ram_quota)
 				log("received session quota upgrade");
 		}
 

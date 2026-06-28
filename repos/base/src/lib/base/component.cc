@@ -184,14 +184,14 @@ struct Genode::Component_env : Env
 				[&] (Session_error e) {
 					switch (e) {
 					case Session_error::OUT_OF_RAM:
-						if (ram_quota.value > pd().avail_ram().value) {
+						if (ram_quota.value > pd().stats().ram.avail().value) {
 							Parent::Resource_args args(String<64>("ram_quota=", ram_quota));
 							_parent.resource_request(args);
 						}
 						break;
 
 					case Session_error::OUT_OF_CAPS:
-						if (cap_quota.value > pd().avail_caps().value) {
+						if (cap_quota.value > pd().stats().caps.avail().value) {
 							Parent::Resource_args args(String<64>("cap_quota=", cap_quota));
 							_parent.resource_request(args);
 						}

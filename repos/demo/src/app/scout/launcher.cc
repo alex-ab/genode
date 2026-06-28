@@ -90,7 +90,7 @@ Dataspace_capability Config_registry::config(char const *name)
 
 void Launcher::init(Genode::Env &env, Allocator &alloc)
 {
-	static Launchpad launchpad(env, env.pd().avail_ram().value);
+	static Launchpad launchpad(env, env.pd().stats().ram.avail().value);
 	_launchpad_ptr = &launchpad;
 	_alloc_ptr     = &alloc;
 	_env_ptr       = &env;

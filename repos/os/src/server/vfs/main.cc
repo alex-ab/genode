@@ -776,8 +776,7 @@ class Vfs_server::Root : public Root_component<Session_component>
 			 ** Quota check **
 			 *****************/
 
-			Ram_quota const initial_ram_usage = _env.pd().used_ram();
-			Cap_quota const initial_cap_usage = _env.pd().used_caps();
+			Pd_session::Stats const orig_stats = _env.pd().stats();
 
 			Ram_quota const ram_quota = ram_quota_from_args(args);
 			Cap_quota const cap_quota = cap_quota_from_args(args);
@@ -850,8 +849,9 @@ class Vfs_server::Root : public Root_component<Session_component>
 				                  _active_sessions, _io_progress_handler,
 				                  session_root.base(), writeable);
 
-			Ram_quota ram_used { _env.pd().used_ram() .value - initial_ram_usage.value };
-			Cap_quota cap_used { _env.pd().used_caps().value - initial_cap_usage.value };
+			Pd_session::Stats const stats = _env.pd().stats();
+			Ram_quota ram_used { stats.ram .used.value - orig_stats.ram .used.value };
+			Cap_quota cap_used { stats.caps.used.value - orig_stats.caps.used.value };
 
 			if ((ram_used.value > ram_quota.value) || (cap_used.value > cap_quota.value)) {
 				if (ram_used.value > ram_quota.value)

@@ -62,7 +62,7 @@ class Avail_quota_update : public Scout::Tick
 		 */
 		int on_tick() override
 		{
-			size_t new_avail = _pd.avail_ram().value;
+			size_t new_avail = _pd.stats().ram.avail().value;
 
 			/* update launchpad window if needed */
 			if (new_avail != _avail)
@@ -107,7 +107,7 @@ struct Main : Scout::Event_handler
 
 	Launchpad_window<Pixel_rgb888>
 		_launchpad { _env, _graphics_backend, _initial_position, _initial_size,
-		             _max_size, _env.pd().avail_ram().value };
+		             _max_size, _env.pd().stats().ram.avail().value };
 
 	void _process_config()
 	{
