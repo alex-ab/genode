@@ -66,6 +66,7 @@ static inline phys_addr_t idmap_to_phys(unsigned long idmap)
 
 #define page_to_phys(p) __pa((p)->virtual)
 #define phys_to_page(p) virt_to_page((void const*)lx_emul_mem_virt_addr((void*)(p)))
+#define page_to_virt(p) ((p)->virtual)
 #endif
 
 #endif /* __ASSEMBLY__ */
