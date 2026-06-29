@@ -17,9 +17,6 @@ endif
 ifeq ($(filter-out $(SPECS),x86_64),)
 	INC_DIR += $(VIRT_LINUX_INCLUDE_DIR)/spec/x86_64
 endif
-ifeq ($(filter-out $(SPECS),arm_v6),)
-	INC_DIR += $(VIRT_LINUX_INCLUDE_DIR)/spec/arm_v6
-endif
 ifeq ($(filter-out $(SPECS),arm_v7),)
 	INC_DIR  += $(VIRT_LINUX_INCLUDE_DIR)/spec/arm_v7
 	RCU_TINY := yes
@@ -53,9 +50,6 @@ ifeq ($(filter-out $(SPECS),x86),)
 	# Align memory allocations to 16 byte (because we allow FPU use in drivers)
 	#
 	CC_DEF += -DARCH_DMA_MINALIGN=16 -DARCH_SLAB_MINALIGN=1
-endif
-ifeq ($(filter-out $(SPECS),arm_v6),)
-	SRC_C += lx_emul/virt/spec/arm/dummies_arch.c
 endif
 ifeq ($(filter-out $(SPECS),arm_v7),)
 	SRC_C += lx_emul/virt/spec/arm/dummies_arch.c
