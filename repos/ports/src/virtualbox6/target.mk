@@ -14,6 +14,8 @@ SRC_CC += sup.cc sup_sem.cc sup_gmm.cc sup_drv.cc sup_vm.cc sup_vcpu.cc sup_gim.
 SRC_CC += HostServices/common/message.cpp services/services.cc
 SRC_CC += call_func.cc
 
+CC_OPT_sup_vm += -std=gnu++20
+
 LIBS  += base
 LIBS  += stdcxx
 LIBS  += libiconv

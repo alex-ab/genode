@@ -12,6 +12,10 @@
  * version 2.
  */
 
+/* Genode includes */
+#include <base/mutex.h>
+#include <base/log.h>           /* define 'Log' ahead of vbox includes */
+
 /* VirtualBox includes */
 #include <VBox/vmm/cpum.h>      /* must be included before CPUMInternal.h */
 #include <VBox/vmm/tm.h>        /* must be included before TMInternal.h */
@@ -29,9 +33,6 @@
 #include <VBox/vmm/apic.h>
 #include <VBox/vmm/em.h>
 #include <VBox/err.h>
-
-/* Genode includes */
-#include <base/mutex.h>
 
 /* local includes */
 #include <stub_macros.h>

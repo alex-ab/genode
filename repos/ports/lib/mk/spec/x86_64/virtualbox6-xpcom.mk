@@ -110,6 +110,8 @@ INC_DIR += $(REP_DIR)/src/virtualbox6
 SRC_CC  += xpcom_stubs.cc
 vpath xpcom_stubs.cc $(REP_DIR)/src/virtualbox6
 
+CC_OPT_xpcom_stubs += -std=gnu++20
+
 INC_DIR += $(XPCOM_DIR)
 INC_DIR += $(XPCOM_DIR)/nsprpub/pr/include/private
 INC_DIR += $(XPCOM_DIR)/nsprpub/pr/include/md

@@ -7,6 +7,8 @@ SRC_CC += message.cpp
 SRC_CC += VBoxSharedClipboardSvc.cpp
 SRC_CC += clipboard-common.cpp
 
+CC_OPT_sharedclipboard += -std=gnu++20
+
 LIBS += stdcxx
 
 INC_DIR += $(VBOX_DIR)/HostServices/SharedClipboard

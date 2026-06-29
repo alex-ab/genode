@@ -17,12 +17,6 @@
 #ifdef __cplusplus
 
 /*
- * Prevent inclusion of the Genode::Log definition after the vbox #define
- * of 'Log'. Otherwise, the attempt to compile base/log.h will fail.
- */
-#include <base/log.h>
-
-/*
  * Place hook to return current log configuration to SVC main initialization.
  */
 #define VBOXSVC_LOG_DEFAULT vboxsvc_log_default_string()

@@ -12,6 +12,8 @@
  * version 2.
  */
 
+#include <base/log.h>      /* define 'Log' ahead of vbox includes */
+
 /* VirtualBox includes */
 #include <VBox/vmm/cpum.h> /* must be included before CPUMInternal.h */
 #include <CPUMInternal.h>  /* enable access to cpum.s.* */
