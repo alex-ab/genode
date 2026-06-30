@@ -314,7 +314,7 @@ class Core::Pd_session_component : public Session_object<Pd_session>
 			return {
 				.ram = _ram_account.constructed()
 					? Stats::Budget<Ram_quota> { .limit = _ram_account->limit(),
-					                              .used  = _ram_account->used() }
+					                             .used  = _ram_account->used() }
 					: Stats::Budget<Ram_quota> { },
 				.caps = _cap_account.constructed()
 					? Stats::Budget<Cap_quota> { .limit = _cap_account->limit(),
