@@ -66,7 +66,7 @@ void Qt_launchpad::_avail_quota_update()
 {
 	static Genode::size_t _avail = 0;
 
-	Genode::size_t new_avail = _env.pd().avail_ram().value;
+	Genode::size_t new_avail = _env.pd().stats().ram.avail().value;
 
 	if (new_avail != _avail)
 		quota(new_avail);

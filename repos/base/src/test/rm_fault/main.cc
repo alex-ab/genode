@@ -467,7 +467,7 @@ void Component::construct(Env &env)
 {
 	log("--- region-manager fault test ---");
 
-	if (env.pd().avail_ram().value > Test_child_policy::RAM_QUOTA.value) {
+	if (env.pd().stats().ram.avail().value > Test_child_policy::RAM_QUOTA.value) {
 		Rm_connection rm(env);
 		static Main_parent parent(env);
 		log("-- parent role started --");

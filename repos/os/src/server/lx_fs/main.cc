@@ -597,11 +597,11 @@ class Lx_fs::Root : public Root_component<Session_component>
 			writeable = policy.attribute_value("writeable", false) &&
 			            writeable_from_args(args);
 
-			auto const initial_ram_usage { _env.pd().used_ram().value };
-			auto const initial_cap_usage { _env.pd().used_caps().value };
-			auto const ram_quota         { parse_ram_quota(args).value };
-			auto const cap_quota         { parse_cap_quota(args).value };
-			auto const tx_buf_size       { parse_tx_buf_size(args) };
+			Pd_session::Stats const orig_stats = _env.pd().stats();
+
+			auto const ram_quota   { parse_ram_quota(args).value };
+			auto const cap_quota   { parse_cap_quota(args).value };
+			auto const tx_buf_size { parse_tx_buf_size(args) };
 
 			if (!tx_buf_size) {
 				Genode::error(label, " requested a session with a zero length transmission buffer");
@@ -626,8 +626,10 @@ class Lx_fs::Root : public Root_component<Session_component>
 				                           absolute_root_dir(root_dir).string(),
 				                           writeable, _notifier };
 
-				auto ram_used { _env.pd().used_ram().value - initial_ram_usage };
-				auto cap_used { _env.pd().used_caps().value - initial_cap_usage };
+				Pd_session::Stats const stats = _env.pd().stats();
+
+				auto ram_used = stats.ram .used.value - orig_stats.ram .used.value;
+				auto cap_used = stats.caps.used.value - orig_stats.caps.used.value;
 
 				if ((ram_used > ram_quota) || (cap_used > cap_quota)) {
 					if (ram_used > ram_quota)
