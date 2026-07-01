@@ -237,8 +237,12 @@ class Timer::One_shot_timeout : private Genode::Noncopyable
 				_blockade.block();
 		}
 
-		void schedule(Microseconds duration) {
-			_io_timeout.schedule(duration); }
+		void schedule(Microseconds duration)
+		{
+			if (_in_discard) return;
+
+			_io_timeout.schedule(duration);
+		}
 
 		void discard()
 		{
