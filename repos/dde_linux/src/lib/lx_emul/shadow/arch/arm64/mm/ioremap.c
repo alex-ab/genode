@@ -20,6 +20,13 @@ void __iomem * __ioremap(phys_addr_t phys_addr, size_t size, pgprot_t prot)
 }
 
 
+void __iomem *__ioremap_prot(phys_addr_t phys_addr, size_t size,
+                 pgprot_t pgprot)
+{
+	return lx_emul_io_mem_map(phys_addr, size, false);
+}
+
+
 void iounmap(volatile void __iomem * io_addr) { }
 
 
