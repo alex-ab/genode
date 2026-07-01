@@ -137,10 +137,13 @@ class Timer::Periodic_timeout : private Genode::Noncopyable
 		using Io_timeout        = Timer::Periodic_io_timeout<Periodic_timeout>;
 		using Microseconds      = Genode::Microseconds;
 		using Signal_handler    = Genode::Signal_handler<Periodic_timeout>;
+		using Blockade          = Genode::Blockade;
 
 		typedef void (HANDLER::*Handler_method)(Duration);
 
-		volatile bool         _in_discard { false };
+		volatile bool         _in_discard      { false };
+		volatile bool         _handler_pending { false };
+		Blockade              _blockade        { };
 		HANDLER              &_object;
 		Handler_method const  _method;
 		Signal_handler        _timeout_handler;
@@ -150,15 +153,22 @@ class Timer::Periodic_timeout : private Genode::Noncopyable
 
 		void _handle_io_timeout(Duration curr_time)
 		{
+			_handler_pending = true;
+			Genode::memory_barrier();
+
 			_curr_time = curr_time;
 			_timeout_handler.local_submit();
 		}
 
 		void _handle_timeout()
 		{
-			if (_in_discard) return;
-
 			(_object.*_method)(_curr_time);
+
+			/* wakeup discard() */
+			if (_in_discard)
+				_blockade.wakeup();
+
+			_handler_pending = false;
 		}
 
 	public:
@@ -172,6 +182,9 @@ class Timer::Periodic_timeout : private Genode::Noncopyable
 		{
 			_in_discard = true;
 			Genode::memory_barrier();
+
+			if (_handler_pending)
+				_blockade.block();
 		}
 };
 
