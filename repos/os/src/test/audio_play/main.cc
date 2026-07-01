@@ -49,7 +49,7 @@ struct Audio_play::Main
 		_config.node().attribute_value("sample_path", Directory::Path());
 
 	File_content const _sample_data {
-		_heap, _root_dir, _sample_path, { _env.pd().avail_ram().value } };
+		_heap, _root_dir, _sample_path, { _env.pd().stats().ram.avail().value } };
 
 	Play::Connection _left  { _env, "left"  },
 	                 _right { _env, "right" };
