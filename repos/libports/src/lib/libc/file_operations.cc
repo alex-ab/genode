@@ -130,7 +130,7 @@ static Symlink_resolve_result _resolve_symlink(Absolute_path const &path,
 	Absolute_path tmp_resolved_path;
 	int res;
 
-	res = readlink(path.base(), symlink_target, sizeof(symlink_target));
+	res = fs().readlink(path.base(), symlink_target, sizeof(symlink_target));
 	if (res < 1)
 		return Symlink_resolve_error();
 
@@ -332,26 +332,37 @@ __SYS_(int, close, (int libc_fd),
 
 static int _dup(File_descriptor &fd, Fds::Bits &bits, Fds::Space &space, int new_id)
 {
-	if (!fd.open_file_ptr) {
-		warning("dup called for non-file descriptor");
-		bits.free(new_id);
-		return Errno(EBADF);
+	/* clear flags to prevent double create if 'fd' refers to a created file */
+	int const new_flags = fd.flags & ~(O_EXCL | O_CREAT);
+
+	auto new_file_descriptor = [&] (auto &open_file_or_dir)
+	{
+		File_descriptor &new_fd =
+			*new (fs()._kernel_heap) File_descriptor(space, new_id, open_file_or_dir, fd.path);
+
+		new_fd.flags = new_flags;
+		fs().lseek(new_fd, fs().lseek(fd, 0, SEEK_CUR), SEEK_SET);
+		return new_id;
+	};
+
+	auto release_new_id = [&] (Errno e) -> int { bits.free(new_id); return e; };
+
+	if (fd.open_file_ptr) {
+		return fs().open_file(fd.path.string(), new_flags).convert<int>(
+			[&] (Open_file &dup_of) {
+				dup_of.modified = fd.open_file_ptr->modified;
+				return new_file_descriptor(dup_of);
+			},
+			[&] (Errno e) { return release_new_id(e); });
 	}
 
-	return fs().open_file(fd.path.string(), fd.flags).convert<int>(
-		[&] (Open_file &dup_of) {
-			File_descriptor &new_fd =
-				*new (fs()._kernel_heap) File_descriptor(space, new_id, dup_of, fd.path);
+	if (fd.open_dir_ptr)
+		return fs().open_dir(fd.path.string(), new_flags).convert<int>(
+			[&] (Open_dir &dup_od) { return new_file_descriptor(dup_od); },
+			[&] (Errno e)          { return release_new_id(e); });
 
-			new_fd.flags = fd.flags;
-			new_fd.open_file_ptr->modified = fd.open_file_ptr->modified;
-			fs().lseek(new_fd, fs().lseek(fd, 0, SEEK_CUR), SEEK_SET);
-			return new_id;
-		},
-		[&] (Errno e) -> int {
-			bits.free(new_id);
-			return e;
-		});
+	warning("dup called for non-file/dir descriptor (", fd.path, ")");
+	return release_new_id(Errno(EBADF));
 }
 
 
@@ -360,7 +371,8 @@ extern "C" int dup(int libc_fd)
 	return with_fd(libc_fd, "dup", [&] (File_descriptor &fd) -> int {
 		return fds().with_alloc([&] (Fds::Bits &bits, Fds::Space &space) {
 			return bits.alloc().convert<int>(
-				[&] (addr_t const libc_fd)    { return _dup(fd, bits, space, libc_fd); },
+				[&] (addr_t const libc_fd)    {
+					return _dup(fd, bits, space, libc_fd); },
 				[&] (Fds::Bits::Error) -> int { return Errno { EMFILE }; });
 		});
 	});
@@ -412,7 +424,10 @@ static int _fcntl(File_descriptor &fd, int cmd, long arg)
 			 * 'arg'. We take the shortcut of mirroring 'dup', which allocates
 			 * the lowest available fd, starting at 0.
 			 */
-			warning("fcntl(F_DUPFD) not fully implemented");
+			static bool warned_once;
+			if (!warned_once)
+				warning("fcntl(F_DUPFD) not fully implemented");
+			warned_once = true;
 
 			return fds().with_alloc([&] (Fds::Bits &bits, Fds::Space &space) {
 				return bits.alloc().convert<int>(
@@ -573,7 +588,7 @@ __SYS_(int, ioctl, (int libc_fd, unsigned long request, char *argp),
 __SYS_(::off_t, lseek, (int libc_fd, ::off_t offset, int whence),
 {
 	return with_fd(libc_fd, "lseek", [&] (File_descriptor &fd) -> ::off_t {
-		if (fd.open_file_ptr)
+		if (fd.open_file_ptr || fd.open_dir_ptr)
 			return fs().lseek(fd, offset, whence);
 		return Errno { EBADF };
 	});
@@ -595,7 +610,7 @@ extern "C" int lstat(const char *path, struct stat *buf)
 
 	resolved_path.remove_trailing('/');
 
-	return stat(resolved_path.base(), buf);
+	return fs().stat(resolved_path.base(), *buf);
 }
 
 

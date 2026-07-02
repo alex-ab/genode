@@ -425,12 +425,8 @@ struct Sync
 
 int Libc::Fs::fstat(File_descriptor &fd, struct stat &buf)
 {
-	if (!fd.open_file_ptr)
-		return Errno { EBADF };
-
-	Open_file &of = *fd.open_file_ptr;
-	if (of.modified)
-		fsync(of);
+	if (fd.open_file_ptr && fd.open_file_ptr->modified)
+		fsync(*fd.open_file_ptr);
 
 	int const result = stat(fd.path.string(), buf);
 
