@@ -647,48 +647,53 @@ ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 	if (!fd.open_file_ptr)
 		return Errno { EBADF };
 
-	if (fd.flags & O_NONBLOCK && !read_ready_from_kernel(fd))
-		return Errno { EAGAIN };
-
 	Open_file &of = *fd.open_file_ptr;
 
 	int result_errno = 0;
+	size_t out_count = 0;
+	bool queued = false;
 
 	_monitor.monitor([&] {
-		of.blocking = false;
 
-		if (of.closing) { result_errno = EBADF; return Fn::COMPLETE; }
+		if (of.closing) result_errno = EBADF;
 
-		of.blocking = !of.handle.fs().queue_read(&of.handle, count);
+		if (!queued && fd.flags & O_NONBLOCK && !read_ready_from_kernel(fd))
+			result_errno = EAGAIN;
 
-		return of.blocking ? Fn::INCOMPLETE : Fn::COMPLETE;
-	});
+		if (result_errno) {
+			of.blocking = false;
+			return Fn::COMPLETE;
+		}
 
-	if (result_errno)
-		return Errno(result_errno);
+		of.blocking = true; /* sync with close */
 
-	::size_t out_count = 0;
+		if (!queued)
+			queued = of.handle.fs().queue_read(&of.handle, count);
 
-	Byte_range_ptr const dst { (char *)buf, count };
-	_monitor.monitor([&] {
-		of.blocking = false;
+		if (!queued)
+			return Fn::INCOMPLETE; /* keep blocking until 'queue_read' succeeds */
 
-		if (of.closing) { result_errno = EBADF; return Fn::COMPLETE; }
+		Byte_range_ptr const dst { (char *)buf, count };
 
 		switch (of.handle.fs().complete_read(&of.handle, dst, out_count)) {
 		case Result::READ_ERR_WOULD_BLOCK: result_errno = EWOULDBLOCK; break;
 		case Result::READ_ERR_INVALID:     result_errno = EINVAL;      break;
 		case Result::READ_ERR_IO:          result_errno = EIO;         break;
-		case Result::READ_OK:                                          break;
-		case Result::READ_QUEUED:          of.blocking = true;         break;
+		case Result::READ_OK:              break;
+		case Result::READ_QUEUED:
+			return Fn::INCOMPLETE; /* keep blocking */
 		}
-		return of.blocking ? Fn::INCOMPLETE : Fn::COMPLETE;
+
+		of.blocking = false;
+
+		if (!result_errno)
+			of.handle.advance_seek(out_count);
+
+		return Fn::COMPLETE; /* success or error out */
 	});
 
 	if (result_errno)
 		return Errno(result_errno);
-
-	of.handle.advance_seek(out_count);
 
 	return out_count;
 }

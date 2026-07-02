@@ -94,6 +94,8 @@ struct Libc::File_descriptor
 
 	Path path;
 
+	unsigned _ref_count = 0;
+
 	struct Aio_handle
 	{
 		enum class State { INVALID, QUEUED, COMPLETE };

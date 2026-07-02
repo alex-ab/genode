@@ -46,8 +46,15 @@ namespace Libc {
 	{
 		File_descriptor *fd_ptr = fds().with_space([&] (Fds::Space &space) {
 			return space.apply<File_descriptor>({ unsigned(libc_fd) },
-				[&] (File_descriptor &fd) { return &fd; },
-				[&]                       { return nullptr; }); });
+				[&] (File_descriptor &fd) {
+					if (fd._ref_count) {
+						error("attempt to re-acquire file descriptor for ", fd.path, " (", caller_name, ")");
+						return (File_descriptor *)nullptr;
+					}
+					fd._ref_count++;
+					return &fd;
+				},
+				[&] { return nullptr; }); });
 
 		if (!fd_ptr) {
 			if (caller_name)
@@ -55,9 +62,10 @@ namespace Libc {
 			return Errno(EBADF);
 		}
 
-		return fn(*fd_ptr);
+		auto ret = fn(*fd_ptr);
+		fd_ptr->_ref_count--;
+		return ret;
 	}
-
 
 	static inline int with_open_file(int libc_fd, char const *caller_name, auto const &fn)
 	{

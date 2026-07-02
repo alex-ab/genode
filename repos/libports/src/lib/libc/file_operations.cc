@@ -306,6 +306,8 @@ extern "C" int chdir(const char *path)
 
 __SYS_(int, close, (int libc_fd),
 {
+	File_descriptor *fd_ptr = nullptr;
+
 	int ret = with_fd(libc_fd, nullptr /* silent */, [&] (File_descriptor &fd) {
 
 		if (fd.open_file_ptr) {
@@ -318,9 +320,16 @@ __SYS_(int, close, (int libc_fd),
 		fd.close_aio_handles();
 		fd.closed = true;
 
-		destroy(fs()._kernel_heap, &fd);
+		/*
+		 * Prevent fs from becoming ever acquired again, even after the final
+		 * decrement by 'with_fd'.
+		 */
+		fd._ref_count = ~0u;
+		fd_ptr = &fd;
 		return 0;
 	});
+
+	if (fd_ptr) destroy(fs()._kernel_heap, fd_ptr);
 
 	if (ret == 0)
 		fds().with_alloc([&] (Fds::Bits &bits, Fds::Space &) {
