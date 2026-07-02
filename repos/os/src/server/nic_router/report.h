@@ -45,21 +45,21 @@ class Net::Report
 {
 	private:
 
-		bool                      const &_verbose;
-		bool                      const  _config;
-		bool                      const  _config_triggers;
-		bool                      const  _bytes;
-		bool                      const  _stats;
-		bool                      const  _dropped_fragm_ipv4;
-		bool                      const  _link_state;
-		bool                      const  _link_state_triggers;
-		bool                      const  _quota;
-		Quota                     const &_shared_quota;
-		Genode::Pd_session              &_pd;
-		Genode::Reporter                &_reporter;
-		Domain_dict                     &_domains;
-		Timer::Periodic_timeout<Report>  _timeout;
-		Genode::Signal_transmitter       _signal_transmitter;
+		bool                         const &_verbose;
+		bool                         const  _config;
+		bool                         const  _config_triggers;
+		bool                         const  _bytes;
+		bool                         const  _stats;
+		bool                         const  _dropped_fragm_ipv4;
+		bool                         const  _link_state;
+		bool                         const  _link_state_triggers;
+		bool                         const  _quota;
+		Quota                        const &_shared_quota;
+		Genode::Pd_session                 &_pd;
+		Genode::Reporter                   &_reporter;
+		Domain_dict                        &_domains;
+		Timer::Periodic_io_timeout<Report>  _timeout;
+		Genode::Signal_transmitter          _signal_transmitter;
 
 		void _handle_report_timeout(Genode::Duration);
 

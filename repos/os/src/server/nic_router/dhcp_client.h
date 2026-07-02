@@ -39,10 +39,10 @@ class Net::Dhcp_client
 			INIT = 0, SELECT = 1, REQUEST = 2, BOUND = 3, RENEW = 4, REBIND = 5
 		};
 
-		Interface                            &_interface;
-		State                                 _state { State::INIT };
-		Timer::One_shot_timeout<Dhcp_client>  _timeout;
-		Genode::uint64_t                      _lease_time_sec = 0;
+		Interface                               &_interface;
+		State                                    _state { State::INIT };
+		Timer::One_shot_io_timeout<Dhcp_client>  _timeout;
+		Genode::uint64_t                         _lease_time_sec = 0;
 
 		void _handle_timeout(Genode::Duration);
 

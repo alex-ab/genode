@@ -1,5 +1,5 @@
 /*
- * \brief  A wrapper for Timer::One_shot_timeout with lazy re-scheduling
+ * \brief  A wrapper for Timer::One_shot_io_timeout with lazy re-scheduling
  * \author Johannes Schlatow
  * \date   2022-07-01
  *
@@ -35,11 +35,11 @@ namespace Net {
 template <typename HANDLER>
 class Net::Lazy_one_shot_timeout
 :
-	private Timer::One_shot_timeout<Lazy_one_shot_timeout<HANDLER>>
+	private Timer::One_shot_io_timeout<Lazy_one_shot_timeout<HANDLER>>
 {
 	private:
 
-		using One_shot_timeout = Timer::One_shot_timeout<Lazy_one_shot_timeout<HANDLER>>;
+		using One_shot_timeout = Timer::One_shot_io_timeout<Lazy_one_shot_timeout<HANDLER>>;
 		using Microseconds     = Genode::Microseconds;
 		using Duration         = Genode::Duration;
 		using uint64_t         = Genode::uint64_t;

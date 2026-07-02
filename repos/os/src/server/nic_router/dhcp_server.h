@@ -169,11 +169,11 @@ class Net::Dhcp_allocation : public  Genode::Avl_node<Dhcp_allocation>,
 {
 	protected:
 
-		Interface                                &_interface;
-		Ipv4_address                       const  _ip;
-		Mac_address                        const  _mac;
-		Timer::One_shot_timeout<Dhcp_allocation>  _timeout;
-		bool                                      _bound { false };
+		Interface                                   &_interface;
+		Ipv4_address                          const  _ip;
+		Mac_address                           const  _mac;
+		Timer::One_shot_io_timeout<Dhcp_allocation>  _timeout;
+		bool                                         _bound { false };
 
 		void _handle_timeout(Genode::Duration);
 
