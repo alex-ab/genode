@@ -26,6 +26,7 @@ extern "C" {
 #include <stdlib.h>
 #include <string.h>
 #include <sys/limits.h>
+#include <sys/mman.h>
 #include <sys/random.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
@@ -39,6 +40,9 @@ extern "C" {
 }
 
 static void test_sigalt();
+static void test_mmap();
+
+static unsigned error_count;
 
 int main(int argc, char **argv)
 {
@@ -58,8 +62,6 @@ int main(int argc, char **argv)
 	fprintf(stderr, "\n\n");
 
 	enum { ROUNDS = 64, SIZE_LARGE = 2048 };
-
-	unsigned error_count = 0;
 
 	printf("Malloc: check small sizes\n");
 	for (size_t size = 1; size < SIZE_LARGE; size = 2*size + 3) {
@@ -270,6 +272,8 @@ int main(int argc, char **argv)
 
 	test_sigalt();
 
+	test_mmap();
+
 	exit(error_count);
 }
 
@@ -354,6 +358,31 @@ static void test_sigalt()
 
 	/* restore old sigusr2 signal handler */
 	sigaction(SIGUSR2, &sa_old, NULL);
+
+	printf("%s done\n", __func__);
+}
+
+
+static void test_mmap()
+{
+	printf("%s\n", __func__);
+
+	void *mmap_result = mmap(nullptr, 4096, PROT_READ | PROT_WRITE,
+	                         MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+
+	if (mmap_result == MAP_FAILED) {
+		printf("mmap() returned MAP_FAILED - ERROR\n");
+		++error_count;
+		return;
+	}
+
+	int munmap_result = munmap(mmap_result, 4096);
+
+	if (munmap_result != 0) {
+		printf("munmap() returned %d - ERROR\n", munmap_result);
+		++error_count;
+		return;
+	}
 
 	printf("%s done\n", __func__);
 }
