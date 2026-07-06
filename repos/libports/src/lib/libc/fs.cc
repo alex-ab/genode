@@ -359,16 +359,21 @@ void Libc::Fs::destroy(Open_file &of)
 	/* cancel and sync with blocking read */
 	_monitor.monitor([&] {
 		of.closing = true;
-		return of.blocking ? Fn::INCOMPLETE : Fn::COMPLETE;
+		if (of.blocking) return Fn::INCOMPLETE;
+
+		of.handle.close();
+		return Fn::COMPLETE;
 	});
-	of.handle.close();
 	Genode::destroy(_kernel_heap, &of);
 }
 
 
 void Libc::Fs::destroy(Open_dir &od)
 {
-	od.handle.close();
+	_monitor.monitor([&] {
+		od.handle.close();
+		return Fn::COMPLETE;
+	});
 	Genode::destroy(_kernel_heap, &od);
 }
 
