@@ -15,6 +15,6 @@ runtime | ram: 256M | caps: 200 | binary: test-libc
   + rom | label: test-libc
 
 + config
-  + vfs | + dir dev |   + log
+  + vfs | + dir dev | + log
   + libc | stdout: /dev/log | stderr: /dev/log
 -
