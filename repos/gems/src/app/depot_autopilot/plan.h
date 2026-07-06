@@ -146,7 +146,7 @@ struct Depot_autopilot::Plan
 	{
 		_tests.for_each([&] (Test const &test) {
 			if (!test.skip && !test.malformed)
-				g.node("start", [&] {
+				g.node("child", [&] {
 					g.attribute("name", test.name);
 					g.attribute("pkg",  test.pkg);
 					if (!test.running())
