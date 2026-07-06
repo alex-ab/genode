@@ -686,14 +686,14 @@ __SYS_(void *, mmap, (void *addr, ::size_t length,
 extern "C" int munmap(void *start, ::size_t length)
 {
 	return mmap_registry().with_registered(start,
-		[&] (Mmap_registry::Attr const &attr) {
+		[&] (Mmap_registry::Attr const &attr, auto const &remove_fn) {
 
 			/*
 			 * Remove registry entry before unmapping to avoid double insertion
 			 * error if another thread gets the same start address immediately
 			 * after unmapping.
 			 */
-			mmap_registry().remove(start);
+			remove_fn();
 
 			if (attr.anonymous) {
 				bool const executable = true;

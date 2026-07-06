@@ -101,14 +101,19 @@ class Libc::Mmap_registry
 			_list.insert(new (&_md_alloc) Entry(attr));
 		}
 
-		auto with_registered(void *start, auto const &fn, auto const &missing_fn) const
+		auto with_registered(void *start, auto const &fn, auto const &missing_fn)
 		-> decltype(missing_fn())
 		{
 			Mutex::Guard guard(_mutex);
 
-			Entry const * const e = _lookup_by_addr_unsynchronized(start);
+			Entry * const e = _lookup_by_addr_unsynchronized(start);
 
-			return e ? fn(e->attr) : missing_fn();
+			auto remove_fn = [&] {
+				_list.remove(e);
+				destroy(&_md_alloc, e);
+			};
+
+			return e ? fn(e->attr, remove_fn) : missing_fn();
 		}
 
 		void remove(void *start)
