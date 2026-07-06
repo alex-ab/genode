@@ -89,6 +89,8 @@ Cpu_context::Cpu_context(Cpu &cpu, Group_id const id)
 
 Cpu_context::~Cpu_context()
 {
+	if (&_cpu().current_context() == this)
+		_cpu()._current_context_deleted = true;
 	_deactivate();
 }
 
@@ -131,13 +133,20 @@ bool Cpu::handle_if_cpu_local_interrupt(unsigned const irq_id)
 }
 
 
-Cpu::Context & Cpu::schedule_next_context()
+Cpu::Context_change Cpu::schedule_next_context(Context &former)
 {
-	if (_state == SUSPEND || _state == HALT)
-		return _halt_job;
-
 	_scheduler.update();
-	return current_context();
+
+	if (_current_context_deleted) {
+		_current_context_deleted = false;
+		return Context_change::DELETED;
+	}
+
+	if (_state == SUSPEND || _state == HALT)
+		return Context_change::CHANGED;
+
+	return (&current_context() == &former) ? Context_change::UNCHANGED
+	                                       : Context_change::CHANGED;
 }
 
 

@@ -65,12 +65,13 @@ Kernel::Main *Kernel::Main::_instance;
 
 void Kernel::Main::_handle_first_kernel_entry()
 {
-	Cpu::Context *context;
+	Cpu::Context *context = nullptr;
 
 	_mutex.execute_exclusive(
 		[&] () {
 			Cpu &cpu = _cpu_pool.cpu(Cpu::executing_id());
-			context = &cpu.schedule_next_context();
+			cpu.schedule_next_context(cpu.current_context());
+			context = &cpu.current_context();
 		},
 		[&] () { Genode::error("Mutex error during initial kernel run"); });
 
@@ -80,23 +81,26 @@ void Kernel::Main::_handle_first_kernel_entry()
 
 void Kernel::Main::_handle_kernel_entry(Cpu_state &state)
 {
-	Cpu::Context *context;
-	bool same_context_again = true;
+	Cpu::Context *context = nullptr;
+	bool load_former_state = true;
 
 	_mutex.execute_exclusive(
 		[&] () {
 			Cpu &cpu = _cpu_pool.cpu(Cpu::executing_id());
 			Cpu::Context &recent = cpu.current_context();
 			recent.exception(state);
-			context = &cpu.schedule_next_context();
-			if (&recent != context) {
+
+			Cpu::Context_change change = cpu.schedule_next_context(recent);
+
+			if (change == Cpu::Context_change::CHANGED)
 				recent.save(state);
-				same_context_again = false;
-			}
+
+			load_former_state = change == Cpu::Context_change::UNCHANGED;
+			context = &cpu.current_context();
 		},
 		[&] () { _cpu_pool.cpu(Cpu::executing_id()).panic(state); });
 
-	if (same_context_again) context->load(state);
+	if (load_former_state) context->load(state);
 	else context->load();
 }
 

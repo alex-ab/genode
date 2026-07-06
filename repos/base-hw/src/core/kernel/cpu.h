@@ -97,6 +97,7 @@ class Kernel::Cpu : public Board::Cpu, private Irq::Pool,
 		Idle_thread _idle;
 		Scheduler   _scheduler;
 		Ipi         _ipi_irq;
+		bool        _current_context_deleted { false };
 
 		Inter_processor_work_list _local_work_list {};
 
@@ -132,10 +133,8 @@ class Kernel::Cpu : public Board::Cpu, private Irq::Pool,
 		 */
 		void assign(Context& context);
 
-		/**
-		 * Return the context that should be executed next
-		 */
-		Context& schedule_next_context();
+		enum class Context_change { UNCHANGED, CHANGED, DELETED };
+		Context_change schedule_next_context(Context &former);
 
 		void backtrace();
 
@@ -149,8 +148,12 @@ class Kernel::Cpu : public Board::Cpu, private Irq::Pool,
 		/**
 		 * Returns the currently scheduled context
 		 */
-		Context & current_context() {
-			return static_cast<Context&>(_scheduler.current().helping_destination()); }
+		Context & current_context()
+		{
+			return (_state == SUSPEND || _state == HALT)
+				? _halt_job
+				: static_cast<Context&>(_scheduler.current().helping_destination());
+		}
 
 		Id id() const { return _id; }
 		Scheduler &scheduler() { return _scheduler; }
