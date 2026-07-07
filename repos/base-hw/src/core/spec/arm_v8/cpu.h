@@ -43,6 +43,8 @@ namespace Board {
 
 struct Board::Cpu : Hw::Arm_64_cpu
 {
+	Id const _id;
+
 	enum Exception_entry {
 		SYNC_LEVEL_EL1          = 0x000,
 		IRQ_LEVEL_EL1           = 0x080,
@@ -128,6 +130,12 @@ struct Board::Cpu : Hw::Arm_64_cpu
 
 	bool user_msr_read(addr_t const, addr_t &) { return false; }
 	bool user_msr_write(addr_t const, addr_t) { return false; }
+
+	Cpu();
+
+	bool rear(Cpu &other) const;
+
+	void print(Output &output) const;
 };
 
 #endif /* _CORE__SPEC__ARM_V8__CPU_H_ */

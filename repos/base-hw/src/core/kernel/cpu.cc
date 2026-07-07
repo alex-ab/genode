@@ -163,10 +163,9 @@ addr_t Cpu::stack_start()
 }
 
 
-Cpu::Cpu(Id const id, Cpu_pool &cpu_pool, Pd &core_pd)
+Cpu::Cpu(Cpu_pool &cpu_pool, Pd &core_pd)
 :
 	_pool      { cpu_pool },
-	_id        { id },
 	_pic       { cpu_pool._global_irq_ctrl, *this },
 	_timer     { *this },
 	_idle      { *this, core_pd },
@@ -181,9 +180,9 @@ Cpu::Cpu(Id const id, Cpu_pool &cpu_pool, Pd &core_pd)
 	 * one.
 	 */
 	Cpu * cpu = cpu_pool._cpus.first();
-	while (cpu && cpu->next() && (cpu->next()->id() < _id))
+	while (cpu && cpu->next() && rear(*cpu->next()))
 		cpu = cpu->next();
-	cpu = (cpu && cpu->id() < _id) ? cpu : nullptr;
+	cpu = (cpu && rear(*cpu)) ? cpu : nullptr;
 	cpu_pool._cpus.insert(this, cpu);
 }
 
@@ -200,5 +199,12 @@ void Cpu_pool::initialize_executing_cpu(Pd &core_pd)
 	addr_t base = CPU_LOCAL_MEMORY_AREA_START +
 	              id.value * CPU_LOCAL_MEMORY_SLOT_SIZE
 	              + CPU_LOCAL_MEMORY_SLOT_OBJECT_OFFSET;
-	Genode::construct_at<Cpu>((void*)base, id, *this, core_pd);
+	Genode::construct_at<Cpu>((void*)base, *this, core_pd);
+}
+
+
+void Cpu_pool::print(Genode::Output &output) const
+{
+	for (Cpu const *cpu = _cpus.first(); cpu; cpu = cpu->next())
+		Genode::print(output, *cpu, "\n");
 }

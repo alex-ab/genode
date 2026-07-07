@@ -47,6 +47,10 @@ namespace Kernel { class Pd; }
 
 class Board::Cpu : public Hw::Riscv_cpu
 {
+	protected:
+
+		Id const _id;
+
 	public:
 
 		struct alignas(8) Context : Genode::Cpu_state
@@ -103,6 +107,12 @@ class Board::Cpu : public Hw::Riscv_cpu
 
 		bool user_msr_read(addr_t const, addr_t &) { return false; }
 		bool user_msr_write(addr_t const, addr_t) { return false; }
+
+		Cpu();
+
+		bool rear(Cpu &other) const;
+
+		void print(Output &output) const;
 };
 
 #endif /* _CORE__SPEC__RISCV__CPU_H_ */

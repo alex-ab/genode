@@ -208,6 +208,7 @@ void Kernel::main_initialize_and_handle_kernel_entry()
 				boot_info.core_main_thread_utcb =
 					(addr_t)Main::_instance->_core_main_thread->utcb();
 
+				Genode::log(Main::_instance->_cpu_pool);
 				Genode::log("");
 				Genode::log("kernel initialized");
 				kernel_initialized = true;

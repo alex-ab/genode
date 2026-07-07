@@ -48,6 +48,10 @@ namespace Board {
 
 class Board::Cpu : public Hw::X86_64_cpu
 {
+	protected:
+
+		Id const _id;
+
 	public:
 
 		/**
@@ -91,11 +95,15 @@ class Board::Cpu : public Hw::X86_64_cpu
 			void init(addr_t tss_addr);
 		} __attribute__((packed)) gdt { };
 
+		static constexpr size_t TOPOLOGY_MAX = (size_t)Domain_type::MAX;
+		uint32_t topology[TOPOLOGY_MAX] = { 0 };
+
 		Cpuid_0   cpuid_0   {};
 		Cpuid_1   cpuid_1   { cpuid_0.max_leaf() };
 		Cpuid_6   cpuid_6   { cpuid_0.max_leaf() };
 		Cpuid_d_0 cpuid_d_0 { cpuid_0.max_leaf() };
 		Cpuid_d_1 cpuid_d_1 { cpuid_0.max_leaf() };
+		Cpuid_1a  cpuid_1a  { cpuid_0.max_leaf() };
 
 		enum class Xstate_support
 		{
@@ -200,6 +208,10 @@ class Board::Cpu : public Hw::X86_64_cpu
 
 		bool has_svm();
 		bool has_vmx();
+
+		bool rear(Cpu const &other) const;
+
+		void print(Output &output) const;
 };
 
 #endif /* _CORE__SPEC__X86_64__CPU_H_ */

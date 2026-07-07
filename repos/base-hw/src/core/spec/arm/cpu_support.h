@@ -40,6 +40,8 @@ namespace Board {
 
 struct Board::Arm_cpu : public Hw::Arm_cpu
 {
+	Id const _id;
+
 	struct Fpu_context
 	{
 		uint32_t fpscr { 1UL << 24 }; /* VFP/SIMD - status/control register     */
@@ -129,6 +131,12 @@ struct Board::Arm_cpu : public Hw::Arm_cpu
 
 	bool user_msr_read(addr_t const, addr_t &) { return false; }
 	bool user_msr_write(addr_t const, addr_t) { return false; }
+
+	Arm_cpu();
+
+	bool rear(Arm_cpu &other) const;
+
+	void print(Output &output) const;
 };
 
 #endif /* _CORE__SPEC__ARM__CPU_SUPPORT_H_ */

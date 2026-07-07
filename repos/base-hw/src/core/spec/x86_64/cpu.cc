@@ -402,8 +402,57 @@ bool Cpu::user_msr_write(addr_t const msr, addr_t const value)
 }
 
 
-Cpu::Cpu()
+bool Cpu::rear(Cpu const &other) const
 {
+	if (cpuid_1a.atom_core_type() && !other.cpuid_1a.atom_core_type())
+		return true;
+
+	if (!cpuid_1a.atom_core_type() && other.cpuid_1a.atom_core_type())
+		return false;
+
+	return cpuid_1.apic_id() > other.cpuid_1.apic_id();
+}
+
+
+void Cpu::print(Output &output) const
+{
+	Genode::print(output, "Cpu apic_id=", Hex(cpuid_1.apic_id()), " [",
+	              topology[5], ":", topology[4], ":", topology[3], ":",
+	              topology[2], ":", topology[1], ":", topology[0], "] ",
+	              cpuid_1a.atom_core_type() ? "ATOM " : "");
+}
+
+
+Cpu::Cpu()
+:
+	_id(Cpu::executing_id())
+{
+	/*
+	 * First determine topology of cpu
+	 */
+	size_t shift = 0;
+	auto level = [&] (unsigned i, auto &cpuid)
+	{
+		if (!cpuid.valid() ||
+		    (cpuid.domain_type() == Domain_type::INVALID))
+			return false;
+
+		size_t bits = cpuid.shift_count() - shift;
+		topology[i] = (cpuid.x2apic_id() >> shift) & ((1 << bits) - 1);
+		shift = cpuid.shift_count();
+		return true;
+	};
+
+	for (unsigned i = 0; i < TOPOLOGY_MAX; i++) {
+		Cpuid_1f cpuid_1f(cpuid_0.max_leaf(), i);
+		if (level(i, cpuid_1f))
+			continue;
+
+		Cpuid_b cpuid_b(cpuid_0.max_leaf(), i);
+		if (!level(i, cpuid_b))
+			break;
+	}
+
 	if (!cpuid_1.xsave() || !cpuid_d_0.valid())
 		return;
 

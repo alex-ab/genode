@@ -119,3 +119,18 @@ void Hw::Page_table::table_changed()
 {
 	Board::Cpu::sfence();
 }
+
+
+bool Cpu::rear(Cpu &other) const
+{
+	return _id.value > other._id.value;
+}
+
+
+void Cpu::print(Output &output) const
+{
+	Genode::print(output, "CPU ", Genode::Hex(_id.value));
+}
+
+
+Cpu::Cpu() : _id(executing_id()) {}

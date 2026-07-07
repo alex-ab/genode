@@ -94,7 +94,6 @@ class Kernel::Cpu : public Board::Cpu, private Irq::Pool,
 		Cpu_pool &_pool;
 
 		State       _state { RUN };
-		Id    const _id;
 		Board::Local_interrupt_controller _pic;
 		Timer       _timer;
 		Idle_thread _idle;
@@ -116,7 +115,7 @@ class Kernel::Cpu : public Board::Cpu, private Irq::Pool,
 		/**
 		 * Construct object for CPU 'id'
 		 */
-		Cpu(Id const id, Cpu_pool &cpu_pool, Pd &core_pd);
+		Cpu(Cpu_pool &cpu_pool, Pd &core_pd);
 
 		/**
 		 * Raise the IPI of the CPU
@@ -245,6 +244,8 @@ class Kernel::Cpu_pool
 		Irq::Pool & irq_pool() { return _user_irq_pool; }
 
 		void resume() { _global_irq_ctrl.resume(); }
+
+		void print(Genode::Output &output) const;
 };
 
 #endif /* _CORE__KERNEL__CPU_H_ */

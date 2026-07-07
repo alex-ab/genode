@@ -611,6 +611,50 @@ struct Hw::X86_64_cpu
 			return Ecx::Energy_perf_bias::get(ecx); }
 	};
 
+	enum class Domain_type {
+		INVALID = 0,
+		THREAD  = 1,
+		CORE    = 2,
+		MODULE  = 3,
+		TILE    = 4,
+		DIE     = 5,
+		DIE_GRP = 6,
+		MAX     = DIE_GRP
+	};
+
+	template <unsigned ID>
+	struct Cpuid_topology : Cpuid_leaf<ID>
+	{
+		struct Eax : Genode::Register<32>
+		{
+			struct Shift_count : Bitfield<0, 5> { };
+		};
+
+		struct Ecx : Genode::Register<32>
+		{
+			struct Level_num   : Bitfield<0, 8> { };
+			struct Domain_type : Bitfield<8, 8> { };
+		};
+
+		Cpuid_topology(Genode::size_t max_leaf, unsigned subid)
+		: Cpuid_leaf<ID>(max_leaf, subid) {}
+
+		Genode::size_t shift_count() const {
+			return Eax::Shift_count::get(Cpuid_leaf<ID>::eax); }
+
+		Domain_type domain_type() const
+		{
+			auto type = Ecx::Domain_type::get(Cpuid_leaf<ID>::ecx);
+			return (type > (unsigned)Domain_type::MAX)
+				? Domain_type::INVALID : Domain_type(type);
+		}
+
+		Cpuid_leaf<ID>::reg_t x2apic_id() const {
+			return Cpuid_leaf<ID>::edx; }
+	};
+
+	using Cpuid_b = Cpuid_topology<0xb>;
+
 	struct Cpuid_d_0 : Cpuid_leaf<0xd>
 	{
 		void read() {
@@ -640,6 +684,23 @@ struct Hw::X86_64_cpu
 		bool xsaves() const {
 			return Eax::Xsaves::get(eax); }
 	};
+
+	struct Cpuid_1a : Cpuid_leaf<0x1a>
+	{
+		struct Eax : Genode::Register<32>
+		{
+			struct Core_type : Bitfield<24, 8> { };
+		};
+
+		bool atom_core_type() const
+		{
+			enum { ATOM = 0x20, CORE = 0x40 };
+
+			return Eax::Core_type::get(eax) == ATOM;
+		}
+	};
+
+	using Cpuid_1f = Cpuid_topology<0x1f>;
 
 	template <unsigned ID>
 	struct Cpuid_ext_leaf : Cpuid_leaf<0x80000000+ID>

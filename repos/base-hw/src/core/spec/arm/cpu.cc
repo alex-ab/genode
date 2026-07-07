@@ -217,3 +217,18 @@ void Arm_cpu::clear_memory_region(addr_t const addr,
 	invalidate_instr_cache();
 	Cpu::synchronization_barrier();
 }
+
+
+bool Arm_cpu::rear(Arm_cpu &other) const
+{
+	return _id.value > other._id.value;
+}
+
+
+void Arm_cpu::print(Output &output) const
+{
+	Genode::print(output, "CPU ", Genode::Hex(_id.value));
+}
+
+
+Arm_cpu::Arm_cpu() : _id(Cpu::executing_id()) {}

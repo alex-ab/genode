@@ -181,3 +181,18 @@ void Cpu::clear_memory_region(addr_t const addr, size_t const size,
 	asm volatile("dsb ish");
 	asm volatile("isb");
 }
+
+
+bool Cpu::rear(Cpu &other) const
+{
+	return _id.value > other._id.value;
+}
+
+
+void Cpu::print(Output &output) const
+{
+	Genode::print(output, "CPU ", Genode::Hex(_id.value));
+}
+
+
+Cpu::Cpu() : _id(executing_id()) {}
