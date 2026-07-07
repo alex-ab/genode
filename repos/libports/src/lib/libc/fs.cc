@@ -815,32 +815,36 @@ static Ioctl_result ioctl_tio(Libc::Fs &fs, Libc::File_descriptor &fd,
 
 	} else if (request == TIOCGETA) {
 
+		bool terminal = false;
+
 		fs._monitor.monitor([&] {
 			with_info(fs, fd, [&] (Node const &info) {
-				if (info.type() == "terminal") {
-
-					::termios *termios = (::termios *)argp;
-
-					termios->c_iflag = 0;
-					termios->c_oflag = 0;
-					termios->c_cflag = 0;
-					/*
-					 * Set 'ECHO' flag, needed by libreadline. Otherwise, echoing
-					 * user input doesn't work in bash.
-					 */
-					termios->c_lflag = ECHO;
-					::memset(termios->c_cc, _POSIX_VDISABLE, sizeof(termios->c_cc));
-					termios->c_ispeed = 0;
-					termios->c_ospeed = 0;
-
-					handled = true;
-				}
+				if (info.type() == "terminal")
+					terminal = true;
 			});
 
 			return Fn::COMPLETE;
 		});
 
-		if (!handled)
+		/* handle '/dev/log' like a terminal for stdout line-buffering */
+
+		if (terminal || (fd.path == "/dev/log")) {
+			::termios *termios = (::termios *)argp;
+
+			termios->c_iflag = 0;
+			termios->c_oflag = 0;
+			termios->c_cflag = 0;
+			/*
+			 * Set 'ECHO' flag, needed by libreadline. Otherwise, echoing
+			 * user input doesn't work in bash.
+			 */
+			termios->c_lflag = ECHO;
+			::memset(termios->c_cc, _POSIX_VDISABLE, sizeof(termios->c_cc));
+			termios->c_ispeed = 0;
+			termios->c_ospeed = 0;
+
+			handled = true;
+		} else
 			return { true, ENOTTY };
 
 	} else if (request == TIOCSETA) {
