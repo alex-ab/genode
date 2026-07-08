@@ -87,8 +87,6 @@ void http_server_serve(int conn)
 
 static void test(Libc::Env &env)
 {
-	setlinebuf(stdout);
-
 	Attached_rom_dataspace config(env, "config");
 	uint16_t const port = config.node().attribute_value("port", (uint16_t)80);
 

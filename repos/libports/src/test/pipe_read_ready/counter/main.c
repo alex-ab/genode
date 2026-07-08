@@ -17,8 +17,7 @@
 int main(int argc, char **argv)
 {
 	for (unsigned count = 0; ; count++) {
-		fprintf(stdout, "%d\n", count);
-		fflush(stdout);
+		printf("%d\n", count);
 		sleep(1);
 	}
 }
