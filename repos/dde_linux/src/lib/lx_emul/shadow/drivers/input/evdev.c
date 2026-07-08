@@ -262,6 +262,13 @@ static void reset_xy(struct evdev_xy *xy)
 }
 
 
+struct evdev_touchpad_buttons
+{
+	bool active;
+	int left, right, top;       /* area dimensions */
+	unsigned touched, pressed;  /* 0 if none, key code otherwise */
+};
+
 struct evdev_touchpad
 {
 	typeof(jiffies) touch_time;
@@ -269,6 +276,8 @@ struct evdev_touchpad
 	bool            palm;             /* hardware detected palm */
 
 	struct { double x, y; } normalize;
+
+	struct evdev_touchpad_buttons buttons;
 };
 
 
@@ -645,6 +654,71 @@ static void touchpad_relative_motion(struct evdev *evdev, struct evdev_mt_slot *
 }
 
 
+static void touchpad_buttons_update(struct evdev *evdev, struct evdev_mt_slot *slot)
+{
+	if (!slot->pending)
+		return;
+
+	struct evdev_touchpad_buttons * const buttons = &evdev->touchpad.buttons;
+
+	if (!buttons->left)
+		return;
+	if (!slot->x.set || !slot->y.set)
+		return;
+
+	if (slot->y.value < buttons->top) {
+		if (slot->oy.set && slot->oy.value >= buttons->top)
+			update_mt_slot(slot);
+		buttons->touched = 0;
+		return;
+	}
+
+	update_mt_slot(slot);
+
+	buttons->touched = (slot->x.value <= buttons->left)  ? BTN_LEFT
+                     : (slot->x.value >= buttons->right) ? BTN_RIGHT : BTN_MIDDLE;
+
+	complete_mt_slot(&evdev->mt, slot);
+}
+
+
+static void touchpad_buttons_process(struct evdev *evdev, struct genode_event_submit *submit)
+{
+	struct evdev_touchpad_buttons * const buttons = &evdev->touchpad.buttons;
+	struct evdev_keys             * const keys    = &evdev->keys;
+
+	if (!buttons->left)
+		return;
+
+	struct evdev_key *btn_touch = NULL, *btn_left = NULL;
+
+	struct evdev_key *key;
+
+	for_each_pending_key(key, &evdev->keys) {
+		if (key->code == BTN_TOUCH) btn_touch = key;
+		if (key->code == BTN_LEFT)  btn_left  = key;
+	}
+
+	if (btn_touch && buttons->touched)
+		complete_key(keys, btn_touch);
+
+	if (btn_left) {
+		/* process press in button area */
+		if (btn_left->press && buttons->touched) {
+			buttons->pressed = buttons->touched;
+			submit->press(submit, lx_emul_event_keycode(buttons->pressed));
+			complete_key(keys, btn_left);
+		}
+		/* release pressed button even after motion left it */
+		else if (!btn_left->press && buttons->pressed) {
+			submit->release(submit, lx_emul_event_keycode(buttons->pressed));
+			buttons->pressed = 0;
+			complete_key(keys, btn_left);
+		}
+	}
+}
+
+
 /*
  * Future device-state model additions
  *
@@ -676,9 +750,11 @@ static void submit_touchpad(struct evdev *evdev, struct genode_event_submit *sub
 			continue;
 		}
 
+		touchpad_buttons_update(evdev, slot);
 		touchpad_relative_motion(evdev, slot, submit);
 	}
 
+	touchpad_buttons_process(evdev, submit);
 	touchpad_tap_to_click(evdev, submit);
 }
 
@@ -857,6 +933,31 @@ static void init_touchpad(struct evdev *evdev)
 
 	evdev->touchpad.normalize.x = NORMALIZED_DPI / (x_res*25.4);
 	evdev->touchpad.normalize.y = NORMALIZED_DPI / (y_res*25.4);
+
+	/* software button areas on clickpads */
+	if (test_bit(INPUT_PROP_BUTTONPAD, dev->propbit)) {
+		evdev->touchpad.buttons.active = true;
+
+		int x_max = input_abs_get_max(dev, ABS_MT_POSITION_X);
+		int x_min = input_abs_get_min(dev, ABS_MT_POSITION_X);
+		int y_max = input_abs_get_max(dev, ABS_MT_POSITION_Y);
+		int y_min = input_abs_get_min(dev, ABS_MT_POSITION_Y);
+		int w = (int)((x_max - x_min) * 0.375);             /* width of left/right button */
+		int h = max(10*x_res, (int)(0.15*(y_max - y_min))); /* height of area */
+
+		evdev->touchpad.buttons.left  = x_min + w;
+		evdev->touchpad.buttons.right = x_max - w;
+		evdev->touchpad.buttons.top   = y_max - h;
+
+		if (0)
+			printk("CLICKPAD %dx%d phys %dx%d mm - button area [%d %d %d]x%d phys %d-%d-%dx%d mm\n",
+			       x_max - x_min, y_max - y_min, (x_max - x_min)/x_res, (y_max - y_min)/y_res,
+			       evdev->touchpad.buttons.left - x_min,
+			       evdev->touchpad.buttons.right - evdev->touchpad.buttons.left,
+			       x_max - evdev->touchpad.buttons.right,
+			       y_max - evdev->touchpad.buttons.top,
+			       w/x_res, ((x_max - x_min) - 2*w)/x_res, (w)/x_res, h/y_res);
+	}
 
 	/* disable undesired events */
 	clear_bit(ABS_X,              dev->absbit);
