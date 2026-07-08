@@ -142,7 +142,7 @@ Timeout_scheduler &Timer::Connection::_switch_to_timeout_framework_mode()
 
 	_sigh(_signal_handler);
 
-	_timeout_scheduler.construct(*(Time_source*)this);
+	_timeout_scheduler.construct(*(Time_source*)this, Microseconds { TIMEOUT_ACCURACY_US });
 
 	/* do initial calibration burst to make interpolation available earlier */
 	for (unsigned i = 0; i < NR_OF_INITIAL_CALIBRATIONS; i++) {

@@ -21,11 +21,11 @@
 
 /* Genode includes */
 #include <util/noncopyable.h>
-#include <util/list.h>
 #include <base/duration.h>
 #include <base/mutex.h>
 #include <util/misc_math.h>
 #include <base/blockade.h>
+#include <util/alarm_registry.h>
 
 namespace Genode {
 
@@ -38,7 +38,6 @@ namespace Genode {
 namespace Timer {
 
 	class Connection;
-	class Root_component;
 }
 
 
@@ -78,23 +77,61 @@ struct Genode::Time_source : Interface
  * example, in a Timer-session server. If this is not the case, the classes
  * Periodic_io_timeout and One_shot_io_timeout are the better choice.
  */
-class Genode::Timeout : private Noncopyable,
-                        public Genode::List<Timeout>::Element
+class Genode::Timeout : private Noncopyable
 {
 	friend class Timeout_scheduler;
 
 	private:
 
-		Mutex                  _mutex               { };
+		struct Clock;
+		struct Alarm;
+		using  Alarms = Alarm_registry<Alarm, Clock>;
+
+		struct Clock
+		{
+			using Duration     = Genode::Duration;
+			using Microseconds = Genode::Microseconds;
+
+			uint64_t _us { 0 };
+
+			static constexpr uint64_t MASK = ~0ULL;
+
+			Clock() = default;
+
+			Clock(uint64_t us)            { add(Microseconds { us }); }
+
+			Clock(Duration duration)      { add(duration.trunc_to_plain_us()); }
+
+			inline
+			void add(Microseconds us)     { _us += min(us.value, MASK-_us); }
+			
+			uint64_t value()        const { return _us; }
+
+			bool earlier(Clock rhs) const { return _us < rhs._us; }
+
+			void print(Output &out) const { Microseconds { _us }.print(out); }
+		};
+
+
+		struct Alarm : Alarms::Element
+		{
+			Timeout &timeout;
+
+			Alarm(Alarms &alarms, Timeout &timeout, Clock time)
+			:
+			  Alarms::Element(alarms, *this, time), timeout(timeout)
+			{ }
+		};
+
 		Timeout_scheduler     &_scheduler;
 		Microseconds           _period              { 0 };
-		Microseconds           _deadline            { Microseconds { 0 } };
-		List_element<Timeout>  _pending_timeouts_le { this };
-		Timeout_handler       *_pending_handler     { nullptr };
 		Timeout_handler       &_handler;
-		bool                   _scheduled           { false };
+		bool                   _in_handler          { false };
 		bool                   _in_discard_blockade { false };
 		Blockade               _discard_blockade    { };
+
+		/* modified by Timeout_scheduler (requires mutex-ing the registry) */
+		Constructible<Alarm>   _alarm               { };
 
 		Timeout(Timeout const &);
 
@@ -116,7 +153,7 @@ class Genode::Timeout : private Noncopyable,
 
 		bool scheduled();
 
-		Microseconds deadline() const { return _deadline; }
+		Duration deadline() const;
 };
 
 
@@ -126,39 +163,37 @@ class Genode::Timeout : private Noncopyable,
 class Genode::Timeout_scheduler : private Noncopyable,
                                   public  Timeout_handler
 {
-	friend class Timer::Connection;
-	friend class Timer::Root_component;
 	friend class Timeout;
 
 	private:
 
-		Mutex               _mutex              { };
-		Time_source        &_time_source;
-		List<Timeout>       _timeouts           { };
-		bool                _destructor_called  { false };
+		using Clock  = Timeout::Clock;
+		using Alarm  = Timeout::Alarm;
+		using Alarms = Timeout::Alarms;
 
-		void _insert_into_timeouts_list(Timeout &timeout);
+		Mutex                _mutex              { };
+		Time_source         &_time_source;
+		Alarms               _alarms             { };
+		Microseconds const   _accuracy_us;
+		Constructible<Clock> _alarm_time         { };
+
+		void _discard_timeout_unsynchronized(Timeout &timeout);
+
+		void _schedule_alarm(Clock time);
 
 		void _schedule_timeout(Timeout      &timeout,
 		                       Microseconds  duration,
 		                       Microseconds  period);
 
-		void _discard_timeout_unsynchronized(Timeout &timeout);
-
-		void _schedule_one_shot_timeout(Timeout      &timeout,
-		                                Microseconds  duration);
-
-		void _schedule_periodic_timeout(Timeout      &timeout,
-		                                Microseconds  period);
-
-		void _discard_timeout(Timeout &timeout);
-
-		void _destruct_timeout(Timeout &timeout);
-
 		Timeout_scheduler(Timeout_scheduler const &);
 
 		Timeout_scheduler &operator = (Timeout_scheduler const &);
 
+	public:
+
+		Timeout_scheduler(Time_source  &time_source, Microseconds accuracy_us);
+
+		~Timeout_scheduler();
 
 		/*********************
 		 ** Timeout_handler **
@@ -166,11 +201,6 @@ class Genode::Timeout_scheduler : private Noncopyable,
 
 		void handle_timeout(Duration curr_time) override;
 
-	public:
-
-		Timeout_scheduler(Time_source  &time_source);
-
-		~Timeout_scheduler();
 };
 
 #endif /* _TIMER__TIMEOUT_H_ */

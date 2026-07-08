@@ -120,7 +120,7 @@ class Timer::One_shot_io_timeout : private Genode::Noncopyable,
 
 		bool scheduled() { return _timeout.scheduled(); }
 
-		Microseconds deadline() const { return _timeout.deadline(); }
+		Microseconds deadline() const { return _timeout.deadline().trunc_to_plain_us(); }
 };
 
 
@@ -306,6 +306,7 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		enum { NR_OF_INITIAL_CALIBRATIONS = 3 * MAX_INTERPOLATION_QUALITY };
 		enum { MIN_FACTOR_LOG2            = 8 };
 		enum { MAX_DRIFT_US               = 1000 };
+		enum { TIMEOUT_ACCURACY_US        = 250 };
 
 		Entrypoint               &_ep;
 		Io_signal_handler         _signal_handler        { _ep, *this, &Connection::_handle_timeout };
