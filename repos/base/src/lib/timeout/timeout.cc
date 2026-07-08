@@ -346,11 +346,3 @@ void Timeout_scheduler::_discard_timeout_unsynchronized(Timeout &timeout)
 }
 
 
-Duration Timeout_scheduler::curr_time()
-{
-	Mutex::Guard const scheduler_guard { _mutex };
-	if (_destructor_called) {
-		return Duration { Microseconds { 0 } };
-	}
-	return _time_source.curr_time();
-}

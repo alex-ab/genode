@@ -171,8 +171,6 @@ class Genode::Timeout_scheduler : private Noncopyable,
 		Timeout_scheduler(Time_source  &time_source);
 
 		~Timeout_scheduler();
-
-		Duration curr_time();
 };
 
 #endif /* _TIMER__TIMEOUT_H_ */
