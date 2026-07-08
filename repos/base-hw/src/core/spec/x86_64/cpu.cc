@@ -267,8 +267,11 @@ void Cpu::invalidate_tlb(Mmu_context &mmu_context, addr_t addr, size_t size, boo
 }
 
 
-bool Cpu::user_msr_read(addr_t const msr, addr_t &value)
+Kernel::Sys_reg_access_result Cpu::user_msr_read(addr_t const msr,
+                                                 addr_t &value)
 {
+	using namespace Kernel;
+
 	uint32_t msr_addr = msr & 0xffffffff;
 
 	unsigned const family = cpuid_1.family();
@@ -286,19 +289,19 @@ bool Cpu::user_msr_read(addr_t const msr, addr_t &value)
 	case IA32_MPERF:
 		{
 			if (!cpuid_6.mperf_aperf())
-				return false;
+				return Sys_reg_access_result::FAILED;
 			break;
 		}
 	case IA32_THERM_STATUS:
 		{
 			if (!cpuid_1.acpi())
-				return false;
+				return Sys_reg_access_result::FAILED;
 			break;
 		}
 	case IA32_PACKAGE_THERM_STATUS:
 		{
 			if (!cpuid_6.pkg_therm_mgmt())
-				return false;
+				return Sys_reg_access_result::FAILED;
 			break;
 		}
 	case IA32_PM_ENABLE:
@@ -306,19 +309,19 @@ bool Cpu::user_msr_read(addr_t const msr, addr_t &value)
 	case IA32_HWP_REQUEST:
 		{
 			if (!cpuid_6.hwp())
-				return false;
+				return Sys_reg_access_result::FAILED;
 			break;
 		}
 	case IA32_HWP_REQUEST_PKG:
 		{
 			if (!cpuid_6.hwp_request_pkg())
-				return false;
+				return Sys_reg_access_result::FAILED;
 			break;
 		}
 	case IA32_ENERGY_PERF_BIAS:
 		{
 			if (!cpuid_6.energy_perf_bias())
-				return false;
+				return Sys_reg_access_result::FAILED;
 			break;
 		}
 	case MSR_TEMPERATURE_TARGET:
@@ -329,7 +332,7 @@ bool Cpu::user_msr_read(addr_t const msr, addr_t &value)
 	case MSR_CORE_C6_RESIDENCY:
 		if (nehalem_or_newer)
 			break;
-		return false;
+		return Sys_reg_access_result::FAILED;
 	case MSR_CORE_C7_RESIDENCY:
 	case MSR_RAPL_POWER_UNIT:
 	case MSR_PKG_C2_RESIDENCY:
@@ -344,7 +347,7 @@ bool Cpu::user_msr_read(addr_t const msr, addr_t &value)
 	case MSR_PKG_POWER_LIMIT:
 		if (sandybridge_or_newer)
 			break;
-		return false;
+		return Sys_reg_access_result::FAILED;
 	case MSR_DRAM_ENERGY_STATUS:
 	case MSR_DRAM_PERF_STATUS:
 	case MSR_PKG_PERF_STATUS:
@@ -353,24 +356,27 @@ bool Cpu::user_msr_read(addr_t const msr, addr_t &value)
 	case MSR_PKG_C10_RESIDENCY:
 		if (haswell_or_newer)
 			break;
-		return false;
+		return Sys_reg_access_result::FAILED;
 	case MSR_CORE_C1_RESIDENCY:
 		if (cannonlake)
 			break;
-		return false;
+		return Sys_reg_access_result::FAILED;
 	default:
-		return false;
+		return Sys_reg_access_result::FAILED;
 	};
 
 	uint32_t low, high;
 	asm volatile ("rdmsr" : "=a" (low), "=d" (high) : "c" (msr_addr));
 	value = ((uint64_t)high << 32) | (low & ~0U);
-	return true;
+	return Sys_reg_access_result::OK;
 }
 
 
-bool Cpu::user_msr_write(addr_t const msr, addr_t const value)
+Kernel::Sys_reg_access_result Cpu::user_msr_write(addr_t const msr,
+                                                  addr_t const value)
 {
+	using namespace Kernel;
+
 	uint32_t msr_addr = msr & 0xffffffff;
 
 	switch(msr_addr) {
@@ -378,27 +384,27 @@ bool Cpu::user_msr_write(addr_t const msr, addr_t const value)
 	case IA32_HWP_REQUEST:
 		{
 			if (!cpuid_6.hwp())
-				return false;
+				return Sys_reg_access_result::FAILED;
 			break;
 		}
 	case IA32_HWP_REQUEST_PKG:
 		{
 			if (!cpuid_6.hwp_request_pkg())
-				return false;
+				return Sys_reg_access_result::FAILED;
 			break;
 		}
 	case IA32_ENERGY_PERF_BIAS:
 		{
 			if (!cpuid_6.energy_perf_bias())
-				return false;
+				return Sys_reg_access_result::FAILED;
 			break;
 		}
 	default:
-		return false;
+		return Sys_reg_access_result::FAILED;
 	};
 
 	asm volatile ("wrmsr" :: "a" (value), "d" (value>>32), "c" (msr_addr));
-	return true;
+	return Sys_reg_access_result::OK;
 }
 
 
@@ -472,7 +478,7 @@ Cpu::Cpu()
 		Cpu::Ia32_xss::write(0);
 	}
 
-	static constexpr uint64_t hw_supported =
+	static uint64_t hw_supported =
 		Cpu::Xstate_components::X87::bits(1) |
 		Cpu::Xstate_components::Sse::bits(1) |
 		Cpu::Xstate_components::Avx::bits(1) |

@@ -28,7 +28,7 @@
 
 /* base-hw core includes */
 #include <types.h>
-#include <kernel/interface.h>
+#include <kernel/core_interface.h>
 
 namespace Kernel { struct Thread_fault; }
 
@@ -105,8 +105,11 @@ class Board::Cpu : public Hw::Riscv_cpu
 		                                size_t const size,
 		                                bool changed_cache_properties);
 
-		bool user_msr_read(addr_t const, addr_t &) { return false; }
-		bool user_msr_write(addr_t const, addr_t) { return false; }
+
+		Kernel::Sys_reg_access_result user_msr_read(addr_t const, addr_t &) {
+			return Kernel::Sys_reg_access_result::FAILED; }
+		Kernel::Sys_reg_access_result user_msr_write(addr_t const, addr_t) {
+			return Kernel::Sys_reg_access_result::FAILED; }
 
 		Cpu();
 

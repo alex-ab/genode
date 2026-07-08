@@ -24,15 +24,14 @@
 #include <cpu/vcpu_state.h>
 #include <base/internal/align_at.h>
 
-/* base-hw internal includes */
-#include <hw/spec/x86_64/cpu.h>
-
 /* base internal includes */
 #include <base/internal/align_at.h>
 
 /* core includes */
 #include <types.h>
 #include <hw/spec/x86_64/page_table.h>
+#include <hw/spec/x86_64/cpu.h>
+#include <kernel/core_interface.h>
 
 namespace Kernel { struct Thread_fault; }
 
@@ -203,8 +202,8 @@ class Board::Cpu : public Hw::X86_64_cpu
 		                                size_t const size,
 		                                bool changed_cache_properties);
 
-		bool user_msr_read(addr_t const msr, addr_t &value);
-		bool user_msr_write(addr_t const msr, addr_t value);
+		Kernel::Sys_reg_access_result user_msr_read(addr_t const, addr_t &);
+		Kernel::Sys_reg_access_result user_msr_write(addr_t const, addr_t);
 
 		bool has_svm();
 		bool has_vmx();
