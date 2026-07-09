@@ -145,6 +145,12 @@ void Timer::Connection::_update_real_time()
 }
 
 
+Duration Timer::Connection::_last_time() const
+{
+	return _interpolated_time;
+}
+
+
 Duration Timer::Connection::curr_time()
 {
 	_switch_to_timeout_framework_mode();

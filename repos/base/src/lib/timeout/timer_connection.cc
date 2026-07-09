@@ -108,7 +108,9 @@ void Timer::Connection::_handle_timeout()
 
 void Timer::Connection::set_alarm(Duration deadline)
 {
-	Duration const now = curr_time();
+	/* use result of preceding curr_time() */
+	Duration now = _last_time();
+	now.add(Microseconds { TIMEOUT_ACCURACY_US });
 
 	/* trigger locally, if deadline already passed */
 	if (deadline.less_than(now)) {

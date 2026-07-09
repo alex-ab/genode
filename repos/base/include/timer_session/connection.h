@@ -364,6 +364,8 @@ class Timer::Connection : public  Genode::Connection<Session>,
 
 		void _handle_timeout();
 
+		Duration _last_time() const;
+
 
 		/*****************
 		 ** Time_source **

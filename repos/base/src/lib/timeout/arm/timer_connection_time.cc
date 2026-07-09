@@ -26,7 +26,14 @@ Timestamp Timer::Connection::_timestamp() { return 0ULL; }
 
 void Timer::Connection::_update_real_time() { }
 
+Duration Timer::Connection::_last_time() const
+{
+  return _real_time;
+}
+
 Duration Timer::Connection::curr_time()
 {
-	return Duration(Microseconds(elapsed_us()));
+  Mutex::Guard guard(_real_time_mutex);
+  _real_time = Duration(Microseconds(elapsed_us));
+  return _real_time;
 }
