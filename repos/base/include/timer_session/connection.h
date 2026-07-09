@@ -21,7 +21,6 @@
 #include <base/entrypoint.h>
 #include <timer/timeout.h>
 #include <trace/timestamp.h>
-#include <cpu/memory_barrier.h>
 
 namespace Timer
 {
@@ -136,14 +135,12 @@ class Timer::Periodic_timeout : private Genode::Noncopyable
 		using Duration          = Genode::Duration;
 		using Io_timeout        = Timer::Periodic_io_timeout<Periodic_timeout>;
 		using Microseconds      = Genode::Microseconds;
-		using Signal_handler    = Genode::Signal_handler<Periodic_timeout>;
-		using Blockade          = Genode::Blockade;
+		using Signal_handler    = Genode::Reconstructible<Genode::Signal_handler<Periodic_timeout>>;
+		using Mutex             = Genode::Mutex;
 
 		typedef void (HANDLER::*Handler_method)(Duration);
 
-		volatile bool         _in_discard      { false };
-		volatile bool         _handler_pending { false };
-		Blockade              _blockade        { };
+		Mutex                 _mutex { };
 		HANDLER              &_object;
 		Handler_method const  _method;
 		Signal_handler        _timeout_handler;
@@ -153,22 +150,17 @@ class Timer::Periodic_timeout : private Genode::Noncopyable
 
 		void _handle_io_timeout(Duration curr_time)
 		{
-			_handler_pending = true;
-			Genode::memory_barrier();
+			Mutex::Guard guard(_mutex);
 
 			_curr_time = curr_time;
-			_timeout_handler.local_submit();
+
+			if (_timeout_handler.constructed())
+				_timeout_handler->local_submit();
 		}
 
 		void _handle_timeout()
 		{
 			(_object.*_method)(_curr_time);
-
-			/* wakeup discard() */
-			if (_in_discard)
-				_blockade.wakeup();
-
-			_handler_pending = false;
 		}
 
 	public:
@@ -180,11 +172,8 @@ class Timer::Periodic_timeout : private Genode::Noncopyable
 
 		~Periodic_timeout()
 		{
-			_in_discard = true;
-			Genode::memory_barrier();
-
-			if (_handler_pending)
-				_blockade.block();
+			Mutex::Guard guard(_mutex);
+			_timeout_handler.destruct();
 		}
 };
 
@@ -200,14 +189,12 @@ class Timer::One_shot_timeout : private Genode::Noncopyable
 		using Duration          = Genode::Duration;
 		using Io_timeout        = Timer::One_shot_io_timeout<One_shot_timeout>;
 		using Microseconds      = Genode::Microseconds;
-		using Signal_handler    = Genode::Signal_handler<One_shot_timeout>;
-		using Blockade          = Genode::Blockade;
+		using Signal_handler    = Genode::Reconstructible<Genode::Signal_handler<One_shot_timeout>>;
+		using Mutex             = Genode::Mutex;
 
 		typedef void (HANDLER::*Handler_method)(Duration);
 
-		volatile bool         _handler_pending { false };
-		volatile bool         _in_discard      { false };
-		Blockade              _blockade        { };
+		Mutex                 _mutex { };
 		HANDLER              &_object;
 		Handler_method const  _method;
 		Signal_handler        _timeout_handler;
@@ -217,22 +204,16 @@ class Timer::One_shot_timeout : private Genode::Noncopyable
 
 		void _handle_io_timeout(Duration curr_time)
 		{
-			_handler_pending = true;
-			Genode::memory_barrier();
-
+			Mutex::Guard guard(_mutex);
 			_curr_time = curr_time;
-			_timeout_handler.local_submit();
+
+			if (_timeout_handler.constructed())
+				_timeout_handler->local_submit();
 		}
 
 		void _handle_timeout()
 		{
 			(_object.*_method)(_curr_time);
-
-			/* wakeup discard() */
-			if (_in_discard)
-				_blockade.wakeup();
-
-			_handler_pending = false;
 		}
 
 	public:
@@ -243,37 +224,25 @@ class Timer::One_shot_timeout : private Genode::Noncopyable
 
 		~One_shot_timeout()
 		{
-			_in_discard = true;
-			Genode::memory_barrier();
-
-			if (_handler_pending)
-				_blockade.block();
-		}
-
-		void schedule(Microseconds duration)
-		{
-			if (_in_discard) return;
-
-			_io_timeout.schedule(duration);
+			Mutex::Guard guard(_mutex);
+			_timeout_handler.destruct();
 		}
 
 		void discard()
 		{
-			_in_discard = true;
-			Genode::memory_barrier();
+			{
+				Mutex::Guard guard(_mutex);
+				_timeout_handler.destruct();
+			}
 
 			_io_timeout.discard();
-
-			/* block until _handle_timeout() finished */
-			if (_handler_pending)
-				_blockade.block();
-
-			_in_discard = false;
 		}
 
-		bool scheduled() { return _io_timeout.scheduled(); }
+		void schedule(Microseconds duration) { _io_timeout.schedule(duration); }
 
-		Microseconds deadline() const { return _io_timeout.deadline(); }
+		bool scheduled()                     { return _io_timeout.scheduled(); }
+
+		Microseconds deadline() const        { return _io_timeout.deadline(); }
 };
 
 
