@@ -109,7 +109,9 @@ class Terminal::Text_screen_surface
 				if (char_width.value == 0 || char_height == 0)
 					return Position { };
 
-				return Position((p.x << 8) / char_width.value, p.y / char_height);
+				Position result { (p.x << 8) / char_width.value, p.y / int(char_height) };
+				result.constrain(Boundary(columns, lines));
+				return result;
 			}
 		};
 
