@@ -33,8 +33,8 @@ config
 
 + start test-fatfs_block_io | ram: 10M
   + config | ld_verbose: true
-    + libc | stdout: /log | stderr: /log
-    + vfs | + log
+    + libc | stdout: /dev/log | stderr: /dev/log
+    + vfs | + dir dev | + log
 
 + start vfs_block | ram: 4M
   + provides | + service Block

@@ -25,7 +25,7 @@ config
   + binary vfs
   + provides | + service File_system
   + config
-    + vfs | + log | label: log
+    + vfs | + dir dev | + log | label: log
     + default-policy | root: / | writeable: yes
 
 + start test | caps: 1000 | ram: 4M
@@ -35,20 +35,20 @@ config
     | + binary test-libc_getgrent
     | + config
     |   + vfs | + fs
-    |   + libc | stdout: /log | stderr: /log
+    |   + libc | stdout: /dev/log | stderr: /dev/log
     |   + arg test-libc_getgrent
     |   + env HOME | : /home-from-getenv
     + start alice
     | + binary test-libc_getgrent
     | + config
     |   + vfs | + fs
-    |   + libc | stdout: /log | stderr: /log
+    |   + libc | stdout: /dev/log | stderr: /dev/log
     |     + group alice | gid: 1
     + start bob
       + binary test-libc_getgrent
       + config
         + vfs | + fs
-        + libc | stdout: /log | stderr: /log
+        + libc | stdout: /dev/log | stderr: /dev/log
           + group bob | gid: 2
 -
 }

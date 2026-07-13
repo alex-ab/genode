@@ -17,10 +17,11 @@ runtime | ram: 32M | caps: 500 | binary: test-fork
 + config
   + arg | : name_of_executeable
   + env WIZARD | : gandalf
-  + libc | stdin: /null | stdout: /log | stderr: /log
+  + libc | stdin: /dev/null | stdout: /dev/log | stderr: /dev/log
     + fd | id: 3 | path: /seek_test | readable: yes | seek: 5
   + vfs
-    + null
-    + log
+    + dir dev
+      + null
+      + log
     + inline seek_test | : 0123456789
 -

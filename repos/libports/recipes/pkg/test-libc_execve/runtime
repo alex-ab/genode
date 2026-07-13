@@ -25,11 +25,12 @@ runtime | ram: 32M | caps: 1000 | binary: init
     + config | ld_verbose: yes
     | + arg | value: name_of_executeable
     | + arg | value: 100
-    | + libc | stdin: /null | stdout: /log | stderr: /log
+    | + libc | stdin: /dev/null | stdout: /dev/log | stderr: /dev/log
     | + vfs
+    |   + dir dev
+    |     + null
+    |     + log
     |   + rom test-execve
-    |   + null
-    |   + log
     + route
       + service ROM | label: /test-execve | + parent | label: test-execve
       + any-service                       | + parent
