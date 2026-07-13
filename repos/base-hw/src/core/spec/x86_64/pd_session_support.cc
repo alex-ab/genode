@@ -34,6 +34,7 @@ class Hw_system_control : public Core::System_control
 		{
 			Rpc_entrypoint ep;
 			System_control_component obj {};
+			int const cpu;
 
 			Per_cpu(Registry<Per_cpu> &, Runtime &, int);
 		};
@@ -138,7 +139,8 @@ Hw_system_control::Per_cpu::Per_cpu(Registry<Per_cpu> &registry,
 :
 	Registry<Per_cpu>::Element(registry, *this),
 	ep(runtime, "system_control", Thread::Stack_size{12*1024},
-	   Affinity::Location{idx, 0})
+	   Affinity::Location{idx, 0}),
+	cpu(idx)
 {
 	ep.manage(&obj);
 }
@@ -169,10 +171,9 @@ Capability<Pd_session::System_control>
 Hw_system_control::control_cap(Affinity::Location const location) const
 {
 	Capability<Pd_session::System_control> result {};
-	int cpu = 0;
 
 	_registry.for_each([&] (auto &per_cpu) {
-		if (location.xpos() == cpu++) result = per_cpu.obj.cap(); });
+		if (location.xpos() == per_cpu.cpu) result = per_cpu.obj.cap(); });
 
 	return result;
 }
