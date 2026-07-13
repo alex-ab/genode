@@ -112,16 +112,11 @@ void Vcpu::load()
 
 	bool const xsave_avail = _vcpu_context.regs->fpu_context().xstate_support
 	                         != Cpu::Xstate_support::LEGACY;
-	size_t xstates_size = xsave_avail
-		? min(_cpu().cpuid_d_0.xsave_bytes_enabled(), Cpu::Fpu_context::SIZE)
-		: 512;
 
 	_state.with_state([&] (auto &state) {
 		if (state.fpu.charged())
 			state.fpu.with_state([&](auto const &fpu) {
-				memcpy(&_vcpu_context.regs->fpu_context(), &fpu,
-				       xstates_size);
-			});
+				memcpy(&_vcpu_context.regs->fpu_context(), &fpu, 512); });
 	});
 	_vcpu_context.regs->fpu_context().load();
 
@@ -152,9 +147,6 @@ void Vcpu::save(Cpu_state &state)
 
 	bool const xsave_avail = _vcpu_context.regs->fpu_context().xstate_support
 	                         != Cpu::Xstate_support::LEGACY;
-	size_t xstates_size = xsave_avail
-		? min(_cpu().cpuid_d_0.xsave_bytes_enabled(), Cpu::Fpu_context::SIZE)
-		: 512;
 
 	if (xsave_avail && _vcpu_context.xcr0 != _cpu().xcr0)
 		Cpu::Xcr0::write(_cpu().xcr0);
@@ -162,8 +154,8 @@ void Vcpu::save(Cpu_state &state)
 	_vcpu_context.regs->fpu_context().save();
 	_state.with_state([&] (auto &state) {
 		state.fpu.charge([&](auto &fpu) {
-			memcpy(&fpu, &_vcpu_context.regs->fpu_context(), xstates_size);
-			return xstates_size;
+			memcpy(&fpu, &_vcpu_context.regs->fpu_context(), 512);
+			return 512;
 		});
 	});
 
