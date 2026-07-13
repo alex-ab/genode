@@ -758,10 +758,8 @@ extern "C" pid_t __sys_wait4(pid_t pid, int *status, int options, rusage *rusage
 
 	using namespace Libc;
 
-	if (!_forked_children_ptr) {
-		errno = ECHILD;
-		return -1;
-	}
+	if (!_forked_children_ptr)
+		return Errno(ECHILD);
 
 	Wait4_functor functor { pid, *_forked_children_ptr };
 
@@ -777,6 +775,16 @@ extern "C" pid_t __sys_wait4(pid_t pid, int *status, int options, rusage *rusage
 
 		return Fn::INCOMPLETE;
 	});
+
+	if (result == -1) {
+
+		/* no exited child found */
+
+		if (options & WNOHANG)
+			return 0;
+
+		return Errno(ECHILD);
+	}
 
 	if (_fds_ptr && _fs_ptr)
 		update_append_libc_fds(*_fs_ptr, *_fds_ptr);
