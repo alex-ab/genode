@@ -61,7 +61,7 @@ class Libc::Mmap_registry
 
 		List<Mmap_registry::Entry> _list;
 
-		Mutex mutable _mutex;
+		Pthread_mutex mutable _mutex;
 
 		/*
 		 * Common for both const and non-const lookup functions
@@ -90,7 +90,7 @@ class Libc::Mmap_registry
 
 		void insert(Attr attr)
 		{
-			Mutex::Guard guard(_mutex);
+			Pthread_mutex::Guard guard(_mutex);
 
 			if (_lookup_by_addr_unsynchronized(attr.start)) {
 				warning(__func__, ": mmap region at ", attr.start, " "
@@ -104,7 +104,7 @@ class Libc::Mmap_registry
 		auto with_registered(void *start, auto const &fn, auto const &missing_fn)
 		-> decltype(missing_fn())
 		{
-			Mutex::Guard guard(_mutex);
+			Pthread_mutex::Guard guard(_mutex);
 
 			Entry * const e = _lookup_by_addr_unsynchronized(start);
 
@@ -118,7 +118,7 @@ class Libc::Mmap_registry
 
 		void remove(void *start)
 		{
-			Mutex::Guard guard(_mutex);
+			Pthread_mutex::Guard guard(_mutex);
 
 			Entry *e = _lookup_by_addr_unsynchronized(start);
 

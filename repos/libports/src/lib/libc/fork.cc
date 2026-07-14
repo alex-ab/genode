@@ -64,7 +64,7 @@ static pid_t fork_result;
 static Genode::Env           *_env_ptr;
 static Fs                    *_fs_ptr;
 static Fds                   *_fds_ptr;
-static Allocator             *_alloc_ptr;
+static Genode::Allocator     *_alloc_ptr;
 static Monitor               *_monitor_ptr;
 static Libc::Signal          *_signal_ptr;
 static Heap                  *_malloc_heap_ptr;
@@ -229,8 +229,8 @@ class Libc::Parent_services : Noncopyable
 {
 	private:
 
-		Genode::Env &_env;
-		Allocator   &_alloc;
+		Genode::Env       &_env;
+		Genode::Allocator &_alloc;
 
 		using Registered_service = Registered<Parent_service>;
 
@@ -238,7 +238,7 @@ class Libc::Parent_services : Noncopyable
 
 	public:
 
-		Parent_services(Genode::Env &env, Allocator &alloc)
+		Parent_services(Genode::Env &env, Genode::Allocator &alloc)
 		: _env(env), _alloc(alloc) { }
 
 		~Parent_services()
@@ -313,13 +313,13 @@ struct Libc::Local_rom_service : Noncopyable
 
 struct Libc::Local_rom_services : Noncopyable
 {
-	Allocator &_alloc;
+	Genode::Allocator &_alloc;
 
 	using Registered_service = Registered<Local_rom_service>;
 
 	Registry<Registered_service> _services { };
 
-	Local_rom_services(Genode::Env &env, Entrypoint &fork_ep, Allocator &alloc)
+	Local_rom_services(Genode::Env &env, Entrypoint &fork_ep, Genode::Allocator &alloc)
 	:
 		_alloc(alloc)
 	{
@@ -583,7 +583,7 @@ struct Libc::Forked_child : Child_policy, Child_ready
 	             Fs                        &fs,
 	             Fds                       &fds,
 	             Entrypoint                &fork_ep,
-	             Allocator                 &alloc,
+	             Genode::Allocator         &alloc,
 	             Binary_name         const &binary_name,
 	             Signal                    &signal,
 	             pid_t                      pid,
@@ -614,9 +614,9 @@ static Forked_child * fork_kernel_routine()
 		abort();
 	}
 
-	Genode::Env  &env    = *_env_ptr;
-	Allocator    &alloc  = *_alloc_ptr;
-	Libc::Signal &signal = *_signal_ptr;
+	Genode::Env       &env    = *_env_ptr;
+	Genode::Allocator &alloc  = *_alloc_ptr;
+	Libc::Signal      &signal = *_signal_ptr;
 
 	pid_t const child_pid = ++_pid_cnt;
 
@@ -808,7 +808,7 @@ extern "C" pid_t wait4(pid_t, int *, int, rusage *) __attribute__((weak, alias("
 
 void Libc::init_fork(Genode::Env &env, Fs &fs, Fds &fds,
                      Config_accessor const &config_accessor,
-                     Allocator &alloc, Heap &malloc_heap, pid_t pid,
+                     Genode::Allocator &alloc, Heap &malloc_heap, pid_t pid,
                      Monitor &monitor, Signal &signal,
                      Binary_name const &binary_name)
 {

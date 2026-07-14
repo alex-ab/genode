@@ -23,6 +23,7 @@
 
 /* libc-internal includes */
 #include <internal/kqueue.h>
+#include <internal/pthread.h>
 #include <internal/socket.h>
 #include <internal/fs.h>
 
@@ -53,9 +54,18 @@ class Libc::Fds
 
 	private:
 
-		Mutex _mutex { };
 		Bits  _bits  { };
 		Space _space { };
+
+		/*
+		 * 'Pthread_mutex' uses 'malloc()', which is not initialized
+		 * yet at 'Fds' construction time.
+		 */
+		Pthread_mutex &_mutex()
+		{
+			static Pthread_mutex inst { };
+			return inst;
+		}
 
 	public:
 
@@ -63,7 +73,7 @@ class Libc::Fds
 		auto with_alloc(FN const &fn)
 		-> typename Trait::Functor<decltype(&FN::operator())>::Return_type
 		{
-			Mutex::Guard guard { _mutex };
+			Pthread_mutex::Guard guard { _mutex() };
 			return fn(_bits, _space);
 		}
 
@@ -71,7 +81,7 @@ class Libc::Fds
 		auto with_space(FN const &fn)
 		-> typename Trait::Functor<decltype(&FN::operator())>::Return_type
 		{
-			Mutex::Guard guard { _mutex };
+			Pthread_mutex::Guard guard { _mutex() };
 			return fn(_space);
 		}
 };
