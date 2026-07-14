@@ -135,12 +135,13 @@ class Timer::Periodic_timeout : private Genode::Noncopyable
 		using Duration          = Genode::Duration;
 		using Io_timeout        = Timer::Periodic_io_timeout<Periodic_timeout>;
 		using Microseconds      = Genode::Microseconds;
-		using Signal_handler    = Genode::Reconstructible<Genode::Signal_handler<Periodic_timeout>>;
+		using Signal_handler    = Genode::Signal_handler<Periodic_timeout>;
 		using Mutex             = Genode::Mutex;
 
 		typedef void (HANDLER::*Handler_method)(Duration);
 
 		Mutex                 _mutex { };
+		bool                  _in_destruct { false };
 		HANDLER              &_object;
 		Handler_method const  _method;
 		Signal_handler        _timeout_handler;
@@ -150,17 +151,15 @@ class Timer::Periodic_timeout : private Genode::Noncopyable
 
 		void _handle_io_timeout(Duration curr_time)
 		{
-			Mutex::Guard guard(_mutex);
-
 			_curr_time = curr_time;
-
-			if (_timeout_handler.constructed())
-				_timeout_handler->local_submit();
+			_timeout_handler.local_submit();
 		}
 
 		void _handle_timeout()
 		{
-			(_object.*_method)(_curr_time);
+			Mutex::Guard guard(_mutex);
+			if (!_in_destruct)
+				(_object.*_method)(_curr_time);
 		}
 
 	public:
@@ -173,7 +172,7 @@ class Timer::Periodic_timeout : private Genode::Noncopyable
 		~Periodic_timeout()
 		{
 			Mutex::Guard guard(_mutex);
-			_timeout_handler.destruct();
+			_in_destruct = true;
 		}
 };
 
@@ -189,12 +188,14 @@ class Timer::One_shot_timeout : private Genode::Noncopyable
 		using Duration          = Genode::Duration;
 		using Io_timeout        = Timer::One_shot_io_timeout<One_shot_timeout>;
 		using Microseconds      = Genode::Microseconds;
-		using Signal_handler    = Genode::Reconstructible<Genode::Signal_handler<One_shot_timeout>>;
+		using Signal_handler    = Genode::Signal_handler<One_shot_timeout>;
 		using Mutex             = Genode::Mutex;
 
 		typedef void (HANDLER::*Handler_method)(Duration);
 
-		Mutex                 _mutex { };
+		Mutex                 _handle_mutex   { };
+		Mutex                 _schedule_mutex { };
+		bool                  _in_discard { false };
 		HANDLER              &_object;
 		Handler_method const  _method;
 		Signal_handler        _timeout_handler;
@@ -204,16 +205,15 @@ class Timer::One_shot_timeout : private Genode::Noncopyable
 
 		void _handle_io_timeout(Duration curr_time)
 		{
-			Mutex::Guard guard(_mutex);
 			_curr_time = curr_time;
-
-			if (_timeout_handler.constructed())
-				_timeout_handler->local_submit();
+			_timeout_handler.local_submit();
 		}
 
 		void _handle_timeout()
 		{
-			(_object.*_method)(_curr_time);
+			Mutex::Guard guard(_handle_mutex);
+			if (!_in_discard)
+				(_object.*_method)(_curr_time);
 		}
 
 	public:
@@ -224,21 +224,24 @@ class Timer::One_shot_timeout : private Genode::Noncopyable
 
 		~One_shot_timeout()
 		{
-			Mutex::Guard guard(_mutex);
-			_timeout_handler.destruct();
+			Mutex::Guard guard(_handle_mutex);
+			_in_discard = true;
 		}
 
 		void discard()
 		{
-			{
-				Mutex::Guard guard(_mutex);
-				_timeout_handler.destruct();
-			}
-
+			Mutex::Guard   handle_guard(_handle_mutex);
+			Mutex::Guard schedule_guard(_schedule_mutex);
+			_in_discard = true;
 			_io_timeout.discard();
 		}
 
-		void schedule(Microseconds duration) { _io_timeout.schedule(duration); }
+		void schedule(Microseconds duration)
+		{
+			Mutex::Guard schedule_guard(_schedule_mutex);
+			_in_discard = false;
+			_io_timeout.schedule(duration);
+		}
 
 		bool scheduled()                     { return _io_timeout.scheduled(); }
 
