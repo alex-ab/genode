@@ -193,6 +193,7 @@ namespace Nova {
 		                   unsigned const boot_cpu) const
 		{
 			unsigned const num_cpus = cpus();
+			unsigned boot_cpu_smt = ~0u;
 			bool too_many_cpus = false;
 			unsigned cpu_i = 0;
 
@@ -208,6 +209,27 @@ namespace Nova {
 				return remap_failure();
 
 			map_cpus[cpu_i++] = (uint8_t)boot_cpu;
+
+			if (cpu_i >= num_cpus)
+				return true;
+			if (cpu_i >= max_cpus)
+				return remap_failure();
+
+			/* lookup smt thread of boot cpu, if available */
+			for_all_cpus([&](auto const &cpu, auto const kernel_cpu_id) {
+				if (boot->core != cpu.core || boot->package != cpu.package)
+					return false;
+
+				if (kernel_cpu_id == boot_cpu)
+					return false;
+
+				map_cpus[cpu_i++] = uint16_t(kernel_cpu_id);
+
+				boot_cpu_smt = kernel_cpu_id;
+
+				return true;
+			});
+
 			if (cpu_i >= num_cpus)
 				return true;
 			if (cpu_i >= max_cpus)
@@ -215,7 +237,7 @@ namespace Nova {
 
 			/* assign cores + SMT threads first and skip E-cores */
 			bool done = for_all_cpus([&](auto const &cpu, auto const kernel_cpu_id) {
-				if (kernel_cpu_id == boot_cpu)
+				if (kernel_cpu_id == boot_cpu || kernel_cpu_id == boot_cpu_smt)
 					return false;
 
 				/* handle normal or P-core */
@@ -234,7 +256,7 @@ namespace Nova {
 
 			/* assign remaining E-cores */
 			done = for_all_cpus([&](auto &cpu, auto &kernel_cpu_id) {
-				if (kernel_cpu_id == boot_cpu)
+				if (kernel_cpu_id == boot_cpu || kernel_cpu_id == boot_cpu_smt)
 					return false;
 
 				/* handle solely E-core */
