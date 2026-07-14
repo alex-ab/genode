@@ -218,6 +218,7 @@ class Test_smp_1
 		unsigned long             _nr_of_handle_calls { 0 };
 		unsigned long             _nr_of_discard_calls { 0 };
 		unsigned long             _nr_of_destruct_calls { 0 };
+		unsigned long             _nr_of_not_handled { 0 };
 
 		Test_thread<Test_smp_1> _destruct_discard_timeout_thread
 		{
@@ -278,6 +279,11 @@ class Test_smp_1
 				    (unsigned)MIN_NR_OF_TEST_ITERATIONS, " times");
 				success = false;
 			}
+			if (_nr_of_not_handled > 0) {
+				log("  Timeout has not been handled ",
+				    _nr_of_not_handled, " times after being discarded/destructed");
+				success = false;
+			}
 			if (success) {
 				log("  Succeeded");
 			} else {
@@ -316,6 +322,7 @@ class Test_smp_1
 
 		void destruct_discard_timeout_thread_entry()
 		{
+			unsigned long handle_calls { 0 };
 			Timer::Connection sleep_timer { _env };
 			while (true) {
 				if (_max_nr_of_handle_calls_reached) {
@@ -323,18 +330,27 @@ class Test_smp_1
 					_done(true);
 					break;
 				}
+
+				/* check whether re-constructed or re-scheduled timeout has been handled */
+				if (_nr_of_handle_calls == handle_calls)
+					_nr_of_not_handled++;
+
 				if (_nr_of_destruct_calls < _nr_of_discard_calls) {
-					sleep_timer.msleep(25);
 					_timeout.destruct();
 					sleep_timer.msleep(9);
+
+					handle_calls = _nr_of_handle_calls;
 					_nr_of_destruct_calls++;
 					_construct_timeout();
+					sleep_timer.msleep(25);
 				} else {
-					sleep_timer.msleep(23);
 					_timeout->discard();
 					sleep_timer.msleep(11);
+
+					handle_calls = _nr_of_handle_calls;
 					_nr_of_discard_calls++;
 					_schedule_timeout();
+					sleep_timer.msleep(23);
 				}
 			}
 		}
