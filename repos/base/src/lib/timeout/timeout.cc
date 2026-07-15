@@ -60,7 +60,8 @@ Timeout::~Timeout()
 
 void Timeout::discard()
 {
-	Mutex::Guard scheduler_guard { _scheduler._mutex };
+	Mutex::Guard handle_guard  { _scheduler._handle_mutex };
+	Mutex::Guard schedule_guard { _scheduler._schedule_mutex };
 	_scheduler._discard_timeout_unsynchronized(*this);
 }
 
@@ -79,7 +80,7 @@ Duration Timeout::deadline() const
 
 void Timeout_scheduler::handle_timeout(Duration curr_time)
 {
-	_mutex.acquire();
+	Mutex::Guard guard { _handle_mutex };
 
 	Clock lookahead_time { curr_time };
 	lookahead_time.add(_accuracy_us);
@@ -94,24 +95,7 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 
 				timeout._alarm.destruct();
 
-				if (timeout._in_discard_blockade)
-					return;
-
-				timeout._in_handler = true;
-
-				/*
-				 * Timeout handlers are called without holding the scheduler mutex.
-				 * This ensures that the handler can, for instance, re-schedule
-				 * the timeout without running into a deadlock.
-				 * The only thing we synchronize is discarding the
-				 * timeout.
-				 */
-
-				_mutex.release();
-
 				timeout._handler.handle_timeout(curr_time);
-
-				_mutex.acquire();
 
 				if (timeout._period.value > 0) {
 
@@ -121,11 +105,6 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 					/* re-insert periodic timeout */
 					timeout._alarm.construct(_alarms, timeout, deadline);
 				}
-
-				timeout._in_handler = false;
-				if (timeout._in_discard_blockade)
-					timeout._discard_blockade.wakeup();
-
 			});
 	}
 
@@ -139,8 +118,6 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 			_schedule_alarm(Clock { Clock::MASK });
 		}
 	);
-
-	_mutex.release();
 }
 
 
@@ -152,7 +129,8 @@ Timeout_scheduler::Timeout_scheduler(Time_source  &time_source,
 
 Timeout_scheduler::~Timeout_scheduler()
 {
-	Mutex::Guard scheduler_guard { _mutex };
+	Mutex::Guard handle_guard   { _handle_mutex };
+	Mutex::Guard schedule_guard { _schedule_mutex };
 
 	/* clear alarm registry */
 	while (_alarms.with_any_in_range(Clock { 0 }, Clock { Clock::MASK },
@@ -174,7 +152,7 @@ void Timeout_scheduler::_schedule_timeout(Timeout            &timeout,
                                           Microseconds const  period)
 {
 	/* acquire scheduler mutex */
-	Mutex::Guard const scheduler_guard { _mutex };
+	Mutex::Guard guard { _schedule_mutex };
 
 	timeout._period = period;
 
@@ -208,27 +186,6 @@ void Timeout_scheduler::_schedule_timeout(Timeout            &timeout,
 
 void Timeout_scheduler::_discard_timeout_unsynchronized(Timeout &timeout)
 {
-	if (timeout._in_handler) {
-
-		if (timeout._in_discard_blockade)
-			error("timeout is getting discarded by multiple threads");
-
-		/*
-		 * We cannot discard a timeout whose handler is currently executed. We
-		 * rather set its flag '_in_discard_blockade' (this ensures that the
-		 * timeout handler is not getting called again) and then wait for the
-		 * current handler call to finish. 'Timeout_scheduler::handle_timeout'
-		 * will wake us up as soon as the handler returned.
-		 */
-		timeout._in_discard_blockade = true;
-		_mutex.release();
-
-		timeout._discard_blockade.block();
-
-		_mutex.acquire();
-		timeout._in_discard_blockade = false;
-	}
-
 	timeout._alarm.destruct();
 
 	/*

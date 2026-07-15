@@ -24,7 +24,6 @@
 #include <base/duration.h>
 #include <base/mutex.h>
 #include <util/misc_math.h>
-#include <base/blockade.h>
 #include <util/alarm_registry.h>
 
 namespace Genode {
@@ -126,9 +125,6 @@ class Genode::Timeout : private Noncopyable
 		Timeout_scheduler     &_scheduler;
 		Microseconds           _period              { 0 };
 		Timeout_handler       &_handler;
-		bool                   _in_handler          { false };
-		bool                   _in_discard_blockade { false };
-		Blockade               _discard_blockade    { };
 
 		/* modified by Timeout_scheduler (requires mutex-ing the registry) */
 		Constructible<Alarm>   _alarm               { };
@@ -171,7 +167,8 @@ class Genode::Timeout_scheduler : private Noncopyable,
 		using Alarm  = Timeout::Alarm;
 		using Alarms = Timeout::Alarms;
 
-		Mutex                _mutex              { };
+		Mutex                _handle_mutex       { };
+		Mutex                _schedule_mutex     { };
 		Time_source         &_time_source;
 		Alarms               _alarms             { };
 		Microseconds const   _accuracy_us;
