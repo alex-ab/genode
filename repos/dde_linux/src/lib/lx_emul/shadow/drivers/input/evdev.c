@@ -547,9 +547,14 @@ static void submit_pointer(struct evdev *evdev, struct genode_event_submit *subm
 	if (evdev->motion != MOTION_POINTER)
 		return;
 
+	/*
+	 * EV_ABS events describe absolute axis-value *changes*. Hence, for
+	 * example, a solitary change of the X axis just does not change the Y
+	 * axis, and, therefore, axis values must not be reset on event submission.
+	 */
 	if (evdev->abs.pending) {
 		submit->abs_motion(submit, evdev->abs.x, evdev->abs.y);
-		reset_xy(&evdev->abs);
+		evdev->abs.pending = false;
 	}
 
 	if (evdev->wheel.pending) {
@@ -568,9 +573,14 @@ static void submit_touchtool(struct evdev *evdev, struct genode_event_submit *su
 	if (evdev->motion != MOTION_TOUCHTOOL)
 		return;
 
+	/*
+	 * EV_ABS events describe absolute axis-value *changes*. Hence, for
+	 * example, a solitary change of the X axis just does not change the Y
+	 * axis, and, therefore, axis values must not be reset on event submission.
+	 */
 	if (evdev->abs.pending) {
 		submit->abs_motion(submit, evdev->abs.x, evdev->abs.y);
-		reset_xy(&evdev->abs);
+		evdev->abs.pending = false;
 	}
 
 	/* submit recorded tool on BTN_TOUCH */
