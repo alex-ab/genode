@@ -314,7 +314,7 @@ Bootstrap::Platform::Board::Board()
 
 	if (cpuid_0.vendor() == Cpu::Vendor::AMD &&
 	    cpuid_ext_1.valid() && cpuid_ext_1.amd_svm())
-		info.has_svm = Cpu::Amd_vm_cr::Svmdis::get(Cpu::Amd_vm_cr::read());
+		info.has_svm = !Cpu::Amd_vm_cr::Svmdis::get(Cpu::Amd_vm_cr::read());
 
 	if (cpuid_0.vendor() == Cpu::Vendor::INTEL && cpuid_1.vmx()) {
 		/* Check if VMX feature is off and locked */
