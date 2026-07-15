@@ -19,6 +19,7 @@
 #include <map_local.h>
 
 /* base-internal includes */
+#include <base/internal/stack.h>
 #include <base/internal/native_utcb.h>
 #include <base/internal/capability_space.h>
 
@@ -197,6 +198,31 @@ void Platform_thread::restart()
 void Platform_thread::fault_resolved(Untyped_capability cap, bool resolved)
 {
 	Kernel::thread_pager_signal_ack(Capability_space::capid(cap), *_kobj, resolved);
+}
+
+
+Core_platform_thread::Trace_source::Info
+Core_platform_thread::Trace_source::trace_source_info() const
+{
+	Genode::Trace::Execution_time execution_time { 0, 0 };
+
+	thread.with_native_thread([&] (Native_thread &nt) {
+		if (nt.platform_thread)
+			execution_time = nt.platform_thread->execution_time(); });
+
+	return { Session_label("core"), thread.name,
+	         execution_time, thread.affinity() };
+}
+
+
+Core_platform_thread::Trace_source::Trace_source(Core::Trace::Source_registry &registry,
+                                                 Genode::Thread &thread)
+:
+	Core::Trace::Control(),
+	Core::Trace::Source(*this, *this),
+	thread(thread)
+{
+	registry.insert(this);
 }
 
 

@@ -32,41 +32,6 @@ using namespace Core;
 namespace Hw { extern Untyped_capability _main_thread_cap; }
 
 
-namespace {
-
-	struct Trace_source : public  Core::Trace::Source::Info_accessor,
-	                      private Core::Trace::Control,
-	                      private Core::Trace::Source
-	{
-		Genode::Thread &thread;
-
-		/**
-		 * Trace::Source::Info_accessor interface
-		 */
-		Info trace_source_info() const override
-		{
-			Genode::Trace::Execution_time execution_time { 0, 0 };
-
-			thread.with_native_thread([&] (Native_thread &nt) {
-				if (nt.platform_thread)
-					execution_time = nt.platform_thread->execution_time(); });
-
-			return { Session_label("core"), thread.name,
-			         execution_time, thread.affinity() };
-		}
-
-		Trace_source(Core::Trace::Source_registry &registry, Genode::Thread &thread)
-		:
-			Core::Trace::Control(),
-			Core::Trace::Source(*this, *this),
-			thread(thread)
-		{
-			registry.insert(this);
-		}
-	};
-}
-
-
 Thread::Start_result Thread::start()
 {
 	return _stack.convert<Start_result>([&] (Stack &stack) {
@@ -74,17 +39,12 @@ Thread::Start_result Thread::start()
 		Native_thread &nt = stack.native_thread();
 
 		/* start thread with stack pointer at the top of stack */
-		if (nt.platform_thread)
-			nt.platform_thread->start((void *)&_thread_start, (void *)stack.top());
-
-		if (_thread_cap.failed())
+		if (!nt.platform_thread)
 			return Start_result::DENIED;;
 
-		/* create trace sources for core threads */
-		try {
-			new (platform().core_mem_alloc()) Trace_source(Core::Trace::sources(), *this);
-		} catch (...) { }
-
+		auto &pt = *nt.platform_thread;
+		pt.start((void *)&_thread_start, (void *)stack.top());
+		pt.create_trace_source(Core::Trace::sources(), *this);
 		return Start_result::OK;
 
 	}, [&] (Stack_error) { return Start_result::DENIED; });

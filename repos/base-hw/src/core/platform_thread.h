@@ -28,6 +28,7 @@
 #include <address_space.h>
 #include <object.h>
 #include <dataspace_component.h>
+#include <trace/source_registry.h>
 
 /* kernel includes */
 #include <kernel/core_interface.h>
@@ -342,6 +343,19 @@ class Core::Core_platform_thread : Noncopyable
 
 		friend class Platform_thread;
 
+		struct Trace_source : public  Core::Trace::Source::Info_accessor,
+		                      private Core::Trace::Control,
+		                      private Core::Trace::Source
+		{
+			Genode::Thread &thread;
+
+			Info trace_source_info() const override;
+
+			Trace_source(Core::Trace::Source_registry &, Genode::Thread &);
+		};
+
+		Constructible<Trace_source> _trace_source {};
+
 	public:
 
 		Core_platform_thread(Label const &label, Native_utcb &utcb, Affinity::Location);
@@ -361,5 +375,9 @@ class Core::Core_platform_thread : Noncopyable
 			return { execution_time, 0, 0, _group_id }; }
 
 		Label label() const { return _label; };
+
+		void create_trace_source(Core::Trace::Source_registry &registry,
+		                         Genode::Thread &thread) {
+			_trace_source.construct(registry, thread); }
 };
 #endif /* _CORE__PLATFORM_THREAD_H_ */
