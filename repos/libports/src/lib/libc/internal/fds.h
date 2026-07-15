@@ -58,8 +58,8 @@ class Libc::Fds
 		Space _space { };
 
 		/*
-		 * 'Pthread_mutex' uses 'malloc()', which is not initialized
-		 * yet at 'Fds' construction time.
+		 * pthread support is not initialized yet at 'Fds' construction time,
+		 * so the mutex is constructed on first use.
 		 */
 		Pthread_mutex &_mutex()
 		{
