@@ -37,16 +37,19 @@
 using namespace Libc;
 
 
-static Thread         *_main_thread_ptr;
-static Monitor        *_monitor_ptr;
-static Timer_accessor *_timer_accessor_ptr;
+static Thread            *_main_thread_ptr;
+static Monitor           *_monitor_ptr;
+static Timer_accessor    *_timer_accessor_ptr;
+static Genode::Allocator *_internal_alloc_ptr;
 
 
-void Libc::init_pthread_support(Monitor &monitor, Timer_accessor &timer_accessor)
+void Libc::init_pthread_support(Monitor &monitor, Timer_accessor &timer_accessor,
+                                Genode::Allocator &internal_alloc)
 {
 	_main_thread_ptr    = Thread::myself();
 	_monitor_ptr        = &monitor;
 	_timer_accessor_ptr = &timer_accessor;
+	_internal_alloc_ptr = &internal_alloc;
 
 	Pthread::init_tls_support();
 }
@@ -58,6 +61,14 @@ static Libc::Monitor & monitor()
 	if (!_monitor_ptr)
 		throw Missing_call_of_init_pthread_support();
 	return *_monitor_ptr;
+}
+
+static Genode::Allocator & internal_alloc()
+{
+	struct Missing_call_of_init_pthread_support : Genode::Exception { };
+	if (!_internal_alloc_ptr)
+		throw Missing_call_of_init_pthread_support();
+	return *_internal_alloc_ptr;
 }
 
 namespace { using Fn = Libc::Monitor::Function_result; }
@@ -957,8 +968,9 @@ extern "C" {
 		__attribute__((alias("pthread_mutexattr_settype")));
 
 
-	int mutex_init(pthread_mutex_t *mutex,
-	               pthread_mutexattr_t const *attr)
+	static int mutex_init(pthread_mutex_t *mutex,
+	                      pthread_mutexattr_t const *attr,
+	                      Genode::Allocator &alloc)
 	{
 		static Mutex mutex_init_mutex { };
 
@@ -970,8 +982,6 @@ extern "C" {
 		 */
 		if (*mutex != PTHREAD_MUTEX_INITIALIZER)
 			return 0;
-
-		Libc::Allocator alloc { };
 
 		pthread_mutextype const type = (!attr || !*attr)
 		                             ? PTHREAD_MUTEX_NORMAL : (*attr)->type;
@@ -986,6 +996,17 @@ extern "C" {
 		return 0;
 	}
 
+	/*
+	 * This function uses the malloc-based allocator which gets reset on
+	 * 'execve()'.
+	 */
+	static int mutex_init_app(pthread_mutex_t *mutex,
+	                          pthread_mutexattr_t const *attr)
+	{
+		Libc::Allocator alloc { };
+		return mutex_init(mutex, attr, alloc);
+	}
+
 	int pthread_mutex_init(pthread_mutex_t *mutex,
 	                       pthread_mutexattr_t const *attr)
 	{
@@ -995,23 +1016,30 @@ extern "C" {
 		/* mark as uninitialized for 'mutex_init()' */
 		*mutex = PTHREAD_MUTEX_INITIALIZER;
 
-		return mutex_init(mutex, attr);
+		return mutex_init_app(mutex, attr);
 	}
 
 	typeof(pthread_mutex_init) _pthread_mutex_init
 		__attribute__((alias("pthread_mutex_init")));
 
+	static int mutex_destroy(pthread_mutex_t *mutex, Genode::Allocator &alloc)
+	{
+		destroy(alloc, *mutex);
+		*mutex = PTHREAD_MUTEX_INITIALIZER;
+		return 0;
+	}
 
 	int pthread_mutex_destroy(pthread_mutex_t *mutex)
 	{
 		if ((!mutex) || (*mutex == PTHREAD_MUTEX_INITIALIZER))
 			return EINVAL;
 
+		/*
+		 * This function uses the malloc-based allocator which gets reset on
+		 * 'execve()'.
+		 */
 		Libc::Allocator alloc { };
-		destroy(alloc, *mutex);
-		*mutex = PTHREAD_MUTEX_INITIALIZER;
-
-		return 0;
+		return mutex_destroy(mutex, alloc);
 	}
 
 	typeof(pthread_mutex_destroy) _pthread_mutex_destroy
@@ -1024,7 +1052,7 @@ extern "C" {
 			return EINVAL;
 
 		if (*mutex == PTHREAD_MUTEX_INITIALIZER)
-			mutex_init(mutex, nullptr);
+			mutex_init_app(mutex, nullptr);
 
 		return (*mutex)->lock();
 	}
@@ -1039,7 +1067,7 @@ extern "C" {
 			return EINVAL;
 
 		if (*mutex == PTHREAD_MUTEX_INITIALIZER)
-			mutex_init(mutex, nullptr);
+			mutex_init_app(mutex, nullptr);
 
 		return (*mutex)->trylock();
 	}
@@ -1055,7 +1083,7 @@ extern "C" {
 			return EINVAL;
 
 		if (*mutex == PTHREAD_MUTEX_INITIALIZER)
-			mutex_init(mutex, nullptr);
+			mutex_init_app(mutex, nullptr);
 
 		/* abstime must be non-null according to the spec */
 		return (*mutex)->timedlock(*abstimeout);
@@ -1341,6 +1369,20 @@ extern "C" {
 
 	typeof(pthread_cond_broadcast) _pthread_cond_broadcast
 		__attribute__((alias("pthread_cond_broadcast")));
+}
+
+
+Libc::Pthread_mutex::Pthread_mutex()
+{
+	/* use libc-internal allocator which survives 'execve()' */
+	mutex_init(&_mutex, nullptr, internal_alloc());
+}
+
+
+Libc::Pthread_mutex::~Pthread_mutex()
+{
+	/* use libc-internal allocator which survives 'execve()' */
+	mutex_destroy(&_mutex, internal_alloc());
 }
 
 

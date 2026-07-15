@@ -494,7 +494,7 @@ Libc::Kernel::Kernel(Genode::Env &env, Genode::Allocator &heap)
 	atexit(close_file_descriptors_on_exit);
 
 	init_semaphore_support(_timer_accessor);
-	init_pthread_support(*this, _timer_accessor);
+	init_pthread_support(*this, _timer_accessor, _heap);
 
 	_with_libc_sub_config("pthread", [&] (Node const &pthread_config) {
 		init_pthread_support(env, pthread_config, _heap); });

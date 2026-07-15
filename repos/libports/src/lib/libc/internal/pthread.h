@@ -377,9 +377,8 @@ struct Libc::Pthread_mutex
 
 	public:
 
-		Pthread_mutex() { pthread_mutex_init(&_mutex, nullptr); }
-
-		~Pthread_mutex() { pthread_mutex_destroy(&_mutex); }
+		Pthread_mutex();
+		~Pthread_mutex();
 
 		void lock()   { pthread_mutex_lock(&_mutex); }
 		void unlock() { pthread_mutex_unlock(&_mutex); }

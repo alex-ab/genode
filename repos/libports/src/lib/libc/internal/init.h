@@ -109,7 +109,7 @@ namespace Libc {
 	/**
 	 * Pthread/semaphore support
 	 */
-	void init_pthread_support(Monitor &, Timer_accessor &);
+	void init_pthread_support(Monitor &, Timer_accessor &, Genode::Allocator &);
 	void init_pthread_support(Genode::Env &, Node const &, Genode::Allocator &);
 	void init_semaphore_support(Timer_accessor &);
 
