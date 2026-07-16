@@ -90,8 +90,8 @@ struct Board::Vmcb_buf
 		struct Writes         : Bitfield<16,16> { };
 	};
 
-	struct Intercept_ex       : Register<0x008, 32> {
-		struct Vectors        : Bitfield<0,32> { };
+	struct Intercept_ex : Register<0x008, 32> {
+		struct Ac : Bitfield<17,1> { };
 	};
 
 	struct Intercept_misc1    : Register<0x00C, 32> {
@@ -283,7 +283,11 @@ struct Board::Vmcb_buf
 	Segment idtr { range_at(State_off + 0x80) };
 	Segment   tr { range_at(State_off + 0x90) };
 
-	struct Efer           : Register<State_off +  0xD0,64> { };
+	struct Efer : Register<State_off + 0xd0, 64>
+	{
+		struct Svm : Bitfield<12,1> { };
+	};
+
 	struct Cr4            : Register<State_off + 0x148,64> { };
 	struct Cr3            : Register<State_off + 0x150,64> { };
 	struct Cr0            : Register<State_off + 0x158,64> { };

@@ -37,6 +37,8 @@ Vmcb_buf::Vmcb_buf(addr_t vmcb_page_addr, uint32_t id)
 	write<Msrpm_base_pa>(dummy_msrpm());
 	write<Iopm_base_pa>(dummy_iopm());
 
+	write<Efer::Svm>(1);
+
 	/*
 	 * Set the guest PAT register to the default value.
 	 * See: AMD Vol.2 7.8 Page-Attribute Table Mechanism
@@ -75,11 +77,6 @@ void Vmcb::initialize(Board::Cpu &c, addr_t page_table_phys_addr)
 	Cpu::Ia32_efer::Svme::set(ia32_efer_msr, 1);
 	Cpu::Ia32_efer::write(ia32_efer_msr);
 
-	Cpu::Amd_vm_syscvg::access_t amd_vm_syscvg_msr =
-	    Cpu::Amd_vm_syscvg::read();
-	Cpu::Amd_vm_syscvg::Nested_paging::set(amd_vm_syscvg_msr, 1);
-	Cpu::Amd_vm_syscvg::write(amd_vm_syscvg_msr);
-
 	root_vmcb_phys =
 	    Core::Platform::core_phys_addr(host_vmcb(cpu.id().value).base());
 	asm volatile ("vmsave" : : "a" (root_vmcb_phys) : "memory");
@@ -92,7 +89,7 @@ void Vmcb::initialize(Board::Cpu &c, addr_t page_table_phys_addr)
 	v.write<Vmcb_buf::N_cr3>(page_table_phys_addr);
 
 	v.write<Vmcb_buf::Int_control::V_intr_mask>(1); /* See 15.2 */
-	v.write<Vmcb_buf::Intercept_ex::Vectors>(17);   /* AC */
+	v.write<Vmcb_buf::Intercept_ex::Ac>(1);
 
 	enforce_intercepts();
 }
