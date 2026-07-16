@@ -686,7 +686,11 @@ __SYS_(void *, mmap, (void *addr, ::size_t length,
 extern "C" int munmap(void *start, ::size_t length)
 {
 	return mmap_registry().with_registered(start,
-		[&] (Mmap_registry::Attr const &attr, auto const &remove_fn) {
+		/*
+		 * 'attr' is a copy instead of a reference because the original gets
+		 * deleted by `remove_fn()'.
+		 */
+		[&] (Mmap_registry::Attr const attr, auto const &remove_fn) {
 
 			/*
 			 * Remove registry entry before unmapping to avoid double insertion
