@@ -27,13 +27,40 @@ using Board::Vmcb;
 using Board::Vmcb_buf;
 
 
+template <size_t SIZE>
+struct alignas(PAGE_SIZE) Page_aligned_byte_buffer
+{
+	uint8_t pad[SIZE] = { 0xff };
+};
+
+
+/*
+ * AMD Vol.2 15.11: MSR Permissions Map
+ * All set to 1 since we want all MSRs to be intercepted.
+ */
+static addr_t dummy_msrpm()
+{
+	static Page_aligned_byte_buffer<8192> buf;
+	return Core::Platform::core_phys_addr((addr_t) &buf);
+}
+
+
+/*
+ * AMD Vol.2 15.10.1 I/O Permissions Map
+ * All set to 1 since we want all IO port accesses to be intercepted.
+ */
+static addr_t dummy_iopm()
+{
+	static Page_aligned_byte_buffer<12288> buf;
+	return Core::Platform::core_phys_addr((addr_t) &buf);
+}
+
+
 Vmcb_buf::Vmcb_buf(addr_t vmcb_page_addr, uint32_t id)
 :
 	Mmio({(char *)vmcb_page_addr, Mmio::SIZE})
 {
-	bzero((void *) vmcb_page_addr, PAGE_SIZE);
-
-	write<Guest_asid>(id);
+	write<Tlb::Guest_asid>(id);
 	write<Msrpm_base_pa>(dummy_msrpm());
 	write<Iopm_base_pa>(dummy_iopm());
 
@@ -43,7 +70,7 @@ Vmcb_buf::Vmcb_buf(addr_t vmcb_page_addr, uint32_t id)
 	 * Set the guest PAT register to the default value.
 	 * See: AMD Vol.2 7.8 Page-Attribute Table Mechanism
 	 */
-	write<G_pat>(0x0007040600070406ULL);
+	write<G_pat>(0x7040600070406ULL);
 }
 
 
@@ -51,8 +78,7 @@ Vmcb::Vmcb(Board::Vcpu_state &state, uint32_t id)
 :
 	Board::Virt_interface(state),
 	v(state.vmc_addr() + PAGE_SIZE, id)
-{
-}
+{ }
 
 
 Vmcb_buf &Vmcb::host_vmcb(size_t cpu_id)
@@ -62,10 +88,11 @@ Vmcb_buf &Vmcb::host_vmcb(size_t cpu_id)
 
 	if (!host_vmcb[cpu_id].constructed())
 		host_vmcb[cpu_id].construct((addr_t)host_vmcb_pages + PAGE_SIZE * cpu_id,
-		                            Asid_host);
+		                            ASID_HOST);
 
 	return *host_vmcb[cpu_id];
 }
+
 
 void Vmcb::initialize(Board::Cpu &c, addr_t page_table_phys_addr)
 {
@@ -119,42 +146,6 @@ void Vmcb::enforce_intercepts(uint32_t desired_primary, uint32_t desired_seconda
 		Vmcb_buf::Intercept_misc2::Skinit::bits(1)
 	);
 }
-
-
-/*
- * AMD Vol.2 15.11: MSR Permissions Map
- * All set to 1 since we want all MSRs to be intercepted.
- */
-addr_t Vmcb_buf::dummy_msrpm()
-{
-	static Board::Msrpm msrpm;
-
-	return Core::Platform::core_phys_addr((addr_t) &msrpm);
-}
-
-
-/*
- * AMD Vol.2 15.10.1 I/O Permissions Map
- * All set to 1 since we want all IO port accesses to be intercepted.
- */
-addr_t Vmcb_buf::dummy_iopm()
-{
-	static Board::Iopm iopm;
-
-	return Core::Platform::core_phys_addr((addr_t) &iopm);
-}
-
-
-static inline void memset(uint8_t *dst, uint8_t c, size_t n)
-{
-	for (size_t i = 0; i < n; i++) dst[i] = c;
-}
-
-
-Board::Msrpm::Msrpm() { memset((uint8_t *)this, 0xff, sizeof(*this)); }
-
-
-Board::Iopm::Iopm()   { memset((uint8_t *)this, 0xFF, sizeof(*this)); }
 
 
 void Vmcb::store(Genode::Vcpu_state &state)

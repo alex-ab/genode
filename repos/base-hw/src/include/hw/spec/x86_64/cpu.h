@@ -214,7 +214,6 @@ struct Hw::X86_64_cpu
 		IA32_FMASK                   = 0xc0000084,
 		IA32_KERNEL_GS_BASE          = 0xc0000102,
 		IA32_TSC_AUX                 = 0xc0000103,
-		AMD_VM_SYSCVG                = 0xc0010010,
 		AMD_VM_CR                    = 0xc0010114,
 		AMD_VM_HSAVEPA               = 0xc0010117,
 		AMD_LFENCE                   = 0xc0011029,
@@ -234,12 +233,6 @@ struct Hw::X86_64_cpu
 		struct Pa1 : Bitfield <8, 3> {
 			enum { WRITE_COMBINING = 0b001 };
 		};
-	);
-
-	X86_64_MSR_REGISTER(Amd_vm_syscvg, AMD_VM_SYSCVG,
-		struct Nested_paging : Bitfield< 0, 1> { }; /* Enable nested paging */
-		struct Sev : Bitfield< 1, 1> { }; /* Enable Secure Encrypted Virtualization */
-		struct Enc_state : Bitfield< 2, 1> { }; /* Enable Encrypted State for Secure Encrypted Virtualization */
 	);
 
 	X86_64_MSR_REGISTER(Amd_vm_cr, AMD_VM_CR,
