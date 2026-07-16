@@ -332,7 +332,7 @@ class Test_smp_1
 				}
 
 				/* check whether re-constructed or re-scheduled timeout has been handled */
-				if (_nr_of_handle_calls == handle_calls)
+				if (handle_calls && _nr_of_handle_calls == handle_calls)
 					_nr_of_not_handled++;
 
 				if (_nr_of_destruct_calls < _nr_of_discard_calls) {
