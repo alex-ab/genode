@@ -29,6 +29,7 @@ libc_vfs_fs_ext2
 libc_vfs_fs_fat
 libc_vfs_tap
 lighttpd_fetchurl
+local_clock
 log_core
 lwip
 lx_fs_import

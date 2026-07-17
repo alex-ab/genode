@@ -1,0 +1,38 @@
+/*
+ * \brief  Test Local_clock utility
+ * \author Johannes Schlatow
+ * \date   2026-07-32
+ */
+
+/*
+ * Copyright (C) 2026 Genode Labs GmbH
+ *
+ * This file is part of the Genode OS framework, which is distributed
+ * under the terms of the GNU Affero General Public License ve sion 3.
+ */
+
+/* Genode includes */
+#include <timer/local_clock.h>
+#include <timer_session/connection.h>
+
+using namespace Genode;
+
+/*
+ * External hook for arch-specific sleeping policy
+ */
+void sleep_or_busy_loop(size_t             iteration,
+                        Duration           duration,
+                        Timer::Connection &timer,
+                        Local_clock       &local_clock)
+{
+	if (iteration % 2) {
+		timer.msleep(duration.trunc_to_plain_ms().value);
+
+		/* unsync local clock due to tsc not counting during wfi */
+		local_clock.unsync();
+	} else {
+		/* busy loop to simulate work between two calls of predicted() */
+		for (uint64_t i = 100*duration.trunc_to_plain_us().value; i > 0; i--)
+			asm volatile("nop");
+	}
+}
