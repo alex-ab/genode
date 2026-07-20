@@ -336,14 +336,8 @@ class Test_smp_1
 
 					/* give it some more time to be sure that it really was not handled */
 					sleep_timer.msleep(500);
-					if (_nr_of_handle_calls == handle_calls) {
-						error("timeout not handled after being discarded");
-						error("  _nr_of_handle_calls: ",   _nr_of_handle_calls);
-						error("  _nr_of_destruct_calls: ", _nr_of_destruct_calls);
-						error("  _nr_of_discard_calls: ",  _nr_of_discard_calls);
-					}
-
-					_nr_of_not_handled++;
+					if (_nr_of_handle_calls == handle_calls)
+						_nr_of_not_handled++;
 				}
 
 				if (_nr_of_destruct_calls < _nr_of_discard_calls) {
