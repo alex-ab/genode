@@ -65,3 +65,10 @@ void pm_runtime_drop_link(struct device_link * link) { }
 
 
 void pm_runtime_new_link(struct device * dev) { }
+
+
+int devm_pm_runtime_enable(struct device *dev)
+{
+	/* also calls pm_runtime_enable and adds callback for pm_runtime_disable */
+	return 0;
+}
