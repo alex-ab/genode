@@ -1,0 +1,60 @@
+assert {![have_spec linux]}
+
+build {
+	core init timer lib/ld
+	app/top test/timeout_idle
+}
+
+create_boot_directory
+
+install_config {
+config | prio_levels: 2 | verbose: yes
+
++ parent-provides
+  + service LOG
+  + service CPU
+  + service ROM
+  + service PD
+  + service IO_MEM  | . timer on some kernels
+  + service IO_PORT | . timer on some kernels
+  + service IRQ     | . timer on some kernels
+  + service TRACE
+
++ default | caps: 100 | ram: 2M
+
++ start timer
+  + provides | + service Timer
+  + route | + any-service | + parent
+
++ start test-timeout_idle | caps: 2000 | ram: 10M
+  + route
+    + service Timer  | + child timer
+    + service LOG    | + parent
+    + service PD     | + parent
+    + service CPU    | + parent
+    + service ROM    | + parent
+
++ start top | ram: 2M
+  + route
+    + service Timer | + child timer
+    + service TRACE | + parent | label:
+    + any-service   | + parent
+-
+}
+
+build_boot_image [build_artifacts]
+
+append qemu_args " -nographic"
+
+run_genode_until {.*Startup complete.*} 10
+
+set spawn_id [output_spawn_id]
+run_genode_until {.*cpu=0\.0.*thread='idle'.*} 10 $spawn_id
+
+grep_output {.*cpu=0\.0.*thread='idle'.*}
+regexp -all {([\d\.]+)%\s+[\d\.]+%} $output dummy idle_percent
+
+if {[expr { $idle_percent < 99 }]} {
+  puts "\n  Idle time is unexpectedly low (< 99%)\n"
+  exit 1
+}

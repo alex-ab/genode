@@ -79,6 +79,7 @@ sub_rm
 tar_rom
 thread
 timeout
+timeout_idle
 timeout_smp
 timer_accuracy
 tool_chain_auto
