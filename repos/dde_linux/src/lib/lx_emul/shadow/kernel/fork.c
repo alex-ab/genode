@@ -30,12 +30,8 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wframe-larger-than="
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,3,0)
 pid_t kernel_thread(int (* fn)(void *),void * arg, const char *name,
                     unsigned long flags)
-#else
-pid_t kernel_thread(int (* fn)(void *),void * arg,unsigned long flags)
-#endif
 {
 	static int pid_counter = FIRST_PID;
 
@@ -90,19 +86,15 @@ pid_t kernel_thread(int (* fn)(void *),void * arg,unsigned long flags)
 	.sighand         = sighand,
 	};
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,3,0)
 	if (name) {
 		strscpy_pad(task->comm, name, sizeof(task->comm));
 		thread_name = name;
 	}
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,17,0)
 	if (!set_kthread_struct(task)) {
 		kfree(task);
 		goto err_task;
 	}
-#endif
 
 #ifndef CONFIG_THREAD_INFO_IN_TASK
 	/* On arm, the 'thread_info' is hidden behind 'task->stack', we must
@@ -152,15 +144,9 @@ void __put_task_struct(struct task_struct *tsk)
 }
 
 
-/*
- * FIXME Artifical guard to prevent any potential fall-out
- *       with components still using older Linux versions.
- */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(6,18,0)
 void __put_task_struct_rcu_cb(struct rcu_head *rhp)
 {
 	struct task_struct *task = container_of(rhp, struct task_struct, rcu);
 
 	__put_task_struct(task);
 }
-#endif

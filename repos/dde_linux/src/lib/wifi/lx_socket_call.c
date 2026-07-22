@@ -188,11 +188,7 @@ unsigned char const* lx_get_mac_addr()
 	memset(mac_addr_buffer, 0, sizeof(mac_addr_buffer));
 	memset(&addr, 0, sizeof(addr));
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,16,0)
 	err = netif_get_mac_address(&addr, &init_net, "wlan0");
-#else
-	err = dev_get_mac_address(&addr, &init_net, "wlan0");
-#endif
 	if (err)
 		return NULL;
 

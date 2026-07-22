@@ -93,12 +93,8 @@ static void open_usb_dev(struct usb_device * udev)
 		data->dev = udev;
 		data->kill_task = false;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,3,0)
 		pid = kernel_thread(poll_usb_device, data, "poll_device",
 		                    CLONE_FS | CLONE_FILES);
-#else
-		pid = kernel_thread(poll_usb_device, data, CLONE_FS | CLONE_FILES);
-#endif
 
 		data->task = find_task_by_pid_ns(pid, NULL);
 		init_usb_anchor(&data->submitted);
@@ -471,13 +467,8 @@ void lx_user_handle_io(void)
 
 void lx_user_init(void)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,3,0)
 	int pid = kernel_thread(usb_poll_empty_sessions, NULL,
 	                        "usb_poll", CLONE_FS | CLONE_FILES);
-#else
-	int pid = kernel_thread(usb_poll_empty_sessions, NULL,
-	                        CLONE_FS | CLONE_FILES);
-#endif
 	lx_user_task = find_task_by_pid_ns(pid, NULL);
 }
 
@@ -621,14 +612,12 @@ static int raw_notify(struct notifier_block *nb, unsigned long action,
 			case USB_SPEED_HIGH:
 			case USB_SPEED_WIRELESS: speed = GENODE_USB_SPEED_HIGH; break;
 			case USB_SPEED_SUPER:    speed = GENODE_USB_SPEED_SUPER; break;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,13,0)
 			case USB_SPEED_SUPER_PLUS:
 				if (udev->ssp_rate == USB_SSP_GEN_2x2)
 					speed = GENODE_USB_SPEED_SUPER_PLUS_2X2;
 				else
 					speed = GENODE_USB_SPEED_SUPER_PLUS;
 				break;
-#endif
 			default: speed = GENODE_USB_SPEED_FULL;
 			}
 			genode_usb_announce_device(udev->bus->busnum, udev->devnum, speed,

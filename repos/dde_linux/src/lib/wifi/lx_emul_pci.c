@@ -205,12 +205,10 @@ void __iomem *pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen)
 }
 
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(6,16,0)
 int pcim_request_all_regions(struct pci_dev *pdev, const char *name)
 {
 	return 0;
 }
-#endif
 
 
 void pci_disable_device(struct pci_dev * dev)

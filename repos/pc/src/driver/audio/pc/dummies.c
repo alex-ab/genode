@@ -494,9 +494,7 @@ enum snd_soc_acpi_intel_codec snd_soc_acpi_intel_detect_codec_type(struct device
 	return CODEC_NONE;
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(6,16,0)
 int pcim_request_all_regions(struct pci_dev *pdev, const char *name)
 {
 	return 0;
 }
-#endif

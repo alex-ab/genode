@@ -23,7 +23,6 @@
 #include <uapi/linux/errno.h>
 #include_next <asm/current.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,0)
 struct task_struct;
 
 struct pcpu_hot {
@@ -52,8 +51,6 @@ static_assert(sizeof(struct pcpu_hot) == 64);
 
 extern struct pcpu_hot pcpu_hot;
 extern struct pcpu_hot const const_pcpu_hot;
-
-#endif /* LINUX_VERSION_CODE */
 
 #endif /* __ASSEMBLY__ */
 

@@ -17,26 +17,12 @@
 #include <lx_emul/alloc.h>
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
-void __percpu * __alloc_percpu(size_t size, size_t align)
-{
-	align = max(align, (size_t)KMALLOC_MIN_SIZE);
-	return lx_emul_mem_alloc_aligned(size, align);
-}
-
-
-void __percpu * __alloc_percpu_gfp(size_t size,size_t align,gfp_t gfp)
-{
-	return __alloc_percpu(size, align);
-}
-
-#else
 void *pcpu_alloc_noprof(size_t size, size_t align, bool reserved, gfp_t gfp)
 {
 	align = max(align, (size_t)KMALLOC_MIN_SIZE);
 	return lx_emul_mem_alloc_aligned(size, align);
 }
-#endif
+
 
 void free_percpu(void __percpu * ptr)
 {

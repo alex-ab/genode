@@ -38,16 +38,8 @@ struct folio;
 
 struct rq runqueues;
 
-/*
- * Type changes between kernel versions
- */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,14,0)
-typedef unsigned long nr_iowait_cpu_return_t;
-typedef long          wait_task_inactive_match_state_t;
-#else
 typedef unsigned int  nr_iowait_cpu_return_t;
 typedef unsigned int  wait_task_inactive_match_state_t;
-#endif
 
 
 DEFINE_PER_CPU(struct kernel_stat, kstat);
@@ -206,18 +198,10 @@ unsigned long wait_task_inactive(struct task_struct * p,
 {
 	struct rq *rq = task_rq(p);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,1,0)
-	if (task_running(rq, p))
-#else
 	if (task_on_cpu(rq, p))
-#endif
 		schedule();
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,1,0)
-	if (task_running(rq, p))
-#else
 	if (task_on_cpu(rq, p))
-#endif
 		return 0;
 
 	return 1;
@@ -269,18 +253,12 @@ void wake_q_add(struct wake_q_head *head, struct task_struct *task)
 }
 
 
-/*
- * CAUTION: This check is not an actual requirement. It should be removed when
- * all other *_linux have been updated to 6.6 or when this function has been
- * removed from their respective generated_dummies.c
- */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,6,0)
 void wake_q_add_safe(struct wake_q_head *head, struct task_struct *task)
 {
 	if (!__wake_q_add(head, task))
 		put_task_struct(task);
 }
-#endif
+
 
 void wake_up_q(struct wake_q_head *head)
 {
@@ -311,11 +289,5 @@ int idle_cpu(int cpu)
 
 void sched_set_fifo(struct task_struct * p) { }
 
-/*
- * Guard for the moment because some ARM driver have this
- * function in their 'dummies.c'.
- */
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(6,18,0)
 void sched_set_fifo_low(struct task_struct * p) { }
-#endif

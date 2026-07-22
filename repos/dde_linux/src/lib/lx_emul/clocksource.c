@@ -55,11 +55,7 @@ static u64 dde_clocksource_read_counter(struct clocksource * cs)
 }
 
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(6,16,0)
 static u64 dde_cyclecounter_read_counter(struct cyclecounter * cc)
-#else
-static u64 dde_cyclecounter_read_counter(const struct cyclecounter * cc)
-#endif
 {
 	return lx_emul_time_counter();
 }
@@ -116,10 +112,8 @@ void lx_emul_time_handle(void)
 	dde_clock_event_device->event_handler(dde_clock_event_device);
 
 	/* uses __raise_softirq_irqoff that merely flags the interrupt */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(6,13,0)
 	if (local_softirq_pending() & (1u << TIMER_SOFTIRQ))
 		do_softirq();
-#endif
 }
 
 
@@ -131,11 +125,7 @@ void lx_emul_time_update_jiffies(void)
 		return;
 
 	/* tick_nohz_idle_stop_tick breaks with error if softirq is pending */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,18,0)
-	if (local_softirq_pending() & SOFTIRQ_STOP_IDLE_MASK)
-#else
 	if (local_softirq_pending() & ~SOFTIRQ_HOTPLUG_SAFE_MASK)
-#endif
 		return;
 
 	tick_nohz_idle_enter();

@@ -126,11 +126,7 @@ const void *acpi_device_get_match_data(const struct device *dev)
 
 
 struct acpi_device *acpi_root;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,10,0)
 static int acpi_bus_match(struct device *dev, struct device_driver const *drv)
-#else
-static int acpi_bus_match(struct device *dev, struct device_driver *drv)
-#endif
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_driver *acpi_drv = to_acpi_driver(drv);

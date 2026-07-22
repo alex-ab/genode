@@ -30,15 +30,8 @@ extern void rcu_read_unlock_strict(void);
 void rcu_read_unlock_strict(void) { }
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,18,0)
-int rcu_needs_cpu(u64 basemono, u64 *nextevt)
-{
-	if (nextevt)
-		*nextevt = KTIME_MAX;
-#else
 int rcu_needs_cpu(void)
 {
-#endif
 	return 0;
 }
 
@@ -67,46 +60,3 @@ void call_rcu(struct rcu_head * head,
 
 	func(head);
 }
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,2,0)
-void kvfree_call_rcu(struct rcu_head * head, rcu_callback_t func)
-{
-	void *ptr;
-
-	if (head) {
-		ptr = (void *) head - (unsigned long) func;
-	} else {
-		/*
-		 * (original Linux comment)
-		 *
-		 * Please note there is a limitation for the head-less
-		 * variant, that is why there is a clear rule for such
-		 * objects: it can be used from might_sleep() context
-		 * only. For other places please embed an rcu_head to
-		 * your data.
-		 */
-		might_sleep();
-		ptr = (unsigned long *) func;
-	}
-	kvfree(ptr);
-}
-#else
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,14,0)
-void kvfree_call_rcu(struct rcu_head * head, void *ptr)
-{
-	/*
-	 * (original Linux comment)
-	 *
-	 * Please note there is a limitation for the head-less
-	 * variant, that is why there is a clear rule for such
-	 * objects: it can be used from might_sleep() context
-	 * only. For other places please embed an rcu_head to
-	 * your data.
-	 */
-	if (!head)
-		might_sleep();
-
-	kvfree(ptr);
-}
-#endif
-#endif

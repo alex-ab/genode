@@ -189,12 +189,6 @@ lookup_entry(struct pci_dev *dev, struct list_head *head)
 }
 
 
-/* remove when linux-imx is updated */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0)
-#define PCI_IRQ_INTX PCI_IRQ_LEGACY
-#endif
-
-
 int pci_alloc_irq_vectors(struct pci_dev * dev, unsigned int min_vecs,
                           unsigned int max_vecs,unsigned int flags)
 {

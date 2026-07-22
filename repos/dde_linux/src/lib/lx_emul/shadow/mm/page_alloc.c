@@ -30,9 +30,7 @@ EXPORT_SYMBOL(init_on_alloc);
 DEFINE_STATIC_KEY_MAYBE(CONFIG_INIT_ON_FREE_DEFAULT_ON, init_on_free);
 EXPORT_SYMBOL(init_on_free);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,4,0)
 #include <../mm/internal.h>
-#endif
 
 static void prepare_compound_page(struct page *page, unsigned int order, gfp_t gfp)
 {
@@ -42,16 +40,12 @@ static void prepare_compound_page(struct page *page, unsigned int order, gfp_t g
 		return;
 
 	__SetPageHead(page);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,4,0)
 	if (!page_folio(page)) {
 		printk("BUG: %s:%d folio is NULL\n", __func__, __LINE__);
 		lx_emul_backtrace();
 	}
 
 	folio_set_order(page_folio(page), order);
-#else
-	set_compound_order(page, order);
-#endif
 
 	for (i = 1; i < compound_nr(page); i++)
 		set_compound_head(&page[i], page);
@@ -99,12 +93,10 @@ void free_pages(unsigned long addr,unsigned int order)
 }
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,13,0)
 void free_frozen_pages(struct page * page, unsigned int order)
 {
 	lx_free_pages(page, true);
 }
-#endif
 
 
 static struct page * lx_alloc_pages(unsigned const nr_pages)
@@ -118,26 +110,12 @@ static struct page * lx_alloc_pages(unsigned const nr_pages)
 }
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
-unsigned long __alloc_pages_bulk(gfp_t gfp,int preferred_nid,
-                                 nodemask_t * nodemask, int nr_pages,
-                                 struct list_head * page_list, struct page ** page_array)
-#else
 unsigned long alloc_pages_bulk_noprof(gfp_t gfp,int preferred_nid,
                                       nodemask_t * nodemask, int nr_pages,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,13,0)
-                                      struct list_head * page_list,
-#endif
                                       struct page ** page_array)
-#endif
 {
 	unsigned long allocated_pages = 0;
 	int i;
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,13,0)
-	if (page_list)
-		lx_emul_trace_and_stop("__alloc_pages_bulk unsupported argument");
-#endif
 
 	for (i = 0; i < nr_pages; i++) {
 
@@ -159,16 +137,8 @@ unsigned long alloc_pages_bulk_noprof(gfp_t gfp,int preferred_nid,
 /*
  * In earlier kernel versions, '__alloc_pages' was an inline function.
  */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,13,0)
-struct page * __alloc_pages_nodemask(gfp_t gfp, unsigned int order, int preferred_nid,
-                                     nodemask_t * nodemask)
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
-struct page * __alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
-                            nodemask_t * nodemask)
-#else
 struct page * __alloc_pages_noprof(gfp_t gfp, unsigned int order, int preferred_nid,
                                    nodemask_t * nodemask)
-#endif
 {
 	struct page *page = lx_alloc_pages(1u << order);
 
@@ -181,7 +151,6 @@ struct page * __alloc_pages_noprof(gfp_t gfp, unsigned int order, int preferred_
 }
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,13,0)
 struct page *__alloc_frozen_pages_noprof(gfp_t gfp, unsigned int order,
                                          int preferred_nid, nodemask_t *nodemask)
 {
@@ -200,14 +169,8 @@ struct page * alloc_frozen_pages_nolock_noprof(gfp_t gfp_flags,int nid,unsigned 
 	return __alloc_frozen_pages_noprof(gfp_flags, order, nid, NULL);
 }
 
-#endif
 
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
-unsigned long __get_free_pages(gfp_t gfp, unsigned int order)
-#else
 unsigned long get_free_pages_noprof(gfp_t gfp, unsigned int order)
-#endif
 {
 	struct page *page = lx_alloc_pages(1u << order);
 
@@ -240,11 +203,7 @@ void free_pages_exact(void *virt_addr, size_t size)
 }
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
-void *alloc_pages_exact(size_t size, gfp_t gfp_mask)
-#else
 void *alloc_pages_exact_noprof(size_t size, gfp_t gfp_mask)
-#endif
 {
 	size_t const nr_pages = DIV_ROUND_UP(size, PAGE_SIZE);
 	struct page *page = lx_alloc_pages(nr_pages);
@@ -256,7 +215,6 @@ void *alloc_pages_exact_noprof(size_t size, gfp_t gfp_mask)
 }
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,0,0)
 void __folio_put(struct folio * folio)
 {
 	struct page *page = folio_page(folio, 0);
@@ -267,4 +225,3 @@ void __folio_put(struct folio * folio)
 
 	lx_free_pages(&folio->page, true);
 }
-#endif

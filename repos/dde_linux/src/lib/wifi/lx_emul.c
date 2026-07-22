@@ -77,11 +77,7 @@ struct vfsmount * kern_mount(struct file_system_type * type)
 	return m;
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(6,14,0)
 struct inode * alloc_inode(struct super_block * sb)
-#else
-struct inode * new_inode_pseudo(struct super_block * sb)
-#endif
 {
 	const struct super_operations *ops = sb->s_op;
 	struct inode *inode;
@@ -362,16 +358,9 @@ u32 prandom_u32(void)
 #include <linux/version.h>
 #include <linux/gfp.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,9,0)
-void *page_frag_alloc_align(struct page_frag_cache *nc,
-                            unsigned int fragsz, gfp_t gfp_mask,
-                            unsigned int align_mask)
-#else
-
 void *__page_frag_alloc_align(struct page_frag_cache *nc,
                             unsigned int fragsz, gfp_t gfp_mask,
                             unsigned int align_mask)
-#endif
 {
 	unsigned int const order = fragsz / PAGE_SIZE;
 	struct page *page = __alloc_pages(gfp_mask, order, 0, NULL);
@@ -492,9 +481,8 @@ void *dmam_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 unsigned long __FIXADDR_TOP = 0xfffff000;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(6,16,0)
+
 DEFINE_MUTEX(rps_default_mask_mutex);
-#endif
 
 
 bool irq_fpu_usable(void)

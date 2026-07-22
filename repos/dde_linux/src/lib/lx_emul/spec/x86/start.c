@@ -23,12 +23,10 @@ unsigned long long sched_clock(void)
 }
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,4,0)
 unsigned long long sched_clock_noinstr(void)
 {
 	return sched_clock();
 }
-#endif
 
 
 void time_init(void)

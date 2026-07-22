@@ -18,14 +18,9 @@
 
 int __srcu_read_lock(struct srcu_struct * ssp)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,14,0)
-	int idx = READ_ONCE(ssp->srcu_idx) & 0x1;
-	return idx;
-#else
 	struct srcu_ctr __percpu *scp = READ_ONCE(ssp->srcu_ctrp);
 	this_cpu_inc(scp->srcu_locks.counter);
 	return scp - &ssp->sda->srcu_ctrs[0];
-#endif
 }
 
 
@@ -34,25 +29,6 @@ void __srcu_read_unlock(struct srcu_struct * ssp, int idx) { }
 
 #ifndef CONFIG_DEBUG_LOCK_ALLOC
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,3,0)
-int init_srcu_struct(struct srcu_struct * ssp)
-{
-	mutex_init(&ssp->srcu_cb_mutex);
-	mutex_init(&ssp->srcu_gp_mutex);
-	ssp->srcu_idx = 0;
-	ssp->srcu_gp_seq = 0;
-	ssp->srcu_barrier_seq = 0;
-	mutex_init(&ssp->srcu_barrier_mutex);
-	atomic_set(&ssp->srcu_barrier_cpu_cnt, 0);
-	/* INIT_DELAYED_WORK(&ssp->work, process_srcu); */
-	ssp->sda = alloc_percpu(struct srcu_data);
-	/* init_srcu_struct_nodes(ssp, false); */
-	ssp->srcu_gp_seq_needed_exp = 0;
-	ssp->srcu_last_gp_end = ktime_get_mono_fast_ns();
-	smp_store_release(&ssp->srcu_gp_seq_needed, 0); /* Init done. */
-	return ssp->sda ? 0 : -ENOMEM;
-}
-#else
 int init_srcu_struct(struct srcu_struct * ssp)
 {
 	ssp->srcu_sup = kzalloc(sizeof(*ssp->srcu_sup), GFP_KERNEL);
@@ -61,23 +37,17 @@ int init_srcu_struct(struct srcu_struct * ssp)
 
 	mutex_init(&ssp->srcu_sup->srcu_cb_mutex);
 	mutex_init(&ssp->srcu_sup->srcu_gp_mutex);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,14,0)
-	ssp->srcu_idx = 0;
-#endif
 	ssp->srcu_sup->srcu_gp_seq = 0;
 	ssp->srcu_sup->srcu_barrier_seq = 0;
 	mutex_init(&ssp->srcu_sup->srcu_barrier_mutex);
 	atomic_set(&ssp->srcu_sup->srcu_barrier_cpu_cnt, 0);
 	/* INIT_DELAYED_WORK(&ssp->work, process_srcu); */
 	ssp->sda = alloc_percpu(struct srcu_data);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,15,0)
 	ssp->srcu_ctrp = &ssp->sda->srcu_ctrs[0];
-#endif
 	/* init_srcu_struct_nodes(ssp, false); */
 	ssp->srcu_sup->srcu_gp_seq_needed_exp = 0;
 	ssp->srcu_sup->srcu_last_gp_end = ktime_get_mono_fast_ns();
 	smp_store_release(&ssp->srcu_sup->srcu_gp_seq_needed, 0); /* Init done. */
 	return ssp->sda ? 0 : -ENOMEM;
 }
-#endif /* LINUX_VERSION_CODE */
 #endif /* CONFIG_DEBUG_LOCK_ALLOC */

@@ -73,12 +73,10 @@ void * __kmalloc_node(size_t size, gfp_t flags, int node)
 #endif
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,1,0)
 void * kmalloc_large(size_t size,gfp_t flags)
 {
 	return __kmalloc(size, flags);
 }
-#endif
 
 
 struct kmem_cache * kmem_cache_create(const char * name,
@@ -113,7 +111,6 @@ void kmem_cache_destroy(struct kmem_cache *cache)
 		kfree(cache);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,0,0)
 void *kmalloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
 {
 	return __kmalloc(size, gfpflags);
@@ -125,4 +122,3 @@ void *kmalloc_node_trace(struct kmem_cache *s, gfp_t gfpflags,
 {
 	return __kmalloc(size, gfpflags);
 }
-#endif

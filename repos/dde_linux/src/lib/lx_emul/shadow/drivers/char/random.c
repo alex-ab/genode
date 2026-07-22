@@ -46,11 +46,7 @@ int __must_check get_random_bytes_arch(void *buf, int nbytes)
 	return nbytes;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,15,0)
-void get_random_bytes(void *buf, int nbytes)
-#else
 void get_random_bytes(void *buf, size_t nbytes)
-#endif
 {
 	nbytes = get_random_bytes_arch(buf, nbytes);
 }

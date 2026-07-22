@@ -19,9 +19,7 @@
  * XXX prevents generic vs __seg_*s clashes
  */
 #include <linux/version.h>
-#if LINUX_VERSION_CODE > KERNEL_VERSION(6,13,0)
 #undef CONFIG_CC_HAS_NAMED_AS
-#endif
 
 #include_next <asm/percpu.h>
 

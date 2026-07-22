@@ -57,7 +57,6 @@ static inline phys_addr_t idmap_to_phys(unsigned long idmap)
 #define virt_to_pfn(kaddr)  (__pa(kaddr) >> PAGE_SHIFT)
 
 #include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,18,0)
 #define __pfn_to_page(pfn)  ((struct page*)(pfn))
 #define __page_to_pfn(page) ((unsigned long)(page))
 
@@ -67,12 +66,7 @@ static inline phys_addr_t idmap_to_phys(unsigned long idmap)
 #define page_to_phys(p) __pa((p)->virtual)
 #define phys_to_page(p) virt_to_page((void const*)lx_emul_mem_virt_addr((void*)(p)))
 #define page_to_virt(p) ((p)->virtual)
-#endif
 
 #endif /* __ASSEMBLY__ */
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,18,0)
-#include <asm-generic/memory_model.h>
-#endif
 
 #endif /* __ASM_MEMORY_H */

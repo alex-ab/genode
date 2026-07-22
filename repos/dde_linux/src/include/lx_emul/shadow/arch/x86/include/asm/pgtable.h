@@ -42,13 +42,9 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,5,0)
 struct vm_area_struct;
 static inline pte_t pte_mkwrite(pte_t pte, struct vm_area_struct *vma) {
 	return pte; }
-#else
-static inline pte_t pte_mkwrite(pte_t pte) { return pte; }
-#endif
 
 static inline pte_t pte_mkdirty(pte_t pte)
 {

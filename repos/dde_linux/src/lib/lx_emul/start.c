@@ -65,10 +65,8 @@ static int kernel_init(void * args)
 
 	workqueue_init();
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,7,0)
 	/* required when including kernel/async.c */
 	async_init();
-#endif
 
 	/* the following calls are from driver_init() of drivers/base/init.c */
 	devices_init();
@@ -150,9 +148,7 @@ int lx_emul_init_task_function(void * dtb)
 	wait_bit_init();
 	radix_tree_init();
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,2,0)
 	maple_tree_init();
-#endif
 
 	/*
 	 * unflatten_device tree requires memblock, so kmem_cache_init has to be
@@ -168,11 +164,7 @@ int lx_emul_init_task_function(void * dtb)
 	irqchip_init();
 
 	tick_init();
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
-	init_timers();
-#else
 	timers_init();
-#endif
 	hrtimers_init();
 	softirq_init();
 	timekeeping_init();
@@ -180,19 +172,11 @@ int lx_emul_init_task_function(void * dtb)
 
 	sched_clock_init();
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,17,0)
 	net_ns_init();
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,3,0)
 	kernel_thread(kernel_init, NULL, "init", CLONE_FS);
 	kernel_thread(kernel_idle, NULL, "idle", CLONE_FS);
 	pid = kernel_thread(kthreadd, NULL, "kthreadd", CLONE_FS | CLONE_FILES);
-#else
-	kernel_thread(kernel_init, NULL, CLONE_FS);
-	kernel_thread(kernel_idle, NULL, CLONE_FS);
-	pid = kernel_thread(kthreadd, NULL, CLONE_FS | CLONE_FILES);
-#endif
 
 	kthreadd_task = find_task_by_pid_ns(pid, NULL);;
 

@@ -29,13 +29,8 @@ struct vm_area_struct;
 extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define ZERO_PAGE(vaddr) ((void)(vaddr),virt_to_page(empty_zero_page))
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,5,0)
 pte_t pte_mkwrite(pte_t pte, struct vm_area_struct *vma);
-#else
-pte_t pte_mkwrite(pte_t pte);
-#endif
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(6,12,0)
 static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
 {
     lx_emul_trace_and_stop(__func__);
@@ -47,7 +42,6 @@ static inline pte_t pte_mkyoung(pte_t pte)
 }
 
 pte_t pte_mkdirty(pte_t pte);
-#endif
 
 #ifndef pgprot_writecombine
 #define pgprot_writecombine(prot) (prot)
