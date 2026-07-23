@@ -244,7 +244,7 @@ class Test_smp_1
 
 		void _schedule_timeout()
 		{
-			_timeout->schedule(Microseconds(333));
+			_timeout->schedule(Microseconds(1000));
 		}
 
 		void _construct_timeout()
