@@ -34,6 +34,6 @@ Duration Timer::Connection::_last_time() const
 Duration Timer::Connection::curr_time()
 {
   Mutex::Guard guard(_real_time_mutex);
-  _real_time = Duration(Microseconds(elapsed_us));
+  _real_time = Duration(Microseconds(elapsed_us()));
   return _real_time;
 }
