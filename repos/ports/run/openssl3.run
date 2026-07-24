@@ -1,0 +1,141 @@
+assert {[have_spec x86_64]}
+assert {[have_board pc]}
+assert {[have_spec nova] || [have_spec hw]}
+
+create_boot_directory
+
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/pkg/[drivers_nic_pkg] \
+                  [depot_user]/src/fs_rom \
+                  [depot_user]/src/gmp \
+                  [depot_user]/src/init \
+                  [depot_user]/src/libc \
+                  [depot_user]/src/nic_router \
+                  [depot_user]/src/posix \
+                  [depot_user]/src/pc_rtc \
+                  [depot_user]/src/nic_router \
+                  [depot_user]/src/vfs \
+                  [depot_user]/src/vfs_jitterentropy \
+                  [depot_user]/src/vfs_lxip \
+                  [depot_user]/src/vfs_pipe \
+                  [depot_user]/src/openssl3/3.5.7-2026-07-24
+
+#
+# Generate config
+#
+
+append config {
+config | verbose: yes | prio_levels: 2
+
++ parent-provides
+  + service ROM
+  + service IRQ
+  + service IO_MEM
+  + service IO_PORT
+  + service PD
+  + service RM
+  + service CPU
+  + service LOG
+
++ default-route
+  + any-service
+    + parent
+    + any-child
+
++ default | caps: 100 | ram: 1M
+
++ start timer
+  + provides | + service Timer
+
++ start rtc
+  + binary pc_rtc
+  + config | verbose: yes | allow_setting_rtc: no
+  + provides | + service Rtc
+  + route
+    + service ROM   | label: set_rtc | + child report_rom
+    + service Timer                  | + child timer
+    + any-service                    | + parent
+
++ start nic | caps: 1500 | ram: 32M | managing_system: yes
+  + binary init
+  + route
+    + service ROM    | label: config | + parent | label: drivers.config
+    + service Timer                  | + child timer
+    + service Uplink                 | + child nic_router
+    + any-service                    | + parent
+
++ start nic_router | caps: 120 | ram: 5M
+  + provides
+    + service Nic
+    + service Uplink
+  + config
+    + policy | label_prefix: vfs | domain: client
+    + policy | label_prefix: nic | domain: uplink
+    + domain uplink
+      + nat | domain: client | tcp-ports: 16384 | udp-ports: 16384 | icmp-ids: 16384
+    + domain client | interface: 100.64.0.1/24
+      + tcp | dst: 0.0.0.0/0 | + permit-any | domain: uplink
+      + udp | dst: 0.0.0.0/0 | + permit-any | domain: uplink
+      + dhcp-server | ip_first: 100.64.0.2 | ip_last: 100.64.0.3 | ip_lease_time_sec: 600
+        + dns-server | ip: 9.9.9.9
+
++ start vfs | caps: 120 | ram: 10M
+  + provides | + service File_system
+  + config
+    + vfs
+      + tar openssl3.tar
+      + dir dev
+        + dir pipe | + pipe
+        + jitterentropy random
+        + null
+        + rtc
+        + zero
+      + dir socket | + lxip | dhcp: yes
+    + policy         | label_prefix: vfs_rom -> | root: /
+    + default-policy                            | root: / | writeable: yes
+  + route
+    + service Nic   | + child nic_router
+    + service Rtc   | + child rtc
+    + service Timer | + child timer
+    + any-service   | + parent
+
++ start vfs_rom | caps: 100 | ram: 8M
+  + binary fs_rom
+  + provides | + service ROM
+  + config
+  + route
+    + service File_system | + child vfs
+    + any-service         | + parent
+
++ start /bin/openssl | caps: 110 | ram: 8M
+  + exit | propagate: yes
+  + config | ld_verbose: yes
+    + libc | stdin:  /dev/null | stdout: /dev/log  | stderr: /dev/null
+           | rtc:    /dev/rtc  | pipe:   /dev/pipe | socket: /socket
+           | rng:    /dev/random
+    + vfs
+      + fs
+      + dir dev | + log
+    + arg | : openssl
+    + arg | : s_client
+    + arg | : -showcerts
+    + arg | : genode.org:443
+  + route
+    + service ROM         | label_suffix: .lib.so    | + parent
+    + service ROM         | label_last: /bin/openssl | + child vfs_rom
+    + service ROM         | label_prefix: /bin       | + child vfs_rom
+    + service File_system                            | + child vfs
+    + service Nic                                    | + child nic_router
+    + any-service
+      + parent
+      + any-child
+-}
+
+install_config $config
+
+build_boot_image [build_artifacts]
+
+# qemu config
+append qemu_args " -nographic "
+
+run_genode_until {.*closed.*} 60
