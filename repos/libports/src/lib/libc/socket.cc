@@ -1390,6 +1390,18 @@ int Libc::socket_ioctl(Socket &socket, unsigned long request, char *buf)
 
 		return 0;
 	}
+	if (request == FIONBIO) {
+		if (!buf)
+			return Errno(EINVAL);
+
+		int const enable = *(int *)buf;
+
+		int const old_flags = context->fd_flags();
+		int const new_flags = enable ? (old_flags | O_NONBLOCK)
+	                                 : (old_flags & ~O_NONBLOCK);
+		context->fd_flags(new_flags);
+		return 0;
+	}
 
 	error(__func__, " request ", request, " not supported on sockets");
 	return Errno(ENOTTY);
