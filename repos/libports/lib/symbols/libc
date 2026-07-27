@@ -165,6 +165,7 @@ execvP T
 execve T
 execvp T
 exit T
+explicit_bzero T
 f_prealloc T
 fchdir T
 fchmod W
