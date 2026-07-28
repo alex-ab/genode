@@ -653,17 +653,20 @@ struct Nvme::Io_queue : Noncopyable
 	Command_id _command_id_allocator { };
 	Request    _requests[Nvme::MAX_IO_ENTRIES] { };
 
+	Dma::Connection _dma;
+
 	Util::Dma_buffer _dma_buffer;
 	Util::Dma_buffer _prp_list_helper;
 
 	Io_queue(Io_queue_space     &space,
 	         Io_queue_space::Id  id,
-	         Dma::Connection    &dma,
+	         Genode::Env        &env,
 	         size_t              tx_buf_size)
 	:
 		_elem            { *this, space, id },
-		_dma_buffer      { dma, tx_buf_size },
-		_prp_list_helper { dma, Nvme::PRP_DS_SIZE }
+		_dma             { env },
+		_dma_buffer      { _dma, tx_buf_size },
+		_prp_list_helper { _dma, Nvme::PRP_DS_SIZE }
 	{ }
 
 	addr_t               dma_addr() const { return _dma_buffer.bus_addr(); }
@@ -714,6 +717,15 @@ struct Nvme::Io_queue : Noncopyable
 	{
 		for (uint16_t i = 0; i < Nvme::MAX_IO_ENTRIES; i++)
 			if (_command_id_allocator.used(i) && fn(_requests[i].block_request))
+				return true;
+
+		return false;
+	}
+
+	bool request_pending() const
+	{
+		for (uint16_t i = 0; i < Nvme::MAX_IO_ENTRIES; i++)
+			if (_command_id_allocator.used(i))
 				return true;
 
 		return false;
@@ -1860,6 +1872,8 @@ struct Nvme::Block_session_component : Rpc_object<Block::Session>,
 
 	Io_queue_space::Id const _queue_id;
 
+	bool close = false;
+
 	Block_session_component(Session_space              &space,
 	                        Env                        &env,
 	                        Io_queue_space::Id          queue_id,
@@ -2468,7 +2482,7 @@ class Nvme::Driver : Genode::Noncopyable
 						ctrlr.setup_io(new_id, new_id);
 
 						new (_sliced_heap) Io_queue(_io_queue_space, new_id,
-						                            _dma, tx_buf_size);
+						                            _env, tx_buf_size);
 						return Io_queue_create_result { new_id };
 					} catch (Nvme::Controller::Initialization_failed) {
 						_io_queue_map.free(new_id.value - 1); }
@@ -2512,8 +2526,8 @@ struct Nvme::Main : Rpc_object<Typed_root<Block::Session>>
 
 	Genode::Attached_rom_dataspace _config_rom { _env, "config" };
 
-	Signal_handler<Main> _request_handler { _env.ep(), *this, &Main::_handle_requests };
-	Signal_handler<Main> _irq_handler     { _env.ep(), *this, &Main::_handle_irq };
+	Signal_handler<Main>    _request_handler { _env.ep(), *this, &Main::_handle_requests };
+	Io_signal_handler<Main> _irq_handler     { _env.ep(), *this, &Main::_handle_irq };
 
 	Nvme::Driver _driver { _env, _config_rom, _irq_handler, _request_handler };
 
@@ -2606,6 +2620,12 @@ struct Nvme::Main : Rpc_object<Typed_root<Block::Session>>
 
 									/* import new requests */
 									block_session.with_requests([&] (Block::Request request) {
+										/*
+										 * Reject all new requests while the session is being
+										 * closed.
+										 */
+										if (block_session.close)
+											return Response::REJECTED;
 
 										uint16_t cid;
 										Response const response =
@@ -2679,6 +2699,13 @@ struct Nvme::Main : Rpc_object<Typed_root<Block::Session>>
 
 							/* import new requests */
 							block_session.with_requests([&] (Block::Request request) {
+
+								/*
+								 * Reject all new requests while the session is being
+								 * closed.
+								 */
+								if (block_session.close)
+									return Response::REJECTED;
 
 								Response const response =
 									_driver.submit(ctrlr, io_queue, request);
@@ -2807,6 +2834,17 @@ struct Nvme::Main : Rpc_object<Typed_root<Block::Session>>
 		_sessions.apply<Block_session_component>(session_id,
 			[&] (Block_session_component &session) {
 				Io_queue_space::Id const queue_id = session.queue_id();
+
+				session.close = true;
+
+				/* drain pending requests before freeing DMA allocation */
+				_driver.with_controller([&] (auto &) {
+					_driver.with_io_queue(queue_id,
+						[&] (Io_queue const &io_queue) {
+							while (io_queue.request_pending())
+								_env.ep().wait_and_dispatch_one_io_signal();
+						}); });
+
 				destroy(_sliced_heap, &session);
 
 				Session_map::Index const index =
