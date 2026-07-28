@@ -42,7 +42,7 @@ struct Terminal::Char_cell
 	Char_cell() : attr(0), color(0) { }
 
 	Char_cell(Character c, Font_face f,
-	          int colidx, bool inv, bool highlight)
+	          unsigned colidx, bool inv, bool highlight)
 	:
 		value(c.value),
 		attr((unsigned char)(f.attr_bits() | (inv       ? ATTR_INVERSE   : 0)
@@ -89,21 +89,20 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 		 * Color index contains the fg color in the first 3 bits
 		 * and the bg color in the second 3 bits (0bbbbfff).
 		 */
-		int                    _color_index;
+		unsigned               _color_index;
 		bool                   _inverse;
 		bool                   _highlight;
 		Cursor_visibility      _cursor_visibility;
-		int                    _region_start;
-		int                    _region_end;
-		int                    _tab_size;
-
+		unsigned               _region_start;
+		unsigned               _region_end;
+		unsigned               _tab_size;
 		Irm                    _irm = REPLACE;
-
 		bool                   _wrap = false;
-
 		bool                   _overflowed = false;
 
-		enum { DEFAULT_COLOR_INDEX_BG = 0, DEFAULT_COLOR_INDEX = 7, DEFAULT_TAB_SIZE = 8 };
+		static constexpr unsigned DEFAULT_COLOR_INDEX_BG = 0,
+		                          DEFAULT_COLOR_INDEX    = 7,
+		                          DEFAULT_TAB_SIZE       = 8;
 
 		struct Cursor_guard
 		{
@@ -145,7 +144,7 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			warning(method_name, " not implemented");
 		}
 
-		static void _missing(char const *method_name, int arg)
+		static void _missing(char const *method_name, unsigned arg)
 		{
 			warning(method_name, " not implemented for ", arg);
 		}
@@ -158,7 +157,7 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			_cursor_pos.y++;
 
 			if (_cursor_pos.y > _region_end) {
-				_char_cell_array.scroll_up(_region_start, _region_end);
+				_char_cell_array.scroll_up({ _region_start, _region_end });
 				_cursor_pos.y = _region_end;
 			}
 		}
@@ -237,7 +236,7 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			default:
 				if (c.value > 0x1f && !_overflowed) {
 					Cursor_guard guard(*this);
-					_char_cell_array.set_cell(_cursor_pos.x, _cursor_pos.y,
+					_char_cell_array.set_cell(_cursor_pos,
 					                          Char_cell(c, Font_face::REGULAR,
 					                          _color_index, _inverse, _highlight));
 					_cursor_pos.x++;
@@ -250,7 +249,7 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			}
 		}
 
-		void cha(int pn) override
+		void cha(unsigned pn) override
 		{
 			using namespace Genode;
 
@@ -276,41 +275,41 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			_char_cell_array.cursor(_cursor_pos, true);
 		}
 
-		void csr(int start, int end) override
+		void csr(unsigned start, unsigned end) override
 		{
 			/* the arguments are specified use coordinate origin (1, 1) */
 			start--;
 			end--;
 
-			_region_start = max(start, 0);
-			_region_end   = min(end, _boundary.height - 1);
+			_region_start = max(start, 0u);
+			_region_end   = min(end, _boundary.height - 1u);
 
 			/* preserve invariant of region size >= 0 */
 			_region_end = max(_region_end, _region_start);
 		}
 
-		void cub(int dx) override
+		void cub(unsigned dx) override
 		{
 			Cursor_guard guard(*this);
 
 			_cursor_pos.x -= dx;
 		}
 
-		void cud(int dy) override
+		void cud(unsigned dy) override
 		{
 			Cursor_guard guard(*this);
 
 			_cursor_pos.y += dy;
 		}
 
-		void cuf(int dx) override
+		void cuf(unsigned dx) override
 		{
 			Cursor_guard guard(*this);
 
 			_cursor_pos.x += dx;
 		}
 
-		void cup(int y, int x) override
+		void cup(unsigned y, unsigned x) override
 		{
 			Cursor_guard guard(*this);
 
@@ -321,45 +320,44 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			_cursor_pos = Position(x, y);
 		}
 
-		void cuu(int dy) override
+		void cuu(unsigned dy) override
 		{
 			Cursor_guard guard(*this);
 
 			_cursor_pos.y -= dy;
 		}
 
-		void da(int) override { _missing(__func__); }
+		void da(unsigned) override { _missing(__func__); }
 
-		void dch(int pn) override
+		void dch(unsigned pn) override
 		{
 			pn = min(_boundary.width - _cursor_pos.x, pn);
-			for (int x = _cursor_pos.x; x < _boundary.width; ++x) {
-				_char_cell_array.set_cell(x, _cursor_pos.y,
-					_char_cell_array.get_cell(x+pn, _cursor_pos.y));
-			}
-			for (int x = _boundary.width - pn; x < _boundary.width; ++x) {
-				_char_cell_array.set_cell(x, _cursor_pos.y, Char_cell());
-			}
+			for (unsigned x = _cursor_pos.x; x < _boundary.width; ++x)
+				_char_cell_array.set_cell({ x, _cursor_pos.y },
+					_char_cell_array.get_cell({ x + pn, _cursor_pos.y }));
+
+			for (unsigned x = _boundary.width - pn; x < _boundary.width; ++x)
+				_char_cell_array.set_cell({ x, _cursor_pos.y }, Char_cell());
 		}
 
-		void dl(int num_lines) override
+		void dl(unsigned num_lines) override
 		{
 			/* delete number of lines */
-			for (int i = 0; i < num_lines; i++)
-				_char_cell_array.scroll_up(_cursor_pos.y, _region_end);
+			for (unsigned i = 0; i < num_lines; i++)
+				_char_cell_array.scroll_up({ _cursor_pos.y, _region_end });
 		}
 
 		/**
 		 * Erase character
 		 */
-		void ech(int pn) override
+		void ech(unsigned pn) override
 		{
-			int y = _cursor_pos.y;
-			int x = _cursor_pos.x;
+			unsigned y = _cursor_pos.y;
+			unsigned x = _cursor_pos.x;
 
 			do {
 				while (x < _boundary.width && pn) {
-					_char_cell_array.set_cell(x++, y, Char_cell());
+					_char_cell_array.set_cell({ x++, y }, Char_cell());
 					--pn;
 				}
 				x = 0;
@@ -370,25 +368,25 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 		/**
 		 * Erase in page
 		 */
-		void ed(int ps) override
+		void ed(unsigned ps) override
 		{
 			/* clear to end of screen */
 			switch(ps) {
 
 			case 0:
-				for (int x = _cursor_pos.x; x < _boundary.width; ++x)
-					_char_cell_array.set_cell(x, _cursor_pos.y, Char_cell());
-				_char_cell_array.clear(_cursor_pos.y + 1, _boundary.height-1);
+				for (unsigned x = _cursor_pos.x; x < _boundary.width; ++x)
+					_char_cell_array.set_cell({ x, _cursor_pos.y }, Char_cell());
+				_char_cell_array.clear({ _cursor_pos.y + 1, _boundary.height - 1 });
 				return;
 
 			case 1:
-				_char_cell_array.clear(0, _cursor_pos.y-1);
-				for (int x = 0; x <= _cursor_pos.x; ++x)
-					_char_cell_array.set_cell(x, _cursor_pos.y, Char_cell());
+				_char_cell_array.clear({ 0, _cursor_pos.y - 1 });
+				for (unsigned x = 0; x <= _cursor_pos.x; ++x)
+					_char_cell_array.set_cell({ x, _cursor_pos.y }, Char_cell());
 				return;
 
 			case 2:
-				_char_cell_array.clear(0, _boundary.height-1);
+				_char_cell_array.clear({ 0, _boundary.height - 1 });
 				return;
 
 			default:
@@ -397,21 +395,21 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			}
 		}
 
-		void el(int ps) override
+		void el(unsigned ps) override
 		{
 			switch (ps) {
 			case 0: /* clear to end of line */
-				for (int x = _cursor_pos.x; x < _boundary.width; ++x)
-					_char_cell_array.set_cell(x, _cursor_pos.y, Char_cell());
+				for (unsigned x = _cursor_pos.x; x < _boundary.width; ++x)
+					_char_cell_array.set_cell({ x, _cursor_pos.y }, Char_cell());
 				return;
 
 			case 1: /* clear from begining of line */
-				for (int x = 0; x <= _cursor_pos.x; ++x)
-					_char_cell_array.set_cell(x, _cursor_pos.y, Char_cell());
+				for (unsigned x = 0; x <= _cursor_pos.x; ++x)
+					_char_cell_array.set_cell({ x, _cursor_pos.y }, Char_cell());
 				return;
 
 			case 2:
-				_char_cell_array.clear(_cursor_pos.y, _cursor_pos.y);
+				_char_cell_array.clear({ _cursor_pos.y, _cursor_pos.y });
 				return;
 
 			default: _missing(__func__, ps);
@@ -433,21 +431,20 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			_tab_size = _cursor_pos.x;
 		}
 
-		void ich(int pn) override
+		void ich(unsigned pn) override
 		{
-			pn = max(0, min(_boundary.width - _cursor_pos.x, pn));
+			pn = max(0u, min(_boundary.width - _cursor_pos.x, pn));
 
-			for (int x = _boundary.width-1; _cursor_pos.x+pn < x; --x) {
-				_char_cell_array.set_cell(x, _cursor_pos.y,
-					_char_cell_array.get_cell(x-1, _cursor_pos.y));
+			for (unsigned x = _boundary.width-1; _cursor_pos.x+pn < x; --x) {
+				_char_cell_array.set_cell({ x, _cursor_pos.y },
+					_char_cell_array.get_cell({ x - 1, _cursor_pos.y }));
 			}
-			for (int i = 0; i < pn; ++i) {
-				_char_cell_array.set_cell(
-					_cursor_pos.x+i, _cursor_pos.y, Char_cell());
+			for (unsigned i = 0; i < pn; ++i) {
+				_char_cell_array.set_cell({ _cursor_pos.x + i, _cursor_pos.y}, Char_cell());
 			}
 		}
 
-		void il(int value) override
+		void il(unsigned value) override
 		{
 			Cursor_guard guard(*this);
 
@@ -456,8 +453,8 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 
 			_char_cell_array.cursor(_cursor_pos, false);
 
-			for (int i = 0; i < value; i++)
-				_char_cell_array.scroll_down(_cursor_pos.y, _region_end);
+			for (unsigned i = 0; i < value; i++)
+				_char_cell_array.scroll_down({ _cursor_pos.y, _region_end });
 
 			_char_cell_array.cursor(_cursor_pos, true);
 		}
@@ -470,7 +467,7 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			_color_index = DEFAULT_COLOR_INDEX | (DEFAULT_COLOR_INDEX_BG << 3);
 		}
 
-		void rm(int ps) override
+		void rm(unsigned ps) override
 		{
 			switch (ps) {
 			case 4: /* INSERTION REPLACEMENT MODE */
@@ -484,7 +481,7 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			}
 		}
 
-		void sm(int ps) override
+		void sm(unsigned ps) override
 		{
 			switch (ps) {
 			case 4: /* INSERTION REPLACEMENT MODE */
@@ -505,25 +502,25 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 		void rmcup() override { }
 		void rmkx()  override { }
 
-		void sd(int pn) override
+		void sd(unsigned pn) override
 		{
-			for (int i = 0; i < pn; ++i)
-			_char_cell_array.scroll_down(_region_start, _region_end);
+			for (unsigned i = 0; i < pn; ++i)
+			_char_cell_array.scroll_down({ _region_start, _region_end });
 		}
 
-		void setab(int value) override
+		void setab(unsigned value) override
 		{
 			_color_index &= ~0x38; /* clear 111000 */
-			_color_index |= (((value == 9) ? DEFAULT_COLOR_INDEX_BG : value) << 3);
+			_color_index |= (((value == 9u) ? DEFAULT_COLOR_INDEX_BG : value) << 3u);
 		}
 
-		void setaf(int value) override
+		void setaf(unsigned value) override
 		{
 			_color_index &= ~0x7; /* clear 000111 */
 			_color_index |= (value == 9) ? DEFAULT_COLOR_INDEX : value;
 		}
 
-		void sgr(int value) override
+		void sgr(unsigned value) override
 		{
 			switch (value) {
 			case 0:
@@ -547,34 +544,26 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 		void smir()  override { _missing(__func__); }
 		void smkx()  override { }
 
-		void su(int pn) override
+		void su(unsigned pn) override
 		{
-			for (int i = 0; i < pn; ++i)
-				_char_cell_array.scroll_up(_region_start, _region_end);
+			for (unsigned i = 0; i < pn; ++i)
+				_char_cell_array.scroll_up({ _region_start, _region_end });
 		}
 
-		void tbc()    override { _missing(__func__); }
+		void tbc() override { _missing(__func__); }
 
-		void tsr(int pn) override
+		void tsr(unsigned pn) override
 		{
 			_missing(__func__, pn);
-			/*
-			int x = pn;
-			for (int y = _cursor_pos.y; y < _boundary.height-1; ++y) {
-				for (int i = 0; i < _tab_size; ++i) {
-
-				}
-			}
-			 */
 		}
 
-		void vpa(int pn) override
+		void vpa(unsigned pn) override
 		{
 			Cursor_guard guard(*this);
 			_cursor_pos.y = pn - 1;
 		}
 
-		void vpb(int pn) override
+		void vpb(unsigned pn) override
 		{
 			Cursor_guard guard(*this);
 			_cursor_pos.y -= pn;
@@ -591,7 +580,7 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			_cursor_pos = _cursor_store;
 		}
 
-		void decsm(int p1, int) override
+		void decsm(unsigned p1, unsigned) override
 		{
 			switch (p1) {
 			case    1: _missing("Application Cursor Keys"); return; //return smkx();
@@ -607,7 +596,7 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			_missing(__func__, p1);
 		}
 
-		void decrm(int p1, int) override
+		void decrm(unsigned p1, unsigned) override
 		{
 			switch (p1) {
 			case    1: _missing("Application Cursor Keys"); return; //return rmkx();
@@ -623,9 +612,9 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			_missing(__func__, p1);
 		}
 
-		void scs_g0(int charset) override { _missing(__func__, charset); }
+		void scs_g0(unsigned charset) override { _missing(__func__, charset); }
 
-		void scs_g1(int charset) override { _missing(__func__, charset); }
+		void scs_g1(unsigned charset) override { _missing(__func__, charset); }
 
 		void reverse_index() override
 		{
@@ -633,7 +622,7 @@ class Terminal::Char_cell_array_character_screen : public Character_screen
 			if (_cursor_pos.y) {
 				_cursor_pos.y = _cursor_pos.y - 1;
 			} else {
-				_char_cell_array.scroll_down(_region_start, _region_end);
+				_char_cell_array.scroll_down({ _region_start, _region_end });
 			}
 		};
 };

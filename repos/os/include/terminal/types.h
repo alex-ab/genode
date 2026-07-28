@@ -24,6 +24,7 @@ namespace Terminal {
 	struct Boundary;
 	struct Offset;
 	struct Position;
+	struct Region;
 	struct Character_array;
 	template <unsigned, unsigned> class Static_character_array;
 }
@@ -44,11 +45,10 @@ struct Terminal::Character
 };
 
 
-struct Terminal::Boundary
-{
-	int const width, height;
-	Boundary(int width, int height) : width(width), height(height) { }
-};
+struct Terminal::Boundary { unsigned width, height; };
+
+
+struct Terminal::Region { unsigned start,  end; };
 
 
 struct Terminal::Offset
@@ -61,10 +61,7 @@ struct Terminal::Offset
 
 struct Terminal::Position
 {
-	int x, y;
-
-	Position() : x(0), y(0) { }
-	Position(int x, int y) : x(x), y(y) { }
+	unsigned x, y;
 
 	Position operator + (Offset const &offset) {
 		return Position(x + offset.x, y + offset.y); }
@@ -97,8 +94,7 @@ struct Terminal::Position
 	 */
 	bool lies_within(Boundary const &boundary) const
 	{
-		return x >= 0 && x < boundary.width
-		    && y >= 0 && y < boundary.height;
+		return x < boundary.width && y < boundary.height;
 	}
 
 	/**
@@ -107,8 +103,8 @@ struct Terminal::Position
 	void constrain(Boundary const &boundary)
 	{
 		using namespace Genode;
-		x = max(0, min(boundary.width - 1, x));
-		y = max(0, min(boundary.height - 1, y));
+		x = max(0u, min(boundary.width  > 0u ? boundary.width  - 1u : 0u, x));
+		y = max(0u, min(boundary.height > 0u ? boundary.height - 1u : 0u, y));
 	}
 
 	void print(Output &out) const { Genode::print(out, y, ",", x); }

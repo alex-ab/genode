@@ -47,36 +47,50 @@ class Terminal::Cell_array
 
 		using Char_cell_line = CELL *;
 
+		bool _valid(Region const region) const
+		{
+			return region.start <= region.end && region.end < _num_lines;
+		}
+
+		bool _valid(Position const pos) const
+		{
+			return pos.x < _num_cols && pos.y < _num_lines;
+		}
+
 		void _clear_line(Char_cell_line line)
 		{
 			for (unsigned col = 0; col < _num_cols; col++)
 				*line++ = CELL();
 		}
 
-		void _mark_lines_as_dirty(int start, int end)
+		void _mark_lines_as_dirty(Region const region)
 		{
-			for (int line = start; line <= end; line++)
-				_line_dirty[line] = true;
+			if (_valid(region))
+				for (unsigned line = region.start; line <= region.end; line++)
+					_line_dirty[line] = true;
 		}
 
-		void _scroll_vertically(int start, int end, bool up)
+		void _scroll_vertically(Region const region, bool up)
 		{
+			if (!_valid(region))
+				return;
+
 			/* rotate lines of the scroll region */
-			Char_cell_line yanked_line = _array[up ? start : end];
+			Char_cell_line yanked_line = _array[up ? region.start : region.end];
 
 			if (up) {
-				for (int line = start; line <= end - 1; line++)
+				for (unsigned line = region.start; line <= region.end - 1; line++)
 					_array[line] = _array[line + 1];
 			} else {
-				for (int line = end; line >= start + 1; line--)
+				for (unsigned line = region.end; line >= region.start + 1; line--)
 					_array[line] = _array[line - 1];
 			}
 
 			_clear_line(yanked_line);
 
-			_array[up ? end: start] = yanked_line;
+			_array[up ? region.end : region.start] = yanked_line;
 
-			_mark_lines_as_dirty(start, end);
+			_mark_lines_as_dirty(region);
 		}
 
 	public:
@@ -118,15 +132,17 @@ class Terminal::Cell_array
 				_line_dirty[i] = true;
 		}
 
-		void set_cell(int column, int line, CELL cell)
+		void set_cell(Position const pos, CELL cell)
 		{
-			_array[line][column] = cell;
-			_line_dirty[line] = true;
+			if (_valid(pos)) {
+				_array[pos.y][pos.x] = cell;
+				_line_dirty[pos.y] = true;
+			}
 		}
 
-		CELL get_cell(int column, int line) const
+		CELL get_cell(Position const pos) const
 		{
-			return _array[line][column];
+			return _valid(pos) ? _array[pos.y][pos.x] : CELL { };
 		}
 
 		void import_from(Cell_array const &other)
@@ -136,39 +152,36 @@ class Terminal::Cell_array
 
 			for (unsigned line = 0; line < num_lines; line++)
 				for (unsigned column = 0; column < num_cols; column++)
-					_array[line][column] = other.get_cell(column, line);
+					_array[line][column] = other.get_cell({ column, line });
 
 			mark_all_lines_as_dirty();
 		}
 
-		bool line_dirty(int line) { return _line_dirty[line]; }
-
-		void mark_line_as_clean(int line)
+		bool line_dirty(unsigned const line)
 		{
-			_line_dirty[line] = false;
+			return line < _num_lines ? _line_dirty[line] : false;
 		}
 
-		void mark_line_as_dirty(int line)
+		void mark_line_as_clean(unsigned line)
 		{
-			_line_dirty[line] = true;
+			if (line < _num_lines) _line_dirty[line] = false;
 		}
 
-		void scroll_up(int region_start, int region_end)
+		void mark_line_as_dirty(unsigned line)
 		{
-			_scroll_vertically(region_start, region_end, true);
+			if (line < _num_lines) _line_dirty[line] = true;
 		}
 
-		void scroll_down(int region_start, int region_end)
-		{
-			_scroll_vertically(region_start, region_end, false);
-		}
+		void scroll_up  (Region const r) { _scroll_vertically(r, true); }
+		void scroll_down(Region const r) { _scroll_vertically(r, false); }
 
-		void clear(int region_start, int region_end)
+		void clear(Region region)
 		{
-			for (int line = region_start; line <= region_end; line++)
-				_clear_line(_array[line]);
+			if (_valid(region))
+				for (unsigned line = region.start; line <= region.end; line++)
+					_clear_line(_array[line]);
 
-			_mark_lines_as_dirty(region_start, region_end);
+			_mark_lines_as_dirty(region);
 		}
 
 		void cursor(Terminal::Position pos, bool enable, bool mark_dirty = false)

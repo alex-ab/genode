@@ -109,7 +109,7 @@ class Terminal::Text_screen_surface
 				if (char_width.value == 0 || char_height == 0)
 					return Position { };
 
-				Position result { (p.x << 8) / char_width.value, p.y / int(char_height) };
+				Position result { (p.x << 8) / unsigned(char_width.value), p.y / char_height };
 				result.constrain(Boundary(columns, lines));
 				return result;
 			}
@@ -169,13 +169,13 @@ class Terminal::Text_screen_surface
 			template <typename FN>
 			void for_each_line(FN const &fn) const
 			{
-				for (int i = min(start.y, end.y); i <= max(start.y, end.y); i++)
+				for (unsigned i = min(start.y, end.y); i <= max(start.y, end.y); i++)
 					fn(i);
 			}
 
 		} _selection { };
 
-		Position _pointer { -1, -1 };
+		Position _pointer { ~0u, ~0u };
 
 	public:
 
@@ -242,7 +242,7 @@ class Terminal::Text_screen_surface
 					Fixpoint_number x { (int)_geometry.start().x };
 					for (unsigned column = 0; column < _cell_array.num_cols(); column++) {
 
-						Char_cell const cell = _cell_array.get_cell(column, line);
+						Char_cell const cell = _cell_array.get_cell({ column, line });
 
 						Codepoint codepoint = cell.codepoint();
 
@@ -322,11 +322,11 @@ class Terminal::Text_screen_surface
 			int first_dirty_line =  10000,
 			    last_dirty_line  = -10000;
 
-			for (int line = 0; line < (int)_cell_array.num_lines(); line++) {
+			for (unsigned line = 0; line < _cell_array.num_lines(); line++) {
 				if (!_cell_array.line_dirty(line)) continue;
 
-				first_dirty_line = min(line, first_dirty_line);
-				last_dirty_line  = max(line, last_dirty_line);
+				first_dirty_line = min(int(line), first_dirty_line);
+				last_dirty_line  = max(int(line), last_dirty_line);
 
 				_cell_array.mark_line_as_clean(line);
 			}
@@ -368,7 +368,7 @@ class Terminal::Text_screen_surface
 		void pointer(Point pointer)
 		{
 			auto position_valid = [&] (Position pos) {
-				return pos.y >= 0 && pos.y < (int)_geometry.lines; };
+				return pos.y > 0u && pos.y < _geometry.lines; };
 
 			/* update old position */
 			if (position_valid(_pointer))
@@ -403,7 +403,7 @@ class Terminal::Text_screen_surface
 		 */
 		void define_selection(Point pointer)
 		{
-			_selection.for_each_line([&] (int line) {
+			_selection.for_each_line([&] (unsigned line) {
 				_cell_array.mark_line_as_dirty(line); });
 
 			_selection.end = _geometry.position(pointer);
@@ -438,14 +438,14 @@ class Terminal::Text_screen_surface
 					if (!_selection.selected(Position(column, row)))
 						continue;
 
-					Codepoint const c { _cell_array.get_cell(column, row).value };
+					Codepoint const c { _cell_array.get_cell({ column, row }).value };
 
 					if (c.value == 0) {
 
 						auto remaining_line_empty = [&] ()
 						{
 							for (unsigned i = column + 1; i < _geometry.columns; i++)
-								if (_cell_array.get_cell(i, row).value)
+								if (_cell_array.get_cell({ i, row }).value)
 									return false;
 
 							return true;

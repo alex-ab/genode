@@ -174,6 +174,11 @@ struct Terminal::Main : Character_consumer
 
 	Gui::Rect _flushed_win_rect { };
 
+	/**
+	 * Clamp pointer coordinates that may be negative during selection
+	 */
+	Point _clamped(Point p) const { return { max(0, p.x), max(0, p.y) }; }
+
 	void _handle_flush()
 	{
 		_flush_scheduled = false;
@@ -387,7 +392,7 @@ void Terminal::Main::_handle_input()
 
 		event.handle_absolute_motion([&] (int x, int y) {
 
-			_pointer = Point(x, y);
+			_pointer = _clamped(Point(x, y));
 
 			if (_shift_pressed) {
 				_text_screen_surface->pointer(_pointer);
@@ -411,7 +416,7 @@ void Terminal::Main::_handle_input()
 
 		if (event.key_release(Input::KEY_LEFTSHIFT)) {
 			_shift_pressed = false;
-			_text_screen_surface->pointer(Point(-1, -1));
+			_text_screen_surface->pointer({ -1, -1 });
 			_schedule_flush();
 		}
 
