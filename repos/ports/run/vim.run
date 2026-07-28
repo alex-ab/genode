@@ -110,7 +110,7 @@ config | verbose: yes
   | + initial | width: 800 | height: 600
   | + vfs
   |   + rom VeraMono.ttf
-  |   + dir fonts
+  |   + dir font
   |     + dir monospace | + ttf regular | path: /VeraMono.ttf | size_px: 16
   + route
     + service ROM    | label: clipboard | + child wm
@@ -160,14 +160,16 @@ config | verbose: yes
   |   .
   |   . Use the nocompatible mode, which is much nicer than the plain vi mode.
   |   .
-  | + arg --cmd | : set laststatus=2
-  |   .
-  |   . Permanently display status bar
-  |   .
-  | + arg --cmd | : set hls
-  |   .
-  |   . Enable highlighted search results
-  |   .
+  | + arg --cmd
+  |   : set laststatus=2
+  |     .
+  |     . Permanently display status bar
+  |     .
+  | + arg --cmd
+  |   : set hls
+  |     .
+  |     . Enable highlighted search results
+  |     .
   + route
     + service File_system                 | + child vfs
     + service ROM | label_suffix: .lib.so | + parent
