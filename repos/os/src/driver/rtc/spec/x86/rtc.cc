@@ -15,6 +15,7 @@
 
 /* Genode includes */
 #include <io_port_session/connection.h>
+#include <timer_session/connection.h>
 
 /* local includes */
 #include "rtc.h"
@@ -170,6 +171,19 @@ void Rtc::Driver::write_timestamp(Timestamp ts)
 	unsigned const day  = bcd ? BIN_TO_BCD(ts.day)    : ts.day;
 	unsigned const mon  = bcd ? BIN_TO_BCD(ts.month)  : ts.month;
 	unsigned const year = bcd ? BIN_TO_BCD(ts.year)   : ts.year;
+
+
+	/*
+	 * Quoting the MC146818A spec (downloaded from:
+	 * https://www.futurlec.com/Datasheet/Motorola/MC146818.pdf ):
+	 * "When the divider is changed from reset to an operating time base,
+	 * the first update cycle is one-half second later."
+	 *
+	 * Sleep 500ms before running the update cycle, otherwise the clock
+	 * will run 500ms early.
+	 */
+	static Timer::Connection timer { _env };
+	timer.msleep(500);
 
 	/* disable updating */
 	_cmos_write(RTC_CONTROL, ctl | RTC_SET);

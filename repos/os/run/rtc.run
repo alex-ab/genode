@@ -22,6 +22,7 @@ append rtc_start_nodes_with_update {
   + config | allow_setting_rtc: true | verbose: yes
   + route
     + service ROM | label: set_rtc | + child report_rom
+    + service Timer                | + child timer
     + any-service                  | + parent
 + start report_rom | ram: 1M
   + provides
