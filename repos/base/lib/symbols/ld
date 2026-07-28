@@ -372,6 +372,7 @@ _ZNK6Genode6Thread10stack_baseEv T
 _ZNK6Genode6Thread4infoEv T
 _ZNK6Genode6Thread4nameEv T
 _ZNK6Genode6Thread9stack_topEv T
+_ZNK6Genode7Timeout8deadlineEv T
 _ZNK6Genode8Duration17trunc_to_plain_msEv T
 _ZNK6Genode8Duration17trunc_to_plain_usEv T
 _ZNK6Genode8Duration9less_thanERKS0_ T
