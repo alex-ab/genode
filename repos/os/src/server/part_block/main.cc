@@ -19,6 +19,7 @@
 #include <base/component.h>
 #include <base/heap.h>
 #include <base/service.h>
+#include <block_session/block_session.h>
 #include <os/reporter.h>
 #include <os/session_policy.h>
 #include <parent/parent.h>
@@ -156,8 +157,7 @@ class Block::Main
 		Signal_handler<Main> session_request_handler {
 			_env.ep(), *this, &Main::_handle_session_requests };
 
-		using Request_result = Attempt<Session_capability,
-		                               Parent::Session_response>;
+		using Request_result = Env::Session_result;
 
 		Request_result _request_session(Parent::Client::Id  const &id,
 		                                Session_state::Args const &args,
@@ -170,7 +170,7 @@ class Block::Main
 
 			if (!tx_buf_size) {
 				error("tx_buf_size invalid");
-				return Parent::Session_response::DENIED;
+				return Session_error::INSUFFICIENT_RAM;
 			}
 
 			/*
@@ -183,14 +183,14 @@ class Block::Main
 			if (tx_buf_size > ram_quota.value) {
 				error("insufficient 'ram_quota', got ", ram_quota, ", need ",
 				     tx_buf_size);
-				return Parent::Session_response::INSUFFICIENT_RAM;
+				return Session_error::INSUFFICIENT_RAM;
 			}
 
 			Cap_quota const cap_quota = cap_quota_from_args(args.string());
 			if (Session::CAP_QUOTA > cap_quota.value) {
 				error("insufficient 'cap_quota', got ", cap_quota, ", need ",
 				     tx_buf_size);
-				return Parent::Session_response::INSUFFICIENT_CAPS;
+				return Session_error::INSUFFICIENT_CAPS;
 			}
 
 			/* accommodate clients not constraining writeability */
@@ -212,9 +212,7 @@ class Block::Main
 			Arg_string::set_arg(argbuf, sizeof(argbuf), "num_blocks",  view.num_blocks.value);
 			Arg_string::set_arg(argbuf, sizeof(argbuf), "writeable",   view.writeable);
 
-			try {
-				return _env.session<Block::Session>(id, argbuf, affinity);
-			} catch (...) { return Parent::Session_response::DENIED; }
+			return _env.try_session(Block::Session::service_name(), id, argbuf, affinity);
 		}
 
 		static void _with_session_request(Node const &request,
@@ -298,13 +296,23 @@ void Block::Main::_handle_session_request(Node const &request)
 
 			Forwarded_session &session = *_sessions[partition.value];
 
-			auto success_fn = [&] (Session_capability cap) {
-				_env.parent().deliver_session_cap(server_id, cap); };
+			auto success_fn = [&] (Genode::Session_capability cap) {
+				_env.parent().deliver_session_cap(server_id, cap);
+			};
 
-			auto error_fn = [&] (Parent::Session_response response) {
+			auto convert_error_fn = [&] (Session_error err) -> Parent::Session_response {
+				using SR = Parent::Session_response;
+				switch (err) {
+				case Session_error::INSUFFICIENT_RAM:  return SR::INSUFFICIENT_RAM;
+				case Session_error::INSUFFICIENT_CAPS: return SR::INSUFFICIENT_CAPS;
+				default:                               return SR::DENIED;
+				}
+			};
+
+			auto error_fn = [&] (Session_error err) {
 				_sessions[partition.value].destruct();
 				error("could not forward session for partition ", partition.value);
-				_env.parent().session_response(server_id, response);
+				_env.parent().session_response(server_id, convert_error_fn(err));
 			};
 
 			_request_session(session.client_id.id(), args,
