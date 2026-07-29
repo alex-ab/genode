@@ -88,7 +88,7 @@ namespace
 			if (path.string()[path.length() - 2] == '/')
 				directory = path;
 			else
-				directory = Path_string { path, '/' };
+				directory = Path_string { path, "/" };
 		} else {
 			size_t pos = 0;
 			for (size_t i = 0; i < path.length() - 1; ++i) {
