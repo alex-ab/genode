@@ -59,7 +59,7 @@ static void Terminal::convert_char_array_to_window(Cell_array<Char_cell> *cell_a
 		window.move_cursor(0, line);
 		for (unsigned column = 0; column < cell_array->num_cols(); column++) {
 
-			Char_cell      cell  = cell_array->get_cell(column, line);
+			Char_cell      cell  = cell_array->get_cell({ column, line });
 			unsigned char  ascii = cell.codepoint().value;
 
 			if (ascii == 0 || ascii & 0x80) {
