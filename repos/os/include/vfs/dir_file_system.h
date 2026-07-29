@@ -125,20 +125,6 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 		bool _top_dir(char const *path) const {	return strcmp(path, "/") == 0; }
 
 		/**
-		 * Parent_fs role for the children of this directory file system
-		 */
-		void notify_watchers(Span const &rel_path) override
-		{
-			using Path = String<MAX_PATH_LEN>;
-			if (_vfs_root)
-				_parent_fs.notify_watchers(rel_path);
-			else
-				Path { "/", _name, Cstring(rel_path.start, rel_path.num_bytes) }
-					.with_span([&] (Span const &s) {
-						_parent_fs.notify_watchers(s); });
-		}
-
-		/**
 		 * Perform operation on a file system
 		 *
 		 * \param fn  functor that takes a file-system reference and
@@ -331,6 +317,22 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 			dir_vfs_handle->queued_read_handle = nullptr;
 
 			return result;
+		}
+
+	protected:
+
+		/**
+		 * Parent_fs role for the children of this directory file system
+		 */
+		void notify_watchers(Span const &rel_path) override
+		{
+			using Path = String<MAX_PATH_LEN>;
+			if (_vfs_root)
+				_parent_fs.notify_watchers(rel_path);
+			else
+				Path { "/", _name, Cstring(rel_path.start, rel_path.num_bytes) }
+					.with_span([&] (Span const &s) {
+						_parent_fs.notify_watchers(s); });
 		}
 
 	public:

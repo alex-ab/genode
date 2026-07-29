@@ -78,7 +78,7 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 				_buffer = Buffer(Cstring(src.start, len));
 				out_count = len;
 
-				Single_file_system::_notify_watchers();
+				_value_fs._notify_watchers();
 
 				return WRITE_OK;
 			}

@@ -238,15 +238,18 @@ struct Vfs_tap::Compound_file_system : Dir_file_system,
 	Name_fs     _name_fs     { *this, "name",     _name };
 	Info_fs     _info_fs     { *this, "info",     _info };
 
+
 	/********************
 	 ** Watch handlers **
 	 ********************/
 
-	Io::Watch_handler<Compound_file_system> _mac_addr_changed_handler {
-		_mac_addr_fs, "/mac_addr",
-		_env.alloc(),
-		*this,
-		&Compound_file_system::_mac_addr_changed };
+	void notify_watchers(Span const &rel_path) override
+	{
+		if (rel_path.equals(Span::from_cstring("/mac_addr")))
+			_mac_addr_changed();
+
+		Dir_file_system::notify_watchers(rel_path);
+	}
 
 	void _mac_addr_changed()
 	{
