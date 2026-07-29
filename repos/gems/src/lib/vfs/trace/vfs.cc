@@ -273,15 +273,16 @@ struct Vfs_trace::Subject : Dir_file_system, private File_system_factory
 		return nullptr;
 	}
 
-	Io::Watch_handler<Subject> _enable_handler {
-	  _enabled_fs, "/enable",
-	  Subject::_env.alloc(),
-	  *this, &Subject::_enable_subject };
+	void notify_watchers(Span const &rel_path) override
+	{
+		if (rel_path.equals(Span::from_cstring("/enable")))
+			_enable_subject();
 
-	Io::Watch_handler<Subject> _buffer_size_handler {
-	  _buffer_size_fs, "/buffer_size",
-	  Subject::_env.alloc(),
-	  *this, &Subject::_buffer_size };
+		if (rel_path.equals(Span::from_cstring("/buffer_size")))
+			_buffer_size();
+
+		Dir_file_system::notify_watchers(rel_path);
+	}
 
 	void _enable_subject()
 	{
