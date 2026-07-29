@@ -499,6 +499,8 @@ Libc::Kernel::Kernel(Genode::Env &env, Genode::Allocator &heap)
 	_with_libc_sub_config("pthread", [&] (Node const &pthread_config) {
 		init_pthread_support(env, pthread_config, _heap); });
 
+	_fds.init_pthread_mutex();
+
 	_env.ep().register_io_progress_handler(*this);
 
 	if (_config.cloned) {

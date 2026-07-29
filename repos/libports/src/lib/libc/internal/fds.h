@@ -59,21 +59,22 @@ class Libc::Fds
 
 		/*
 		 * pthread support is not initialized yet at 'Fds' construction time,
-		 * so the mutex is constructed on first use.
+		 * so the mutex is constructed later via 'init_pthread_mutex()'.
 		 */
-		Pthread_mutex &_mutex()
-		{
-			static Pthread_mutex inst { };
-			return inst;
-		}
+		Constructible<Pthread_mutex> _mutex { };
 
 	public:
+
+		void init_pthread_mutex()
+		{
+			_mutex.construct();
+		}
 
 		template <typename FN>
 		auto with_alloc(FN const &fn)
 		-> typename Trait::Functor<decltype(&FN::operator())>::Return_type
 		{
-			Pthread_mutex::Guard guard { _mutex() };
+			Pthread_mutex::Guard guard { *_mutex };
 			return fn(_bits, _space);
 		}
 
@@ -81,7 +82,7 @@ class Libc::Fds
 		auto with_space(FN const &fn)
 		-> typename Trait::Functor<decltype(&FN::operator())>::Return_type
 		{
-			Pthread_mutex::Guard guard { _mutex() };
+			Pthread_mutex::Guard guard { *_mutex };
 			return fn(_space);
 		}
 };
