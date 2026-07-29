@@ -23,7 +23,7 @@ namespace Genode { template <typename, typename> class Alarm_registry; }
 
 
 /**
- * Registry of schedules alarm objects
+ * Registry of scheduled alarm objects
  *
  * \param T       alarm type, must be derived from 'Alarm_registry::Element'
  * \param CLOCK   type representing a circular clock
