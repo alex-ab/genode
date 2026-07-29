@@ -1221,69 +1221,26 @@ struct Vfs_oss::File_system : public Dir_file_system, private File_system_factor
 
 	Audio _audio;
 
-	Io::Watch_handler<This> _enable_input_handler {
-		_enable_input_fs, "/enable_input",
-		_env.alloc(),
-		*this,
-		&This::_enable_input_changed };
-
-	Io::Watch_handler<This> _halt_input_handler {
-		_halt_input_fs, "/halt_input",
-		_env.alloc(),
-		*this,
-		&This::_halt_input_changed };
-
-	Io::Watch_handler<This> _ifrag_total_handler {
-		_ifrag_total_fs, "/ifrag_total",
-		_env.alloc(),
-		*this,
-		&This::_ifrag_total_changed };
-
-	Io::Watch_handler<This> _ifrag_size_handler {
-		_ifrag_size_fs, "/ifrag_size",
-		_env.alloc(),
-		*this,
-		&This::_ifrag_size_changed };
-
-	Io::Watch_handler<This> _enable_output_handler {
-		_enable_output_fs, "/enable_output",
-		_env.alloc(),
-		*this,
-		&This::_enable_output_changed };
-
-	Io::Watch_handler<This> _halt_output_handler {
-		_halt_output_fs, "/halt_output",
-		_env.alloc(),
-		*this,
-		&This::_halt_output_changed };
-
-	Io::Watch_handler<This> _ofrag_total_handler {
-		_ofrag_total_fs, "/ofrag_total",
-		_env.alloc(),
-		*this,
-		&This::_ofrag_total_changed };
-
-	Io::Watch_handler<This> _ofrag_size_handler {
-		_ofrag_size_fs, "/ofrag_size",
-		_env.alloc(),
-		*this,
-		&This::_ofrag_size_changed };
-
-	Io::Watch_handler<This> _play_underruns_handler {
-		_play_underruns_fs, "/play_underruns",
-		_env.alloc(),
-		*this,
-		&This::_play_underruns_changed };
-
-	Io::Watch_handler<This> _sample_rate_handler {
-		_sample_rate_fs, "/sample_rate",
-		_env.alloc(),
-		*this,
-		&This::_sample_rate_changed };
 
 	/********************
 	 ** Watch handlers **
 	 ********************/
+
+	void notify_watchers(Span const &rel_path) override
+	{
+		if (rel_path.equals(Span::from_cstring("/enable_input")))   _enable_input_changed();
+		if (rel_path.equals(Span::from_cstring("/halt_input")))     _halt_input_changed();
+		if (rel_path.equals(Span::from_cstring("/ifrag_total")))    _ifrag_total_changed();
+		if (rel_path.equals(Span::from_cstring("/ifrag_size")))     _ifrag_size_changed();
+		if (rel_path.equals(Span::from_cstring("/enable_output")))  _enable_output_changed();
+		if (rel_path.equals(Span::from_cstring("/halt_output")))    _halt_output_changed();
+		if (rel_path.equals(Span::from_cstring("/ofrag_total")))    _ofrag_total_changed();
+		if (rel_path.equals(Span::from_cstring("/ofrag_size")))     _ofrag_size_changed();
+		if (rel_path.equals(Span::from_cstring("/play_underruns"))) _play_underruns_changed();
+		if (rel_path.equals(Span::from_cstring("/sample_rate")))    _sample_rate_changed();
+
+		Dir_file_system::notify_watchers(rel_path);
+	}
 
 	void _enable_input_changed()
 	{
