@@ -58,7 +58,7 @@ GENODE_DIR := $(realpath $(dir $(firstword $(MAKEFILE_LIST)))/..)
 
 TOOL_CHAIN_VERSION = 25.05
 GCC_VERSION        = 14.2.0
-BINUTILS_VERSION   = 2.44
+BINUTILS_VERSION   = 2.45
 
 #
 # locations
@@ -232,7 +232,7 @@ COMMON_CONFIG = $(CONFIG_QUIET) \
                 --target=$(TARGET_NAME_$(PLATFORM)) \
                 --program-transform-name="s/$(TARGET_NAME_$(PLATFORM))/$(PLATFORM)/"
 
-BINUTILS_CONFIG += $(COMMON_CONFIG) --disable-werror
+BINUTILS_CONFIG += $(COMMON_CONFIG) --disable-werror --disable-tls
 
 #
 # Prevent GNU assembler from treating '/' as the start of a comment. In
