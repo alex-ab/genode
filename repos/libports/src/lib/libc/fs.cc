@@ -50,6 +50,25 @@ extern "C" {
 namespace { using Fn = Libc::Monitor::Function_result; }
 
 
+static ino_t pseudo_inode_from_path(char const *path)
+{
+	using namespace Genode;
+
+	uint64_t checksum = 0;
+	for (uint8_t *s = (uint8_t *)path; *s; s++) {
+		checksum ^= *s;
+
+		/* xorshift64 */
+		uint64_t x = checksum;
+		x ^= x << 13;
+		x ^= x >> 7;
+		x ^= x << 17;
+		checksum = x;
+	}
+	return ino_t(checksum);
+};
+
+
 /**
  * Utility to convert VFS stat struct to the libc stat struct
  *
@@ -75,22 +94,6 @@ static void vfs_stat_to_libc_stat_struct(Genode::Vfs::Directory_service::Stat co
 		case Vfs::Node_type::SYMLINK:            return S_IFLNK;
 		}
 		return 0;
-	};
-
-	auto pseudo_inode_from_path = [] (char const *path)
-	{
-		uint64_t checksum = 0;
-		for (uint8_t *s = (uint8_t *)path; *s; s++) {
-			checksum ^= *s;
-
-			/* xorshift64 */
-			uint64_t x = checksum;
-			x ^= x << 13;
-			x ^= x >> 7;
-			x ^= x << 17;
-			checksum = x;
-		}
-		return ino_t(checksum);
 	};
 
 	dst = { };
@@ -348,7 +351,7 @@ Libc::Fs::Open_dir_result Libc::Fs::open_dir(char const *path, int flags)
 	if (!handle_ptr)
 		return Errno { result_errno };
 
-	return *new (_kernel_heap) Open_dir { *handle_ptr };
+	return *new (_kernel_heap) Open_dir { *handle_ptr, path };
 }
 
 
@@ -760,11 +763,14 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 	dirent &dirent = *(struct dirent *)buf;
 	dirent = { };
 
+	Genode::copy_cstring(dirent.d_name, dirent_out.name.buf, sizeof(dirent.d_name));
+
+	Open_dir::Path const entry_path { od.path, "/", Cstring(dirent.d_name) };
+
 	dirent.d_type   = dirent_type(dirent_out.type);
-	dirent.d_fileno = dirent_out.fileno;
+	dirent.d_fileno = pseudo_inode_from_path(entry_path.string());
 	dirent.d_reclen = sizeof(struct dirent);
 
-	Genode::copy_cstring(dirent.d_name, dirent_out.name.buf, sizeof(dirent.d_name));
 
 	dirent.d_namlen = Genode::strlen(dirent.d_name);
 
