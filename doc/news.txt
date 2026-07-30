@@ -4,6 +4,31 @@
                                ===========
 
 
+Meet us at FroSCon during August 15-16 | 2026-07-30
+###################################################
+
+| We are delighted to present Genode and Sculpt OS with a stand
+| at FrOSCon this year again.
+
+FrOSCon is one of the most prolific gatherings of the Free and Open-Source
+community in Germany. It shares much of the spirit of FOSDEM while its smaller
+scale fosters a calmer and more personal experience for visitors and
+exhibitors.
+
+*FrOSCon Free and Open-Source Software Conference*
+
+*August 15 and 16 in Sankt Augustin*
+
+[https://froscon.org]
+
+This year, our stand will be hosted by Genode core developers
+Josef Söntgen, Alexander Böttcher, and Sebastian Sumpf. It goes
+without saying that the Genode-based Sculpt OS will be showcased
+on a variety of devices. So whether you are interested in getting
+a first impression of Genode or being eager in deeply technical
+conversation, FrOSCon will present a perfect opportunity!
+
+
 Genode OS Framework release 26.05 | 2026-05-29
 ##############################################
 
