@@ -132,7 +132,9 @@ Region_map_mmap::_map_local(Dataspace_capability ds,
 	writeable = _dataspace_writeable(ds) && writeable;
 
 	int  const  fd        = _dataspace_fd(ds);
-	int  const  flags     = MAP_SHARED | (overmap ? MAP_FIXED : 0);
+	int  const  flags     = MAP_SHARED |
+	                        (use_at ? (overmap ? MAP_FIXED : MAP_FIXED_NOREPLACE)
+	                                : 0);
 	int  const  prot      = PROT_READ
 	                      | (writeable  ? PROT_WRITE : 0)
 	                      | (executable ? PROT_EXEC  : 0);
