@@ -66,13 +66,12 @@ struct Vfs_ram_log::File_system : Single_file_system
 	{
 		File_system &_ram_log;
 
-		Handle(Directory_service &ds, File_io_service &fs, Allocator &alloc,
-		       File_system &ram_log)
+		Handle(Directory_service &ds, Allocator &alloc, File_system &ram_log)
 		:
-			Single_vfs_handle { ds, fs, alloc, 0 }, _ram_log(ram_log)
+			Single_vfs_handle { ds, alloc, 0 }, _ram_log(ram_log)
 		{ }
 
-		Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 		{
 			out_count = 0;
 			for (size_t i = 0; i < dst.num_bytes; i++) {
@@ -128,8 +127,7 @@ struct Vfs_ram_log::File_system : Single_file_system
 			return OPEN_ERR_UNACCESSIBLE;
 
 		try {
-			*out_handle =
-				new (alloc) Handle(*this, *this, alloc, *this);
+			*out_handle = new (alloc) Handle(*this, alloc, *this);
 			return OPEN_OK;
 		}
 		catch (Genode::Out_of_ram)        { return OPEN_ERR_OUT_OF_RAM; }

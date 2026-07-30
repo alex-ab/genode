@@ -38,12 +38,13 @@ class Vfs_symlink::File_system : public Single_file_system
 		{
 			Target const &_target;
 
-			Symlink_handle(Directory_service &ds, File_io_service &fs,
+			Symlink_handle(Directory_service &ds,
 			               Allocator &alloc, Target const &target)
-			: Single_vfs_handle(ds, fs, alloc, 0), _target(target)
+			:
+				Single_vfs_handle(ds, alloc, 0), _target(target)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				size_t const n = min(dst.num_bytes, _target.length());
 				copy_cstring(dst.start, _target.string(), n);
@@ -71,10 +72,6 @@ class Vfs_symlink::File_system : public Single_file_system
 		static char const *name()   { return "symlink"; }
 		char const *type() override { return "symlink"; }
 
-		/*********************************
-		 ** Directory-service interface **
-		 *********************************/
-
 		Open_result open(char const *, unsigned, Vfs_handle **, Allocator&) override {
 			return OPEN_ERR_UNACCESSIBLE; }
 
@@ -88,7 +85,7 @@ class Vfs_symlink::File_system : public Single_file_system
 				return OPENLINK_ERR_NODE_ALREADY_EXISTS;
 
 			try {
-				*out_handle = new (alloc) Symlink_handle(*this, *this, alloc, _target);
+				*out_handle = new (alloc) Symlink_handle(*this, alloc, _target);
 				return OPENLINK_OK;
 			}
 			catch (Out_of_ram)  { return OPENLINK_ERR_OUT_OF_RAM; }

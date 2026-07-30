@@ -41,19 +41,18 @@ class Vfs_ip::Error_file_system : public Single_file_system
 
 		struct Vfs_handle : Single_vfs_handle
 		{
-			Error_file_system &fs;
+			Error_file_system &_fs;
 
-			Vfs_handle(Error_file_system &fs,
-			           Allocator         &alloc)
+			Vfs_handle(Error_file_system &fs, Allocator &alloc)
 			:
-				Single_vfs_handle(fs, fs, alloc, 0),
-				fs(fs)
+				Single_vfs_handle(fs, alloc, 0),
+				_fs(fs)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
-				unsigned len = min(fs.BUF_SIZE, unsigned(dst.num_bytes));
-				memcpy(dst.start, &fs._error, len);
+				unsigned len = min(_fs.BUF_SIZE, unsigned(dst.num_bytes));
+				memcpy(dst.start, &_fs._error, len);
 				out_count = len;
 
 				return READ_OK;
@@ -64,6 +63,14 @@ class Vfs_ip::Error_file_system : public Single_file_system
 
 			bool read_ready()  const override { return true;  }
 			bool write_ready() const override { return false; }
+
+			Ftruncate_result ftruncate(file_size size) override
+			{
+				if (size >= BUF_SIZE)
+					return FTRUNCATE_ERR_NO_SPACE;
+
+				return FTRUNCATE_OK;
+			}
 
 			private:
 
@@ -117,19 +124,6 @@ class Vfs_ip::Error_file_system : public Single_file_system
 		{
 			error("Error_file_system::matches");
 			return false;
-		}
-
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs::Vfs_handle *, Vfs::file_size size) override
-		{
-			if (size >= BUF_SIZE)
-				return FTRUNCATE_ERR_NO_SPACE;
-
-			return FTRUNCATE_OK;
 		}
 
 

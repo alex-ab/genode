@@ -59,12 +59,11 @@ class Vfs_libusb::File_system : public Vfs::Single_file_system
 			public:
 
 				Libusb_vfs_handle(Directory_service &ds,
-				                  File_io_service   &fs,
 				                  Allocator         &alloc,
 				                  Genode::Env       &env,
 				                  Vfs::Env::User    &vfs_user)
 				:
-					Single_vfs_handle(ds, fs, alloc, 0),
+					Single_vfs_handle(ds, alloc, 0),
 					_env(env), _vfs_user(vfs_user)
 				{
 					log("libusb: waiting until device is plugged...");
@@ -75,7 +74,7 @@ class Vfs_libusb::File_system : public Vfs::Single_file_system
 				bool read_ready() const override {
 					return libusb_genode_backend_signaling; }
 
-				Read_result read(Byte_range_ptr const &, size_t &) override {
+				Read_result complete_read(Byte_range_ptr const &, size_t &) override {
 					return READ_ERR_IO; }
 
 				bool write_ready() const override {
@@ -100,10 +99,6 @@ class Vfs_libusb::File_system : public Vfs::Single_file_system
 		static char const *name()   { return "libusb"; }
 		char const *type() override { return "libusb"; }
 
-		/*********************************
-		 ** Directory service interface **
-		 *********************************/
-
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
 		                 Allocator &alloc) override
@@ -112,7 +107,7 @@ class Vfs_libusb::File_system : public Vfs::Single_file_system
 				return OPEN_ERR_UNACCESSIBLE;
 
 			*out_handle = new (alloc)
-				Libusb_vfs_handle(*this, *this, alloc, _env.env(), _env.user());
+				Libusb_vfs_handle(*this, alloc, _env.env(), _env.user());
 			return OPEN_OK;
 		}
 };

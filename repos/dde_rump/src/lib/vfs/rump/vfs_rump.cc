@@ -106,7 +106,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 
 			Rump_vfs_handle(File_system &fs, Allocator &alloc, int flags, Attr attr)
 			:
-				Vfs_handle(fs, fs, alloc, flags), _fs(fs), attr(attr)
+				Vfs_handle(fs, alloc, flags), _fs(fs), attr(attr)
 			{ }
 
 			~Rump_vfs_handle()
@@ -114,35 +114,23 @@ class Vfs_rump::File_system : public Vfs::File_system
 				if (attr.new_dir_entry)
 					_fs._notify_compound_dir_watchers(attr.path.base());
 			}
-
-			virtual Read_result read(Byte_range_ptr const &dst,
-			                         file_size seek_offset, size_t &out_count)
-			{
-				error("Rump_vfs_handle::read() called");
-				return READ_ERR_INVALID;
-			}
-
-			virtual Write_result write(Const_byte_range_ptr const &src,
-			                           file_size seek_offset,
-			                           size_t &out_count)
-			{
-				error("Rump_vfs_handle::write() called");
-				return WRITE_ERR_INVALID;
-			}
-
-			virtual void update_modification_timestamp(Timestamp) { }
 		};
 
 		struct Rump_vfs_file_handle : Rump_vfs_handle, Rump_vfs_file_handles::Element
 		{
+			File_system &_fs;
+
 			bool modifying = false;
 
 			Rump_vfs_file_handle(File_system &fs, Allocator &alloc, int flags, Attr attr)
 			:
-				Rump_vfs_handle(fs, alloc, flags, attr)
+				Rump_vfs_handle(fs, alloc, flags, attr), _fs(fs)
 			{ }
 
 			~Rump_vfs_file_handle() { rump_sys_close(attr.fd); }
+
+			bool read_ready()  const override { return true; }
+			bool write_ready() const override { return true; }
 
 			Ftruncate_result ftruncate(file_size len)
 			{
@@ -158,10 +146,9 @@ class Vfs_rump::File_system : public Vfs::File_system
 				return FTRUNCATE_OK;
 			}
 
-			Read_result read(Byte_range_ptr const &dst,
-			                 file_size seek_offset, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
-				ssize_t n = rump_sys_pread(attr.fd, dst.start, dst.num_bytes, seek_offset);
+				ssize_t n = rump_sys_pread(attr.fd, dst.start, dst.num_bytes, seek());
 				if (n == -1) switch (errno) {
 				case EWOULDBLOCK: return READ_ERR_WOULD_BLOCK;
 				case EINVAL:      return READ_ERR_INVALID;
@@ -175,12 +162,11 @@ class Vfs_rump::File_system : public Vfs::File_system
 				return READ_OK;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src,
-			                   file_size seek_offset, size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
 			{
 				out_count = 0;
 
-				ssize_t n = rump_sys_pwrite(attr.fd, src.start, src.num_bytes, seek_offset);
+				ssize_t n = rump_sys_pwrite(attr.fd, src.start, src.num_bytes, seek());
 				if (n == -1) switch (errno) {
 				case EWOULDBLOCK: return WRITE_ERR_WOULD_BLOCK;
 				case EINVAL:      return WRITE_ERR_INVALID;
@@ -195,7 +181,19 @@ class Vfs_rump::File_system : public Vfs::File_system
 				return WRITE_OK;
 			}
 
-			void update_modification_timestamp(Timestamp time) override
+			Sync_result complete_sync() override
+			{
+				_rump_sync();
+				if (modifying) {
+					_fs._notify_watchers(attr.path.base());
+					modifying = false;
+				}
+				if (attr.new_dir_entry)
+					_fs._notify_compound_dir_watchers(attr.path.base());
+				return SYNC_OK;
+			}
+
+			bool update_modification_timestamp(Timestamp time) override
 			{
 				struct timespec ts[2] = {
 					{
@@ -209,6 +207,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 
 				/* silently igore error */
 				rump_sys_futimens(attr.fd, (const timespec*)&ts);
+				return true;
 			}
 		};
 
@@ -255,15 +254,17 @@ class Vfs_rump::File_system : public Vfs::File_system
 
 			~Rump_vfs_dir_handle() { rump_sys_close(attr.fd); }
 
-			Read_result read(Byte_range_ptr const &dst,
-			                 file_size seek_offset, size_t &out_count) override
+			bool read_ready()  const override { return true; }
+			bool write_ready() const override { return false; }
+
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				out_count = 0;
 
 				if (dst.num_bytes < sizeof(Dirent))
 					return READ_ERR_INVALID;
 
-				size_t const index = size_t(seek_offset / sizeof(Dirent));
+				size_t const index = size_t(seek() / sizeof(Dirent));
 
 				Dirent *vfs_dir = (Dirent*)dst.start;
 
@@ -304,12 +305,14 @@ class Vfs_rump::File_system : public Vfs::File_system
 				Rump_vfs_handle(fs, alloc, flags, attr)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst,
-			                 file_size seek_offset, size_t &out_count) override
+			bool read_ready()  const override { return true; }
+			bool write_ready() const override { return true; }
+
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				out_count = 0;
 
-				if (seek_offset != 0) {
+				if (seek() != 0) {
 					/* partial read is not supported */
 					return READ_ERR_INVALID;
 				}
@@ -323,8 +326,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 				return READ_OK;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src,
-			                   file_size seek_offset, size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
 			{
 				rump_sys_unlink(attr.path.base());
 
@@ -761,76 +763,6 @@ class Vfs_rump::File_system : public Vfs::File_system
 			_notify_compound_dir_watchers(to);
 
 			return RENAME_OK;
-		}
-
-
-		/*******************************
-		 ** File io service interface **
-		 *******************************/
-
-		Write_result write(Vfs_handle *vfs_handle, Const_byte_range_ptr const &src,
-		                   size_t &out_count) override
-		{
-			Rump_vfs_handle *handle =
-				static_cast<Rump_vfs_handle *>(vfs_handle);
-
-			if (handle)
-				return handle->write(src, handle->seek(), out_count);
-
-			return WRITE_ERR_INVALID;
-		}
-
-		Read_result complete_read(Vfs_handle *vfs_handle,
-		                          Byte_range_ptr const &dst,
-		                          size_t &out_count) override
-		{
-			Rump_vfs_handle *handle =
-				static_cast<Rump_vfs_handle *>(vfs_handle);
-
-			if (handle)
-				return handle->read(dst, handle->seek(), out_count);
-
-			return READ_ERR_INVALID;
-		}
-
-		bool read_ready (Vfs_handle const &) const override { return true; }
-		bool write_ready(Vfs_handle const &) const override { return true; }
-
-		Ftruncate_result ftruncate(Vfs_handle *vfs_handle, file_size len) override
-		{
-			Rump_vfs_file_handle *handle =
-				dynamic_cast<Rump_vfs_file_handle *>(vfs_handle);
-
-			if (handle)
-				return handle->ftruncate(len);
-
-			return FTRUNCATE_ERR_NO_PERM;
-		}
-
-		Sync_result complete_sync(Vfs_handle *vfs_handle) override
-		{
-			_rump_sync();
-			Rump_vfs_file_handle *handle =
-				static_cast<Rump_vfs_file_handle *>(vfs_handle);
-			if (handle) {
-				if (handle->modifying) {
-					_notify_watchers(handle->attr.path.base());
-					handle->modifying = false;
-				}
-				if (handle->attr.new_dir_entry)
-					_notify_compound_dir_watchers(handle->attr.path.base());
-			}
-			return SYNC_OK;
-		}
-
-		bool update_modification_timestamp(Vfs_handle *vfs_handle, Timestamp ts) override
-		{
-			Rump_vfs_file_handle *handle =
-				dynamic_cast<Rump_vfs_file_handle *>(vfs_handle);
-			if (handle)
-				handle->update_modification_timestamp(ts);
-
-			return true;
 		}
 };
 

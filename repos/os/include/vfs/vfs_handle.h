@@ -20,7 +20,6 @@ namespace Genode::Vfs {
 	struct Env;
 	struct Read_ready_response_handler;
 	class Vfs_handle;
-	class File_io_service;
 	class File_system;
 }
 
@@ -46,7 +45,6 @@ class Genode::Vfs::Vfs_handle
 	private:
 
 		Directory_service &_ds;
-		File_io_service   &_fs;
 		Allocator         &_alloc;
 		file_size          _seek = 0;
 		int                _status_flags;
@@ -87,11 +85,10 @@ class Genode::Vfs::Vfs_handle
 		enum { STATUS_RDONLY = 0, STATUS_WRONLY = 1, STATUS_RDWR = 2 };
 
 		Vfs_handle(Directory_service &ds,
-		           File_io_service   &fs,
 		           Allocator         &alloc,
 		           int                status_flags)
 		:
-			_ds(ds), _fs(fs),
+			_ds(ds),
 			_alloc(alloc),
 			_status_flags(status_flags)
 		{ }
@@ -99,13 +96,16 @@ class Genode::Vfs::Vfs_handle
 		virtual ~Vfs_handle() { }
 
 		Directory_service &ds() { return _ds; }
-		File_io_service   &fs() { return _fs; }
 		Allocator      &alloc() { return _alloc; }
 
-		File_io_service const &fs() const { return _fs; }
 
 		int status_flags() const { return _status_flags; }
 		void status_flags(int flags) { _status_flags = flags; }
+
+		bool writeable() const
+		{
+			return (_status_flags & Directory_service::OPEN_MODE_ACCMODE) != STATUS_RDONLY;
+		}
 
 		/**
 		 * Return seek offset in bytes
@@ -150,6 +150,76 @@ class Genode::Vfs::Vfs_handle
 		 * This leaves the handle pointer in an invalid and unsafe state.
 		 */
 		inline void close() { ds().close(this); }
+
+
+		/**************
+		 ** File I/O **
+		 **************/
+
+		virtual Write_result write(Const_byte_range_ptr const &, size_t &)
+		{
+			return WRITE_ERR_INVALID;
+		}
+
+		/**
+		 * Queue read operation
+		 *
+		 * \return false if queue is full
+		 *
+		 * If the queue is full, the caller can try again after a previous VFS
+		 * request is completed.
+		 */
+		virtual bool queue_read(size_t) { return true; }
+
+		virtual Read_result complete_read(Byte_range_ptr const &dst,
+		                                  size_t &out_count) = 0;
+
+		/**
+		 * Return true if the handle has readable data
+		 */
+		virtual bool read_ready() const = 0;
+
+		/**
+		 * Return true if the handle might accept a write operation
+		 */
+		virtual bool write_ready() const = 0;
+
+		/**
+		 * Explicitly indicate interest in read-ready for a handle
+		 *
+		 * For example, the file-system-session plugin can then send READ_READY
+		 * packets to the server.
+		 *
+		 * \return false if notification setup failed
+		 */
+		virtual bool notify_read_ready() { return true; }
+
+		virtual Ftruncate_result ftruncate(file_size)
+		{
+			return FTRUNCATE_ERR_NO_PERM;
+		}
+
+		/**
+		 * Queue sync operation
+		 *
+		 * \return false if queue is full
+		 *
+		 * If the queue is full, the caller can try again after a previous VFS
+		 * request is completed.
+		 */
+		virtual bool queue_sync() { return true; }
+
+		virtual Sync_result complete_sync() { return SYNC_OK; }
+
+		/**
+		 * Update the modification time of a file
+		 *
+		 * \return true if update attempt was successful
+		 */
+		virtual bool update_modification_timestamp(Timestamp)
+		{
+			return true;
+		}
 };
 
 #endif /* _INCLUDE__VFS__VFS_HANDLE_H_ */

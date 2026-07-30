@@ -49,10 +49,6 @@ class Tresor::File
 {
 	private:
 
-		using Read_result = Vfs::File_io_service::Read_result;
-		using Write_result = Vfs::File_io_service::Write_result;
-		using Sync_result = Vfs::File_io_service::Sync_result;
-
 		enum State { IDLE, SYNC_QUEUED, READ_QUEUED, READ_INITIALIZED, WRITE_INITIALIZED, WRITE_OFFSET_APPLIED };
 
 		Vfs::Env *_env { };
@@ -95,7 +91,7 @@ class Tresor::File
 			case READ_INITIALIZED:
 
 				_handle.seek(off + _num_processed_bytes);
-				if (!_handle.fs().queue_read(&_handle, dst.num_bytes - _num_processed_bytes))
+				if (!_handle.queue_read(dst.num_bytes - _num_processed_bytes))
 					break;
 
 				_state = READ_QUEUED;
@@ -106,10 +102,10 @@ class Tresor::File
 			{
 				size_t num_read_bytes { 0 };
 				Byte_range_ptr curr_dst { dst.start + _num_processed_bytes, dst.num_bytes - _num_processed_bytes };
-				switch (_handle.fs().complete_read(&_handle, curr_dst, num_read_bytes)) {
-				case Read_result::READ_QUEUED:
-				case Read_result::READ_ERR_WOULD_BLOCK: break;
-				case Read_result::READ_OK:
+				switch (_handle.complete_read(curr_dst, num_read_bytes)) {
+				case Vfs::Read_result::READ_QUEUED:
+				case Vfs::Read_result::READ_ERR_WOULD_BLOCK: break;
+				case Vfs::Read_result::READ_OK:
 
 					_num_processed_bytes += num_read_bytes;
 					if (_num_processed_bytes < dst.num_bytes) {
@@ -158,9 +154,9 @@ class Tresor::File
 			{
 				size_t num_written_bytes { 0 };
 				Const_byte_range_ptr curr_src { src.start + _num_processed_bytes, src.num_bytes - _num_processed_bytes };
-				switch (_handle.fs().write(&_handle, curr_src, num_written_bytes)) {
-				case Write_result::WRITE_ERR_WOULD_BLOCK: break;
-				case Write_result::WRITE_OK:
+				switch (_handle.write(curr_src, num_written_bytes)) {
+				case Vfs::Write_result::WRITE_ERR_WOULD_BLOCK: break;
+				case Vfs::Write_result::WRITE_OK:
 
 					_num_processed_bytes += num_written_bytes;
 					if (_num_processed_bytes < src.num_bytes) {
@@ -193,7 +189,7 @@ class Tresor::File
 			switch (_state) {
 			case IDLE:
 
-				if (!_handle.fs().queue_sync(&_handle))
+				if (!_handle.queue_sync())
 					break;
 
 				_state = SYNC_QUEUED;
@@ -202,9 +198,9 @@ class Tresor::File
 
 			case SYNC_QUEUED:
 
-				switch (_handle.fs().complete_sync(&_handle)) {
-				case Sync_result::SYNC_QUEUED: break;
-				case Sync_result::SYNC_OK:
+				switch (_handle.complete_sync()) {
+				case Vfs::Sync_result::SYNC_QUEUED: break;
+				case Vfs::Sync_result::SYNC_OK:
 
 					_state = IDLE;
 					_host_state = succeeded;

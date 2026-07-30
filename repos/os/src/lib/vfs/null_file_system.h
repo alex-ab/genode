@@ -40,12 +40,12 @@ struct Vfs_null::File_system : Single_file_system
 
 	struct Null_vfs_handle : Single_vfs_handle
 	{
-		Null_vfs_handle(Directory_service &ds, File_io_service &fs, Allocator &alloc)
+		Null_vfs_handle(Directory_service &ds, Allocator &alloc)
 		:
-			Single_vfs_handle(ds, fs, alloc, 0)
+			Single_vfs_handle(ds, alloc, 0)
 		{ }
 
-		Read_result read(Byte_range_ptr const &, size_t &out_count) override
+		Read_result complete_read(Byte_range_ptr const &, size_t &out_count) override
 		{
 			out_count = 0;
 
@@ -61,11 +61,9 @@ struct Vfs_null::File_system : Single_file_system
 
 		bool read_ready()  const override { return false; }
 		bool write_ready() const override { return true; }
-	};
 
-	/*********************************
-	 ** Directory service interface **
-	 *********************************/
+		Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+	};
 
 	Open_result open(char const  *path, unsigned,
 	                 Vfs_handle **out_handle,
@@ -75,21 +73,11 @@ struct Vfs_null::File_system : Single_file_system
 			return OPEN_ERR_UNACCESSIBLE;
 
 		try {
-			*out_handle = new (alloc)
-				Null_vfs_handle(*this, *this, alloc);
+			*out_handle = new (alloc) Null_vfs_handle(*this, alloc);
 			return OPEN_OK;
 		}
 		catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 		catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-	}
-
-	/********************************
-	 ** File I/O service interface **
-	 ********************************/
-
-	Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-	{
-		return FTRUNCATE_OK;
 	}
 };
 

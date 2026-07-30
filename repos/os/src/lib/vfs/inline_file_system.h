@@ -116,14 +116,13 @@ class Vfs_inline::File_system : public Single_file_system
 			public:
 
 				Handle(Directory_service &ds,
-				       File_io_service   &fs,
 				       Allocator         &alloc,
 				       File_system const &inline_fs)
 				:
-					Single_vfs_handle(ds, fs, alloc, 0), _fs(inline_fs)
+					Single_vfs_handle(ds, alloc, 0), _fs(inline_fs)
 				{ }
 
-				inline Read_result read(Byte_range_ptr const &, size_t &) override;
+				inline Read_result complete_read(Byte_range_ptr const &, size_t &) override;
 
 				Write_result write(Const_byte_range_ptr const &,
 				                   size_t &out_count) override
@@ -168,7 +167,7 @@ class Vfs_inline::File_system : public Single_file_system
 				return OPEN_ERR_UNACCESSIBLE;
 
 			try {
-				*out_handle = new (alloc) Handle(*this, *this, alloc, *this);
+				*out_handle = new (alloc) Handle(*this, alloc, *this);
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
@@ -181,7 +180,7 @@ class Vfs_inline::File_system : public Single_file_system
 			Stat_result const result = Single_file_system::stat(path, out);
 
 			out.size = _data.num_bytes.convert<size_t>(
-				[] (size_t n)             { return n; },
+				[] (size_t n)     { return n; },
 				[] (Buffer_error) { return 0ul; });
 
 			return result;
@@ -189,8 +188,8 @@ class Vfs_inline::File_system : public Single_file_system
 };
 
 
-Genode::Vfs::File_io_service::Read_result
-Vfs_inline::File_system::Handle::read(Byte_range_ptr const &dst, size_t &out_count)
+Genode::Vfs::Read_result
+Vfs_inline::File_system::Handle::complete_read(Byte_range_ptr const &dst, size_t &out_count)
 {
 	out_count = 0;
 

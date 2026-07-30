@@ -45,10 +45,10 @@ class Vfs_rtc::File_system : public Single_file_system
 
 			public:
 
-				Rtc_vfs_handle(Directory_service &ds, File_io_service &fs,
+				Rtc_vfs_handle(Directory_service &ds,
 				               Allocator &alloc, Rtc::Connection &rtc)
 				:
-					Single_vfs_handle(ds, fs, alloc, 0), _rtc(rtc)
+					Single_vfs_handle(ds, alloc, 0), _rtc(rtc)
 				{ }
 
 				/**
@@ -57,7 +57,7 @@ class Vfs_rtc::File_system : public Single_file_system
 				 * On each read the current time is queried and afterwards formated
 				 * as '%Y-%m-%d %H:%M:%S\n' resp. '%F %T\n'.
 				 */
-				Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 				{
 					if (seek() >= TIMESTAMP_LEN) {
 						out_count = 0;
@@ -147,7 +147,7 @@ class Vfs_rtc::File_system : public Single_file_system
 
 			try {
 				*out_handle = new (alloc)
-					Rtc_vfs_handle(*this, *this, alloc, _rtc);
+					Rtc_vfs_handle(*this, alloc, _rtc);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }

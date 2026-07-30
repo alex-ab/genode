@@ -71,16 +71,15 @@ namespace Vfs_block {
 			case State::PENDING:
 
 				_handle.seek(base_offset + current_offset);
-				if (!_handle.fs().queue_read(&_handle, current_count)) {
+				if (!_handle.queue_read(current_count))
 					return progress;
-				}
 
 				state = State::IN_PROGRESS;
 				progress = true;
 			[[fallthrough]];
 			case State::IN_PROGRESS:
 			{
-				using Result = Genode::Vfs::File_io_service::Read_result;
+				using Result = Genode::Vfs::Read_result;
 
 				bool completed = false;
 				size_t out = 0;
@@ -88,7 +87,7 @@ namespace Vfs_block {
 				Genode::Byte_range_ptr const dst { data + current_offset,
 				                                   current_count };
 
-				Result const result = _handle.fs().complete_read(&_handle, dst, out);
+				Result const result = _handle.complete_read(dst, out);
 
 				if (result == Result::READ_QUEUED
 				 || result == Result::READ_ERR_WOULD_BLOCK) {
@@ -141,7 +140,7 @@ namespace Vfs_block {
 			[[fallthrough]];
 			case State::IN_PROGRESS:
 			{
-				using Result = Genode::Vfs::File_io_service::Write_result;
+				using Result = Genode::Vfs::Write_result;
 
 				bool completed = false;
 				size_t out = 0;
@@ -149,7 +148,7 @@ namespace Vfs_block {
 				Genode::Const_byte_range_ptr const src { data + current_offset,
 				                                         current_count };
 
-				Result result = _handle.fs().write(&_handle, src, out);
+				Result result = _handle.write(src, out);
 
 				switch (result) {
 				case Result::WRITE_ERR_WOULD_BLOCK:
@@ -195,7 +194,7 @@ namespace Vfs_block {
 			switch (state) {
 			case State::PENDING:
 
-				if (!_handle.fs().queue_sync(&_handle)) {
+				if (!_handle.queue_sync()) {
 					return progress;
 				}
 				state = State::IN_PROGRESS;
@@ -203,8 +202,8 @@ namespace Vfs_block {
 			[[fallthrough]];
 			case State::IN_PROGRESS:
 			{
-				using Result = Genode::Vfs::File_io_service::Sync_result;
-				Result const result = _handle.fs().complete_sync(&_handle);
+				using Result = Genode::Vfs::Sync_result;
+				Result const result = _handle.complete_sync();
 
 				if (result == Result::SYNC_QUEUED) {
 					return progress;

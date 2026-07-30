@@ -67,15 +67,14 @@ class Vfs_jitterentropy::File_system : public Single_file_system
 			public:
 
 				Jitterentropy_vfs_handle(Directory_service &ds,
-				                         File_io_service   &fs,
 				                         Allocator         &alloc,
 				                         struct rand_data  *ec_stir,
 				                         bool              &initialized)
-				: Single_vfs_handle(ds, fs, alloc, 0),
+				: Single_vfs_handle(ds, alloc, 0),
 				  _ec_stir(ec_stir),
 				  _initialized(initialized) { }
 
-				Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 				{
 					if (!_initialized)
 						return READ_ERR_IO;
@@ -124,10 +123,6 @@ class Vfs_jitterentropy::File_system : public Single_file_system
 		static char const *name()   { return "jitterentropy"; }
 		char const *type() override { return "jitterentropy"; }
 
-		/*********************************
-		 ** Directory service interface **
-		 *********************************/
-
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
 		                 Allocator &alloc) override
@@ -136,8 +131,7 @@ class Vfs_jitterentropy::File_system : public Single_file_system
 				return OPEN_ERR_UNACCESSIBLE;
 
 			*out_handle = new (alloc)
-				Jitterentropy_vfs_handle(*this, *this, alloc, _ec_stir,
-				                         _initialized);
+				Jitterentropy_vfs_handle(*this, alloc, _ec_stir, _initialized);
 			return OPEN_OK;
 		}
 };

@@ -24,7 +24,6 @@
 #include <net/ipv4.h>
 #include <util/string.h>
 #include <vfs/directory_service.h>
-#include <vfs/file_io_service.h>
 #include <vfs/file_system_factory.h>
 #include <vfs/vfs_handle.h>
 #include <timer_session/connection.h>
@@ -211,8 +210,7 @@ struct Vfs_ip::File : Vfs_ip::Node
 		return -1;
 	}
 
-	virtual File_io_service::Sync_result sync() {
-		return File_io_service::Sync_result::SYNC_OK; }
+	virtual Sync_result sync() { return Sync_result::SYNC_OK; }
 };
 
 
@@ -264,30 +262,10 @@ struct Vfs_ip::Socket_dir : Vfs_ip::Directory
 };
 
 
-struct Vfs_ip::Ip_vfs_handle : Vfs_handle
-{
-	using Read_result  = File_io_service:: Read_result;
-	using Write_result = File_io_service::Write_result;
-	using Sync_result  = File_io_service::Sync_result;
-
-	Ip_vfs_handle(File_system &fs, Allocator &alloc, int status_flags)
-	: Vfs_handle(fs, fs, alloc, status_flags) { }
-
-	/**
-	 * Check if the file attached to this handle is ready to read
-	 */
-	virtual bool read_ready()  const = 0;
-	virtual bool write_ready() const { return true; }
-
-	virtual Read_result   read(Byte_range_ptr       const &dst, size_t &out_count) = 0;
-	virtual Write_result write(Const_byte_range_ptr const &src, size_t &out_count) = 0;
-
-	virtual Sync_result sync() {
-		return Sync_result::SYNC_OK; }
-};
+static Genode::Fifo<Genode::Fifo_element<Vfs_ip::Ip_vfs_file_handle>> *_read_ready_waiters_ptr;
 
 
-struct Vfs_ip::Ip_vfs_file_handle final : Vfs_ip::Ip_vfs_handle
+struct Vfs_ip::Ip_vfs_file_handle final : Vfs_handle
 {
 	Ip_vfs_file_handle(Ip_vfs_file_handle const &);
 	Ip_vfs_file_handle &operator = (Ip_vfs_file_handle const &);
@@ -307,7 +285,8 @@ struct Vfs_ip::Ip_vfs_file_handle final : Vfs_ip::Ip_vfs_handle
 
 	Ip_vfs_file_handle(File_system &fs, Allocator &alloc, int status_flags,
 	                   Vfs_ip::File *file)
-	: Ip_vfs_handle(fs, alloc, status_flags), file(file)
+	:
+		Vfs_handle(fs, alloc, status_flags), file(file)
 	{
 		if (file)
 			file->handles.insert(&file_le);
@@ -325,22 +304,29 @@ struct Vfs_ip::Ip_vfs_file_handle final : Vfs_ip::Ip_vfs_handle
 	bool write_ready() const override {
 		return (file) ? file->write_ready() : false; }
 
-	Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+	Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 	{
 		if (!file) return Read_result::READ_ERR_INVALID;
-		long res = file->read(*this, dst, seek());
-		if (res < 0) return Read_result::READ_ERR_IO;
-		out_count = res;
-		return Read_result::READ_OK;
+
+		try {
+			long res = file->read(*this, dst, seek());
+			if (res < 0) return Read_result::READ_ERR_IO;
+			out_count = res;
+			return Read_result::READ_OK;
+		}
+		catch (File::Would_block) { return READ_QUEUED; }
 	}
 
 	Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
 	{
 		if (!file) return Write_result::WRITE_ERR_INVALID;
-		long res = file->write(*this, src, seek());
-		if (res < 0) return Write_result::WRITE_ERR_IO;
-		out_count = res;
-		return Write_result::WRITE_OK;
+		try {
+			long res = file->write(*this, src, seek());
+			if (res < 0) return Write_result::WRITE_ERR_IO;
+			out_count = res;
+			return Write_result::WRITE_OK;
+		}
+		catch (File::Would_block) { return WRITE_ERR_WOULD_BLOCK; }
 	}
 
 	bool write_content_line(Const_byte_range_ptr const &src)
@@ -354,23 +340,40 @@ struct Vfs_ip::Ip_vfs_file_handle final : Vfs_ip::Ip_vfs_handle
 		return true;
 	}
 
-	virtual Sync_result sync() override {
-		return (file) ? file->sync() : Sync_result::SYNC_ERR_INVALID; }
+	virtual Sync_result complete_sync() override
+	{
+		return (file) ? file->sync() : Sync_result::SYNC_ERR_INVALID;
+	}
+
+	bool notify_read_ready() override
+	{
+		if (!read_ready_elem.enqueued())
+			_read_ready_waiters_ptr->enqueue(read_ready_elem);
+		return true;
+	}
+
+	Ftruncate_result ftruncate(file_size) override
+	{
+		/* report ok because libc always executes ftruncate() when opening rw */
+		return FTRUNCATE_OK;
+	}
 };
 
 
-struct Vfs_ip::Ip_vfs_dir_handle final : Vfs_ip::Ip_vfs_handle
+struct Vfs_ip::Ip_vfs_dir_handle final : Vfs_handle
 {
 	Vfs_ip::Directory &dir;
 
 	Ip_vfs_dir_handle(File_system &fs, Allocator &alloc, int status_flags,
 	                  Vfs_ip::Directory &dir)
-	: Vfs_ip::Ip_vfs_handle(fs, alloc, status_flags),
-	  dir(dir) { }
+	:
+		Vfs_handle(fs, alloc, status_flags), dir(dir)
+	{ }
 
-	bool read_ready() const override { return true; }
+	bool read_ready()  const override { return true; }
+	bool write_ready() const override { return false; }
 
-	Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+	Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 	{
 		long res = dir.read(dst, seek());
 		if (res < 0) return Read_result::READ_ERR_IO;
@@ -382,8 +385,6 @@ struct Vfs_ip::Ip_vfs_dir_handle final : Vfs_ip::Ip_vfs_handle
 		return Write_result::WRITE_ERR_INVALID; }
 };
 
-
-static Vfs_ip::Ip_vfs_file_handle::Fifo *_read_ready_waiters_ptr;
 
 static void poll_all()
 {
@@ -437,11 +438,10 @@ class Vfs_ip::Ip_file : public Vfs_ip::File
 			}
 		}
 
-		File_io_service::Sync_result sync() override
+		Sync_result sync() override
 		{
-			return (_write_err)
-				? File_io_service::Sync_result::SYNC_ERR_INVALID
-				: File_io_service::Sync_result::SYNC_OK;
+			return _write_err ? Sync_result::SYNC_ERR_INVALID
+			                  : Sync_result::SYNC_OK;
 		}
 };
 
@@ -1192,32 +1192,34 @@ class Vfs_ip::Ip_socket_dir final : public Socket_dir
 };
 
 
-struct Vfs_ip::Ip_socket_handle final : Vfs_ip::Ip_vfs_handle
+struct Vfs_ip::Ip_socket_handle final : Vfs_handle
 {
-		Ip_socket_dir socket_dir;
+	Ip_socket_dir _dir;
 
-		Ip_socket_handle(Vfs::Env &env,
-		                 Parent_fs &parent_fs,
-		                 File_system &fs,
-		                 Allocator &alloc,
-		                 Protocol_dir &parent,
-		                 genode_socket_handle &sock)
-		:
-			Ip_vfs_handle(fs, alloc, 0),
-			socket_dir(env, parent_fs, alloc, parent, sock)
-		{ }
+	Ip_socket_handle(Vfs::Env &env,
+	                 Parent_fs &parent_fs,
+	                 File_system &fs,
+	                 Allocator &alloc,
+	                 Protocol_dir &parent,
+	                 genode_socket_handle &sock)
+	:
+		Vfs_handle(fs, alloc, 0),
+		_dir(env, parent_fs, alloc, parent, sock)
+	{ }
 
-		bool read_ready() const override { return true; }
+	bool read_ready() const override { return true; }
 
-		Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
-		{
-			out_count = Format::snprintf(
-				dst.start, dst.num_bytes, "%s/%s\n", socket_dir.parent().name(), socket_dir.name());
-			return Read_result::READ_OK;
-		}
+	Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+	{
+		out_count = Format::snprintf(
+			dst.start, dst.num_bytes, "%s/%s\n", _dir.parent().name(), _dir.name());
+		return Read_result::READ_OK;
+	}
 
-		Write_result write(Const_byte_range_ptr const &, size_t &) override {
-			return Write_result::WRITE_ERR_INVALID; }
+	Write_result write(Const_byte_range_ptr const &, size_t &) override {
+		return Write_result::WRITE_ERR_INVALID; }
+
+	bool write_ready() const override { return false; }
 };
 
 
@@ -1672,15 +1674,6 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 			return (strcmp(path, "") == 0) || (strcmp(path, "/") == 0);
 		}
 
-		Read_result _read(Vfs_handle *vfs_handle, Byte_range_ptr const &dst,
-		                  size_t &out_count)
-		{
-			Vfs_ip::Ip_vfs_handle *handle =
-				static_cast<Vfs_ip::Ip_vfs_handle*>(vfs_handle);
-
-			return handle->read(dst, out_count);
-		}
-
 		/*
 		 * trigger 'wakeup_remote_peer' when VFS goes idle
 		 */
@@ -1965,74 +1958,6 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 
 		Rename_result rename(char const *, char const *) override {
 			return RENAME_ERR_NO_PERM; }
-
-		/*************************************
-		 ** Ip_file I/O service interface **
-		 *************************************/
-
-		Write_result write(Vfs_handle *vfs_handle,
-		                   Const_byte_range_ptr const &src,
-		                   size_t &out_count) override
-		{
-			Vfs_ip::Ip_vfs_handle *handle =
-				static_cast<Vfs_ip::Ip_vfs_handle*>(vfs_handle);
-
-			try { return handle->write(src, out_count); }
-			catch (File::Would_block) { return WRITE_ERR_WOULD_BLOCK; }
-
-		}
-
-		Read_result complete_read(Vfs_handle *vfs_handle,
-		                          Byte_range_ptr const &dst,
-		                          size_t &out_count) override
-		{
-			try { return _read(vfs_handle, dst, out_count); }
-			catch (File::Would_block) { return READ_QUEUED; }
-		}
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			/* report ok because libc always executes ftruncate() when opening rw */
-			return FTRUNCATE_OK;
-		}
-
-		bool notify_read_ready(Vfs_handle *vfs_handle) override
-		{
-			Ip_vfs_file_handle *handle =
-				dynamic_cast<Vfs_ip::Ip_vfs_file_handle *>(vfs_handle);
-
-			if (handle) {
-				if (!handle->read_ready_elem.enqueued())
-					_read_ready_waiters_ptr->enqueue(handle->read_ready_elem);
-				return true;
-			}
-
-			return false;
-		}
-
-		bool read_ready(Vfs_handle const &vfs_handle) const override
-		{
-			Ip_vfs_handle const &handle =
-				static_cast<Ip_vfs_handle const &>(vfs_handle);
-
-			return handle.read_ready();
-		}
-
-		bool write_ready(Vfs_handle const &vfs_handle) const override
-		{
-			/* wakeup from WRITE_ERR_WOULD_BLOCK not supported */
-			Ip_vfs_handle const &handle =
-				static_cast<Ip_vfs_handle const &>(vfs_handle);
-
-			return handle.write_ready();
-		}
-
-		Sync_result complete_sync(Vfs_handle *vfs_handle) override
-		{
-			Vfs_ip::Ip_vfs_handle *handle =
-				static_cast<Vfs_ip::Ip_vfs_handle*>(vfs_handle);
-			return handle->sync();
-		}
 };
 
 

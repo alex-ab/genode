@@ -67,9 +67,9 @@ namespace File_system {
 		}
 	}
 
-	static inline void assert_truncate(File_io_service::Ftruncate_result r)
+	static inline void assert_truncate(Ftruncate_result r)
 	{
-		using Result = File_io_service::Ftruncate_result;
+		using Result = Ftruncate_result;
 		switch (r) {
 		case Result::FTRUNCATE_ERR_INTERRUPT: throw Invalid_handle();
 		case Result::FTRUNCATE_ERR_NO_SPACE:  throw No_space();

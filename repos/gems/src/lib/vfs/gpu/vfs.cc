@@ -54,17 +54,16 @@ struct Vfs_gpu::File_system : Single_file_system
 
 		Gpu_vfs_handle(Vfs::Env &env,
 		               Directory_service &ds,
-		               File_io_service   &fs,
 		               Allocator &alloc,
 		               Id_space &space)
 		:
-			Single_vfs_handle(ds, fs, alloc, 0),
+			Single_vfs_handle(ds, alloc, 0),
 			_env(env), _elem(*this, space)
 		{
 			_gpu_session.completion_sigh(_completion_sigh);
 		}
 
-		Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 		{
 			if (!_complete) return READ_QUEUED;
 
@@ -99,9 +98,9 @@ struct Vfs_gpu::File_system : Single_file_system
 
 	File_system(Vfs::Env &env, Parent_fs &parent_fs, Node const &config)
 	:
-	  Single_file_system(parent_fs, Node_type::CONTINUOUS_FILE,
-	                     type_name(), Node_rwx::ro(), config),
-	  _env(env)
+		Single_file_system(parent_fs, Node_type::CONTINUOUS_FILE,
+		                   type_name(), Node_rwx::ro(), config),
+		_env(env)
 	{ }
 
 	Open_result open(char const  *path, unsigned,
@@ -113,7 +112,7 @@ struct Vfs_gpu::File_system : Single_file_system
 
 		try {
 			Gpu_vfs_handle *handle  = new (alloc)
-				Gpu_vfs_handle(_env, *this, *this, alloc, _handle_space);
+				Gpu_vfs_handle(_env, *this, alloc, _handle_space);
 
 			*out_handle = handle;
 

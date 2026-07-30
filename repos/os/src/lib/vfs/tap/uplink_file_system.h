@@ -50,9 +50,6 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 {
 	private:
 
-		using Read_result  = File_io_service::Read_result;
-		using Write_result = File_io_service::Write_result;
-
 		bool _notifying = false;
 		bool _blocked   = false;
 
@@ -96,11 +93,13 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 		                  Label            const &label,
 		                  Net::Mac_address const &mac,
 		                  Directory_service      &ds,
-		                  File_io_service        &fs,
 		                  int                     flags)
-		: Single_vfs_handle  { ds, fs, alloc, flags },
-		  Uplink_client_base { env, vfs_user, alloc, mac, label }
-		{ _drv_handle_link_state(true); }
+		:
+			Single_vfs_handle  { ds, alloc, flags },
+			Uplink_client_base { env, vfs_user, alloc, mac, label }
+		{
+			_drv_handle_link_state(true);
+		}
 
 		bool notify_read_ready() override
 		{
@@ -140,7 +139,7 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 			return _drv_link_state;
 		}
 
-		Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 		{
 			if (!_conn.constructed())
 				return Read_result::READ_ERR_INVALID;
@@ -169,6 +168,8 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 
 			return Read_result::READ_OK;
 		}
+
+		using Write_result = Vfs::Write_result;
 
 		Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
 		{

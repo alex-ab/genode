@@ -96,11 +96,14 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 
 		struct Fatfs_file_handle : Fatfs_handle, Fatfs_file_handles::Element
 		{
+			File_system &_fs;
 			File *file = nullptr;
 			bool modifying = false;
 
 			Fatfs_file_handle(File_system &fs, Allocator &alloc, int status_flags)
-			: Fatfs_handle(fs, fs, alloc, status_flags) { }
+			:
+				Fatfs_handle(fs, alloc, status_flags), _fs(fs)
+			{ }
 
 			Read_result complete_read(Byte_range_ptr const &dst,
 			                          size_t &out_count) override
@@ -132,6 +135,100 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				default:                return READ_ERR_IO;
 				}
 			}
+
+			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+			{
+				if (!file)        return WRITE_ERR_INVALID;
+				if (!writeable()) return WRITE_ERR_INVALID;
+
+				FRESULT fres = FR_OK;
+				FIL *fil = &file->fil;
+				FSIZE_t const wpos = seek();
+
+				/* seek file pointer */
+				if (f_tell(fil) != wpos) {
+					/*
+					 * seeking beyond the EOF will expand the file size
+					 * and is not the expected behavior
+					 */
+					if (f_size(fil) < wpos)
+						return WRITE_ERR_INVALID;
+
+					fres = f_lseek(fil, wpos);
+					/* check the seek again */
+					if (f_tell(fil) != seek())
+						return WRITE_ERR_IO;
+				}
+
+				if (fres == FR_OK) {
+					UINT bw = 0;
+					fres = f_write(fil, src.start, src.num_bytes, &bw);
+					f_sync(fil);
+					modifying = true;
+					out_count = bw;
+				}
+
+				switch (fres) {
+				case FR_OK:
+					return WRITE_OK;
+				case FR_INVALID_OBJECT: return WRITE_ERR_INVALID;
+				case FR_TIMEOUT:        return WRITE_ERR_WOULD_BLOCK;
+				default:                return WRITE_ERR_IO;
+				}
+			}
+
+			Ftruncate_result ftruncate(file_size len) override
+			{
+				if (!file)        return FTRUNCATE_ERR_NO_PERM;
+				if (!writeable()) return FTRUNCATE_ERR_NO_PERM;
+
+				FIL *fil = &file->fil;
+				FRESULT res = FR_OK;
+
+				/* f_lseek will expand a file... */
+				res = f_lseek(fil, len);
+				if (f_tell(fil) != len)
+					return f_size(fil) < len ?
+						FTRUNCATE_ERR_NO_SPACE : FTRUNCATE_ERR_NO_PERM;
+
+				/* ... otherwise truncate will shorten to the seek position */
+				if ((res == FR_OK) && (len < f_size(fil))) {
+					res = f_truncate(fil);
+					if (res == FR_OK && len < seek())
+						seek(len);
+				}
+
+				modifying = true;
+
+				return res == FR_OK ?
+					FTRUNCATE_OK : FTRUNCATE_ERR_NO_PERM;
+			}
+
+			bool read_ready() const override { return true; }
+
+			bool write_ready() const override
+			{
+				/*
+				 * Wakeup from WRITE_ERR_WOULD_BLOCK not supported.
+				 */
+				return true;
+			}
+
+			/**
+			 * Notify other handles if this handle has modified its file.
+			 *
+			 * Files are flushed to blocks after every write.
+			 */
+			Sync_result complete_sync() override
+			{
+				if (file && modifying) {
+					modifying = false;
+					file->handles.remove(this);
+					_fs._notify(*file);
+					file->handles.insert(this);
+				}
+				return SYNC_OK;
+			}
 		};
 
 		struct Fatfs_dir_handle : Fatfs_handle
@@ -141,7 +238,9 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 			DIR dir;
 
 			Fatfs_dir_handle(File_system &fs, Allocator &alloc, char const *path)
-			: Fatfs_handle(fs, fs, alloc, 0), path(path) { }
+			:
+				Fatfs_handle(fs, alloc, 0), path(path)
+			{ }
 
 			Read_result complete_read(Byte_range_ptr const &dst,
 			                          size_t &out_count) override
@@ -192,6 +291,9 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				out_count = sizeof(Dirent);
 				return READ_OK;
 			}
+
+			bool read_ready()  const override { return true; }
+			bool write_ready() const override { return false; }
 		};
 
 		Vfs::Env  &_vfs_env;
@@ -301,16 +403,7 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 			}
 		}
 
-		/***************************
-		 ** File_system interface **
-		 ***************************/
-
 		char const *type() override { return "fatfs"; }
-
-
-		/*********************************
-		 ** Directory service interface **
-		 *********************************/
 
 		Open_result open(char const *path, unsigned vfs_mode,
 		                 Vfs_handle **vfs_handle,
@@ -574,123 +667,6 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 			if (strcmp(from, to) != 0)
 				_notify_parent_of(to);
 			return RENAME_OK;
-		}
-
-
-		/*******************************
-		 ** File io service interface **
-		 *******************************/
-
-		Write_result write(Vfs_handle *vfs_handle, Const_byte_range_ptr const &src,
-		                   size_t &out_count) override
-		{
-			Fatfs_file_handle *handle = static_cast<Fatfs_file_handle *>(vfs_handle);
-			if (!handle->file)
-				return WRITE_ERR_INVALID;
-			if ((handle->status_flags()&OPEN_MODE_ACCMODE) == OPEN_MODE_RDONLY)
-				return WRITE_ERR_INVALID;
-
-			FRESULT fres = FR_OK;
-			FIL *fil = &handle->file->fil;
-			FSIZE_t const wpos = handle->seek();
-
-			/* seek file pointer */
-			if (f_tell(fil) != wpos) {
-				/*
-				 * seeking beyond the EOF will expand the file size
-				 * and is not the expected behavior
-				 */
-				if (f_size(fil) < wpos)
-					return WRITE_ERR_INVALID;
-
-				fres = f_lseek(fil, wpos);
-				/* check the seek again */
-				if (f_tell(fil) != handle->seek())
-					return WRITE_ERR_IO;
-			}
-
-			if (fres == FR_OK) {
-				UINT bw = 0;
-				fres = f_write(fil, src.start, src.num_bytes, &bw);
-				f_sync(fil);
-				handle->modifying = true;
-				out_count = bw;
-			}
-
-			switch (fres) {
-			case FR_OK:
-				return WRITE_OK;
-			case FR_INVALID_OBJECT: return WRITE_ERR_INVALID;
-			case FR_TIMEOUT:        return WRITE_ERR_WOULD_BLOCK;
-			default:                return WRITE_ERR_IO;
-			}
-		}
-
-		Read_result complete_read(Vfs_handle *vfs_handle, Byte_range_ptr const &dst,
-		                          size_t &out_count) override
-		{
-			Fatfs_file_handle *handle = static_cast<Fatfs_file_handle *>(vfs_handle);
-			return handle->complete_read(dst, out_count);
-		}
-
-		Ftruncate_result ftruncate(Vfs_handle *vfs_handle, file_size len) override
-		{
-			Fatfs_file_handle *handle = static_cast<Fatfs_file_handle *>(vfs_handle);
-
-			if (!handle->file)
-				return FTRUNCATE_ERR_NO_PERM;
-			if ((handle->status_flags()&OPEN_MODE_ACCMODE) == OPEN_MODE_RDONLY)
-				return FTRUNCATE_ERR_NO_PERM;
-
-			FIL *fil = &handle->file->fil;
-			FRESULT res = FR_OK;
-
-			/* f_lseek will expand a file... */
-			res = f_lseek(fil, len);
-			if (f_tell(fil) != len)
-				return f_size(fil) < len ?
-					FTRUNCATE_ERR_NO_SPACE : FTRUNCATE_ERR_NO_PERM;
-
-			/* ... otherwise truncate will shorten to the seek position */
-			if ((res == FR_OK) && (len < f_size(fil))) {
-				res = f_truncate(fil);
-				if (res == FR_OK && len < handle->seek())
-					handle->seek(len);
-			}
-
-			handle->modifying = true;
-
-			return res == FR_OK ?
-				FTRUNCATE_OK : FTRUNCATE_ERR_NO_PERM;
-		}
-
-		bool read_ready(Vfs_handle const &) const override { return true; }
-
-		bool write_ready(Vfs_handle const &) const override
-		{
-			/*
-			 * Wakeup from WRITE_ERR_WOULD_BLOCK not supported.
-			 */
-			return true;
-		}
-
-		/**
-		 * Notify other handles if this handle has modified its file.
-		 *
-		 * Files are flushed to blocks after every write.
-		 */
-		Sync_result complete_sync(Vfs_handle *vfs_handle) override
-		{
-			Fatfs_file_handle *handle =
-				static_cast<Fatfs_file_handle*>(vfs_handle);
-			if (handle && handle->file && handle->modifying) {
-				File &file = *handle->file;
-				handle->modifying = false;
-				file.handles.remove(handle);
-				_notify(file);
-				file.handles.insert(handle);
-			}
-			return SYNC_OK;
 		}
 };
 

@@ -45,8 +45,8 @@ class Vfs_import::Flush_guard
 		~Flush_guard()
 		{
 			while (true) {
-				if ((_handle.fs().queue_sync(&_handle))
-				 && (_handle.fs().complete_sync(&_handle) == File_io_service::SYNC_OK))
+				if ((_handle.queue_sync())
+				 && (_handle.complete_sync() == SYNC_OK))
 					break;
 				_io.commit_and_wait();
 			}
@@ -95,7 +95,7 @@ class Vfs_import::File_system : public Vfs::File_system
 
 				for (;;) {
 					size_t out_count = 0;
-					auto wres = dst_handle->fs().write(dst_handle, src, out_count);
+					auto wres = dst_handle->write(src, out_count);
 
 					switch (wres) {
 					case WRITE_ERR_WOULD_BLOCK:
@@ -136,7 +136,7 @@ class Vfs_import::File_system : public Vfs::File_system
 				return;
 			}
 
-			dst_handle->fs().ftruncate(dst_handle, 0);
+			dst_handle->ftruncate(0);
 
 			char              buf[4096];
 			Vfs_handle::Guard guard { dst_handle };
@@ -163,7 +163,7 @@ class Vfs_import::File_system : public Vfs::File_system
 
 					Const_byte_range_ptr const src { src_ptr, remaining_bytes };
 
-					switch (dst_handle->fs().write(dst_handle, src, out_count)) {
+					switch (dst_handle->write(src, out_count)) {
 
 					case WRITE_ERR_WOULD_BLOCK:
 						env.io().commit_and_wait();
@@ -273,31 +273,6 @@ class Vfs_import::File_system : public Vfs::File_system
 
 		bool dir_entry_exists(const char *) override {
 			return false; }
-
-		/**********************
-		 ** File I/O service **
-		 **********************/
-
-		Write_result write(Vfs_handle*, Const_byte_range_ptr const &, size_t &) override {
-			return WRITE_ERR_INVALID; }
-
-		Read_result complete_read(Vfs_handle*, Byte_range_ptr const &, size_t &) override {
-			return READ_ERR_INVALID; }
-
-		bool read_ready(Vfs_handle const &) const override {
-			return true; }
-
-		bool write_ready(Vfs_handle const &) const override {
-			return true; }
-
-		bool notify_read_ready(Vfs_handle*) override {
-			return false; }
-
-		Ftruncate_result ftruncate(Vfs_handle*, file_size) override {
-			return FTRUNCATE_ERR_NO_PERM; }
-
-		Sync_result complete_sync(Vfs_handle*) override {
-			return SYNC_OK; }
 };
 
 

@@ -40,24 +40,9 @@ class Genode::Vfs::Single_file_system : public File_system
 		struct Single_vfs_handle : Vfs_handle
 		{
 			using Vfs_handle::Vfs_handle;
-
-			virtual Read_result read(Byte_range_ptr const &, size_t &out_count) = 0;
-
-			virtual Write_result write(Const_byte_range_ptr const &, size_t &out_count) = 0;
-
-			virtual Sync_result sync()
-			{
-				return SYNC_OK;
-			}
-
-			virtual bool read_ready() const = 0;
-
-			virtual bool write_ready() const = 0;
-
-			virtual bool notify_read_ready() { return true; }
 		};
 
-		struct Single_vfs_dir_handle : Single_vfs_handle
+		struct Single_vfs_dir_handle : Vfs_handle
 		{
 			private:
 
@@ -75,17 +60,16 @@ class Genode::Vfs::Single_file_system : public File_system
 			public:
 
 				Single_vfs_dir_handle(Directory_service &ds,
-				                      File_io_service   &fs,
 				                      Allocator         &alloc,
 				                      Node_type          type,
 				                      Node_rwx           rwx,
 				                      Filename    const &filename)
 				:
-					Single_vfs_handle(ds, fs, alloc, 0),
+					Vfs_handle(ds, alloc, 0),
 					_type(type), _rwx(rwx), _filename(filename)
 				{ }
 
-				Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 				{
 					out_count = 0;
 
@@ -124,11 +108,6 @@ class Genode::Vfs::Single_file_system : public File_system
 					out_count = sizeof(Dirent);
 
 					return READ_OK;
-				}
-
-				Write_result write(Const_byte_range_ptr const &, size_t &) override
-				{
-					return WRITE_ERR_INVALID;
 				}
 
 				bool read_ready()  const override { return true; }
@@ -227,8 +206,7 @@ class Genode::Vfs::Single_file_system : public File_system
 
 			try {
 				*out_handle = new (alloc)
-					Single_vfs_dir_handle(*this, *this, alloc,
-					                      _type, _rwx, _filename);
+					Single_vfs_dir_handle(*this, alloc, _type, _rwx, _filename);
 				return OPENDIR_OK;
 			}
 			catch (Out_of_ram)  { return OPENDIR_ERR_OUT_OF_RAM; }
@@ -268,78 +246,6 @@ class Genode::Vfs::Single_file_system : public File_system
 		{
 			if (_filename == path)
 				_watched = false;
-		}
-
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Read_result complete_read(Vfs_handle *vfs_handle, Byte_range_ptr const &dst,
-		                          size_t &out_count) override
-		{
-			Single_vfs_handle *handle =
-				static_cast<Single_vfs_handle*>(vfs_handle);
-
-			if (handle)
-				return handle->read(dst, out_count);
-
-			return READ_ERR_INVALID;
-		}
-
-		Write_result write(Vfs_handle *vfs_handle, Const_byte_range_ptr const &src,
-		                   size_t &out_count) override
-		{
-			Single_vfs_handle *handle =
-				static_cast<Single_vfs_handle*>(vfs_handle);
-
-			if (handle)
-				return handle->write(src, out_count);
-
-			return WRITE_ERR_INVALID;
-		}
-
-		bool read_ready(Vfs_handle const &vfs_handle) const override
-		{
-			Single_vfs_handle const &handle =
-				static_cast<Single_vfs_handle const &>(vfs_handle);
-
-			return handle.read_ready();
-		}
-
-		bool write_ready(Vfs_handle const &vfs_handle) const override
-		{
-			Single_vfs_handle const &handle =
-				static_cast<Single_vfs_handle const &>(vfs_handle);
-
-			return handle.write_ready();
-		}
-
-		bool notify_read_ready(Vfs_handle *vfs_handle) override
-		{
-			Single_vfs_handle *handle =
-				static_cast<Single_vfs_handle*>(vfs_handle);
-
-			if (handle)
-				return handle->notify_read_ready();
-
-			return false;
-		}
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_ERR_NO_PERM;
-		}
-
-		Sync_result complete_sync(Vfs_handle *vfs_handle) override
-		{
-			Single_vfs_handle *handle =
-				static_cast<Single_vfs_handle*>(vfs_handle);
-
-			if (handle)
-				return handle->sync();
-
-			return SYNC_ERR_INVALID;
 		}
 };
 

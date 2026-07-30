@@ -44,14 +44,13 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 			Value_file_system &_value_fs;
 			Buffer            &_buffer{ _value_fs._buffer };
 
-			Vfs_handle(Value_file_system &value_fs,
-			           Allocator         &alloc)
+			Vfs_handle(Value_file_system &value_fs, Allocator &alloc)
 			:
-				Single_vfs_handle(value_fs, value_fs, alloc, 0),
+				Single_vfs_handle(value_fs, alloc, 0),
 				_value_fs(value_fs)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				out_count = 0;
 
@@ -81,6 +80,14 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 				_value_fs._notify_watchers();
 
 				return WRITE_OK;
+			}
+
+			Ftruncate_result ftruncate(file_size size) override
+			{
+				if (size >= BUF_SIZE)
+					return FTRUNCATE_ERR_NO_SPACE;
+
+				return FTRUNCATE_OK;
 			}
 
 			bool read_ready()  const override { return true; }
@@ -141,24 +148,6 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 			return node.has_type(type_name()) &&
 			       node.attribute_value("name", Name()) == _file_name;
 		}
-
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs::Vfs_handle *, file_size size) override
-		{
-			if (size >= BUF_SIZE)
-				return FTRUNCATE_ERR_NO_SPACE;
-
-			return FTRUNCATE_OK;
-		}
-
-
-		/*********************************
-		 ** Directory-service interface **
-		 *********************************/
 
 		Open_result open(char const  *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,

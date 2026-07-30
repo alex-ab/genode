@@ -128,13 +128,13 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 			Trace_entries &_entries;
 
 			Vfs_handle(Directory_service &ds,
-			           File_io_service   &fs,
 			           Allocator         &alloc,
 			           Trace_entries     &entries)
-			: Single_vfs_handle(ds, fs, alloc, 0), _entries(entries)
+			:
+				Single_vfs_handle(ds, alloc, 0), _entries(entries)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				out_count = 0;
 				_entries.for_each_new_entry([&](Trace::Buffer::Entry entry) {
@@ -186,7 +186,7 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 			if (!_single_file(path))
 				return OPEN_ERR_UNACCESSIBLE;
 
-			*out_handle = new (alloc) Vfs_handle(*this, *this, alloc, _entries);
+			*out_handle = new (alloc) Vfs_handle(*this, alloc, _entries);
 			return OPEN_OK;
 		}
 

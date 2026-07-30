@@ -30,9 +30,6 @@ namespace Vfs_server {
 	using namespace Genode;
 	using namespace Genode::Vfs;
 
-	using Write_result  = Vfs::File_io_service::Write_result;
-	using Read_result   = Vfs::File_io_service::Read_result;
-	using Sync_result   = Vfs::File_io_service::Sync_result;
 	using Packet_stream = ::File_system::Session::Tx::Sink;
 
 	class Node_base;
@@ -317,8 +314,7 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 
 			_handle.seek(seek_offset);
 
-			bool const queuing_succeeded =
-				_handle.fs().queue_read(&_handle, _packet.length());
+			bool const queuing_succeeded = _handle.queue_read(_packet.length());
 
 			if (queuing_succeeded)
 				_packet_in_progress = true;
@@ -340,7 +336,7 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 
 		Submit_result _submit_sync()
 		{
-			bool const queuing_succeeded = _handle.fs().queue_sync(&_handle);
+			bool const queuing_succeeded = _handle.queue_sync();
 
 			if (queuing_succeeded)
 				_packet_in_progress = true;
@@ -353,12 +349,12 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 		{
 			_read_ready_state = Read_ready_state::REQUESTED;
 
-			if (_handle.fs().read_ready(_handle)) {
+			if (_handle.read_ready()) {
 				/* if the handle is ready, send a packet back immediately */
 				read_ready_response();
 			} else {
 				/* register to send READ_READY acknowledgement later */
-				_handle.fs().notify_read_ready(&_handle);
+				_handle.notify_read_ready();
 			}
 			return Submit_result::ACCEPTED;
 		}
@@ -384,7 +380,7 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 
 			Byte_range_ptr dst { _payload_ptr.ptr, _packet.length() };
 
-			switch (_handle.fs().complete_read(&_handle, dst, out_count)) {
+			switch (_handle.complete_read(dst, out_count)) {
 
 			case Read_result::READ_OK:
 				_acknowledge_as_success((size_t)out_count);
@@ -411,7 +407,7 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 			size_t out_count = 0;
 			_handle.seek(_initial_write_seek_offset + write_pos);
 
-			switch (_handle.fs().write(&_handle, src, out_count)) {
+			switch (_handle.write(src, out_count)) {
 
 			case Write_result::WRITE_ERR_WOULD_BLOCK:
 				break;
@@ -432,7 +428,7 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 
 		void _execute_sync()
 		{
-			switch (_handle.fs().complete_sync(&_handle)) {
+			switch (_handle.complete_sync()) {
 
 			case Sync_result::SYNC_OK:
 				_acknowledge_as_success(0);
@@ -451,7 +447,7 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 		{
 			_packet.with_timestamp([&] (::File_system::Timestamp const time) {
 				Vfs::Timestamp ts { .ms_since_1970 = time.ms_since_1970 };
-				_handle.fs().update_modification_timestamp(&_handle, ts);
+				_handle.update_modification_timestamp(ts);
 			});
 			_acknowledge_as_success(0);
 
@@ -768,7 +764,7 @@ class Vfs_server::File : public Io_node
 
 		void truncate(file_size_t size)
 		{
-			assert_truncate(_handle.fs().ftruncate(&_handle, size));
+			assert_truncate(_handle.ftruncate(size));
 		}
 
 		Submit_result submit_job(Packet_descriptor packet, Payload_ptr payload_ptr) override

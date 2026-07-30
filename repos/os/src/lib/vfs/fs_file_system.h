@@ -153,14 +153,74 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			using Handle_state::queued_sync_state;
 			using Handle_state::read_ready_state;
 
-			File_system &_vfs_fs;
+			File_system &_fs;
+
+			Fs_vfs_handle(File_system &fs, Allocator &alloc,
+			              int status_flags, Handle_space &space,
+			              ::File_system::Node_handle node_handle)
+			:
+				Vfs_handle(fs, alloc, status_flags),
+				Handle_space::Element(*this, space, node_handle),
+				_fs(fs)
+			{ }
+
+			::File_system::File_handle file_handle() const
+			{
+				return ::File_system::File_handle { id().value };
+			}
+
+			Write_result _write(file_size const seek_offset,
+			                    Const_byte_range_ptr const &src, size_t &out_count)
+			{
+				/* reclaim as much space in the packet stream as possible */
+				_fs._handle_ack();
+
+				::File_system::Session::Tx::Source &source = *_fs._fs.tx();
+				using ::File_system::Packet_descriptor;
+
+				size_t const max_packet_size = source.bulk_buffer_size() / 2;
+				size_t const count = min(max_packet_size, src.num_bytes);
+
+				if (!source.ready_to_submit()) {
+					_fs._write_would_block = true;
+					return Write_result::WRITE_ERR_WOULD_BLOCK;
+				}
+
+				try {
+					Packet_descriptor packet_in(source.alloc_packet(count),
+					                            file_handle(),
+					                            Packet_descriptor::WRITE,
+					                            count,
+					                            seek_offset);
+
+					memcpy(source.packet_content(packet_in), src.start, count);
+
+					_fs._submit_packet(packet_in);
+				}
+				catch (::File_system::Session::Tx::Source::Packet_alloc_failed) {
+					_fs._write_would_block = true;
+					return Write_result::WRITE_ERR_WOULD_BLOCK;
+				}
+				catch (...) {
+					error("unhandled exception");
+					return Write_result::WRITE_ERR_IO;
+				}
+				out_count = count;
+				return Write_result::WRITE_OK;
+			}
+
+			virtual Write_result write(Const_byte_range_ptr const &src,
+			                           size_t &out_count) override
+			{
+				return _write(seek(), src, out_count);
+			}
 
 			bool _queue_read(size_t count, file_size const seek_offset)
 			{
 				if (queued_read_state != Handle_state::Queued_state::IDLE)
 					return false;
 
-				::File_system::Session::Tx::Source &source = *_vfs_fs._fs.tx();
+				::File_system::Session::Tx::Source &source = *_fs._fs.tx();
 
 				/* if not ready to submit suggest retry */
 				if (!source.ready_to_submit())
@@ -185,17 +245,19 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				queued_read_state = Handle_state::Queued_state::QUEUED;
 
 				/* pass packet to server side */
-				_vfs_fs._submit_packet(packet);
+				_fs._submit_packet(packet);
 
 				return true;
 			}
 
-			Read_result _complete_read(Byte_range_ptr const &dst, size_t &out_count)
+			bool queue_read(size_t count) override { return _queue_read(count, seek()); }
+
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				if (queued_read_state != Handle_state::Queued_state::ACK)
 					return READ_QUEUED;
 
-				::File_system::Session::Tx::Source &source = *_vfs_fs._fs.tx();
+				::File_system::Session::Tx::Source &source = *_fs._fs.tx();
 
 				/* obtain result packet descriptor with updated status info */
 				::File_system::Packet_descriptor const
@@ -219,38 +281,22 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				return result;
 			}
 
-			Fs_vfs_handle(File_system &fs, Allocator &alloc,
-			              int status_flags, Handle_space &space,
-			              ::File_system::Node_handle node_handle,
-			              File_system &vfs_fs)
-			:
-				Vfs_handle(fs, fs, alloc, status_flags),
-				Handle_space::Element(*this, space, node_handle),
-				_vfs_fs(vfs_fs)
-			{ }
-
-			::File_system::File_handle file_handle() const
-			{ return ::File_system::File_handle { id().value }; }
-
-			virtual bool queue_read(size_t /* count */)
+			bool read_ready() const override
 			{
-				error("Fs_vfs_handle::queue_read() called");
-				return true;
+				return read_ready_state == Handle_state::Read_ready_state::READY;
 			}
 
-			virtual Read_result complete_read(Byte_range_ptr const &,
-			                                  size_t & /* out count */)
+			bool write_ready() const override
 			{
-				error("Fs_vfs_handle::complete_read() called");
-				return READ_ERR_INVALID;
+				return !_fs._write_would_block;
 			}
 
-			bool queue_sync()
+			bool queue_sync() override
 			{
 				if (queued_sync_state != Handle_state::Queued_state::IDLE)
 					return true;
 
-				::File_system::Session::Tx::Source &source = *_vfs_fs._fs.tx();
+				::File_system::Session::Tx::Source &source = *_fs._fs.tx();
 
 				/* if not ready to submit suggest retry */
 				if (!source.ready_to_submit()) return false;
@@ -269,12 +315,12 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				queued_sync_state = Handle_state::Queued_state::QUEUED;
 
 				/* pass packet to server side */
-				_vfs_fs._submit_packet(packet);
+				_fs._submit_packet(packet);
 
 				return true;
 			}
 
-			Sync_result complete_sync()
+			Sync_result complete_sync() override
 			{
 				if (queued_sync_state != Handle_state::Queued_state::ACK)
 					return SYNC_QUEUED;
@@ -283,7 +329,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				::File_system::Packet_descriptor const
 					packet = queued_sync_packet;
 
-				::File_system::Session::Tx::Source &source = *_vfs_fs._fs.tx();
+				::File_system::Session::Tx::Source &source = *_fs._fs.tx();
 
 				Sync_result result = packet.succeeded()
 					? SYNC_OK : SYNC_ERR_INVALID;
@@ -296,9 +342,9 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				return result;
 			}
 
-			bool update_modification_timestamp(Timestamp time)
+			bool update_modification_timestamp(Timestamp time) override
 			{
-				::File_system::Session::Tx::Source &source = *_vfs_fs._fs.tx();
+				::File_system::Session::Tx::Source &source = *_fs._fs.tx();
 				using ::File_system::Packet_descriptor;
 
 				if (!source.ready_to_submit()) {
@@ -312,28 +358,59 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 					                    ::File_system::Timestamp {
 					                       .ms_since_1970 = time.ms_since_1970 });
 
-					_vfs_fs._submit_packet(p);
+					_fs._submit_packet(p);
 				} catch (::File_system::Session::Tx::Source::Packet_alloc_failed) {
 					return false;
 				}
 
 				return true;
 			}
+
+			bool notify_read_ready() override
+			{
+				if (read_ready_state != Handle_state::Read_ready_state::IDLE)
+					return true;
+
+				::File_system::Session::Tx::Source &source = *_fs._fs.tx();
+
+				/* if not ready to submit suggest retry */
+				if (!source.ready_to_submit()) return false;
+
+				using ::File_system::Packet_descriptor;
+
+				Packet_descriptor packet(Packet_descriptor(),
+				                         file_handle(),
+				                         Packet_descriptor::READ_READY,
+				                         0, 0);
+
+				read_ready_state = Handle_state::Read_ready_state::PENDING;
+
+				_fs._submit_packet(packet);
+
+				/*
+				 * When the packet is acknowledged the application is notified via
+				 * Response_handler::handle_response().
+				 */
+				return true;
+			}
+
+			Ftruncate_result ftruncate(file_size len) override
+			{
+				try {
+					_fs._fs.truncate(file_handle(), len);
+				}
+				catch (::File_system::Invalid_handle)    { return FTRUNCATE_ERR_NO_PERM; }
+				catch (::File_system::Permission_denied) { return FTRUNCATE_ERR_NO_PERM; }
+				catch (::File_system::No_space)          { return FTRUNCATE_ERR_NO_SPACE; }
+				catch (::File_system::Unavailable)       { return FTRUNCATE_ERR_NO_PERM; }
+
+				return FTRUNCATE_OK;
+			}
 		};
 
 		struct Fs_vfs_file_handle : Fs_vfs_handle
 		{
 			using Fs_vfs_handle::Fs_vfs_handle;
-
-			bool queue_read(size_t count) override
-			{
-				return _queue_read(count, seek());
-			}
-
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
-			{
-				return _complete_read(dst, out_count);
-			}
 		};
 
 		struct Fs_vfs_dir_handle : Fs_vfs_handle
@@ -363,8 +440,8 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				size_t entry_out_count = 0;
 
 				Read_result const read_result =
-					_complete_read(Byte_range_ptr((char *)(&entry), DIRENT_SIZE),
-					               entry_out_count);
+					Fs_vfs_handle::complete_read(Byte_range_ptr((char *)(&entry), DIRENT_SIZE),
+					                             entry_out_count);
 
 				if (read_result != READ_OK)
 					return read_result;
@@ -400,17 +477,6 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 		struct Fs_vfs_symlink_handle : Fs_vfs_handle
 		{
 			using Fs_vfs_handle::Fs_vfs_handle;
-
-			bool queue_read(size_t count) override
-			{
-				return _queue_read(count, seek());
-			}
-
-			Read_result complete_read(Byte_range_ptr const &dst,
-			                          size_t &out_count) override
-			{
-				return _complete_read(dst, out_count);
-			}
 		};
 
 		/**
@@ -420,15 +486,14 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 		{
 			Fs_handle_guard(File_system &fs,
 			                ::File_system::Node_handle fs_handle,
-			                Handle_space &space,
-			                File_system &vfs_fs)
+			                Handle_space &space)
 			:
-				Fs_vfs_handle(fs, *(Allocator*)nullptr, 0, space, fs_handle, vfs_fs)
+				Fs_vfs_handle(fs, *(Allocator*)nullptr, 0, space, fs_handle)
 			{ }
 
 			~Fs_handle_guard()
 			{
-				_vfs_fs._fs.close(file_handle());
+				_fs._fs.close(file_handle());
 			}
 		};
 
@@ -450,46 +515,6 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				path(path), fs_handle(handle)
 			{ }
 		};
-
-		Write_result _write(Fs_vfs_handle &handle, file_size const seek_offset,
-		                    Const_byte_range_ptr const &src, size_t &out_count)
-		{
-			/* reclaim as much space in the packet stream as possible */
-			_handle_ack();
-
-			::File_system::Session::Tx::Source &source = *_fs.tx();
-			using ::File_system::Packet_descriptor;
-
-			size_t const max_packet_size = source.bulk_buffer_size() / 2;
-			size_t const count = min(max_packet_size, src.num_bytes);
-
-			if (!source.ready_to_submit()) {
-				_write_would_block = true;
-				return Write_result::WRITE_ERR_WOULD_BLOCK;
-			}
-
-			try {
-				Packet_descriptor packet_in(source.alloc_packet(count),
-				                            handle.file_handle(),
-				                            Packet_descriptor::WRITE,
-				                            count,
-				                            seek_offset);
-
-				memcpy(source.packet_content(packet_in), src.start, count);
-
-				_submit_packet(packet_in);
-			}
-			catch (::File_system::Session::Tx::Source::Packet_alloc_failed) {
-				_write_would_block = true;
-				return Write_result::WRITE_ERR_WOULD_BLOCK;
-			}
-			catch (...) {
-				error("unhandled exception");
-				return Write_result::WRITE_ERR_IO;
-			}
-			out_count = count;
-			return Write_result::WRITE_OK;
-		}
 
 		void _handle_ack()
 		{
@@ -606,7 +631,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 			try {
 				::File_system::Node_handle node = _fs.node(path);
-				Fs_handle_guard node_guard(*this, node, _handle_space, *this);
+				Fs_handle_guard node_guard(*this, node, _handle_space);
 				status = _fs.status(node);
 			}
 			catch (Out_of_ram)  {
@@ -641,7 +666,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 			try {
 				::File_system::Dir_handle dir = _fs.dir(dir_path.base(), false);
-				Fs_handle_guard dir_guard(*this, dir, _handle_space, *this);
+				Fs_handle_guard dir_guard(*this, dir, _handle_space);
 
 				_fs.unlink(dir, file_name.base() + 1);
 			}
@@ -676,12 +701,11 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				::File_system::Dir_handle from_dir =
 					_fs.dir(from_dir_path.base(), false);
 
-				Fs_handle_guard from_dir_guard(*this, from_dir, _handle_space, *this);
+				Fs_handle_guard from_dir_guard(*this, from_dir, _handle_space);
 
 				::File_system::Dir_handle to_dir = _fs.dir(to_dir_path.base(),
 				                                           false);
-				Fs_handle_guard to_dir_guard(
-					*this, to_dir, _handle_space, *this);
+				Fs_handle_guard to_dir_guard(*this, to_dir, _handle_space);
 
 				_fs.move(from_dir, from_file_name.base() + 1,
 				         to_dir,   to_file_name.base() + 1);
@@ -699,7 +723,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 			try {
 				::File_system::Dir_handle dir = _fs.dir(path, false);
-				Fs_handle_guard node_guard(*this, dir, _handle_space, *this);
+				Fs_handle_guard node_guard(*this, dir, _handle_space);
 
 				return _fs.num_entries(dir);
 			}
@@ -711,7 +735,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 		{
 			try {
 				::File_system::Node_handle node = _fs.node(path);
-				Fs_handle_guard node_guard(*this, node, _handle_space, *this);
+				Fs_handle_guard node_guard(*this, node, _handle_space);
 
 				::File_system::Status status = _fs.status(node);
 
@@ -755,14 +779,14 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 			try {
 				::File_system::Dir_handle dir = _fs.dir(dir_path.base(), false);
-				Fs_handle_guard dir_guard(*this, dir, _handle_space, *this);
+				Fs_handle_guard dir_guard(*this, dir, _handle_space);
 
 				::File_system::File_handle file = _fs.file(dir,
 				                                           file_name.base() + 1,
 				                                           mode, create);
 
 				*out_handle = new (alloc)
-					Fs_vfs_file_handle(*this, alloc, vfs_mode, _handle_space, file, *this);
+					Fs_vfs_file_handle(*this, alloc, vfs_mode, _handle_space, file);
 			}
 			catch (::File_system::Lookup_failed)       { return OPEN_ERR_UNACCESSIBLE;  }
 			catch (::File_system::Permission_denied)   { return OPEN_ERR_NO_PERM;       }
@@ -788,7 +812,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 				*out_handle = new (alloc)
 					Fs_vfs_dir_handle(*this, alloc, ::File_system::READ_ONLY,
-					                  _handle_space, dir, *this);
+					                  _handle_space, dir);
 			}
 			catch (::File_system::Lookup_failed)       { return OPENDIR_ERR_LOOKUP_FAILED;       }
 			catch (::File_system::Name_too_long)       { return OPENDIR_ERR_NAME_TOO_LONG;       }
@@ -817,7 +841,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				::File_system::Dir_handle dir_handle = _fs.dir(abs_path.base(),
 				                                               false);
 
-				Fs_handle_guard from_dir_guard(*this, dir_handle, _handle_space, *this);
+				Fs_handle_guard from_dir_guard(*this, dir_handle, _handle_space);
 
 				::File_system::Symlink_handle symlink_handle =
 				    _fs.symlink(dir_handle, symlink_name.base() + 1, create);
@@ -825,7 +849,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				*out_handle = new (alloc)
 					Fs_vfs_symlink_handle(*this, alloc,
 					                      ::File_system::READ_ONLY,
-					                      _handle_space, symlink_handle, *this);
+					                      _handle_space, symlink_handle);
 
 				return OPENLINK_OK;
 			}
@@ -893,113 +917,6 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 		static char const *name()   { return "fs"; }
 		char const *type() override { return "fs"; }
-
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Write_result write(Vfs_handle *vfs_handle, Const_byte_range_ptr const &src,
-		                   size_t &out_count) override
-		{
-			Fs_vfs_handle &handle = static_cast<Fs_vfs_handle &>(*vfs_handle);
-
-			return _write(handle, handle.seek(), src, out_count);
-		}
-
-		bool queue_read(Vfs_handle *vfs_handle, size_t count) override
-		{
-			Fs_vfs_handle *handle = static_cast<Fs_vfs_handle *>(vfs_handle);
-
-			return handle->queue_read(count);
-		}
-
-		Read_result complete_read(Vfs_handle *vfs_handle, Byte_range_ptr const &dst,
-		                          size_t &out_count) override
-		{
-			out_count = 0;
-
-			Fs_vfs_handle *handle = static_cast<Fs_vfs_handle *>(vfs_handle);
-
-			return handle->complete_read(dst, out_count);
-		}
-
-		bool read_ready(Vfs_handle const &vfs_handle) const override
-		{
-			Fs_vfs_handle const &handle = static_cast<Fs_vfs_handle const &>(vfs_handle);
-
-			return handle.read_ready_state == Handle_state::Read_ready_state::READY;
-		}
-
-		bool write_ready(Vfs_handle const &) const override
-		{
-			return !_write_would_block;
-		}
-
-		bool notify_read_ready(Vfs_handle *vfs_handle) override
-		{
-			Fs_vfs_handle *handle = static_cast<Fs_vfs_handle *>(vfs_handle);
-			if (handle->read_ready_state != Handle_state::Read_ready_state::IDLE)
-				return true;
-
-			::File_system::Session::Tx::Source &source = *_fs.tx();
-
-			/* if not ready to submit suggest retry */
-			if (!source.ready_to_submit()) return false;
-
-			using ::File_system::Packet_descriptor;
-
-			Packet_descriptor packet(Packet_descriptor(),
-			                         handle->file_handle(),
-			                         Packet_descriptor::READ_READY,
-			                         0, 0);
-
-			handle->read_ready_state = Handle_state::Read_ready_state::PENDING;
-
-			_submit_packet(packet);
-
-			/*
-			 * When the packet is acknowledged the application is notified via
-			 * Response_handler::handle_response().
-			 */
-			return true;
-		}
-
-		Ftruncate_result ftruncate(Vfs_handle *vfs_handle, file_size len) override
-		{
-			Fs_vfs_handle const *handle = static_cast<Fs_vfs_handle *>(vfs_handle);
-
-			try {
-				_fs.truncate(handle->file_handle(), len);
-			}
-			catch (::File_system::Invalid_handle)    { return FTRUNCATE_ERR_NO_PERM; }
-			catch (::File_system::Permission_denied) { return FTRUNCATE_ERR_NO_PERM; }
-			catch (::File_system::No_space)          { return FTRUNCATE_ERR_NO_SPACE; }
-			catch (::File_system::Unavailable)       { return FTRUNCATE_ERR_NO_PERM; }
-
-			return FTRUNCATE_OK;
-		}
-
-		bool queue_sync(Vfs_handle *vfs_handle) override
-		{
-			Fs_vfs_handle *handle = static_cast<Fs_vfs_handle *>(vfs_handle);
-
-			return handle->queue_sync();
-		}
-
-		Sync_result complete_sync(Vfs_handle *vfs_handle) override
-		{
-			Fs_vfs_handle *handle = static_cast<Fs_vfs_handle *>(vfs_handle);
-
-			return handle->complete_sync();
-		}
-
-		bool update_modification_timestamp(Vfs_handle *vfs_handle, Timestamp time) override
-		{
-			Fs_vfs_handle *handle = static_cast<Fs_vfs_handle *>(vfs_handle);
-
-			return handle->update_modification_timestamp(time);
-		}
 };
 
 #endif /* _INCLUDE__VFS__FS_FILE_SYSTEM_H_ */

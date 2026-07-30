@@ -1253,15 +1253,12 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 			enum class State { NONE, PENDING_WRITE_ACK, PENDING_READ };
 			State _state { State::NONE };
 
-			Hashsum_handle(Directory_service &ds,
-			               File_io_service   &fs,
-			               Allocator         &alloc,
-			               Trust_anchor      &ta)
+			Hashsum_handle(Directory_service &ds, Allocator &alloc, Trust_anchor &ta)
 			:
-				Single_vfs_handle(ds, fs, alloc, 0), _trust_anchor(ta)
+				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta)
 			{ }
 
-			Read_result read(Byte_range_ptr const &src, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &src, size_t &out_count) override
 			{
 				_trust_anchor.execute();
 
@@ -1341,6 +1338,8 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 				return WRITE_OK;
 			}
 
+			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return true; }
 		};
@@ -1358,10 +1357,6 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 
 		char const *type() override { return type_name(); }
 
-		/*********************************
-		 ** Directory-service interface **
-		 *********************************/
-
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
 		                 Allocator &alloc) override
@@ -1372,27 +1367,11 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 
 			try {
 				*out_handle =
-					new (alloc) Hashsum_handle(*this, *this, alloc,
-					                           _trust_anchor);
+					new (alloc) Hashsum_handle(*this, alloc, _trust_anchor);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-		}
-
-		Stat_result stat(char const *path, Stat &out) override
-		{
-			Stat_result result = Single_file_system::stat(path, out);
-			return result;
-		}
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_OK;
 		}
 };
 
@@ -1410,15 +1389,12 @@ class Vfs_tresor_trust_anchor::Generate_key_file_system : public Single_file_sys
 			enum class State { NONE, PENDING };
 			State _state { State::NONE, };
 
-			Gen_key_handle(Directory_service &ds,
-			               File_io_service   &fs,
-			               Allocator         &alloc,
-			               Trust_anchor      &ta)
+			Gen_key_handle(Directory_service &ds, Allocator &alloc, Trust_anchor &ta)
 			:
-				Single_vfs_handle(ds, fs, alloc, 0), _trust_anchor(ta)
+				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				if (_state == State::NONE) {
 
@@ -1446,6 +1422,8 @@ class Vfs_tresor_trust_anchor::Generate_key_file_system : public Single_file_sys
 				return WRITE_ERR_IO;
 			}
 
+			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return false; }
 		};
@@ -1463,10 +1441,6 @@ class Vfs_tresor_trust_anchor::Generate_key_file_system : public Single_file_sys
 
 		char const *type() override { return type_name(); }
 
-		/*********************************
-		 ** Directory-service interface **
-		 *********************************/
-
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
 		                 Allocator &alloc) override
@@ -1477,27 +1451,11 @@ class Vfs_tresor_trust_anchor::Generate_key_file_system : public Single_file_sys
 
 			try {
 				*out_handle =
-					new (alloc) Gen_key_handle(*this, *this, alloc,
-					                           _trust_anchor);
+					new (alloc) Gen_key_handle(*this, alloc, _trust_anchor);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-		}
-
-		Stat_result stat(char const *path, Stat &out) override
-		{
-			Stat_result result = Single_file_system::stat(path, out);
-			return result;
-		}
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_OK;
 		}
 };
 
@@ -1515,15 +1473,12 @@ class Vfs_tresor_trust_anchor::Encrypt_file_system : public Single_file_system
 			enum State { NONE, PENDING };
 			State _state;
 
-			Encrypt_handle(Directory_service &ds,
-			               File_io_service   &fs,
-			               Allocator         &alloc,
-			               Trust_anchor      &ta)
+			Encrypt_handle(Directory_service &ds, Allocator &alloc, Trust_anchor &ta)
 			:
-				Single_vfs_handle(ds, fs, alloc, 0), _trust_anchor(ta), _state(State::NONE)
+				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta), _state(State::NONE)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				if (_state != State::PENDING) {
 					return READ_ERR_IO;
@@ -1571,6 +1526,8 @@ class Vfs_tresor_trust_anchor::Encrypt_file_system : public Single_file_system
 				return WRITE_OK;
 			}
 
+			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return true; }
 		};
@@ -1588,10 +1545,6 @@ class Vfs_tresor_trust_anchor::Encrypt_file_system : public Single_file_system
 
 		char const *type() override { return type_name(); }
 
-		/*********************************
-		 ** Directory-service interface **
-		 *********************************/
-
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
 		                 Allocator &alloc) override
@@ -1601,27 +1554,11 @@ class Vfs_tresor_trust_anchor::Encrypt_file_system : public Single_file_system
 
 			try {
 				*out_handle =
-					new (alloc) Encrypt_handle(*this, *this, alloc,
-					                           _trust_anchor);
+					new (alloc) Encrypt_handle(*this, alloc, _trust_anchor);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-		}
-
-		Stat_result stat(char const *path, Stat &out) override
-		{
-			Stat_result result = Single_file_system::stat(path, out);
-			return result;
-		}
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_OK;
 		}
 };
 
@@ -1639,15 +1576,12 @@ class Vfs_tresor_trust_anchor::Decrypt_file_system : public Single_file_system
 			enum State { NONE, PENDING };
 			State _state;
 
-			Decrypt_handle(Directory_service &ds,
-			               File_io_service   &fs,
-			               Allocator         &alloc,
-			               Trust_anchor      &ta)
+			Decrypt_handle(Directory_service &ds, Allocator &alloc, Trust_anchor &ta)
 			:
-				Single_vfs_handle(ds, fs, alloc, 0), _trust_anchor(ta), _state(State::NONE)
+				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta), _state(State::NONE)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				if (_state != State::PENDING) {
 					return READ_ERR_IO;
@@ -1695,6 +1629,8 @@ class Vfs_tresor_trust_anchor::Decrypt_file_system : public Single_file_system
 				return WRITE_OK;
 			}
 
+			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return true; }
 		};
@@ -1712,10 +1648,6 @@ class Vfs_tresor_trust_anchor::Decrypt_file_system : public Single_file_system
 
 		char const *type() override { return type_name(); }
 
-		/*********************************
-		 ** Directory-service interface **
-		 *********************************/
-
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
 		                 Allocator &alloc) override
@@ -1725,27 +1657,11 @@ class Vfs_tresor_trust_anchor::Decrypt_file_system : public Single_file_system
 
 			try {
 				*out_handle =
-					new (alloc) Decrypt_handle(*this, *this, alloc,
-					                           _trust_anchor);
+					new (alloc) Decrypt_handle(*this, alloc, _trust_anchor);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-		}
-
-		Stat_result stat(char const *path, Stat &out) override
-		{
-			Stat_result result = Single_file_system::stat(path, out);
-			return result;
-		}
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_OK;
 		}
 };
 
@@ -1765,16 +1681,12 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 
 			bool _init_pending { false };
 
-			Initialize_handle(Directory_service &ds,
-			                  File_io_service   &fs,
-			                  Allocator         &alloc,
-			                  Trust_anchor      &ta)
+			Initialize_handle(Directory_service &ds, Allocator &alloc, Trust_anchor &ta)
 			:
-				Single_vfs_handle(ds, fs, alloc, 0), _trust_anchor(ta)
+				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta)
 			{ }
 
-			Read_result read(Byte_range_ptr const &buf,
-			                 size_t               &nr_of_read_bytes) override
+			Read_result complete_read(Byte_range_ptr const &buf, size_t &nr_of_read_bytes) override
 			{
 				if (_state != State::PENDING) {
 					return READ_ERR_INVALID;
@@ -1835,6 +1747,8 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 				return WRITE_OK;
 			}
 
+			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return true; }
 		};
@@ -1852,41 +1766,20 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 
 		char const *type() override { return type_name(); }
 
-		/*********************************
-		 ** Directory-service interface **
-		 *********************************/
-
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
 		                 Allocator &alloc) override
 		{
 			if (!_single_file(path))
-
 				return OPEN_ERR_UNACCESSIBLE;
 
 			try {
 				*out_handle =
-					new (alloc) Initialize_handle(*this, *this, alloc,
-					                              _trust_anchor);
+					new (alloc) Initialize_handle(*this, alloc, _trust_anchor);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-		}
-
-		Stat_result stat(char const *path, Stat &out) override
-		{
-			Stat_result result = Single_file_system::stat(path, out);
-			return result;
-		}
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_OK;
 		}
 };
 

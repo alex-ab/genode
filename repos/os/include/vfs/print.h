@@ -126,10 +126,10 @@ static inline void print(Genode::Output &output, Vfs::Directory_service::Rename_
 }
 
 
-static inline void print(Genode::Output &output, Vfs::File_io_service::Write_result const &r)
+static inline void print(Genode::Output &output, Vfs::Write_result const &r)
 {
 #define CASE_PRINT(x) \
-	case Vfs::File_io_service::Write_result::x: output.out_string(#x); break
+	case Vfs::Write_result::x: output.out_string(#x); break
 
 	switch (r) {
 		CASE_PRINT(WRITE_OK);
@@ -142,10 +142,10 @@ static inline void print(Genode::Output &output, Vfs::File_io_service::Write_res
 }
 
 
-static inline void print(Genode::Output &output, Vfs::File_io_service::Read_result const &r)
+static inline void print(Genode::Output &output, Vfs::Read_result const &r)
 {
 #define CASE_PRINT(x) \
-	case Vfs::File_io_service::Read_result::x: output.out_string(#x); break
+	case Vfs::Read_result::x: output.out_string(#x); break
 
 	switch (r) {
 		CASE_PRINT(READ_OK);
@@ -159,10 +159,10 @@ static inline void print(Genode::Output &output, Vfs::File_io_service::Read_resu
 }
 
 
-static inline void print(Genode::Output &output, Vfs::File_io_service::Ftruncate_result const &r)
+static inline void print(Genode::Output &output, Vfs::Ftruncate_result const &r)
 {
 #define CASE_PRINT(x) \
-	case Vfs::File_io_service::Ftruncate_result::x: output.out_string(#x); break
+	case Vfs::Ftruncate_result::x: output.out_string(#x); break
 
 	switch (r) {
 		CASE_PRINT(FTRUNCATE_OK);
@@ -175,10 +175,10 @@ static inline void print(Genode::Output &output, Vfs::File_io_service::Ftruncate
 }
 
 
-static inline void print(Genode::Output &output, Vfs::File_io_service::Sync_result const &r)
+static inline void print(Genode::Output &output, Vfs::Sync_result const &r)
 {
 #define CASE_PRINT(x) \
-	case Vfs::File_io_service::Sync_result::x: output.out_string(#x); break
+	case Vfs::Sync_result::x: output.out_string(#x); break
 
 	switch (r) {
 	CASE_PRINT(SYNC_OK);

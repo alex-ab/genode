@@ -58,11 +58,11 @@ class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 			           Sockopt_value_file_system &fs,
 			           Allocator                &alloc)
 			:
-				Single_vfs_handle(fs, fs, alloc, 0),
+				Single_vfs_handle(fs, alloc, 0),
 				_sock(sock)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				out_count = 0;
 
@@ -96,6 +96,14 @@ class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return READONLY ? false : true; }
+
+			Ftruncate_result ftruncate(file_size size) override
+			{
+				if (size >= BUF_SIZE)
+					return FTRUNCATE_ERR_NO_SPACE;
+
+				return FTRUNCATE_OK;
+			}
 
 			private:
 
@@ -133,19 +141,6 @@ class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 		{
 			return node.has_type(type_name()) &&
 			       node.attribute_value("name", Name()) == _file_name;
-		}
-
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs::Vfs_handle *, file_size size) override
-		{
-			if (size >= BUF_SIZE)
-				return FTRUNCATE_ERR_NO_SPACE;
-
-			return FTRUNCATE_OK;
 		}
 
 

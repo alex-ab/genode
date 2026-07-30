@@ -126,15 +126,15 @@ namespace Libc {
 			return false;
 
 		Vfs::Vfs_handle &handle = fd.open_file_ptr->handle;
-		handle.fs().notify_read_ready(&handle);
-		return handle.fs().read_ready(handle);
+		handle.notify_read_ready();
+		return handle.read_ready();
 	}
 
 	void notify_read_ready_from_kernel(File_descriptor &fd)
 	{
 		if (fd.open_file_ptr) {
 			Vfs::Vfs_handle &handle = fd.open_file_ptr->handle;
-			handle.fs().notify_read_ready(&handle);
+			handle.notify_read_ready();
 		}
 	}
 
@@ -144,7 +144,7 @@ namespace Libc {
 			return false;
 
 		Vfs::Vfs_handle &handle = fd.open_file_ptr->handle;
-		return handle.fs().write_ready(handle);
+		return handle.write_ready();
 	}
 }
 
@@ -412,15 +412,15 @@ struct Sync
 	{
 		switch (state) {
 		case Sync::INITIAL:
-			if (!vfs_handle.fs().update_modification_timestamp(&vfs_handle, mtime))
+			if (!vfs_handle.update_modification_timestamp(mtime))
 				return false;
 			state = Sync::TIMESTAMP_UPDATED; [[ fallthrough ]];
 		case Sync::TIMESTAMP_UPDATED:
-			if (!vfs_handle.fs().queue_sync(&vfs_handle))
+			if (!vfs_handle.queue_sync())
 				return false;
 			state = Sync::QUEUED; [[ fallthrough ]];
 		case Sync::QUEUED:
-			if (vfs_handle.fs().complete_sync(&vfs_handle) == Genode::Vfs::File_io_service::SYNC_QUEUED)
+			if (vfs_handle.complete_sync() == Genode::Vfs::SYNC_QUEUED)
 				return false;
 			state = Sync::COMPLETE; [[ fallthrough ]];
 		case Sync::COMPLETE:
@@ -536,7 +536,7 @@ int Libc::Fs::stat(char const *path, struct stat &buf)
 
 ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 {
-	using Result = Vfs::File_io_service::Write_result;
+	using Result = Vfs::Write_result;
 
 	if (!fd.open_file_ptr || (fd.flags & O_ACCMODE) == O_RDONLY)
 		return Errno(EBADF);
@@ -550,7 +550,7 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 
 	if (fd.flags & O_NONBLOCK) {
 		_monitor.monitor([&] {
-			out_result = of.handle.fs().write(&of.handle, src, out_count);
+			out_result = of.handle.write(src, out_count);
 			return Fn::COMPLETE;
 		});
 	} else {
@@ -585,7 +585,7 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 				Const_byte_range_ptr const src { (char const *)_buf + _offset,
 				                                  _count };
 
-				_out_result = of.handle.fs().write(&of.handle, src, partial_out_count);
+				_out_result = of.handle.write(src, partial_out_count);
 
 				if (_out_result == Result::WRITE_ERR_WOULD_BLOCK)
 					return Fn::INCOMPLETE;
@@ -650,7 +650,7 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 
 ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 {
-	using Result = Vfs::File_io_service::Read_result;
+	using Result = Vfs::Read_result;
 
 	if (!fd.open_file_ptr)
 		return Errno { EBADF };
@@ -676,14 +676,14 @@ ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 		of.blocking = true; /* sync with close */
 
 		if (!queued)
-			queued = of.handle.fs().queue_read(&of.handle, count);
+			queued = of.handle.queue_read(count);
 
 		if (!queued)
 			return Fn::INCOMPLETE; /* keep blocking until 'queue_read' succeeds */
 
 		Byte_range_ptr const dst { (char *)buf, count };
 
-		switch (of.handle.fs().complete_read(&of.handle, dst, out_count)) {
+		switch (of.handle.complete_read(dst, out_count)) {
 		case Result::READ_ERR_WOULD_BLOCK: result_errno = EWOULDBLOCK; break;
 		case Result::READ_ERR_INVALID:     result_errno = EINVAL;      break;
 		case Result::READ_ERR_IO:          result_errno = EIO;         break;
@@ -714,7 +714,7 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 		return -1;
 	}
 
-	using Result = Vfs::File_io_service::Read_result;
+	using Result = Vfs::Read_result;
 	using Dirent = Vfs::Directory_service::Dirent;
 
 	Dirent dirent_out;
@@ -722,7 +722,7 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 	/* TODO refactor multiple monitor() calls to state machine in one call */
 
 	_monitor.monitor([&] {
-		return od.handle.fs().queue_read(&od.handle, sizeof(Dirent)) ? Fn::COMPLETE : Fn::INCOMPLETE;
+		return od.handle.queue_read(sizeof(Dirent)) ? Fn::COMPLETE : Fn::INCOMPLETE;
 	});
 
 	Result   out_result;
@@ -730,7 +730,7 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 
 	_monitor.monitor([&] {
 		Byte_range_ptr const dst { (char *)&dirent_out, sizeof(Dirent) };
-		out_result = od.handle.fs().complete_read(&od.handle, dst, out_count);
+		out_result = od.handle.complete_read(dst, out_count);
 		return out_result != Result::READ_QUEUED ? Fn::COMPLETE : Fn::INCOMPLETE;
 	});
 
@@ -1764,9 +1764,9 @@ int Libc::Fs::ftruncate(Open_file &of, off_t length)
 			of.modified = false;
 		}
 
-		using Result = Vfs::File_io_service::Ftruncate_result;
+		using Result = Vfs::Ftruncate_result;
 
-		switch (of.handle.fs().ftruncate(&of.handle, length)) {
+		switch (of.handle.ftruncate(length)) {
 		case Result::FTRUNCATE_ERR_NO_PERM:   result_errno = EPERM;  break;
 		case Result::FTRUNCATE_ERR_INTERRUPT: result_errno = EINTR;  break;
 		case Result::FTRUNCATE_ERR_NO_SPACE:  result_errno = ENOSPC; break;
@@ -1858,11 +1858,11 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 
 			case Stage::WRITE:
 				{
-					using Result = Vfs::File_io_service::Write_result;
+					using Result = Vfs::Write_result;
 
 					Const_byte_range_ptr const src { target_path, count };
 
-					Result result = handle.fs().write(&handle, src, out_count);
+					Result result = handle.write(src, out_count);
 
 					if (result == Result::WRITE_ERR_WOULD_BLOCK)
 						return Fn::INCOMPLETE;
@@ -1937,19 +1937,19 @@ ssize_t Libc::Fs::readlink(const char *link_path, char *buf, ::size_t buf_size)
 
 		case Stage::QUEUE_READ:
 			{
-				if (!handle_ptr->fs().queue_read(handle_ptr, buf_size))
+				if (!handle_ptr->queue_read(buf_size))
 					return Fn::INCOMPLETE;
 			}
 			stage = Stage::COMPLETE_READ; [[ fallthrough ]];
 
 		case Stage::COMPLETE_READ:
 			{
-				using Result = Vfs::File_io_service::Read_result;
+				using Result = Vfs::Read_result;
 
 				Byte_range_ptr const dst { buf, buf_size };
 
 				Result out_result =
-					handle_ptr->fs().complete_read(handle_ptr, dst, out_count);
+					handle_ptr->complete_read(dst, out_count);
 
 				switch (out_result) {
 				case Result::READ_QUEUED: return Fn::INCOMPLETE;;
@@ -2242,16 +2242,16 @@ int Libc::Fs::poll(Monitor &monitor, Pollfd fds[], int nfds)
 			bool fd_ready = false;
 
 			if (fds[pollfd_index].events & (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
-				if (of.handle.fs().read_ready(of.handle)) {
+				if (of.handle.read_ready()) {
 					*fds[pollfd_index].revents |= POLLIN;
 					fd_ready = true;
 				} else {
-					of.handle.fs().notify_read_ready(&of.handle);
+					of.handle.notify_read_ready();
 				}
 			}
 
 			if (fds[pollfd_index].events & (POLLOUT | POLLWRNORM | POLLWRBAND)) {
-				if (of.handle.fs().write_ready(of.handle)) {
+				if (of.handle.write_ready()) {
 					*fds[pollfd_index].revents |= POLLOUT;
 					fd_ready = true;
 				}
@@ -2281,7 +2281,7 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 	using Aio_job    = Libc::File_descriptor::Aio_job;
 	using Aio_handle = Libc::File_descriptor::Aio_handle;
 	using Vfs_handle = Genode::Vfs::Vfs_handle;
-	using Result     = Genode::Vfs::File_io_service::Read_result;
+	using Result     = Genode::Vfs::Read_result;
 
 	bool progress = false;
 
@@ -2300,8 +2300,7 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 
 				vfs_handle.seek(aio_job.iocb->aio_offset);
 
-				if (!vfs_handle.fs().queue_read(&vfs_handle,
-				                                 aio_job.iocb->aio_nbytes))
+				if (!vfs_handle.queue_read(aio_job.iocb->aio_nbytes))
 					break;
 
 				aio_handle.state = Aio_handle::State::QUEUED;
@@ -2314,7 +2313,7 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 					(char *)aio_job.iocb->aio_buf, aio_job.iocb->aio_nbytes };
 				::size_t out_count = 0;
 				Result const out_result =
-					vfs_handle.fs().complete_read(&vfs_handle, dst, out_count);
+					vfs_handle.complete_read(dst, out_count);
 				if (out_result != Result::READ_QUEUED) {
 
 					aio_job.result = -1;
@@ -2361,7 +2360,7 @@ static bool _handle_aio_write(Libc::File_descriptor          &fd,
 	using Aio_job    = Libc::File_descriptor::Aio_job;
 	using Aio_handle = Libc::File_descriptor::Aio_handle;
 	using Vfs_handle = Genode::Vfs::Vfs_handle;
-	using Result     = Genode::Vfs::File_io_service::Write_result;
+	using Result     = Genode::Vfs::Write_result;
 
 	bool progress = false;
 
@@ -2395,8 +2394,7 @@ static bool _handle_aio_write(Libc::File_descriptor          &fd,
 				Genode::Const_byte_range_ptr const src {
 					(char *)aio_job.iocb->aio_buf + aio_handle.offset, aio_handle.count };
 				::size_t out_count = 0;
-				Result const out_result =
-					vfs_handle.fs().write(&vfs_handle, src, out_count);
+				Result const out_result = vfs_handle.write(src, out_count);
 
 				if (out_result == Result::WRITE_OK) {
 					aio_handle.count  -= out_count;

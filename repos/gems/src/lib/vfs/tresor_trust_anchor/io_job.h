@@ -94,7 +94,7 @@ namespace Util {
 			case State::PENDING:
 
 				_handle.seek(_base_offset + _current_offset);
-				if (!_handle.fs().queue_read(&_handle, _current_count)) {
+				if (!_handle.queue_read(_current_count)) {
 					return progress;
 				}
 
@@ -103,13 +103,13 @@ namespace Util {
 			[[fallthrough]];
 			case State::IN_PROGRESS:
 			{
-				using Result = Vfs::File_io_service::Read_result;
+				using Result = Vfs::Read_result;
 
 				bool completed = false;
 				size_t out = 0;
 
 				Byte_range_ptr const dst { _data + _current_offset, _current_count };
-				Result const result = _handle.fs().complete_read(&_handle, dst, out);
+				Result const result = _handle.complete_read(dst, out);
 
 				if (result == Result::READ_QUEUED
 				 || result == Result::READ_ERR_WOULD_BLOCK) {
@@ -162,13 +162,13 @@ namespace Util {
 			[[fallthrough]];
 			case State::IN_PROGRESS:
 			{
-				using Result = Vfs::File_io_service::Write_result;
+				using Result = Vfs::Write_result;
 
 				bool completed = false;
 				size_t out = 0;
 
 				Const_byte_range_ptr const src { _data + _current_offset, _current_count };
-				Result const result = _handle.fs().write(&_handle, src, out);
+				Result const result = _handle.write(src, out);
 
 				switch (result) {
 				case Result::WRITE_ERR_WOULD_BLOCK:
@@ -214,7 +214,7 @@ namespace Util {
 			switch (_state) {
 			case State::PENDING:
 
-				if (!_handle.fs().queue_sync(&_handle)) {
+				if (!_handle.queue_sync()) {
 					return progress;
 				}
 				_state = State::IN_PROGRESS;
@@ -222,8 +222,8 @@ namespace Util {
 			[[fallthrough]];
 			case State::IN_PROGRESS:
 			{
-				using Result = Vfs::File_io_service::Sync_result;
-				Result const result = _handle.fs().complete_sync(&_handle);
+				using Result = Vfs::Sync_result;
+				Result const result = _handle.complete_sync();
 
 				if (result == Result::SYNC_QUEUED) {
 					return progress;

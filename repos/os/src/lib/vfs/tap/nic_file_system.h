@@ -54,9 +54,6 @@ class Vfs_nic::File_system::Nic_vfs_handle : public Single_vfs_handle
 
 	private:
 
-		using Read_result  = File_io_service::Read_result;
-		using Write_result = File_io_service::Write_result;
-
 		static constexpr size_t PKT_SIZE = Nic::Packet_allocator::DEFAULT_PACKET_SIZE;
 		static constexpr size_t BUF_SIZE = Uplink::Session::QUEUE_SIZE * PKT_SIZE;
 
@@ -109,9 +106,8 @@ class Vfs_nic::File_system::Nic_vfs_handle : public Single_vfs_handle
 		               Label            const &label,
 		               Net::Mac_address const &,
 		               Directory_service      &ds,
-		               File_io_service        &fs,
 		               int                     flags)
-		: Single_vfs_handle  { ds, fs, alloc, flags },
+		: Single_vfs_handle  { ds, alloc, flags },
 		  _env(env),
 		  _vfs_user(vfs_user),
 		  _pkt_alloc(&alloc),
@@ -152,7 +148,7 @@ class Vfs_nic::File_system::Nic_vfs_handle : public Single_vfs_handle
 			return _link_state;
 		}
 
-		Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 		{
 			if (!read_ready()) {
 				_blocked = true;

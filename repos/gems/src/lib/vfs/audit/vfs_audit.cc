@@ -12,7 +12,7 @@
  */
 
 #include <vfs/file_system_factory.h>
-#include <vfs/types.h>
+#include <vfs/vfs_handle.h>
 #include <log_session/connection.h>
 
 namespace Vfs_audit {
@@ -66,8 +66,7 @@ class Vfs_audit::File_system : public Vfs::File_system
 
 		} _audit_log;
 
-		template <typename... ARGS>
-		void _log(ARGS &&... args) { _audit_log.log(args...); }
+		void _log(auto &&... args) { _audit_log.log(args...); }
 
 		Vfs::File_system &_root_dir;
 
@@ -88,20 +87,99 @@ class Vfs_audit::File_system : public Vfs::File_system
 			Handle(Handle const &);
 			Handle &operator = (Handle const &);
 
+			Log &_audit_log;
 			Absolute_path const path;
-			Vfs_handle *audit = nullptr;
+			Vfs_handle &audited;
 
-			void sync_state()
-			{
-				if (audit)
-					audit->seek(Vfs_handle::seek());
-			}
+			void _log(auto &&... args) { _audit_log.log(args...); }
+
+			void _sync_state() { audited.seek(Vfs_handle::seek()); }
 
 			Handle(Vfs_audit::File_system &fs, Allocator &alloc,
-			       int flags, char const *path)
+			       int flags, char const *path, Log &log, Vfs_handle &audited)
 			:
-				Vfs_handle(fs, fs, alloc, flags), path(path)
-			{ };
+				Vfs_handle(fs, alloc, flags), _audit_log(log), path(path), audited(audited)
+			{ }
+
+			Write_result write(Const_byte_range_ptr const &src, size_t &out) override
+			{
+				_sync_state();
+				Write_result const result = audited.write(src, out);
+
+				if (result == WRITE_OK)
+					_log("wrote to ", path, " ", out, " / ", src.num_bytes);
+				else if (result == WRITE_ERR_WOULD_BLOCK)
+					_log("write stalled for ", path);
+				else
+					_log("write failed for ", path);
+
+				return result;
+			}
+
+			bool queue_read(size_t len) override
+			{
+				_sync_state();
+				_log(__func__, " ", path, " ", len);
+				return audited.queue_read(len);
+			}
+
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out) override
+			{
+				_sync_state();
+				Read_result const result = audited.complete_read(dst, out);
+
+				if (result == READ_OK)
+					_log("completed read from ", path, " ", out);
+				else if (result == READ_QUEUED)
+					_log("read queued for ", path);
+				else
+					_log("read error for ", path);
+
+				return result;
+			}
+
+			bool read_ready() const override
+			{
+				const_cast<Handle *>(this)->_sync_state();
+				return audited.read_ready();
+			}
+
+			bool write_ready() const override
+			{
+				const_cast<Handle *>(this)->_sync_state();
+				return audited.write_ready();
+			}
+
+			bool notify_read_ready() override
+			{
+				_sync_state();
+				return audited.notify_read_ready();
+			}
+
+			Ftruncate_result ftruncate(file_size len) override
+			{
+				_sync_state();
+				_log(__func__, " ", path, " ", len);
+				return audited.ftruncate(len);
+			}
+
+			bool queue_sync() override
+			{
+				_sync_state();
+				_log("sync ", path);
+				return audited.queue_sync();
+			}
+
+			Sync_result complete_sync() override
+			{
+				_sync_state();
+				Sync_result const result = audited.complete_sync();
+
+				if (result == SYNC_OK)          _log("synced ", path);
+				if (result == SYNC_ERR_INVALID) _log("sync failed for ", path);
+
+				return result;
+			}
 		};
 
 	public:
@@ -136,18 +214,15 @@ class Vfs_audit::File_system : public Vfs::File_system
 		{
 			_log(__func__, " ", path, " ", Hex(mode, Hex::OMIT_PREFIX, Hex::PAD));
 
-			Handle *local_handle;
-			try { local_handle = new (alloc) Handle(*this, alloc, mode, path); }
+			Vfs_handle *audited = nullptr;
+			Open_result r = _root_dir.open(_expand(path).string(), mode, &audited, alloc);
+
+			if (!audited || r != OPEN_OK)
+				return r;
+
+			try { *out = new (alloc) Handle(*this, alloc, mode, path, _audit_log, *audited); }
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM;  }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-
-			Open_result r = _root_dir.open(
-				_expand(path).string(), mode, &local_handle->audit, alloc);
-
-			if (r == OPEN_OK)
-				*out = local_handle;
-			else
-				destroy(alloc, local_handle);
 			return r;
 		}
 
@@ -156,18 +231,15 @@ class Vfs_audit::File_system : public Vfs::File_system
 		{
 			_log(__func__, " ", path, create ? " create " : "");
 
-			Handle *local_handle;
-			try { local_handle = new (alloc) Handle(*this, alloc, 0, path); }
+			Vfs_handle *audited = nullptr;
+			Opendir_result r = _root_dir.opendir(_expand(path).string(), create, &audited, alloc);
+
+			if (!audited || r != OPENDIR_OK)
+				return r;
+
+			try { *out = new (alloc) Handle(*this, alloc, 0, path, _audit_log, *audited); }
 			catch (Out_of_ram)  { return OPENDIR_ERR_OUT_OF_RAM;  }
 			catch (Out_of_caps) { return OPENDIR_ERR_OUT_OF_CAPS; }
-
-			Opendir_result r = _root_dir.opendir(
-				_expand(path).string(), create, &local_handle->audit, alloc);
-
-			if (r == OPENDIR_OK)
-				*out = local_handle;
-			else
-				destroy(alloc, local_handle);
 			return r;
 		}
 
@@ -176,7 +248,7 @@ class Vfs_audit::File_system : public Vfs::File_system
 			Handle *h = static_cast<Handle*>(vfs_handle);
 			_log(__func__, " ", h->path);
 			if (h) {
-				h->audit->ds().close(h->audit);
+				h->audited.ds().close(&h->audited);
 				destroy(h->alloc(), h);
 			}
 		}
@@ -213,108 +285,6 @@ class Vfs_audit::File_system : public Vfs::File_system
 		{
 			_expanded_path = _expand(path);
 			return _root_dir.dir_entry_exists(_expanded_path.string());
-		}
-
-
-		/**********************
-		 ** File I/O service **
-		 **********************/
-
-		Write_result write(Vfs_handle *vfs_handle,
-		                   Const_byte_range_ptr const &src, size_t &out) override
-		{
-			Handle &h = *static_cast<Handle*>(vfs_handle);
-			h.sync_state();
-			Write_result const result = h.audit->fs().write(h.audit, src, out);
-
-			if (result == WRITE_OK)
-				_log("wrote to ", h.path, " ", out, " / ", src.num_bytes);
-			else if (result == WRITE_ERR_WOULD_BLOCK)
-				_log("write stalled for ", h.path);
-			else
-				_log("write failed for ", h.path);
-
-			return result;
-		}
-
-		bool queue_read(Vfs_handle *vfs_handle, size_t len) override
-		{
-			Handle &h = *static_cast<Handle*>(vfs_handle);
-			h.sync_state();
-			_log(__func__, " ", h.path, " ", len);
-			return h.audit->fs().queue_read(h.audit, len);
-		}
-
-		Read_result complete_read(Vfs_handle *vfs_handle,
-		                          Byte_range_ptr const &dst, size_t &out) override
-		{
-			Handle &h = *static_cast<Handle*>(vfs_handle);
-			h.sync_state();
-
-			Read_result const result = h.audit->fs().complete_read(h.audit, dst, out);
-
-			if (result == READ_OK)
-				_log("completed read from ", h.path, " ", out);
-			else if (result == READ_QUEUED)
-				_log("read queued for ", h.path);
-			else
-				_log("read error for ", h.path);
-
-			return result;
-		}
-
-		bool read_ready(Vfs_handle const &vfs_handle) const override
-		{
-			Handle const &h = static_cast<Handle const &>(vfs_handle);
-
-			const_cast<Handle &>(h).sync_state();
-
-			return h.audit->fs().read_ready(*h.audit);
-		}
-
-		bool write_ready(Vfs_handle const &vfs_handle) const override
-		{
-			Handle const &h = static_cast<Handle const &>(vfs_handle);
-
-			const_cast<Handle &>(h).sync_state();
-
-			return h.audit->fs().write_ready(*h.audit);
-		}
-
-		bool notify_read_ready(Vfs_handle *vfs_handle) override
-		{
-			Handle &h = *static_cast<Handle*>(vfs_handle);
-			h.sync_state();
-			return h.audit->fs().notify_read_ready(h.audit);
-		}
-
-		Ftruncate_result ftruncate(Vfs_handle *vfs_handle,
-		                           file_size len) override
-		{
-			Handle &h = *static_cast<Handle*>(vfs_handle);
-			h.sync_state();
-			_log(__func__, " ", h.path, " ", len);
-			return h.audit->fs().ftruncate(h.audit, len);
-		}
-
-		bool queue_sync(Vfs_handle *vfs_handle) override
-		{
-			Handle &h = *static_cast<Handle*>(vfs_handle);
-			h.sync_state();
-			_log("sync ", h.path);
-			return h.audit->fs().queue_sync(h.audit);
-		}
-
-		Sync_result complete_sync(Vfs_handle *vfs_handle) override
-		{
-			Handle &h = *static_cast<Handle*>(vfs_handle);
-			h.sync_state();
-
-			Sync_result const result = h.audit->fs().complete_sync(h.audit);
-			if (result == SYNC_OK)          _log("synced ", h.path);
-			if (result == SYNC_ERR_INVALID) _log("sync failed for ", h.path);
-
-			return result;
 		}
 };
 

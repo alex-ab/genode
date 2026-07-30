@@ -62,18 +62,99 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				Vfs_handle &vfs_handle;
 				Subdir_handle_element(Subdir_handle_registry &registry,
 				                      Vfs_handle &vfs_handle)
-				: Subdir_handle_registry::Element(registry, *this),
-				  vfs_handle(vfs_handle) { }
+				:
+					Subdir_handle_registry::Element(registry, *this),
+					vfs_handle(vfs_handle)
+				{ }
 			};
 
+			Dir_file_system          &_fs;
 			Absolute_path             path;
 			Vfs_handle               *queued_read_handle { nullptr };
 			Subdir_handle_registry    subdir_handle_registry { };
 
-			Dir_vfs_handle(Directory_service &ds, File_io_service   &fs,
-			               Allocator &alloc, char const *path)
+			bool _queue_read_of_file_systems()
+			{
+				bool result = true;
+
+				queued_read_handle = nullptr;
+
+				file_offset index = seek() / sizeof(Dirent);
+
+				char const *sub_path = _fs._sub_path(path.base());
+
+				if (strlen(sub_path) == 0)
+					sub_path = "/";
+
+				/* base of composite directory index */
+				int base = 0;
+
+				auto f = [&] (Subdir_handle_element const &handle_element) {
+
+					if (queued_read_handle) return; /* skip through */
+
+					Vfs_handle &vfs_handle = handle_element.vfs_handle;
+
+					/*
+					 * Determine number of matching directory entries within
+					 * the current file system.
+					 */
+					int const fs_num_dirent = (int)vfs_handle.ds().num_dirent(sub_path);
+
+					/*
+					 * Query directory entry if index lies with the file
+					 * system.
+					 */
+					if (index - base < fs_num_dirent) {
+						/* set this handle to be used for read completion */
+						queued_read_handle = &vfs_handle;
+
+						/* seek to file-system local index */
+						index = index - base;
+						vfs_handle.seek(index * sizeof(Dirent));
+
+						/* forward the response handler */
+						apply_handler([&] (Read_ready_response_handler &h) {
+							vfs_handle.handler(&h); });
+
+						result = vfs_handle.queue_read(sizeof(Dirent));
+					}
+
+					/* adjust base index for next file system */
+					base += fs_num_dirent;
+				};
+
+				subdir_handle_registry.for_each(f);
+
+				return result;
+			}
+
+			Read_result _complete_read_of_file_systems(Byte_range_ptr const &dst,
+			                                           size_t &out_count)
+			{
+				if (!queued_read_handle) {
+					/*
+					 * no fs was found for the given index or
+					 * fs->opendir() failed
+					 */
+					if (dst.num_bytes < sizeof(Dirent))
+						return READ_ERR_INVALID;
+
+					out_count = 0; /* eof */
+					return READ_OK;
+				}
+
+				Read_result result = queued_read_handle->complete_read(dst, out_count);
+
+				if (result != READ_QUEUED)
+					queued_read_handle = nullptr;
+
+				return result;
+			}
+
+			Dir_vfs_handle(Dir_file_system &fs, Allocator &alloc, char const *path)
 			:
-				Vfs_handle(ds, fs, alloc, 0), path(path)
+				Vfs_handle(fs, alloc, 0), _fs(fs), path(path)
 			{ }
 
 			~Dir_vfs_handle()
@@ -84,6 +165,101 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 					destroy(alloc(), &e);
 				};
 				subdir_handle_registry.for_each(f);
+			}
+
+			bool queue_read(size_t) override
+			{
+				if (_fs._vfs_root)
+					return _queue_read_of_file_systems();
+
+				if (_fs._top_dir(path.base()))
+					return true;
+
+				return _queue_read_of_file_systems();
+			}
+
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			{
+				out_count = 0;
+
+				if (dst.num_bytes < sizeof(Dirent))
+					return READ_ERR_INVALID;
+
+				if (_fs._vfs_root)
+					return _complete_read_of_file_systems(dst, out_count);
+
+				if (_fs._top_dir(path.base())) {
+
+					Dirent &dirent = *(Dirent*)dst.start;
+
+					file_offset const index = seek() / sizeof(Dirent);
+
+					if (index == 0) {
+
+						dirent = {
+							.type = Dirent_type::DIRECTORY,
+							.rwx  = Node_rwx::rwx(),
+							.name = { _fs._name.string() }
+						};
+
+					} else {
+
+						dirent = {
+							.type = Dirent_type::END,
+							.rwx  = { },
+							.name = { }
+						};
+					}
+
+					out_count = sizeof(Dirent);
+
+					return READ_OK;
+				}
+
+				return _complete_read_of_file_systems(dst, out_count);
+			}
+
+			bool read_ready()  const override { return true; }
+			bool write_ready() const override { return false; }
+
+			bool queue_sync() override
+			{
+				bool result = true;
+
+				auto fn = [&] (Subdir_handle_element &e) {
+					/* forward the response handler */
+					apply_handler([&] (Read_ready_response_handler &h) {
+						e.vfs_handle.handler(&h); });
+					e.synced = false;
+
+					if (!e.vfs_handle.queue_sync()) {
+						result = false;
+					}
+				};
+
+				subdir_handle_registry.for_each(fn);
+
+				return result;
+			}
+
+			Sync_result complete_sync() override
+			{
+				Sync_result result = SYNC_OK;
+
+				auto fn = [&] (Subdir_handle_element &e) {
+					if (e.synced)
+						return;
+
+					Sync_result r = e.vfs_handle.complete_sync();
+					if (r != SYNC_OK)
+						result = r;
+					else
+						e.synced = true;
+				};
+
+				subdir_handle_registry.for_each(fn);
+
+				return result;
 			}
 
 			private:
@@ -228,95 +404,9 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 		file_size _sum_dirents_of_file_systems(char const *path)
 		{
 			file_size cnt = 0;
-			for (File_system *fs = _first_file_system; fs; fs = fs->next) {
+			for (File_system *fs = _first_file_system; fs; fs = fs->next)
 				cnt += fs->num_dirent(path);
-			}
 			return cnt;
-		}
-
-		bool _queue_read_of_file_systems(Dir_vfs_handle *dir_vfs_handle)
-		{
-			bool result = true;
-
-			dir_vfs_handle->queued_read_handle = nullptr;
-
-			file_offset index = dir_vfs_handle->seek() / sizeof(Dirent);
-
-			char const *sub_path = _sub_path(dir_vfs_handle->path.base());
-
-			if (strlen(sub_path) == 0)
-				sub_path = "/";
-
-			/* base of composite directory index */
-			int base = 0;
-
-			auto f = [&] (Dir_vfs_handle::Subdir_handle_element &handle_element) {
-				if (dir_vfs_handle->queued_read_handle) return; /* skip through */
-
-				Vfs_handle &vfs_handle = handle_element.vfs_handle;
-
-				/*
-				 * Determine number of matching directory entries within
-				 * the current file system.
-				 */
-				int const fs_num_dirent = (int)vfs_handle.ds().num_dirent(sub_path);
-
-				/*
-				 * Query directory entry if index lies with the file
-				 * system.
-				 */
-				if (index - base < fs_num_dirent) {
-					/* set this handle to be used for read completion */
-					dir_vfs_handle->queued_read_handle = &vfs_handle;
-
-					/* seek to file-system local index */
-					index = index - base;
-					vfs_handle.seek(index * sizeof(Dirent));
-
-					/* forward the response handler */
-					dir_vfs_handle->apply_handler([&] (Read_ready_response_handler &h) {
-						vfs_handle.handler(&h); });
-
-					result = vfs_handle.fs().queue_read(&vfs_handle, sizeof(Dirent));
-				}
-
-				/* adjust base index for next file system */
-				base += fs_num_dirent;
-			};
-
-			dir_vfs_handle->subdir_handle_registry.for_each(f);
-
-			return result;
-		}
-
-		Read_result _complete_read_of_file_systems(Dir_vfs_handle *dir_vfs_handle,
-		                                           Byte_range_ptr const &dst,
-		                                           size_t &out_count)
-		{
-			if (!dir_vfs_handle->queued_read_handle) {
-
-				/*
-				 * no fs was found for the given index or
-				 * fs->opendir() failed
-				 */
-
-				if (dst.num_bytes < sizeof(Dirent))
-					return READ_ERR_INVALID;
-
-				out_count = 0; /* eof */
-
-				return READ_OK;
-			}
-
-			Read_result result = dir_vfs_handle->queued_read_handle->fs()
-				.complete_read(dir_vfs_handle->queued_read_handle, dst, out_count);
-
-			if (result == READ_QUEUED)
-				return result;
-
-			dir_vfs_handle->queued_read_handle = nullptr;
-
-			return result;
 		}
 
 	protected:
@@ -497,7 +587,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 			 */
 			if (directory(path)) {
 				try {
-					*out_handle = new (alloc) Dir_vfs_handle(*this, *this, alloc, path);
+					*out_handle = new (alloc) Dir_vfs_handle(*this, alloc, path);
 					return OPEN_OK;
 				}
 				catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
@@ -519,7 +609,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 			/* path equals directory name */
 			if (strlen(path) == 0) {
 				try {
-					*out_handle = new (alloc) Vfs_handle(*this, *this, alloc, 0);
+					*out_handle = new (alloc) Dir_vfs_handle(*this, alloc, nullptr);
 					return OPEN_OK;
 				}
 				catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
@@ -626,8 +716,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				 */
 				Dir_vfs_handle *root_handle;
 				try {
-					root_handle = new (alloc)
-						Dir_vfs_handle(*this, *this, alloc, path);
+					root_handle = new (alloc) Dir_vfs_handle(*this, alloc, path);
 				}
 				catch (Out_of_ram)  { return OPENDIR_ERR_OUT_OF_RAM; }
 				catch (Out_of_caps) { return OPENDIR_ERR_OUT_OF_CAPS; }
@@ -677,8 +766,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 
 			Dir_vfs_handle *dir_vfs_handle;
 			try {
-				dir_vfs_handle = new (alloc)
-					Dir_vfs_handle(*this, *this, alloc, path);
+				dir_vfs_handle = new (alloc) Dir_vfs_handle(*this, alloc, path);
 			}
 			catch (Out_of_ram)  { return OPENDIR_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPENDIR_ERR_OUT_OF_CAPS; }
@@ -844,151 +932,6 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				 	curr = curr->next;
 				});
 			}
-		}
-
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Write_result write(Vfs_handle *, Const_byte_range_ptr const &, size_t &) override
-		{
-			return WRITE_ERR_INVALID;
-		}
-
-		bool queue_read(Vfs_handle *vfs_handle, size_t) override
-		{
-			Dir_vfs_handle *dir_vfs_handle =
-				static_cast<Dir_vfs_handle*>(vfs_handle);
-
-			if (_vfs_root)
-				return _queue_read_of_file_systems(dir_vfs_handle);
-
-			if (_top_dir(dir_vfs_handle->path.base()))
-				return true;
-
-			return _queue_read_of_file_systems(dir_vfs_handle);
-		}
-
-		Read_result complete_read(Vfs_handle *vfs_handle,
-		                          Byte_range_ptr const &dst,
-		                          size_t &out_count) override
-		{
-			out_count = 0;
-
-			if (dst.num_bytes < sizeof(Dirent))
-				return READ_ERR_INVALID;
-
-			Dir_vfs_handle *dir_vfs_handle =
-				static_cast<Dir_vfs_handle*>(vfs_handle);
-
-			if (_vfs_root)
-				return _complete_read_of_file_systems(dir_vfs_handle, dst, out_count);
-
-			if (_top_dir(dir_vfs_handle->path.base())) {
-
-				Dirent &dirent = *(Dirent*)dst.start;
-
-				file_offset const index = vfs_handle->seek() / sizeof(Dirent);
-
-				if (index == 0) {
-
-					dirent = {
-						.type = Dirent_type::DIRECTORY,
-						.rwx  = Node_rwx::rwx(),
-						.name = { _name.string() }
-					};
-
-				} else {
-
-					dirent = {
-						.type = Dirent_type::END,
-						.rwx  = { },
-						.name = { }
-					};
-				}
-
-				out_count = sizeof(Dirent);
-
-				return READ_OK;
-			}
-
-			return _complete_read_of_file_systems(dir_vfs_handle, dst, out_count);
-		}
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_ERR_NO_PERM;
-		}
-
-		bool read_ready(Vfs_handle const &handle) const override
-		{
-			if (&handle.fs() == this)
-				return true;
-
-			return handle.fs().read_ready(handle);
-		}
-
-		bool write_ready(Vfs_handle const &handle) const override
-		{
-			if (&handle.fs() == this)
-				return false;
-
-			return handle.fs().write_ready(handle);
-		}
-
-		bool notify_read_ready(Vfs_handle *handle) override
-		{
-			if (&handle->fs() == this)
-				return true;
-
-			return handle->fs().notify_read_ready(handle);
-		}
-
-		bool queue_sync(Vfs_handle *vfs_handle) override
-		{
-			bool result = true;
-
-			Dir_vfs_handle *dir_vfs_handle =
-				static_cast<Dir_vfs_handle*>(vfs_handle);
-
-			auto f = [&result, dir_vfs_handle] (Dir_vfs_handle::Subdir_handle_element &e) {
-				/* forward the response handler */
-				dir_vfs_handle->apply_handler([&] (Read_ready_response_handler &h) {
-					e.vfs_handle.handler(&h); });
-				e.synced = false;
-
-				if (!e.vfs_handle.fs().queue_sync(&e.vfs_handle)) {
-					result = false;
-				}
-			};
-
-			dir_vfs_handle->subdir_handle_registry.for_each(f);
-
-			return result;
-		}
-
-		Sync_result complete_sync(Vfs_handle *vfs_handle) override
-		{
-			Sync_result result = SYNC_OK;
-
-			Dir_vfs_handle *dir_vfs_handle =
-				static_cast<Dir_vfs_handle*>(vfs_handle);
-
-			auto f = [&result] (Dir_vfs_handle::Subdir_handle_element &e) {
-				if (e.synced)
-					return;
-
-				Sync_result r = e.vfs_handle.fs().complete_sync(&e.vfs_handle);
-				if (r != SYNC_OK)
-					result = r;
-				else
-					e.synced = true;
-			};
-
-			dir_vfs_handle->subdir_handle_registry.for_each(f);
-
-			return result;
 		}
 };
 

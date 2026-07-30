@@ -57,18 +57,17 @@ class Vfs_capture::Data_file_system : public Single_file_system
 			Capture_vfs_handle(Constructible<Capture::Connection> &capture,
 			                   Constructible<Attached_dataspace>  &capture_ds,
 			                   Directory_service  &ds,
-			                   File_io_service    &fs,
 			                   Genode::Allocator  &alloc,
 			                   int                 flags)
 			:
-				Single_vfs_handle(ds, fs, alloc, flags),
+				Single_vfs_handle(ds, alloc, flags),
 				_capture(capture), _capture_ds(capture_ds)
 			{ }
 
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return true; }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				_capture->capture_at(Point(0, 0));
 
@@ -85,6 +84,14 @@ class Vfs_capture::Data_file_system : public Single_file_system
 			{
 				return WRITE_ERR_IO;
 			}
+
+			bool notify_read_ready() override
+			{
+				notifying = true;
+				return true;
+			}
+
+			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
 		};
 
 		using Registered_handle = Genode::Registered<Capture_vfs_handle>;
@@ -131,7 +138,7 @@ class Vfs_capture::Data_file_system : public Single_file_system
 				*out_handle = new (alloc)
 					Registered_handle(_handle_registry,
 					                  _capture, _capture_ds,
-					                  *this, *this, alloc, flags);
+					                  *this, alloc, flags);
 				return OPEN_OK;
 			}
 			catch (Genode::Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
@@ -149,27 +156,6 @@ class Vfs_capture::Data_file_system : public Single_file_system
 			}
 
 			Single_file_system::close(handle);
-		}
-
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		bool notify_read_ready(Vfs_handle *vfs_handle) override
-		{
-			Capture_vfs_handle *handle =
-				static_cast<Capture_vfs_handle*>(vfs_handle);
-			if (!handle)
-				return false;
-
-			handle->notifying = true;
-			return true;
-		}
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_OK;
 		}
 };
 

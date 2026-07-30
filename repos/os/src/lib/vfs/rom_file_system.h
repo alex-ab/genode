@@ -74,16 +74,15 @@ class Vfs_rom::File_system : public Single_file_system
 			public:
 
 				Rom_vfs_handle(Directory_service      &ds,
-				               File_io_service        &fs,
 				               Allocator              &alloc,
 				               Attached_rom_dataspace &rom,
 				               size_t           const &content_size)
 				:
-					Single_vfs_handle(ds, fs, alloc, 0),
+					Single_vfs_handle(ds, alloc, 0),
 					_rom(rom), _content_size(content_size)
 				{ }
 
-				Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 				{
 					/* file read limit is the size of the dataspace */
 					size_t const max_size = _content_size;
@@ -160,7 +159,7 @@ class Vfs_rom::File_system : public Single_file_system
 
 			try {
 				*out_handle = new (alloc)
-					Rom_vfs_handle(*this, *this, alloc, _rom, _content_size);
+					Rom_vfs_handle(*this, alloc, _rom, _content_size);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
@@ -174,10 +173,6 @@ class Vfs_rom::File_system : public Single_file_system
 
 			return _rom.cap();
 		}
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
 
 		Stat_result stat(char const *path, Stat &out) override
 		{

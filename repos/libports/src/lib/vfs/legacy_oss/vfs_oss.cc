@@ -190,7 +190,7 @@ struct Vfs_oss::Audio
 			}
 		};
 
-		using Write_result = Vfs::File_io_service::Write_result;
+		using Write_result = Vfs::Write_result;
 
 	private:
 
@@ -642,17 +642,16 @@ class Vfs_oss::Data_file_system : public Single_file_system
 
 			bool blocked = false;
 
-			Oss_vfs_handle(Directory_service      &ds,
-			                    File_io_service   &fs,
-			                    Genode::Allocator &alloc,
-			                    int                flags,
-			                    Audio             &audio)
+			Oss_vfs_handle(Directory_service &ds,
+			               Genode::Allocator &alloc,
+			               int                flags,
+			               Audio             &audio)
 			:
-				Single_vfs_handle { ds, fs, alloc, flags },
+				Single_vfs_handle { ds, alloc, flags },
 				_audio { audio }
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				if (!dst.start)
 					return READ_ERR_INVALID;
@@ -683,6 +682,11 @@ class Vfs_oss::Data_file_system : public Single_file_system
 					return WRITE_OK;
 				}
 				return result;
+			}
+
+			Ftruncate_result ftruncate(file_size) override
+			{
+				return FTRUNCATE_OK;
 			}
 
 			bool read_ready() const override
@@ -741,10 +745,6 @@ class Vfs_oss::Data_file_system : public Single_file_system
 		static const char *name()   { return "data"; }
 		char const *type() override { return "data"; }
 
-		/*********************************
-		 ** Directory service interface **
-		 *********************************/
-
 		Open_result open(char const  *path, unsigned flags,
 		                 Vfs_handle **out_handle,
 		                 Allocator   &alloc) override
@@ -755,21 +755,11 @@ class Vfs_oss::Data_file_system : public Single_file_system
 
 			try {
 				*out_handle = new (alloc)
-					Registered_handle(_handle_registry, *this, *this, alloc, flags,
-					                  _audio);
+					Registered_handle(_handle_registry, *this, alloc, flags, _audio);
 				return OPEN_OK;
 			}
 			catch (Genode::Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Genode::Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-		}
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_OK;
 		}
 };
 

@@ -164,16 +164,28 @@ class Vfs_tar::File_system : public Vfs::File_system
 
 		protected:
 
+			File_system &_fs;
+
 			Node const *_node;
 
 		public:
 
 			Tar_vfs_handle(File_system &fs, Allocator &alloc, int status_flags,
 			               Node const *node)
-			: Vfs_handle(fs, fs, alloc, status_flags), _node(node)
+			: Vfs_handle(fs, alloc, status_flags), _fs(fs), _node(node)
 			{ }
 
 			virtual Read_result read(Byte_range_ptr const &dst, size_t &out_count) = 0;
+
+			Read_result complete_read(Byte_range_ptr const &dst,
+			                          size_t &out_count) override
+			{
+				out_count = 0;
+				return read(dst, out_count);
+			}
+
+		bool read_ready () const override { return true; }
+		bool write_ready() const override { return false; }
 	};
 
 
@@ -225,8 +237,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 			Record const *record_ptr = node.record;
 
 			while (record_ptr && (record_ptr->type() == Record::TYPE_HARDLINK)) {
-				File_system &tar_fs = static_cast<File_system&>(fs());
-				Node const *target = tar_fs.dereference(record_ptr->linked_name());
+				Node const *target = _fs.dereference(record_ptr->linked_name());
 				record_ptr = target ? target->record : 0;
 			}
 
@@ -755,34 +766,6 @@ class Vfs_tar::File_system : public Vfs::File_system
 
 		static char const *name()   { return "tar"; }
 		char const *type() override { return "tar"; }
-
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Write_result write(Vfs_handle *, Const_byte_range_ptr const &, size_t &) override
-		{
-			return WRITE_ERR_INVALID;
-		}
-
-		Read_result complete_read(Vfs_handle *vfs_handle, Byte_range_ptr const &dst,
-		                          size_t &out_count) override
-		{
-			out_count = 0;
-
-			Tar_vfs_handle &handle = *static_cast<Tar_vfs_handle *>(vfs_handle);
-
-			return handle.read(dst, out_count);
-		}
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_ERR_NO_PERM;
-		}
-
-		bool read_ready (Vfs_handle const &) const override { return true; }
-		bool write_ready(Vfs_handle const &) const override { return false; }
 };
 
 #endif /* _INCLUDE__VFS__TAR_FILE_SYSTEM_H_ */

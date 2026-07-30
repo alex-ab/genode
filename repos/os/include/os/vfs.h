@@ -156,10 +156,10 @@ struct Genode::Directory : Noncopyable, Interface
 
 			_handle->seek(i * sizeof(entry._dirent));
 
-			while (!_handle->fs().queue_read(_handle, sizeof(entry._dirent)))
+			while (!_handle->queue_read(sizeof(entry._dirent)))
 				_io.commit_and_wait();
 
-			Vfs::File_io_service::Read_result read_result;
+			Vfs::Read_result read_result;
 
 			size_t out_count = 0;
 
@@ -168,16 +168,15 @@ struct Genode::Directory : Noncopyable, Interface
 				Byte_range_ptr const dst { (char*)&entry._dirent,
 				                            sizeof(entry._dirent) };
 
-				read_result = _handle->fs().complete_read(_handle, dst,
-				                                          out_count);
+				read_result = _handle->complete_read(dst, out_count);
 
-				if (read_result != Vfs::File_io_service::READ_QUEUED)
+				if (read_result != Vfs::READ_QUEUED)
 					break;
 
 				_io.commit_and_wait();
 			}
 
-			bool const ok = (read_result == Vfs::File_io_service::READ_OK)
+			bool const ok = (read_result == Vfs::READ_OK)
 			             && (out_count == sizeof(entry._dirent))
 			             && (entry._dirent.type != Vfs::Directory_service::Dirent_type::END);
 			if (ok)
@@ -331,23 +330,23 @@ struct Genode::Directory : Noncopyable, Interface
 			size_t count = sizeof(buf)-1;
 			size_t out_count = 0;
 
-			while (!link_handle->fs().queue_read(link_handle, count)) {
+			while (!link_handle->queue_read(count)) {
 				_io.commit_and_wait();
 			}
 
-			File_io_service::Read_result result;
+			Read_result result;
 
 			for (;;) {
-				result = link_handle->fs().complete_read(
-					link_handle, Byte_range_ptr(buf, count), out_count);
+				result = link_handle->complete_read(Byte_range_ptr(buf, count),
+				                                    out_count);
 
-				if (result != File_io_service::READ_QUEUED)
+				if (result != READ_QUEUED)
 					break;
 
 				_io.commit_and_wait();
 			};
 
-			if (result != File_io_service::READ_OK)
+			if (result != READ_OK)
 				throw Nonexistent_file();
 
 			return Path(Genode::Cstring(buf, (size_t)out_count));
@@ -383,7 +382,7 @@ struct Genode::Directory : Noncopyable, Interface
 			Const_byte_range_ptr const src { target.string(), target.length() };
 
 			size_t out_count = 0;
-			link_handle->fs().write(link_handle, src, out_count);
+			link_handle->write(src, out_count);
 
 			if (out_count < src.num_bytes) {
 				unlink(rel_path);
@@ -392,21 +391,21 @@ struct Genode::Directory : Noncopyable, Interface
 
 			/* sync before the handle gets closed */
 
-			while (!link_handle->fs().queue_sync(link_handle))
+			while (!link_handle->queue_sync())
 				_io.commit_and_wait();
 
-			File_io_service::Sync_result result;
+			Sync_result result;
 
 			for (;;) {
-				result = link_handle->fs().complete_sync(link_handle);
+				result = link_handle->complete_sync();
 
-				if (result != File_io_service::SYNC_QUEUED)
+				if (result != SYNC_QUEUED)
 					break;
 
 				_io.commit_and_wait();
 			};
 
-			if (result != File_io_service::SYNC_OK) {
+			if (result != SYNC_OK) {
 				unlink(rel_path);
 				return;
 			}
@@ -558,10 +557,10 @@ class Genode::Readonly_file : public File
 
 				_handle->seek(at.value + total);
 
-				while (!_handle->fs().queue_read(_handle, range.num_bytes))
+				while (!_handle->queue_read(range.num_bytes))
 					_io.commit_and_wait();
 
-				Vfs::File_io_service::Read_result result;
+				Vfs::Read_result result;
 
 				size_t read_bytes = 0; /* byte count for this iteration */
 
@@ -570,10 +569,9 @@ class Genode::Readonly_file : public File
 					Byte_range_ptr const partial_range { range.start     + total,
 					                                     range.num_bytes - total };
 
-					result = _handle->fs().complete_read(_handle, partial_range,
-					                                     read_bytes);
+					result = _handle->complete_read(partial_range, read_bytes);
 
-					if (result != Vfs::File_io_service::READ_QUEUED)
+					if (result != Vfs::READ_QUEUED)
 						break;
 
 					_io.commit_and_wait();
@@ -846,22 +844,22 @@ class Genode::Writeable_file : Noncopyable
 
 		static void _sync(Vfs::Vfs_handle &handle, Vfs::Env::Io &io)
 		{
-			while (handle.fs().queue_sync(&handle) == false)
+			while (handle.queue_sync() == false)
 				io.commit_and_wait();
 
 			for (bool sync_done = false; !sync_done; ) {
 
-				switch (handle.fs().complete_sync(&handle)) {
+				switch (handle.complete_sync()) {
 
-				case Vfs::File_io_service::SYNC_QUEUED:
+				case Vfs::SYNC_QUEUED:
 					break;
 
-				case Vfs::File_io_service::SYNC_ERR_INVALID:
+				case Vfs::SYNC_ERR_INVALID:
 					warning("could not complete file sync operation");
 					sync_done = true;
 					break;
 
-				case Vfs::File_io_service::SYNC_OK:
+				case Vfs::SYNC_OK:
 					sync_done = true;
 					break;
 				}
@@ -886,22 +884,20 @@ class Genode::Writeable_file : Noncopyable
 
 				size_t out_count = 0;
 
-				using Write_result = Vfs::File_io_service::Write_result;
-
 				Const_byte_range_ptr const partial_src { src_ptr, remaining_bytes };
 
-				switch (handle.fs().write(&handle, partial_src, out_count)) {
+				switch (handle.write(partial_src, out_count)) {
 
-				case Write_result::WRITE_ERR_WOULD_BLOCK:
+				case Vfs::Write_result::WRITE_ERR_WOULD_BLOCK:
 					stalled = true;
 					break;
 
-				case Write_result::WRITE_ERR_INVALID:
-				case Write_result::WRITE_ERR_IO:
+				case Vfs::Write_result::WRITE_ERR_INVALID:
+				case Vfs::Write_result::WRITE_ERR_IO:
 					write_error = true;
 					break;
 
-				case Write_result::WRITE_OK:
+				case Vfs::Write_result::WRITE_OK:
 					out_count = min(remaining_bytes, out_count);
 					remaining_bytes -= (size_t)out_count;
 					src_ptr         += out_count;
@@ -984,7 +980,7 @@ class Genode::New_file : public Writeable_file
 			_io(dir._io),
 			_handle(_init_handle(dir, path))
 		{
-			_handle.fs().ftruncate(&_handle, 0);
+			_handle.ftruncate(0);
 		}
 
 		~New_file()

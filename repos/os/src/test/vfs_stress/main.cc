@@ -89,9 +89,9 @@ inline void assert_opendir(Vfs::Directory_service::Opendir_result r)
 	throw Exception();
 }
 
-inline void assert_write(Vfs::File_io_service::Write_result r)
+inline void assert_write(Vfs::Write_result r)
 {
-	using Result = Vfs::File_io_service::Write_result;
+	using Result = Vfs::Write_result;
 	switch (r) {
 	case Result::WRITE_OK: return;
 	case Result::WRITE_ERR_WOULD_BLOCK:
@@ -104,9 +104,9 @@ inline void assert_write(Vfs::File_io_service::Write_result r)
 	throw Exception();
 }
 
-inline void assert_read(Vfs::File_io_service::Read_result r)
+inline void assert_read(Vfs::Read_result r)
 {
-	using Result = Vfs::File_io_service::Read_result;
+	using Result = Vfs::Read_result;
 	switch (r) {
 	case Result::READ_OK: return;
 	case Result::READ_QUEUED:
@@ -290,11 +290,9 @@ struct Write_test : public Stress_test
 			Vfs_handle::Guard guard(handle);
 
 			size_t n;
-			assert_write(handle->fs().write(
-				handle, Const_byte_range_ptr(path.base(), path_len), n));
-			handle->fs().queue_sync(handle);
-			while (handle->fs().complete_sync(handle) ==
-			       Vfs::File_io_service::SYNC_QUEUED)
+			assert_write(handle->write(Const_byte_range_ptr(path.base(), path_len), n));
+			handle->queue_sync();
+			while (handle->complete_sync() == Vfs::SYNC_QUEUED)
 				_io.commit_and_wait();
 			count += n;
 		}
@@ -366,15 +364,15 @@ struct Read_test : public Stress_test
 
 			char tmp[MAX_PATH_LEN];
 			size_t n;
-			handle->fs().queue_read(handle, sizeof(tmp));
+			handle->queue_read(sizeof(tmp));
 
-			Vfs::File_io_service::Read_result read_result;
+			Vfs::Read_result read_result;
 
 			Byte_range_ptr const dst { tmp, sizeof(tmp) };
 
 			while ((read_result =
-			        handle->fs().complete_read(handle, dst, n)) ==
-			       Vfs::File_io_service::READ_QUEUED)
+			        handle->complete_read(dst, n)) ==
+			       Vfs::READ_QUEUED)
 				_io.commit_and_wait();
 
 			assert_read(read_result);
@@ -444,13 +442,12 @@ struct Unlink_test : public Stress_test
 		Vfs::Directory_service::Dirent dirent { };
 		for (Vfs::file_size i = vfs.num_dirent(path); i;) {
 			dir_handle->seek(--i * sizeof(dirent));
-			dir_handle->fs().queue_read(dir_handle, sizeof(dirent));
+			dir_handle->queue_read(sizeof(dirent));
 
 			Byte_range_ptr const dst { (char*)&dirent, sizeof(dirent) };
 			size_t out_count;
 
-			while (dir_handle->fs().complete_read(dir_handle, dst, out_count) ==
-			       Vfs::File_io_service::READ_QUEUED)
+			while (dir_handle->complete_read(dst, out_count) == Vfs::READ_QUEUED)
 				_io.commit_and_wait();
 
 			subpath.append(dirent.name.buf);
@@ -537,11 +534,10 @@ void Component::construct(Genode::Env &env)
 
 	auto vfs_root_sync = [&] ()
 	{
-		while (!vfs_root_handle->fs().queue_sync(vfs_root_handle))
+		while (!vfs_root_handle->queue_sync())
 			vfs_env.io().commit_and_wait();
 
-		while (vfs_root_handle->fs().complete_sync(vfs_root_handle) ==
-		       Vfs::File_io_service::SYNC_QUEUED)
+		while (vfs_root_handle->complete_sync() == Vfs::SYNC_QUEUED)
 			vfs_env.io().commit_and_wait();
 	};
 

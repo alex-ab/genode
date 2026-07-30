@@ -174,7 +174,7 @@ class Vfs_tap::Data_file_system : public FS
 			try {
 				*out_handle = new (alloc)
 					Registered_handle(_handle_registry, _env, _vfs_user, alloc,
-					                  _label.string(), _default_mac, *this, *this, flags);
+					                  _label.string(), _default_mac, *this, flags);
 				_device_update_handler.device_state_changed();
 				return Open_result::OPEN_OK;
 			}

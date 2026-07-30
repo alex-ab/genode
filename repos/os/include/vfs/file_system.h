@@ -15,13 +15,12 @@
 #define _INCLUDE__VFS__FILE_SYSTEM_H_
 
 #include <vfs/directory_service.h>
-#include <vfs/file_io_service.h>
 #include <vfs/types.h>
 
 namespace Genode::Vfs { class File_system; }
 
 
-class Genode::Vfs::File_system : public Directory_service, public File_io_service
+class Genode::Vfs::File_system : public Directory_service
 {
 	private:
 

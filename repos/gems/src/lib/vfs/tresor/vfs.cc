@@ -892,13 +892,12 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 
 			public:
 
-				Vfs_handle(Directory_service &dir_service, File_io_service &file_io_service,
-				           Allocator &alloc, Plugin &plugin)
+				Vfs_handle(Directory_service &ds, Allocator &alloc, Plugin &plugin)
 				:
-					Single_vfs_handle(dir_service, file_io_service, alloc, 0), _plugin(plugin)
+					Single_vfs_handle(ds, alloc, 0), _plugin(plugin)
 				{ }
 
-				Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 				{
 					out_count = 0;
 					Read_result result = READ_QUEUED;
@@ -938,7 +937,7 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 					return result;
 				}
 
-				Sync_result sync() override
+				Sync_result complete_sync() override
 				{
 					Sync_result result = SYNC_QUEUED;
 					_plugin.with_data_operation([&] (Data_operation &data_operation) {
@@ -955,6 +954,8 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 					});
 					return result;
 				}
+
+				Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
 
 				bool read_ready()  const override { return true; }
 				bool write_ready() const override { return true; }
@@ -985,14 +986,12 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 			return result;
 		}
 
-		Ftruncate_result ftruncate(Vfs::Vfs_handle *, file_size) override { return FTRUNCATE_OK; }
-
 		Open_result open(char const *path, unsigned, Vfs::Vfs_handle **out_handle, Allocator &alloc) override
 		{
 			if (!_single_file(path))
 				return OPEN_ERR_UNACCESSIBLE;
 
-			*out_handle = new (alloc) Vfs_handle(*this, *this, alloc, _plugin);
+			*out_handle = new (alloc) Vfs_handle(*this, alloc, _plugin);
 			return OPEN_OK;
 		}
 
@@ -1021,17 +1020,12 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 
 			public:
 
-				Vfs_handle(Directory_service &dir_service, File_io_service &file_io_service,
-				           Allocator &alloc, Plugin &plugin)
+				Vfs_handle(Directory_service &ds, Allocator &alloc, Plugin &plugin)
 				:
-					Single_vfs_handle(dir_service, file_io_service, alloc, 0), _plugin(plugin)
+					Single_vfs_handle(ds, alloc, 0), _plugin(plugin)
 				{ }
 
-				/***********************
-				 ** Single_vfs_handle **
-				 ***********************/
-
-				Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 				{
 					out_count = 0;
 					if (seek() == dst.num_bytes) {
@@ -1100,6 +1094,8 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 					return result;
 				}
 
+				Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+
 				bool read_ready()  const override { return true; }
 				bool write_ready() const override { return true; }
 		};
@@ -1129,7 +1125,7 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 				return OPEN_ERR_UNACCESSIBLE;
 
 			try {
-				*out_handle = new (alloc) Vfs_handle(*this, *this, alloc, _plugin);
+				*out_handle = new (alloc) Vfs_handle(*this, alloc, _plugin);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram) { return OPEN_ERR_OUT_OF_RAM; }
@@ -1142,8 +1138,6 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 			out.size = Content_string::capacity();
 			return result;
 		}
-
-		Ftruncate_result ftruncate(Vfs::Vfs_handle *, file_size) override { return FTRUNCATE_OK; }
 };
 
 
@@ -1170,17 +1164,12 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 
 			public:
 
-				Vfs_handle(Directory_service &dir_service, File_io_service &file_io_service,
-				           Allocator &alloc, Plugin &plugin)
+				Vfs_handle(Directory_service &ds, Allocator &alloc, Plugin &plugin)
 				:
-					Single_vfs_handle(dir_service, file_io_service, alloc, 0), _plugin(plugin)
+					Single_vfs_handle(ds, alloc, 0), _plugin(plugin)
 				{ }
 
-				/***********************
-				 ** Single_vfs_handle **
-				 ***********************/
-
-				Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 				{
 					out_count = 0;
 					if (seek() == dst.num_bytes) {
@@ -1229,6 +1218,8 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 					return result;
 				}
 
+				Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+
 				bool read_ready()  const override { return true; }
 				bool write_ready() const override { return true; }
 		};
@@ -1256,7 +1247,7 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 				return OPEN_ERR_UNACCESSIBLE;
 
 			try {
-				*out_handle = new (alloc) Vfs_handle(*this, *this, alloc, _plugin);
+				*out_handle = new (alloc) Vfs_handle(*this, alloc, _plugin);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram) { return OPEN_ERR_OUT_OF_RAM; }
@@ -1269,8 +1260,6 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 			out.size = Content_string::capacity();
 			return result;
 		}
-
-		Ftruncate_result ftruncate(Vfs::Vfs_handle *, file_size) override { return FTRUNCATE_OK; }
 };
 
 
@@ -1297,13 +1286,12 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 
 			public:
 
-				Vfs_handle(Directory_service &dir_service, File_io_service &file_io_service,
-				           Allocator &alloc, Plugin &plugin)
+				Vfs_handle(Directory_service &ds, Allocator &alloc, Plugin &plugin)
 				:
-					Single_vfs_handle(dir_service, file_io_service, alloc, 0), _plugin(plugin)
+					Single_vfs_handle(ds, alloc, 0), _plugin(plugin)
 				{ }
 
-				Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 				{
 					out_count = 0;
 					if (seek() == dst.num_bytes) {
@@ -1353,6 +1341,8 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 					return result;
 				}
 
+				Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+
 				bool read_ready()  const override { return true; }
 				bool write_ready() const override { return true; }
 		};
@@ -1380,7 +1370,7 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 				return OPEN_ERR_UNACCESSIBLE;
 
 			try {
-				*out_handle = new (alloc) Vfs_handle(*this, *this, alloc, _plugin);
+				*out_handle = new (alloc) Vfs_handle(*this, alloc, _plugin);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram) { return OPEN_ERR_OUT_OF_RAM; }
@@ -1393,8 +1383,6 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 			out.size = Content_string::capacity();
 			return result;
 		}
-
-		Ftruncate_result ftruncate(Vfs::Vfs_handle *, file_size) override { return FTRUNCATE_OK; }
 };
 
 

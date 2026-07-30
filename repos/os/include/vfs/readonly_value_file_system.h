@@ -43,14 +43,13 @@ class Genode::Vfs::Readonly_value_file_system : public Single_file_system
 			Buffer const &_buffer;
 
 			Vfs_handle(Directory_service &ds,
-			           File_io_service   &fs,
 			           Allocator         &alloc,
 			           Buffer      const &buffer)
 			:
-				Single_vfs_handle(ds, fs, alloc, 0), _buffer(buffer)
+				Single_vfs_handle(ds, alloc, 0), _buffer(buffer)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				out_count = 0;
 
@@ -132,7 +131,7 @@ class Genode::Vfs::Readonly_value_file_system : public Single_file_system
 
 			try {
 				*out_handle = new (alloc)
-					Vfs_handle(*this, *this, alloc, _buffer);
+					Vfs_handle(*this, alloc, _buffer);
 
 				return OPEN_OK;
 			}

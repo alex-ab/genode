@@ -181,17 +181,16 @@ struct Vfs_xoroshiro::File_system : Single_file_system
 		Xoroshiro_128_plus_reseeding _xoroshiro;
 
 		Xoroshiro_vfs_handle(Directory_service    &ds,
-		                     File_io_service      &fs,
 		                     Allocator            &alloc,
 		                     Directory            &root_dir,
 		                     File_path      const &seed_file)
 		:
-			Single_vfs_handle { ds, fs, alloc, 0 },
+			Single_vfs_handle { ds, alloc, 0 },
 			_entropy_src      { root_dir, seed_file },
 			_xoroshiro        { _entropy_src }
 		{ }
 
-		Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 		{
 			using Query_ok    = Xoroshiro_128_plus_reseeding::Query_ok;
 			using Query_error = Xoroshiro_128_plus_reseeding::Query_error;
@@ -228,10 +227,6 @@ struct Vfs_xoroshiro::File_system : Single_file_system
 	static char const *name()   { return "xoroshiro"; }
 	char const *type() override { return "xoroshiro"; }
 
-	/*********************************
-	 ** Directory service interface **
-	 *********************************/
-
 	Open_result open(char const  *path, unsigned,
 	                 Vfs_handle **out_handle,
 	                 Allocator   &alloc) override
@@ -247,10 +242,8 @@ struct Vfs_xoroshiro::File_system : Single_file_system
 			 * which will fail.
 			 */
 
-			*out_handle =
-				new (alloc) Xoroshiro_vfs_handle(*this, *this, alloc,
-				                                 _root_dir,
-				                                 _seed_file_path);
+			*out_handle = new (alloc)
+				Xoroshiro_vfs_handle(*this, alloc, _root_dir, _seed_file_path);
 			return OPEN_OK;
 		}
 		catch (Out_of_ram)        { return OPEN_ERR_OUT_OF_RAM; }
@@ -258,9 +251,6 @@ struct Vfs_xoroshiro::File_system : Single_file_system
 		/* handled non-existing path */
 		catch (File::Open_failed) { return OPEN_ERR_UNACCESSIBLE; }
 	}
-
-	Stat_result stat(char const *path, Stat &out) override {
-		return Single_file_system::stat(path, out); }
 };
 
 

@@ -55,15 +55,15 @@ class Vfs_tresor_crypto::Encrypt_file_system : public Vfs::Single_file_system
 			enum State { NONE, PENDING };
 			State _state;
 
-			Encrypt_handle(Directory_service &ds, File_io_service &fs,
+			Encrypt_handle(Directory_service &ds,
 			               Allocator &alloc, Tresor_crypto::Interface &crypto,
 			               uint32_t key_id)
 			:
-				Single_vfs_handle(ds, fs, alloc, 0),
+				Single_vfs_handle(ds, alloc, 0),
 				_crypto(crypto), _key_id(key_id), _state(State::NONE)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				if (_state != State::PENDING) {
 					return READ_ERR_IO;
@@ -114,6 +114,8 @@ class Vfs_tresor_crypto::Encrypt_file_system : public Vfs::Single_file_system
 				return WRITE_OK;
 			}
 
+			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return true; }
 		};
@@ -130,10 +132,6 @@ class Vfs_tresor_crypto::Encrypt_file_system : public Vfs::Single_file_system
 
 		char const *type() override { return type_name(); }
 
-		/*********************************
-		 ** Directory-service interface **
-		 *********************************/
-
 		Open_result open(char const *path, unsigned, Vfs_handle **out_handle,
 		                 Allocator &alloc) override
 		{
@@ -142,27 +140,11 @@ class Vfs_tresor_crypto::Encrypt_file_system : public Vfs::Single_file_system
 
 			try {
 				*out_handle =
-					new (alloc) Encrypt_handle(*this, *this, alloc,
-					                           _crypto, _key_id);
+					new (alloc) Encrypt_handle(*this, alloc, _crypto, _key_id);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-		}
-
-		Stat_result stat(char const *path, Stat &out) override
-		{
-			Stat_result result = Single_file_system::stat(path, out);
-			return result;
-		}
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_OK;
 		}
 };
 
@@ -183,15 +165,14 @@ class Vfs_tresor_crypto::Decrypt_file_system : public Single_file_system
 			State _state;
 
 			Decrypt_handle(Directory_service        &ds,
-			               File_io_service          &fs,
 			               Allocator                &alloc,
 			               Tresor_crypto::Interface &crypto,
 			               uint32_t                  key_id)
 			:
-				Single_vfs_handle(ds, fs, alloc, 0), _crypto(crypto), _key_id(key_id), _state(State::NONE)
+				Single_vfs_handle(ds, alloc, 0), _crypto(crypto), _key_id(key_id), _state(State::NONE)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				if (_state != State::PENDING) {
 					return READ_ERR_IO;
@@ -239,6 +220,8 @@ class Vfs_tresor_crypto::Decrypt_file_system : public Single_file_system
 				return WRITE_OK;
 			}
 
+			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return true; }
 		};
@@ -255,10 +238,6 @@ class Vfs_tresor_crypto::Decrypt_file_system : public Single_file_system
 
 		char const *type() override { return type_name(); }
 
-		/*********************************
-		 ** Directory-service interface **
-		 *********************************/
-
 		Open_result open(char const *path, unsigned /* flags */,
 		                 Vfs_handle **out_handle,
 		                 Allocator &alloc) override
@@ -268,27 +247,11 @@ class Vfs_tresor_crypto::Decrypt_file_system : public Single_file_system
 
 			try {
 				*out_handle =
-					new (alloc) Decrypt_handle(*this, *this, alloc,
-					                           _crypto, _key_id);
+					new (alloc) Decrypt_handle(*this, alloc, _crypto, _key_id);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-		}
-
-		Stat_result stat(char const *path, Stat &out) override
-		{
-			Stat_result result = Single_file_system::stat(path, out);
-			return result;
-		}
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_OK;
 		}
 };
 
@@ -470,26 +433,7 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 
 	public:
 
-		struct Local_vfs_handle : Vfs_handle
-		{
-			using Vfs_handle::Vfs_handle;
-
-			virtual Read_result read(Byte_range_ptr const &dst,
-			                         size_t &out_count) = 0;
-
-			virtual Write_result write(Const_byte_range_ptr const &src,
-			                           size_t &out_count) = 0;
-
-			virtual Sync_result sync()
-			{
-				return SYNC_OK;
-			}
-
-			virtual bool read_ready() const = 0;
-		};
-
-
-		struct Dir_vfs_handle : Local_vfs_handle
+		struct Dir_vfs_handle : Vfs_handle
 		{
 			Key_registry const &_key_reg;
 
@@ -540,16 +484,15 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 			}
 
 			Dir_vfs_handle(Directory_service  &ds,
-			               File_io_service    &fs,
 			               Allocator          &alloc,
 			               Key_registry const &key_reg,
 			               bool                root_dir)
 			:
-				Local_vfs_handle(ds, fs, alloc, 0),
+				Vfs_handle(ds, alloc, 0),
 				_key_reg(key_reg), _root_dir(root_dir)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				out_count = 0;
 
@@ -576,8 +519,10 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 				return WRITE_ERR_INVALID;
 			}
 
-			bool read_ready() const override { return true; }
+			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
 
+			bool read_ready()  const override { return true; }
+			bool write_ready() const override { return true; }
 		};
 
 		struct Dir_snap_vfs_handle : Vfs_handle
@@ -585,17 +530,27 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 			Vfs_handle &vfs_handle;
 
 			Dir_snap_vfs_handle(Directory_service &ds,
-			                    File_io_service   &fs,
 			                    Allocator         &alloc,
 			                    Vfs_handle        &vfs_handle)
 			:
-				Vfs_handle(ds, fs, alloc, 0), vfs_handle(vfs_handle)
+				Vfs_handle(ds, alloc, 0), vfs_handle(vfs_handle)
 			{ }
 
 			~Dir_snap_vfs_handle()
 			{
 				vfs_handle.close();
 			}
+
+			Read_result complete_read(Byte_range_ptr const &, size_t &) override
+			{
+				warning("Tresor_crypto::Dir_snap_vfs_handle::complete_read not implemented");
+				return READ_ERR_INVALID;
+			}
+
+			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+
+			bool read_ready()  const override { return true; }
+			bool write_ready() const override { return true; }
 		};
 
 		Key_registry _key_reg;
@@ -692,7 +647,7 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 			bool const top = _top_dir(path);
 			if (_root_dir(path) || top) {
 
-				*out_handle = new (alloc) Dir_vfs_handle(*this, *this, alloc,
+				*out_handle = new (alloc) Dir_vfs_handle(*this, alloc,
 				                                         _key_reg, top);
 				return OPENDIR_OK;
 			} else {
@@ -707,7 +662,7 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 					if (res != OPENDIR_OK) {
 						return OPENDIR_ERR_LOOKUP_FAILED;
 					}
-					*out_handle = new (alloc) Dir_snap_vfs_handle(*this, *this,
+					*out_handle = new (alloc) Dir_snap_vfs_handle(*this,
 					                                              alloc, *handle);
 					return OPENDIR_OK;
 				} catch (Key_registry::Invalid_path) { }
@@ -822,66 +777,6 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 
 			return false;
 		}
-
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Write_result write(Vfs_handle *,
-		                   Const_byte_range_ptr const &, size_t &) override
-		{
-			return WRITE_ERR_IO;
-		}
-
-		bool queue_read(Vfs_handle *vfs_handle, size_t size) override
-		{
-			Dir_snap_vfs_handle *dh =
-				dynamic_cast<Dir_snap_vfs_handle*>(vfs_handle);
-			if (dh) {
-				return dh->vfs_handle.fs().queue_read(&dh->vfs_handle,
-				                                      size);
-			}
-
-			return true;
-		}
-
-		Read_result complete_read(Vfs_handle *vfs_handle,
-		                          Byte_range_ptr const &dst,
-		                          size_t &out_count) override
-		{
-			Local_vfs_handle *lh =
-				dynamic_cast<Local_vfs_handle*>(vfs_handle);
-			if (lh) {
-				Read_result const res = lh->read(dst, out_count);
-				return res;
-			}
-
-			Dir_snap_vfs_handle *dh =
-				dynamic_cast<Dir_snap_vfs_handle*>(vfs_handle);
-			if (dh) {
-				return dh->vfs_handle.fs().complete_read(&dh->vfs_handle,
-				                                         dst, out_count);
-			}
-
-			return READ_ERR_IO;
-		}
-
-		bool read_ready(Vfs_handle const &) const override
-		{
-			return true;
-		}
-
-		bool write_ready(Vfs_handle const &) const override
-		{
-			/* wakeup from WRITE_ERR_WOULD_BLOCK not supported */
-			return true;
-		}
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size ) override
-		{
-			return FTRUNCATE_OK;
-		}
 };
 
 
@@ -914,15 +809,14 @@ class Vfs_tresor_crypto::Management_file_system : public Single_file_system
 			Tresor_crypto::Interface &_crypto;
 
 			Manage_handle(Directory_service        &ds,
-			              File_io_service          &fs,
 			              Allocator                &alloc,
 			              Type                      type,
 			              Tresor_crypto::Interface &crypto)
 			:
-				Single_vfs_handle(ds, fs, alloc, 0), _type(type), _crypto(crypto)
+				Single_vfs_handle(ds, alloc, 0), _type(type), _crypto(crypto)
 			{ }
 
-			Read_result read(Byte_range_ptr const &, size_t &) override
+			Read_result complete_read(Byte_range_ptr const &, size_t &) override
 			{
 				return READ_ERR_IO;
 			}
@@ -977,6 +871,8 @@ class Vfs_tresor_crypto::Management_file_system : public Single_file_system
 				return WRITE_ERR_IO;
 			}
 
+			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
+
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return true; }
 		};
@@ -995,10 +891,6 @@ class Vfs_tresor_crypto::Management_file_system : public Single_file_system
 
 		char const *type() override { return _type_name; }
 
-		/*********************************
-		 ** Directory-service interface **
-		 *********************************/
-
 		Open_result open(char const  *path,
 		                 unsigned    /* flags */,
 		                 Vfs_handle **out_handle,
@@ -1010,8 +902,7 @@ class Vfs_tresor_crypto::Management_file_system : public Single_file_system
 
 			try {
 				*out_handle =
-					new (alloc) Manage_handle(*this, *this, alloc,
-					                          _type, _crypto);
+					new (alloc) Manage_handle(*this, alloc, _type, _crypto);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
@@ -1022,15 +913,6 @@ class Vfs_tresor_crypto::Management_file_system : public Single_file_system
 		{
 			Stat_result result = Single_file_system::stat(path, out);
 			return result;
-		}
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_OK;
 		}
 };
 

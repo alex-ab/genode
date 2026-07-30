@@ -120,12 +120,11 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 			                    Read_buffer          &read_buffer,
 			                    Interrupt_handler    &interrupt_handler,
 			                    Directory_service    &ds,
-			                    File_io_service      &fs,
 			                    Allocator            &alloc,
 			                    int                   flags,
 			                    bool                  raw)
 			:
-				Single_vfs_handle(ds, fs, alloc, flags),
+				Single_vfs_handle(ds, alloc, flags),
 				_terminal(terminal),
 				_vfs_user(vfs_user),
 				_read_buffer(read_buffer),
@@ -144,7 +143,7 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 				return true;
 			}
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				if (_read_buffer.empty())
 					_fetch_data_from_terminal(_terminal, _read_buffer,
@@ -166,6 +165,11 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 			{
 				out_count = _terminal.write(src.start, src.num_bytes);
 				return WRITE_OK;
+			}
+
+			Ftruncate_result ftruncate(file_size) override
+			{
+				return FTRUNCATE_OK;
 			}
 		};
 
@@ -240,21 +244,11 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 				*out_handle = new (alloc)
 					Registered_handle(_handle_registry, _terminal, _vfs_user,
 					                  _read_buffer, _interrupt_handler,
-					                  *this, *this, alloc, flags, _raw);
+					                  *this, alloc, flags, _raw);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-		}
-
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			return FTRUNCATE_OK;
 		}
 };
 

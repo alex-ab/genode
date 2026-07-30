@@ -45,14 +45,13 @@ struct Vfs_zero::File_system : Single_file_system
 	{
 		size_t const _size;
 
-		Zero_vfs_handle(Directory_service &ds, File_io_service &fs,
-		                Allocator &alloc, size_t size)
+		Zero_vfs_handle(Directory_service &ds, Allocator &alloc, size_t size)
 		:
-			Single_vfs_handle(ds, fs, alloc, 0),
+			Single_vfs_handle(ds, alloc, 0),
 			_size(size)
 		{ }
 
-		Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 		{
 			size_t count = dst.num_bytes;
 
@@ -101,8 +100,7 @@ struct Vfs_zero::File_system : Single_file_system
 			return OPEN_ERR_UNACCESSIBLE;
 
 		try {
-			*out_handle = new (alloc) Zero_vfs_handle(*this, *this, alloc,
-			                                          _size);
+			*out_handle = new (alloc) Zero_vfs_handle(*this, alloc, _size);
 			return OPEN_OK;
 		}
 		catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }

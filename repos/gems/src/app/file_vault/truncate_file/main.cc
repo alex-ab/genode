@@ -43,7 +43,7 @@ struct Main
 			error("failed to create file '", path, "'");
 			env.parent().exit(-1);
 		}
-		handle_ptr->fs().ftruncate(handle_ptr, size);
+		handle_ptr->ftruncate(size);
 		handle_ptr->ds().close(handle_ptr);
 		env.parent().exit(0);
 	}

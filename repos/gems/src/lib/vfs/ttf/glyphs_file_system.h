@@ -48,14 +48,13 @@ class Vfs_glyphs::File_system : public Single_file_system
 			Font const &_font;
 
 			Vfs_handle(Directory_service &ds,
-			           File_io_service   &fs,
 			           Allocator         &alloc,
 			           Font        const &font)
 			:
-				Single_vfs_handle(ds, fs, alloc, 0), _font(font)
+				Single_vfs_handle(ds, alloc, 0), _font(font)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 			{
 				out_count = 0;
 
@@ -129,11 +128,6 @@ class Vfs_glyphs::File_system : public Single_file_system
 
 		void notify_watchers() { Single_file_system::_notify_watchers(); }
 
-
-		/*********************************
-		 ** Directory-service interface **
-		 *********************************/
-
 		Open_result open(char const  *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
 		                 Allocator   &alloc) override
@@ -142,8 +136,7 @@ class Vfs_glyphs::File_system : public Single_file_system
 				return OPEN_ERR_UNACCESSIBLE;
 
 			try {
-				*out_handle = new (alloc)
-					Vfs_handle(*this, *this, alloc, _font);
+				*out_handle = new (alloc) Vfs_handle(*this, alloc, _font);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }

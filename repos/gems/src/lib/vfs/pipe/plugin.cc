@@ -14,6 +14,7 @@
  */
 
 #include <vfs/file_system_factory.h>
+#include <vfs/vfs_handle.h>
 #include <os/path.h>
 #include <os/ring_buffer.h>
 #include <base/registry.h>
@@ -23,15 +24,15 @@ namespace Vfs_pipe {
 	using namespace Genode;
 	using namespace Genode::Vfs;
 
-	using Open_result  = Directory_service::Open_result;
-	using Write_result = File_io_service::Write_result;
-	using Read_result  = File_io_service::Read_result;
-	using Path         = Path<MAX_PATH_LEN>;
+	using Open_result = Directory_service::Open_result;
+	using Path        = Path<MAX_PATH_LEN>;
 
 	enum { PIPE_BUF_SIZE = 8192U };
 	using Pipe_buffer = Ring_buffer<unsigned char, PIPE_BUF_SIZE+1>;
 
 	struct Pipe_handle;
+	struct Dir_handle;
+
 	using Handle_element = Fifo_element<Pipe_handle>;
 	using Handle_fifo    = Fifo<Handle_element>;
 
@@ -63,7 +64,7 @@ struct Vfs_pipe::Pipe_handle : Vfs_handle, private Pipe_handle_registry_element
 	            Pipe_handle_registry &registry,
 	            Pipe &p)
 	:
-		Vfs_handle(fs, fs, alloc, flags),
+		Vfs_handle(fs, alloc, flags),
 		Pipe_handle_registry_element(registry, *this),
 		pipe(p),
 		writer(flags == Directory_service::OPEN_MODE_WRONLY)
@@ -71,12 +72,30 @@ struct Vfs_pipe::Pipe_handle : Vfs_handle, private Pipe_handle_registry_element
 
 	virtual ~Pipe_handle();
 
-	Write_result write(Const_byte_range_ptr const &, size_t &out_count);
-	Read_result  read (Byte_range_ptr       const &, size_t &out_count);
+	Write_result write(Const_byte_range_ptr const &, size_t &) override;
+	Read_result  complete_read(Byte_range_ptr const &, size_t &) override;
 
-	bool read_ready()  const;
-	bool write_ready() const;
-	bool notify_read_ready();
+	Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_ERR_NO_PERM; }
+
+	bool read_ready()  const override;
+	bool write_ready() const override;
+	bool notify_read_ready() override;
+};
+
+
+struct Vfs_pipe::Dir_handle : Vfs_handle
+{
+	using Vfs_handle::Vfs_handle;
+
+	Write_result write(Const_byte_range_ptr const &, size_t &) override { return WRITE_ERR_INVALID; }
+
+	Read_result  complete_read(Byte_range_ptr const &, size_t &) override { return READ_ERR_INVALID; }
+
+	Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_ERR_NO_PERM; }
+
+	bool read_ready()  const override { return false; }
+	bool write_ready() const override { return false; }
+	bool notify_read_ready() override { return false; }
 };
 
 
@@ -263,7 +282,7 @@ Vfs_pipe::Pipe_handle::write(Const_byte_range_ptr const &src, size_t &out_count)
 
 
 Vfs_pipe::Read_result
-Vfs_pipe::Pipe_handle::read(Byte_range_ptr const &dst, size_t &out_count)
+Vfs_pipe::Pipe_handle::complete_read(Byte_range_ptr const &dst, size_t &out_count)
 {
 	return Pipe_handle::pipe.read(*this, dst, out_count);
 }
@@ -304,7 +323,7 @@ struct Vfs_pipe::New_pipe_handle : Vfs_handle
 	                unsigned          flags,
 	                Pipe_space       &pipe_space)
 	:
-		Vfs_handle(fs, fs, alloc, flags),
+		Vfs_handle(fs, alloc, flags),
 		pipe(*(new (alloc) Pipe(env, vfs_user, alloc, pipe_space)))
 	{ }
 
@@ -313,7 +332,7 @@ struct Vfs_pipe::New_pipe_handle : Vfs_handle
 		pipe.remove_new_handle();
 	}
 
-	Read_result read(Byte_range_ptr const &dst, size_t &out_count)
+	Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
 	{
 		auto name = pipe.name();
 		if (name.length() < dst.num_bytes) {
@@ -323,6 +342,9 @@ struct Vfs_pipe::New_pipe_handle : Vfs_handle
 		}
 		return Read_result::READ_ERR_INVALID;
 	}
+
+	bool read_ready()  const override { return true; }
+	bool write_ready() const override { return false; }
 };
 
 
@@ -418,8 +440,7 @@ class Vfs_pipe::File_system : public Vfs::File_system
 
 			Path io { cpath };
 			if (io == "/") {
-				*handle = new (alloc)
-					Vfs_handle(*this, *this, alloc, 0);
+				*handle = new (alloc) Dir_handle(*this, alloc, 0);
 				return OPENDIR_OK;
 			}
 
@@ -432,7 +453,7 @@ class Vfs_pipe::File_system : public Vfs::File_system
 			if (_pipe_id(pseudo_path.string(), id)) {
 				_try_apply(id, [&handle, &alloc, this, &result] (Pipe &/*pipe*/) {
 					*handle = new (alloc)
-						Vfs_handle(*this, *this, alloc, 0);
+						Dir_handle(*this, alloc, 0);
 					result = OPENDIR_OK;
 				});
 			}
@@ -546,60 +567,6 @@ class Vfs_pipe::File_system : public Vfs::File_system
 
 			return result;
 		}
-
-
-
-		/**********************
-		 ** File I/O service **
-		 **********************/
-
-		Write_result write(Vfs_handle *vfs_handle,
-		                   Const_byte_range_ptr const &src, size_t &out_count) override
-		{
-			if (Pipe_handle *handle = dynamic_cast<Pipe_handle*>(vfs_handle))
-				return handle->write(src, out_count);
-
-			return WRITE_ERR_INVALID;
-		}
-
-		Read_result complete_read(Vfs_handle *vfs_handle,
-		                          Byte_range_ptr const &dst, size_t &out_count) override
-		{
-			if (Pipe_handle *handle = dynamic_cast<Pipe_handle*>(vfs_handle))
-				return handle->read(dst, out_count);
-
-			if (New_pipe_handle *handle = dynamic_cast<New_pipe_handle*>(vfs_handle))
-				return handle->read(dst, out_count);
-
-			return READ_ERR_INVALID;
-		}
-
-		bool read_ready(Vfs_handle const &vfs_handle) const override
-		{
-			if (Pipe_handle const *handle = dynamic_cast<Pipe_handle const *>(&vfs_handle))
-				return handle->read_ready();
-			return true;
-		}
-
-		bool write_ready(Vfs_handle const &vfs_handle) const override
-		{
-			if (Pipe_handle const *handle = dynamic_cast<Pipe_handle const *>(&vfs_handle))
-				return handle->write_ready();
-			return true;
-		}
-
-		bool notify_read_ready(Vfs_handle *vfs_handle) override
-		{
-			if (Pipe_handle *handle = dynamic_cast<Pipe_handle*>(vfs_handle))
-				return handle->notify_read_ready();
-			return false;
-		}
-
-		Ftruncate_result ftruncate(Vfs_handle*, file_size) override {
-			return FTRUNCATE_ERR_NO_PERM; }
-
-		Sync_result complete_sync(Vfs_handle*) override {
-			return SYNC_OK; }
 };
 
 

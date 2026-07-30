@@ -514,19 +514,18 @@ class Vfs_block::Data_file_system : public Single_file_system
 
 			public:
 
-				Block_vfs_handle(Directory_service          &ds,
-				                 File_io_service            &fs,
-				                 Allocator                  &alloc,
-				                 Block_connection           &block)
+				Block_vfs_handle(Directory_service &ds,
+				                 Allocator         &alloc,
+				                 Block_connection  &block)
 				:
-					Single_vfs_handle { ds, fs, alloc, 0 },
+					Single_vfs_handle { ds, alloc, 0 },
 					_block            { block },
 					_read_handler     { _block.info() },
 					_write_handler    { _block.info() },
 					_sync_handler     { _block.info() }
 				{ }
 
-				Read_result read(Byte_range_ptr const &dst, size_t &out_count) override {
+				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override {
 					return _read_handler.read(_block, seek(), dst, out_count); }
 
 				Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
@@ -541,12 +540,15 @@ class Vfs_block::Data_file_system : public Single_file_system
 					return _write_handler.write(_block, seek(), src, out_count);
 				}
 
-				Sync_result sync() override {
-					return _sync_handler.sync(_block); }
+				Sync_result complete_sync() override
+				{
+					return _sync_handler.sync(_block);
+				}
 
 				bool read_ready()  const override { return true; }
-
 				bool write_ready() const override { return true; }
+
+				Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
 		};
 
 	public:
@@ -577,10 +579,6 @@ class Vfs_block::Data_file_system : public Single_file_system
 		static char const *name()   { return "data"; }
 		char const *type() override { return "data"; }
 
-		/*********************************
-		 ** Directory service interface **
-		 *********************************/
-
 		Open_result open(char const  *path, unsigned,
 		                 Vfs_handle **out_handle,
 		                 Allocator   &alloc) override
@@ -589,8 +587,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 				return OPEN_ERR_UNACCESSIBLE;
 
 			try {
-				*out_handle = new (alloc) Block_vfs_handle(*this, *this, alloc,
-				                                           _block);
+				*out_handle = new (alloc) Block_vfs_handle(*this, alloc, _block);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
@@ -603,13 +600,6 @@ class Vfs_block::Data_file_system : public Single_file_system
 			out.size = _block.info().block_count * _block.info().block_size;
 			return result;
 		}
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override {
-			return FTRUNCATE_OK; }
 };
 
 

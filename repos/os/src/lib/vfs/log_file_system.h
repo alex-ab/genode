@@ -91,10 +91,10 @@ class Vfs_log::File_system : public Single_file_system
 
 			public:
 
-				Log_vfs_handle(Directory_service &ds, File_io_service &fs,
+				Log_vfs_handle(Directory_service &ds,
 				               Allocator &alloc, Log_session &log)
 				:
-					Single_vfs_handle(ds, fs, alloc, 0), _log(log)
+					Single_vfs_handle(ds, alloc, 0), _log(log)
 				{ }
 
 				~Log_vfs_handle()
@@ -102,7 +102,7 @@ class Vfs_log::File_system : public Single_file_system
 					if (_line_pos > 0) _flush();
 				}
 
-				Read_result read(Byte_range_ptr const &, size_t &) override
+				Read_result complete_read(Byte_range_ptr const &, size_t &) override
 				{
 					/* block indefinitely - mimics stdout resp. stdin w/o input */
 					return READ_QUEUED;
@@ -142,12 +142,21 @@ class Vfs_log::File_system : public Single_file_system
 				bool read_ready()  const override { return false; }
 				bool write_ready() const override { return true; }
 
-				Sync_result sync() override
+				Sync_result complete_sync() override
 				{
 					if (_line_pos > 0)
 						_flush();
 
 					return SYNC_OK;
+				}
+
+				Ftruncate_result ftruncate(file_size) override
+				{
+					/*
+					 * Return success to allow for output redirection via '> /dev/log'.
+					 * The shell calls ftruncate after opening the destination file.
+					 */
+					return FTRUNCATE_OK;
 				}
 		};
 
@@ -179,25 +188,11 @@ class Vfs_log::File_system : public Single_file_system
 
 			try {
 				*out_handle = new (alloc)
-					Log_vfs_handle(*this, *this, alloc, _log);
+					Log_vfs_handle(*this, alloc, _log);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-		}
-
-
-		/*******************************
-		 ** File_io_service interface **
-		 *******************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override
-		{
-			/*
-			 * Return success to allow for output redirection via '> /dev/log'.
-			 * The shell call ftruncate after opening the destination file.
-			 */
-			return FTRUNCATE_OK;
 		}
 };
 

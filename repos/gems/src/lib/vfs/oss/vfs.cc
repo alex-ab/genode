@@ -168,9 +168,6 @@ struct Vfs_oss::Audio : Noncopyable
 			}
 		};
 
-		using Read_result  = File_io_service::Read_result;
-		using Write_result = File_io_service::Write_result;
-
 		/*
 		 * Simple sample buffer used for storing play samples given
 		 * by the client in float and record samples in int16_t given
@@ -1069,12 +1066,11 @@ class Vfs_oss::Data_file_system : public Single_file_system
 			}
 
 			Oss_vfs_handle(Directory_service &ds,
-			               File_io_service   &fs,
-			               Allocator         &alloc,
-			               Audio             &audio,
-			               int                flags)
+			               Allocator &alloc,
+			               Audio &audio,
+			               int flags)
 			:
-				Single_vfs_handle { ds, fs, alloc, flags },
+				Single_vfs_handle { ds, alloc, flags },
 				_audio { audio }
 			{ }
 
@@ -1087,13 +1083,15 @@ class Vfs_oss::Data_file_system : public Single_file_system
 					_audio.enable_output(false);
 			}
 
-			Read_result read(Byte_range_ptr const &dst,
-			                 size_t               &out_count) override {
+			Read_result complete_read(Byte_range_ptr const &dst,
+			                          size_t               &out_count) override {
 				return _audio.read(dst, out_count); }
 
 			Write_result write(Const_byte_range_ptr const &src,
 			                   size_t                     &out_count) override {
 				return _audio.write(src, out_count); }
+
+			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
 
 			bool read_ready() const override {
 				return _audio.read_ready(); }
@@ -1147,10 +1145,6 @@ class Vfs_oss::Data_file_system : public Single_file_system
 		static const char *name()   { return "data"; }
 		char const *type() override { return "data"; }
 
-		/*********************************
-		 ** Directory service interface **
-		 *********************************/
-
 		Open_result open(char const  *path, unsigned flags,
 		                 Vfs_handle **out_handle,
 		                 Allocator   &alloc) override
@@ -1161,21 +1155,12 @@ class Vfs_oss::Data_file_system : public Single_file_system
 
 			try {
 				*out_handle = new (alloc)
-					Registered_handle(_handle_registry,
-					                  *this, *this,
-					                  alloc, _audio, flags);
+					Registered_handle(_handle_registry, *this, alloc, _audio, flags);
 				return OPEN_OK;
 			}
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
 		}
-
-		/********************************
-		 ** File I/O service interface **
-		 ********************************/
-
-		Ftruncate_result ftruncate(Vfs_handle *, file_size) override {
-			return FTRUNCATE_OK; }
 };
 
 

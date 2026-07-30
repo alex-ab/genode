@@ -107,10 +107,10 @@ class Fs_report::Session_component : public Genode::Rpc_object<Report::Session>
 			fn(handle);
 
 			/* sync file operations before close */
-			while (!handle->fs().queue_sync(handle))
+			while (!handle->queue_sync())
 				_io.commit_and_wait();
 
-			while (handle->fs().complete_sync(handle) == Vfs::File_io_service::SYNC_QUEUED)
+			while (handle->complete_sync() == Vfs::SYNC_QUEUED)
 				_io.commit_and_wait();
 
 			handle->close();
@@ -146,10 +146,8 @@ class Fs_report::Session_component : public Genode::Rpc_object<Report::Session>
 		{
 			auto fn = [&] (Vfs_handle *handle) {
 
-				using Write_result = Vfs::File_io_service::Write_result;
-
 				if (_file_size != length)
-					handle->fs().ftruncate(handle, length);
+					handle->ftruncate(length);
 
 				size_t offset = 0;
 				while (offset < length) {
@@ -160,11 +158,11 @@ class Fs_report::Session_component : public Genode::Rpc_object<Report::Session>
 					Const_byte_range_ptr const src(_ds.local_addr<char>() + offset,
 					                               length - offset);
 
-					Write_result res = handle->fs().write(handle, src, n);
+					Vfs::Write_result res = handle->write(src, n);
 
-					if (res == Write_result::WRITE_ERR_WOULD_BLOCK)
+					if (res == Vfs::Write_result::WRITE_ERR_WOULD_BLOCK)
 						_io.commit_and_wait();
-					else if (res != Write_result::WRITE_OK) {
+					else if (res != Vfs::Write_result::WRITE_OK) {
 						/* do not spam the log */
 						if (_success)
 							error("failed to write report to '", _path, "'");
