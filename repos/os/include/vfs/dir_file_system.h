@@ -395,7 +395,6 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 					.size              = 0,
 					.type              = Node_type::DIRECTORY,
 					.rwx               = Node_rwx::rwx(),
-					.inode             = 1,
 					.device            = (addr_t)this,
 					.modification_time = { },
 				};
@@ -895,19 +894,17 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				if (index == 0) {
 
 					dirent = {
-						.fileno = 1,
-						.type   = Dirent_type::DIRECTORY,
-						.rwx    = Node_rwx::rwx(),
-						.name   = { _name.string() }
+						.type = Dirent_type::DIRECTORY,
+						.rwx  = Node_rwx::rwx(),
+						.name = { _name.string() }
 					};
 
 				} else {
 
 					dirent = {
-						.fileno = 0,
-						.type   = Dirent_type::END,
-						.rwx    = { },
-						.name   = { }
+						.type = Dirent_type::END,
+						.rwx  = { },
+						.name = { }
 					};
 				}
 

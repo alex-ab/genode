@@ -377,20 +377,18 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 					/* no entry found for the given index, or error */
 					dirent = Dirent {
-						.fileno = 0,
-						.type   = Dirent_type::END,
-						.rwx    = { },
-						.name   = { }
+						.type = Dirent_type::END,
+						.rwx  = { },
+						.name = { }
 					};
 					out_count = sizeof(Dirent);
 					return READ_OK;
 				}
 
 				dirent = Dirent {
-					.fileno = entry.inode,
-					.type   = _dirent_type(entry.type),
-					.rwx    = _node_rwx(entry.rwx),
-					.name   = { entry.name.buf }
+					.type = _dirent_type(entry.type),
+					.rwx  = _node_rwx(entry.rwx),
+					.name = { entry.name.buf }
 				};
 
 				out_count = sizeof(Dirent);
@@ -626,7 +624,6 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			out.size   = status.size;
 			out.type   = _node_type(status.type);
 			out.rwx    = _node_rwx(status.rwx);
-			out.inode  = status.inode;
 			out.device = (addr_t)this;
 			out.modification_time = {
 				.ms_since_1970 = status.modification_time.ms_since_1970 };

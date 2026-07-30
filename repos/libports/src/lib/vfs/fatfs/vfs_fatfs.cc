@@ -165,8 +165,6 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				FILINFO info;
 				FRESULT res;
 
-				unsigned const fileno = 1; /* inode 0 is a pending unlink */
-
 				while (cur_index <= dir_index) {
 					res = f_readdir (&dir, &info);
 					if ((res != FR_OK) || (!info.fname[0])) {
@@ -174,10 +172,9 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 						cur_index = 0;
 
 						vfs_dirent = {
-							.fileno = fileno,
-							.type   = Dirent_type::END,
-							.rwx    = Node_rwx::rwx(),
-							.name   = { }
+							.type = Dirent_type::END,
+							.rwx  = Node_rwx::rwx(),
+							.name = { }
 						};
 						out_count = sizeof(Dirent);
 						return READ_OK;
@@ -186,12 +183,11 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				}
 
 				vfs_dirent = {
-					.fileno = fileno,
-					.type   = (info.fattrib & AM_DIR)
-					        ? Dirent_type::DIRECTORY
-					        : Dirent_type::CONTINUOUS_FILE,
-					.rwx    = Node_rwx::rwx(),
-					.name   = { (char const *)info.fname }
+					.type = (info.fattrib & AM_DIR)
+					      ? Dirent_type::DIRECTORY
+					      : Dirent_type::CONTINUOUS_FILE,
+					.rwx  = Node_rwx::rwx(),
+					.name = { (char const *)info.fname }
 				};
 				out_count = sizeof(Dirent);
 				return READ_OK;
@@ -492,7 +488,6 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 			FRESULT const err = f_stat((const TCHAR*)path, &info);
 			switch (err) {
 			case FR_OK:
-				stat.inode  = 1;
 				stat.device = (addr_t)this;
 				stat.type   = (info.fattrib & AM_DIR)
 				            ? Node_type::DIRECTORY

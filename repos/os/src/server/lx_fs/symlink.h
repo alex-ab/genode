@@ -68,7 +68,6 @@ class Lx_fs::Symlink : public Node
 		Status status() override
 		{
 			Status s;
-			s.inode = inode();
 			s.size = _length();
 			s.mode = File_system::Status::MODE_SYMLINK;
 			return s;

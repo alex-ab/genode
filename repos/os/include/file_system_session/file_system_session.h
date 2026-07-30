@@ -246,11 +246,10 @@ class File_system::Packet_descriptor : public Genode::Packet_descriptor
 
 struct File_system::Status
 {
-	file_size_t   size;
-	Node_type     type;
-	Node_rwx      rwx;
-	unsigned long inode;
-	Timestamp     modification_time;
+	file_size_t size;
+	Node_type   type;
+	Node_rwx    rwx;
+	Timestamp   modification_time;
 
 	/**
 	 * Return true if node is a directory
@@ -280,10 +279,9 @@ struct File_system::Directory_entry
 		Name(char const *name) { Genode::copy_cstring(buf, name, sizeof(buf)); }
 	};
 
-	unsigned long inode;
-	Node_type     type;
-	Node_rwx      rwx;
-	Name          name;
+	Node_type type;
+	Node_rwx  rwx;
+	Name      name;
 
 	/**
 	 * Sanitize object received from a file-system server as plain bytes

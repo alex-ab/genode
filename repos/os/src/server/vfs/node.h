@@ -894,14 +894,13 @@ struct Vfs_server::Directory : Io_node
 			};
 
 			return {
-				.inode = from.fileno,
-				.type  = fs_dirent_type(from.type),
-				.rwx   = {
+				.type = fs_dirent_type(from.type),
+				.rwx  = {
 					.readable   = from.rwx.readable,
 					.writeable  = (writeable == Session_writeable::WRITEABLE)
 					            ? from.rwx.writeable : false,
 					.executable = from.rwx.executable },
-				.name  = { from.name.buf }
+				.name = { from.name.buf }
 			};
 		}
 

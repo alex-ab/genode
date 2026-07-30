@@ -241,10 +241,9 @@ class Vfs_rump::File_system : public Vfs::File_system
 				                     .executable = (s.st_mode & S_IXUSR) != 0 };
 
 				vfs_dir = {
-					.fileno = vfs_fileno_t(s.st_ino),
-					.type   = dirent_type(s.st_mode),
-					.rwx    = rwx,
-					.name   = { dent->d_name }
+					.type = dirent_type(s.st_mode),
+					.rwx  = rwx,
+					.name = { dent->d_name }
 				};
 				return READ_OK;
 			}
@@ -714,7 +713,6 @@ class Vfs_rump::File_system : public Vfs::File_system
 				.rwx    = { .readable   = true,
 				            .writeable  = true,
 				            .executable = (sb.st_mode & S_IXUSR) != 0 },
-				.inode  = vfs_inode_t(sb.st_ino),
 				.device = vfs_device_t(sb.st_dev),
 
 				.modification_time = {

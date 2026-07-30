@@ -667,7 +667,6 @@ class Vfs_server::Session_component : private Session_resources,
 						.writeable  = vfs_stat.rwx.writeable && _writeable,
 						.executable = vfs_stat.rwx.executable },
 
-					.inode = vfs_stat.inode,
 					.modification_time = {
 						.ms_since_1970 = vfs_stat.modification_time.ms_since_1970 }
 				};

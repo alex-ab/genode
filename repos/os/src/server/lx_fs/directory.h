@@ -217,7 +217,6 @@ class Lx_fs::Directory : public Node
 
 			Directory_entry &e = *(Directory_entry *)(dst);
 			e = {
-				.inode = (unsigned long)dent->d_ino,
 				.type  = type(dent->d_type),
 				.rwx   = { .readable   = (st.st_mode & S_IRUSR) != 0,
 				           .writeable  = (st.st_mode & S_IWUSR) != 0,
@@ -254,7 +253,6 @@ class Lx_fs::Directory : public Node
 				.rwx   = { .readable   = (st.st_mode & S_IRUSR) != 0,
 				           .writeable  = (st.st_mode & S_IWUSR) != 0,
 				           .executable = (st.st_mode & S_IXUSR) != 0},
-				.inode = (unsigned long)inode(),
 				.modification_time = timestamp_from_timespec(st.st_mtim)
 			};
 		}

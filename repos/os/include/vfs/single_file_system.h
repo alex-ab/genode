@@ -109,17 +109,15 @@ class Genode::Vfs::Single_file_system : public File_system
 
 					if (index == 0) {
 						out = {
-							.fileno = (addr_t)this,
-							.type   = dirent_type(),
-							.rwx    = _rwx,
-							.name   = { _filename.string() }
+							.type = dirent_type(),
+							.rwx  = _rwx,
+							.name = { _filename.string() }
 						};
 					} else {
 						out = {
-							.fileno = (addr_t)this,
-							.type   = Dirent_type::END,
-							.rwx    = { },
-							.name   = { }
+							.type = Dirent_type::END,
+							.rwx  = { },
+							.name = { }
 						};
 					}
 
@@ -188,9 +186,8 @@ class Genode::Vfs::Single_file_system : public File_system
 				out.type = Node_type::DIRECTORY;
 
 			} else if (_single_file(path)) {
-				out.type  = _type;
-				out.rwx   = _rwx;
-				out.inode = 1;
+				out.type = _type;
+				out.rwx  = _rwx;
 			} else {
 				return STAT_ERR_NO_ENTRY;
 			}

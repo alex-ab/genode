@@ -163,7 +163,6 @@ class Lx_fs::File : public Node
 				.rwx   = { .readable   = (st.st_mode & S_IRUSR) != 0,
 				           .writeable  = (st.st_mode & S_IWUSR) != 0,
 				           .executable = (st.st_mode & S_IXUSR) != 0},
-				.inode = (unsigned long)inode(),
 				.modification_time = timestamp_from_timespec(st.st_mtim)
 			};
 		}

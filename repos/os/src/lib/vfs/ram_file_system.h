@@ -97,27 +97,13 @@ class Vfs_ram::Node : private Avl_node<Node>
 
 		List<Io_handle> _io_handles { };
 
-		/**
-		 * Generate unique inode number
-		 */
-		static unsigned long _unique_inode()
-		{
-			static unsigned long inode_count;
-			return ++inode_count;
-		}
-
 		Timestamp _modification_time { };
 
 		bool _marked_as_unlinked = false;
 
 	public:
 
-		unsigned long inode;
-
-		Node(char const *node_name) : inode(_unique_inode())
-		{
-			name(node_name);
-		}
+		Node(char const *node_name) { name(node_name); }
 
 		virtual ~Node() { }
 
@@ -450,10 +436,9 @@ class Vfs_ram::Directory : public Vfs_ram::Node
 				return File_io_service::READ_ERR_INVALID;
 
 			dirent = {
-				.fileno = node.inode,
-				.type   = type,
-				.rwx    = node.rwx(),
-				.name   = { node.name() }
+				.type = type,
+				.rwx  = node.rwx(),
+				.name = { node.name() }
 			};
 
 			return File_io_service::READ_OK;
@@ -794,7 +779,6 @@ class Vfs_ram::File_system : public Vfs::File_system
 				.size              = node.length(),
 				.type              = node_type(),
 				.rwx               = node.rwx(),
-				.inode             = node.inode,
 				.device            = (addr_t)this,
 				.modification_time = node.modification_time()
 			};

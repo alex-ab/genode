@@ -134,7 +134,6 @@ struct Genode::Vfs::Directory_service : Interface
 		file_size     size;
 		Node_type     type;
 		Node_rwx      rwx;
-		unsigned long inode;
 		unsigned long device;
 		Timestamp     modification_time;
 	};
@@ -173,10 +172,9 @@ struct Genode::Vfs::Directory_service : Interface
 			Name(char const *name) { copy_cstring(buf, name, sizeof(buf)); }
 		};
 
-		unsigned long fileno;
-		Dirent_type   type;
-		Node_rwx      rwx;
-		Name          name;
+		Dirent_type type;
+		Node_rwx    rwx;
+		Name        name;
 
 		/**
 		 * Sanitize dirent members

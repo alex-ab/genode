@@ -1172,19 +1172,17 @@ class Vfs_ip::Ip_socket_dir final : public Socket_dir
 			}
 			if (!node) {
 				out = {
-					.fileno = index + 1,
-					.type   = Directory_service::Dirent_type::END,
-					.rwx    = { },
-					.name   = { } };
+					.type = Directory_service::Dirent_type::END,
+					.rwx  = { },
+					.name = { } };
 
 				return -1;
 			}
 
 			out = {
-				.fileno = index + 1,
-				.type   = Directory_service::Dirent_type::TRANSACTIONAL_FILE,
-				.rwx    = Node_rwx::rw(),
-				.name   = { node->name() } };
+				.type = Directory_service::Dirent_type::TRANSACTIONAL_FILE,
+				.rwx  = Node_rwx::rw(),
+				.name = { node->name() } };
 
 			return sizeof(Dirent);
 		}
@@ -1490,10 +1488,9 @@ class Vfs_ip::Protocol_dir_impl : public Protocol_dir
 			}
 			if (!node) {
 				out = {
-					.fileno = index + 1,
-					.type   = Directory_service::Dirent_type::END,
-					.rwx    = { },
-					.name   = { } };
+					.type = Directory_service::Dirent_type::END,
+					.rwx  = { },
+					.name = { } };
 
 				return -1;
 			}
@@ -1510,10 +1507,9 @@ class Vfs_ip::Protocol_dir_impl : public Protocol_dir
 			                   : Node_rwx::rw();
 
 			out = {
-				.fileno = index + 1,
-				.type   = type,
-				.rwx    = rwx,
-				.name   = { node->name() } };
+				.type = type,
+				.rwx  = rwx,
+				.name = { node->name() } };
 
 			return sizeof(Dirent);
 		}
@@ -1792,21 +1788,20 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 
 			struct Entry
 			{
-				void const *fileno;
 				Dirent_type type;
 				char const *name;
 			};
 
 			enum { NUM_ENTRIES = 8U };
 			static Entry const entries[NUM_ENTRIES] = {
-				{ &_tcp_dir,    Dirent_type::DIRECTORY,          "tcp" },
-				{ &_udp_dir,    Dirent_type::DIRECTORY,          "udp" },
-				{ &_address,    Dirent_type::TRANSACTIONAL_FILE, "address" },
-				{ &_netmask,    Dirent_type::TRANSACTIONAL_FILE, "netmask" },
-				{ &_gateway,    Dirent_type::TRANSACTIONAL_FILE, "gateway" },
-				{ &_nameserver, Dirent_type::TRANSACTIONAL_FILE, "nameserver" },
-				{ &_link_state, Dirent_type::TRANSACTIONAL_FILE, "link_state" },
-				{ nullptr,      Dirent_type::END,                "" }
+				{ Dirent_type::DIRECTORY,          "tcp" },
+				{ Dirent_type::DIRECTORY,          "udp" },
+				{ Dirent_type::TRANSACTIONAL_FILE, "address" },
+				{ Dirent_type::TRANSACTIONAL_FILE, "netmask" },
+				{ Dirent_type::TRANSACTIONAL_FILE, "gateway" },
+				{ Dirent_type::TRANSACTIONAL_FILE, "nameserver" },
+				{ Dirent_type::TRANSACTIONAL_FILE, "link_state" },
+				{ Dirent_type::END,                "" }
 			};
 
 			Entry const &entry = entries[min(index, NUM_ENTRIES - 1U)];
@@ -1814,11 +1809,10 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 			Dirent &out = *(Dirent*)dst.start;
 
 			out = {
-				.fileno = (addr_t)entry.fileno,
-				.type   = entry.type,
-				.rwx    = entry.type == Dirent_type::DIRECTORY
-				        ? Node_rwx::rwx() : Node_rwx::rw(),
-				.name   = { entry.name }
+				.type = entry.type,
+				.rwx  = entry.type == Dirent_type::DIRECTORY
+				      ? Node_rwx::rwx() : Node_rwx::rw(),
+				.name = { entry.name }
 			};
 			return sizeof(Dirent);
 		}

@@ -235,10 +235,9 @@ class Vfs_tar::File_system : public Vfs::File_system
 			/* if no record exists, assume it is a directory */
 			if (!record_ptr) {
 				dirent = {
-					.fileno = (addr_t)node_ptr,
-					.type   = Dirent_type::DIRECTORY,
-					.rwx    = Node_rwx::rx(),
-					.name   = { node.name }
+					.type = Dirent_type::DIRECTORY,
+					.rwx  = Node_rwx::rx(),
+					.name = { node.name }
 				};
 				out_count = sizeof(Dirent);
 				return READ_OK;
@@ -260,12 +259,11 @@ class Vfs_tar::File_system : public Vfs::File_system
 			};
 
 			dirent = {
-				.fileno = (addr_t)node_ptr,
-				.type   = node_type(),
-				.rwx    = { .readable   = true,
-				            .writeable  = false,
-				            .executable = record.rwx().executable },
-				.name   = { node.name }
+				.type = node_type(),
+				.rwx  = { .readable   = true,
+				          .writeable  = false,
+				          .executable = record.rwx().executable },
+				.name = { node.name }
 			};
 			out_count = sizeof(Dirent);
 			return READ_OK;
@@ -609,7 +607,6 @@ class Vfs_tar::File_system : public Vfs::File_system
 					.size              = 0,
 					.type              = Node_type::DIRECTORY,
 					.rwx               = Node_rwx::rx(),
-					.inode             = (addr_t)node_ptr,
 					.device            = (addr_t)this,
 					.modification_time = { }
 				};
@@ -639,7 +636,6 @@ class Vfs_tar::File_system : public Vfs::File_system
 				.rwx               = { .readable   = true,
 				                       .writeable  = false,
 				                       .executable = record.rwx().executable },
-				.inode             = (addr_t)node_ptr,
 				.device            = (addr_t)this,
 				.modification_time = timestamp_from_mtime(record.mtime())
 			};

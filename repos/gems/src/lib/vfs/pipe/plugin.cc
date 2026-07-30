@@ -477,17 +477,14 @@ class Vfs_pipe::File_system : public Vfs::File_system
 			if (path.has_single_element()) {
 				Pipe_space::Id id { ~0UL };
 				if (_pipe_id(cpath, id)) {
-					_try_apply(id, [&out, this, &result] (Pipe const &pipe) {
-						out = Stat {
-							.size              = file_size(0),
-							.type              = Node_type::CONTINUOUS_FILE,
-							.rwx               = Node_rwx::rw(),
-							.inode             = addr_t(&pipe),
-							.device            = addr_t(this),
-							.modification_time = { }
-						};
-						result = STAT_OK;
-					});
+					out = Stat {
+						.size              = file_size(0),
+						.type              = Node_type::CONTINUOUS_FILE,
+						.rwx               = Node_rwx::rw(),
+						.device            = addr_t(this),
+						.modification_time = { }
+					};
+					result = STAT_OK;
 				}
 			} else {
 				/* find out if the last element is "/in" or "/out" */
@@ -502,7 +499,6 @@ class Vfs_pipe::File_system : public Vfs::File_system
 								.size              = file_size(pipe.buffer.avail_capacity()),
 								.type              = Node_type::CONTINUOUS_FILE,
 								.rwx               = Node_rwx::wo(),
-								.inode             = addr_t(&pipe) + 1,
 								.device            = addr_t(this),
 								.modification_time = { }
 							};
@@ -514,7 +510,6 @@ class Vfs_pipe::File_system : public Vfs::File_system
 								                             - pipe.buffer.avail_capacity()),
 								.type              = Node_type::CONTINUOUS_FILE,
 								.rwx               = Node_rwx::ro(),
-								.inode             = addr_t(&pipe) + 2,
 								.device            = addr_t(this),
 								.modification_time = { }
 							};
@@ -674,7 +669,6 @@ class Vfs_pipe::Pipe_file_system : public Vfs_pipe::File_system
 					.size              = 1,
 					.type              = Node_type::TRANSACTIONAL_FILE,
 					.rwx               = Node_rwx::ro(),
-					.inode             = addr_t(this),
 					.device            = addr_t(this),
 					.modification_time = { }
 				};
