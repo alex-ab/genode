@@ -61,8 +61,10 @@ struct Fs_query::Watched_file
 	:
 		_name(name), _rwx(rwx), _action(action)
 	{
-		if (_rwx.readable)
+		if (_rwx.readable) {
 			_watch_handler.construct(dir, name, *this, &Watched_file::_io_handle_watch);
+			(void)_watch_handler->watch();
+		}
 	}
 
 	virtual ~Watched_file() { }
