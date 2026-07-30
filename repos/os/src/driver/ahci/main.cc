@@ -64,11 +64,11 @@ class Ahci::Driver : Noncopyable
 			void usleep(uint64_t us) override { Timer::Connection::usleep(us); }
 		};
 
-		Env                    &_env;
-		Dispatch               &_dispatch;
-		Timer_delayer           _delayer   { _env };
-		Signal_handler<Driver>  _handler   { _env.ep(), *this, &Driver::handle_irq };
-		Resources               _resources { _env, _handler };
+		Env                       &_env;
+		Dispatch                  &_dispatch;
+		Timer_delayer              _delayer   { _env };
+		Io_signal_handler<Driver>  _handler   { _env.ep(), *this, &Driver::handle_irq };
+		Resources                  _resources { _env, _handler };
 
 		Constructible<Attached_rom_dataspace> _system_rom { };
 		Signal_handler<Driver>  _system_rom_sigh {
@@ -303,27 +303,29 @@ class Ahci::Driver : Noncopyable
 
 struct Ahci::Block_session_component : Rpc_object<Block::Session>
 {
-	Env  &_env;
-	Port &_port;
+	Env &_env;
 
 	Session_space::Element const _elem;
 
-	Dataspace_capability  _dma_cap;
+	Dma::Connection       _dma;
+	Dma::Buffer           _dma_buffer;
 	Block::Request_stream _request_stream;
+
+	bool close = false;
 
 	Block_session_component(Session_space             &space,
 	                        uint16_t                   session_id_value,
 	                        Env                       &env,
-	                        Port                      &port,
+	                        Block::Session::Info       info,
 	                        Signal_context_capability  sigh,
 	                        Block::Constrained_view    view,
 	                        size_t                     buffer_size)
 	:
 		_env(env),
-		_port(port),
 		_elem(*this, space, Session_space::Id { .value = session_id_value }),
-		_dma_cap(_port.alloc_buffer(_elem.id().value, buffer_size)),
-		_request_stream(_env.rm(), _dma_cap, _env.ep(), sigh, _port.info(), view)
+		_dma(env),
+		_dma_buffer(_dma, buffer_size, CACHED),
+		_request_stream(_env.rm(), _dma_buffer.cap(), _env.ep(), sigh, info, view)
 	{
 		_env.ep().manage(*this);
 	}
@@ -331,8 +333,9 @@ struct Ahci::Block_session_component : Rpc_object<Block::Session>
 	~Block_session_component()
 	{
 		_env.ep().dissolve(*this);
-		_port.free_buffer(_elem.id().value);
 	}
+
+	addr_t dma_addr() const { return _dma_buffer.bus_addr(); }
 
 	Info info() const override { return _request_stream.info(); }
 
@@ -384,6 +387,12 @@ struct Ahci::Port_dispatcher
 			[&] (Block_session_component &session) {
 				Session_map::Index const index =
 					Session_map::Index::from_id(session_id.value);
+
+				session.close = true;
+
+				while (_port.pending_requests_for_id(session_id.value))
+					_env.ep().wait_and_dispatch_one_io_signal();
+
 				_session_map.free(index);
 				destroy(_sliced_heap, &session);
 			});
@@ -416,7 +425,7 @@ struct Ahci::Port_dispatcher
 		try {
 			Block_session_component *session =
 				new (_sliced_heap) Block_session_component(_sessions, new_session_id.value,
-				                                           _env, _port, _request_handler,
+				                                           _env, _port.info(), _request_handler,
 				                                           view, tx_buf_size);
 			return { session->cap() };
 		} catch (...) {
@@ -450,7 +459,8 @@ struct Ahci::Port_dispatcher
 				break;
 
 			auto submit_request_fn = [&] (Session_space::Id session_id,
-			                               Block::Request    request) {
+			                              addr_t            dma_addr,
+			                              Block::Request    request) {
 				/* ignored operations */
 				if (request.operation.type == Block::Operation::Type::TRIM
 				 || request.operation.type == Block::Operation::Type::INVALID) {
@@ -459,7 +469,7 @@ struct Ahci::Port_dispatcher
 				}
 
 				Response const response = _port.submit(session_id.value,
-				                                       request);
+				                                       dma_addr, request);
 
 				if (response != Response::RETRY)
 					progress = true;
@@ -474,7 +484,17 @@ struct Ahci::Port_dispatcher
 						block_session.with_request_stream([&] (Request_stream &request_stream) {
 							request_stream.with_requests([&] (Request request) {
 
-								return submit_request_fn(block_session.session_id(), request);
+								/*
+								 * As session close was requested, all still pending
+								 * requests are rejected to guard against invalidating
+								 * active DMA allocations.
+								 */
+								if (block_session.close)
+									return Response::REJECTED;
+
+								return submit_request_fn(block_session.session_id(),
+								                         block_session.dma_addr(),
+								                         request);
 							}); }); }); });
 
 			if (!progress)

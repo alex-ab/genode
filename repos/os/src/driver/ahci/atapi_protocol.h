@@ -145,11 +145,11 @@ class Atapi::Protocol : public Ahci::Protocol, Noncopyable
 
 		void writeable(bool) override { }
 
-		Response submit(Port &port, unsigned long id, Block::Request const &request,
-		                Port_mmio &mmio) override
+		Response submit(Port &port, unsigned long id, addr_t dma_addr,
+		                Block::Request const &request, Port_mmio &mmio) override
 		{
 			if (request.operation.type != Block::Operation::Type::READ ||
-			    port.sanity_check(id, request) == false || port.dma_base(id) == 0)
+			    port.sanity_check(id, request) == false || dma_addr == 0)
 				return Response::REJECTED;
 
 			if (_pending.operation.valid())
@@ -162,7 +162,7 @@ class Atapi::Protocol : public Ahci::Protocol, Noncopyable
 
 			/* setup fis */
 			Command_table table(port.command_table_range(0),
-			                    port.dma_base(id) + request.offset,
+			                    dma_addr + request.offset,
 			                    op.count * _block_size);
 			table.fis.atapi();
 
@@ -197,6 +197,11 @@ class Atapi::Protocol : public Ahci::Protocol, Noncopyable
 		bool pending_requests() const override
 		{
 			return _pending.operation.valid();
+		}
+
+		bool pending_requests_for_id(unsigned long id) const override
+		{
+			return _pending.operation.valid() && _pending_id == id;
 		}
 };
 

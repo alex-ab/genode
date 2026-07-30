@@ -285,8 +285,8 @@ class Ata::Protocol : public Ahci::Protocol, Noncopyable
 
 		void writeable(bool) override { }
 
-		Response submit(Port &port, unsigned long id, Block::Request const &request,
-		                Port_mmio &mmio) override
+		Response submit(Port &port, unsigned long id, addr_t dma_addr,
+		                Block::Request const &request, Port_mmio &mmio) override
 		{
 			Block::Operation const op = request.operation;
 
@@ -297,7 +297,7 @@ class Ata::Protocol : public Ahci::Protocol, Noncopyable
 				return Response::RETRY;
 
 			if (Block::Operation::has_payload(op.type)) {
-				if (port.sanity_check(id, request) == false || port.dma_base(id) == 0)
+				if (port.sanity_check(id, request) == false || dma_addr == 0)
 					return Response::REJECTED;
 
 				if (_overlap_check(id, request))
@@ -317,7 +317,7 @@ class Ata::Protocol : public Ahci::Protocol, Noncopyable
 
 			/* setup fis */
 			Command_table table(port.command_table_range(slot),
-			                    port.dma_base(id) + request.offset, /* physical address */
+			                    dma_addr + request.offset, /* physical address */
 			                    op.count * _block_size());
 
 			/* setup ATA command */
@@ -368,6 +368,27 @@ class Ata::Protocol : public Ahci::Protocol, Noncopyable
 		}
 
 		bool pending_requests() const override { return !!_slot_states; }
+
+		bool pending_requests_for_id(unsigned long id) const override
+		{
+			bool pending = false;
+
+			_slots.for_each([&](Request const &request)
+			{
+				size_t index = _slots.index(request);
+				/* request still pending */
+				if (_slot_states & (1u << index))
+					return false;
+
+				if (request.id != id)
+					return false;
+
+				pending = true;
+
+				return true;
+			});
+			return pending;
+		}
 };
 
 #endif /* _AHCI__ATA_PROTOCOL_H_ */

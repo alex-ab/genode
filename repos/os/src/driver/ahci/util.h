@@ -48,8 +48,7 @@ namespace Util {
 		/**
 		 * Iterate over all slots until FUNC returns true
 		 */
-		template <typename FUNC>
-		bool for_each(FUNC const &func)
+		bool for_each(auto const &func)
 		{
 			for (size_t i = 0; i < _limit; i++) {
 				if (!_entries[i].valid()) { continue; }
@@ -57,6 +56,16 @@ namespace Util {
 			}
 			return false;
 		}
+
+		bool for_each(auto const &func) const
+		{
+			for (size_t i = 0; i < _limit; i++) {
+				if (!_entries[i].valid()) { continue; }
+				if ( func(_entries[i])) { return true; }
+			}
+			return false;
+		}
+
 
 		size_t index(T const &entry) const
 		{

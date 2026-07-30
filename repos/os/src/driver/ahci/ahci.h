@@ -702,11 +702,12 @@ struct Ahci::Protocol : Interface
 {
 	virtual unsigned             init(Port &, Port_mmio &) = 0;
 	virtual Block::Session::Info info() const = 0;
-	virtual Response             submit(Port &, unsigned long, Block::Request const &, Port_mmio &) = 0;
+	virtual Response             submit(Port &, unsigned long, addr_t, Block::Request const &, Port_mmio &) = 0;
 	virtual Block::Request       completed(unsigned long, Port_mmio &) = 0;
 	virtual void                 handle_irq(Port &, Port_mmio &) = 0;
 	virtual void                 writeable(bool rw) = 0;
 	virtual bool                 pending_requests() const = 0;
+	virtual bool                 pending_requests_for_id(unsigned long) const = 0;
 };
 
 
@@ -1181,33 +1182,6 @@ struct Ahci::Port : private Port_base
 		return true;
 	}
 
-	static constexpr unsigned MAX_DMA_BUFFER = 64u;
-	Constructible<Dma::Buffer> _dma_buffer[MAX_DMA_BUFFER] { };
-
-	Dataspace_capability alloc_buffer(unsigned long id, size_t size)
-	{
-		if (id >= MAX_DMA_BUFFER || _dma_buffer[id].constructed())
-			return Dataspace_capability();
-
-		_dma_buffer[id].construct(dma, size, CACHED);
-
-		return _dma_buffer[id]->cap();
-	}
-
-	void free_buffer(unsigned long id)
-	{
-		if (id >= MAX_DMA_BUFFER || !_dma_buffer[id].constructed())
-			return;
-
-		_dma_buffer[id].destruct();
-	}
-
-	addr_t dma_base(unsigned long id) const
-	{
-		return id < MAX_DMA_BUFFER && _dma_buffer[id].constructed()
-		       ? _dma_buffer[id]->bus_addr() : 0ull;
-	}
-
 	/**********************
 	 ** Protocol wrapper **
 	 **********************/
@@ -1222,12 +1196,12 @@ struct Ahci::Port : private Port_base
 		}, [&](){ error("Port::handle_irq failed"); });
 	}
 
-	Response submit(unsigned long id, Block::Request const &request)
+	Response submit(unsigned long id, addr_t dma_addr, Block::Request const &request)
 	{
 		Response response { };
 
 		_with_port_mmio([&](Port_mmio &mmio) {
-			response = protocol.submit(*this, id, request, mmio);
+			response = protocol.submit(*this, id, dma_addr, request, mmio);
 		}, [&](){ error("Port::submit failed"); });
 
 		return response;
@@ -1248,6 +1222,9 @@ struct Ahci::Port : private Port_base
 				error("for_one_completed_request failed with pending requests");
 		});
 	}
+
+	bool pending_requests_for_id(unsigned long id) const {
+		return protocol.pending_requests_for_id(id); }
 
 	void writeable(bool rw) { protocol.writeable(rw); }
 };
