@@ -133,7 +133,8 @@ proc run_power_on { } {
 	}
 
 	if {[have_spec arm_v8] && [have_include "image/uefi"]} {
-		set uefi_firmware "/usr/share/qemu-efi-aarch64/QEMU_EFI.fd"
+		#set uefi_firmware "/usr/share/qemu-efi-aarch64/QEMU_EFI.fd"
+		set uefi_firmware "/home/alex/genode/novae/QEMU_EFI.fd"
 		if {![file exists $uefi_firmware]} {
 			puts "'$uefi_firmware' UEFI firmware missing. Please install a OVMF package matching your QEMU version."
 			exit -5
