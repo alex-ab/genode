@@ -162,7 +162,9 @@ class Menu_view::Style_database
 				_cached_font(alloc, _vfs_font, _font_cache_limit),
 				_glyphs_changed_handler(font_dir, Path(path, "/glyphs"),
 				                        *this, &Font_entry::_handle_glyphs_changed)
-			{ }
+			{
+				(void)_glyphs_changed_handler.watch();
+			}
 			catch (...) { throw Reading_failed(); }
 		};
 

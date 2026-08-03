@@ -136,6 +136,7 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_handle
 		_font_config = Font_config(config);
 		_font.construct(_env, _font_config);
 		_update_attributes();
+		_glyphs_fs.notify_watchers();
 	}
 
 	/**
