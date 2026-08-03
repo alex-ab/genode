@@ -44,7 +44,7 @@ struct Genode::Cpu_session : Session
 	 * RPC interface, and a capability for the trace-control dataspace.
 	 */
 	static constexpr unsigned CAP_QUOTA = 6;
-	static constexpr size_t   RAM_QUOTA = 36*1024;
+	static constexpr size_t   RAM_QUOTA = 40*1024;
 
 	using Client = Cpu_session_client;
 
