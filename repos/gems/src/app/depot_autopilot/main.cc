@@ -43,7 +43,11 @@ struct Depot_autopilot::Iteration
 
 	Action &_action;
 
-	struct Attr { Clock total_start_time; };
+	struct Attr
+	{
+		Clock total_start_time;
+		Iteration_count version;
+	};
 
 	Attr const _attr;
 
@@ -143,7 +147,7 @@ struct Depot_autopilot::Iteration
 	void reconfigure_deploy()
 	{
 		_deploy_reporter.generate([&] (Generator &g) {
-			_plan.gen_deploy_start_nodes(g); });
+			_plan.gen_deploy_start_nodes(g, _attr.version); });
 	}
 
 	Stats stats(Clock now, Node const &config) const
@@ -203,6 +207,8 @@ struct Depot_autopilot::Main : Log_session::Action, Iteration::Action
 
 	Session_label const _runtime_prefix =
 		_config.node().attribute_value("children_label_prefix", String<160>());
+
+	Iteration_count _iteration_count { };
 
 	Constructible<Iteration> _iteration { };
 
@@ -338,12 +344,18 @@ struct Depot_autopilot::Main : Log_session::Action, Iteration::Action
 
 	void _handle_config()
 	{
-		_config   .update();
-		_blueprint.update();
+		_config.update();
 
-		if (!_iteration.constructed())
+		/* import blueprint only once, ignore subsequent empty blueprints */
+		if (!_blueprint.valid()) _blueprint.update();
+
+		if (!_iteration.constructed()) {
+			_iteration_count.value++;
 			_iteration.construct(_env, _heap, *this, Iteration::Attr {
-				.total_start_time = _start_time, });
+				.total_start_time = _start_time,
+				.version = _iteration_count
+			});
+		}
 
 		/* propagate update of blueprint */
 		_iteration->apply_config_and_blueprint(_config.node(), _blueprint.node());

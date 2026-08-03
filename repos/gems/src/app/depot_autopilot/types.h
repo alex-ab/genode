@@ -47,6 +47,8 @@ namespace Depot_autopilot {
 	};
 
 	struct Exit { using Code = String<16>; Code code; };
+
+	struct Iteration_count { unsigned value; };
 }
 
 #endif /* _TYPES_H_ */

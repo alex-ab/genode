@@ -142,13 +142,14 @@ struct Depot_autopilot::Plan
 		_tests.for_each([&] (Test const &test) { test.print_conclusion(); });
 	}
 
-	void gen_deploy_start_nodes(Generator &g) const
+	void gen_deploy_start_nodes(Generator &g, Iteration_count version) const
 	{
 		_tests.for_each([&] (Test const &test) {
 			if (!test.skip && !test.malformed)
 				g.node("child", [&] {
-					g.attribute("name", test.name);
-					g.attribute("pkg",  test.pkg);
+					g.attribute("name",    test.name);
+					g.attribute("version", version.value);
+					g.attribute("pkg",     test.pkg);
 					if (!test.running())
 						g.attribute("enabled", "no"); }); });
 	}
