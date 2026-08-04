@@ -49,7 +49,7 @@ class Tresor::File
 {
 	private:
 
-		enum State { IDLE, SYNC_QUEUED, READ_QUEUED, READ_INITIALIZED, WRITE_INITIALIZED, WRITE_OFFSET_APPLIED };
+		enum State { IDLE, SYNC_QUEUED, READ, WRITE_INITIALIZED, WRITE_OFFSET_APPLIED };
 
 		Vfs::Env *_env { };
 		Tresor::Path const *_path { };
@@ -84,51 +84,38 @@ class Tresor::File
 			case IDLE:
 
 				_num_processed_bytes = 0;
-				_state = READ_INITIALIZED;
+				_state = READ;
 				progress = true;
-				break;
 
-			case READ_INITIALIZED:
+				[[fallthrough]];
 
-				_handle.seek(off + _num_processed_bytes);
-				if (!_handle.queue_read(dst.num_bytes - _num_processed_bytes))
-					break;
+			case READ:
+				{
+					_handle.seek(off + _num_processed_bytes);
+					Byte_range_ptr curr_dst { dst.start     + _num_processed_bytes,
+					                          dst.num_bytes - _num_processed_bytes };
 
-				_state = READ_QUEUED;
-				progress = true;
-				break;
-
-			case READ_QUEUED:
-			{
-				size_t num_read_bytes { 0 };
-				Byte_range_ptr curr_dst { dst.start + _num_processed_bytes, dst.num_bytes - _num_processed_bytes };
-				switch (_handle.complete_read(curr_dst, num_read_bytes)) {
-				case Vfs::Read_result::READ_QUEUED:
-				case Vfs::Read_result::READ_ERR_WOULD_BLOCK: break;
-				case Vfs::Read_result::READ_OK:
-
-					_num_processed_bytes += num_read_bytes;
-					if (_num_processed_bytes < dst.num_bytes) {
-						_state = READ_INITIALIZED;
-						progress = true;
+					Vfs::Read_result result = _handle.read(curr_dst);
+					if (result == Vfs::Read_error::RETRY)
 						break;
-					}
-					ASSERT(_num_processed_bytes == dst.num_bytes);
-					_state = IDLE;
-					_host_state = succeeded;
-					progress = true;
-					break;
 
-				default:
-
-					error("file: read failed");
-					_host_state = failed;
-					_state = IDLE;
 					progress = true;
+					result.with_result(
+						[&] (size_t num_bytes) {
+							_num_processed_bytes += num_bytes;
+							ASSERT(_num_processed_bytes <= dst.num_bytes);
+							if (_num_processed_bytes == dst.num_bytes) {
+								_host_state = succeeded;
+								_state      = IDLE;
+							}
+						},
+						[&] (Vfs::Read_error) {
+							error("file: read failed");
+							_host_state = failed;
+							_state      = IDLE;
+						});
 					break;
 				}
-				break;
-			}
 			default: ASSERT_NEVER_REACHED;
 			}
 		}

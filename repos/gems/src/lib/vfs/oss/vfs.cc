@@ -835,12 +835,12 @@ struct Vfs_oss::Audio : Noncopyable
 			return result;
 		}
 
-		Read_result read(Byte_range_ptr const &dst, size_t &out_size)
+		Read_result read(Byte_range_ptr const &dst)
 		{
 			if (!_config.record_enabled)
-				return Read_result::READ_ERR_INVALID;
+				return Read_error::DENIED;
 
-			Read_result result = Read_result::READ_ERR_IO;
+			Read_result result = Read_error::DENIED;
 			_with_input([&] (Stereo_input &input) {
 
 				/* get the ball rolling on first read */
@@ -854,17 +854,16 @@ struct Vfs_oss::Audio : Noncopyable
 
 				unsigned const avail = input.bytes_avail();
 				if (avail < _info.ifrag_size) {
-					result = Read_result::READ_QUEUED;
+					result = Read_error::RETRY;
 					return;
 				}
 
 				size_t const length = min((size_t)_info.ifrag_size,
 				                          dst.num_bytes);
-				out_size = input.produce(dst, length);
+				result = input.produce(dst, length);
 
 				_info.ifrag_bytes = input.bytes_avail();
 				_update_input_info();
-				result = Read_result::READ_OK;
 			});
 			return result;
 		}
@@ -1083,9 +1082,8 @@ class Vfs_oss::Data_file_system : public Single_file_system
 					_audio.enable_output(false);
 			}
 
-			Read_result complete_read(Byte_range_ptr const &dst,
-			                          size_t               &out_count) override {
-				return _audio.read(dst, out_count); }
+			Read_result read(Byte_range_ptr const &dst) override {
+				return _audio.read(dst); }
 
 			Write_result write(Const_byte_range_ptr const &src,
 			                   size_t                     &out_count) override {

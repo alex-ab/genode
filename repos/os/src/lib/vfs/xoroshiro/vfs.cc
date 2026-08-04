@@ -190,20 +190,19 @@ struct Vfs_xoroshiro::File_system : Single_file_system
 			_xoroshiro        { _entropy_src }
 		{ }
 
-		Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result read(Byte_range_ptr const &dst) override
 		{
 			using Query_ok    = Xoroshiro_128_plus_reseeding::Query_ok;
 			using Query_error = Xoroshiro_128_plus_reseeding::Query_error;
 
 			return _xoroshiro.query(dst).convert<Read_result>(
 				[&] (Query_ok ok) {
-					out_count = ok.produced_bytes;
-					return READ_OK;
+					return ok.produced_bytes;
 				},
 				[&] (Query_error e) {
 					if (e == Query_error::RESEED_FAILED)
 						error("xoroshiro reseeding failed");
-					return READ_ERR_IO;
+					return Read_error::DENIED;
 				});
 		}
 

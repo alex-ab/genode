@@ -106,18 +106,14 @@ inline void assert_write(Vfs::Write_result r)
 
 inline void assert_read(Vfs::Read_result r)
 {
-	using Result = Vfs::Read_result;
-	switch (r) {
-	case Result::READ_OK: return;
-	case Result::READ_QUEUED:
-		error("READ_QUEUED"); break;
-	case Result::READ_ERR_WOULD_BLOCK:
-		error("READ_ERR_WOULD_BLOCK"); break;
-	case Result::READ_ERR_INVALID:
-		error("READ_ERR_INVALID"); break;
-	case Result::READ_ERR_IO:
-		error("READ_ERR_IO"); break;
-	}
+	if (r.ok()) return;
+
+	r.with_error([&] (Vfs::Read_error e) {
+		switch (e) {
+		case Vfs::Read_error::RETRY:  error("Read_error::RETRY");  break;
+		case Vfs::Read_error::DENIED: error("Read_error::DENIED"); break;
+		}
+	});
 	throw Exception();
 }
 
@@ -363,23 +359,33 @@ struct Read_test : public Stress_test
 			Vfs_handle::Guard guard(handle);
 
 			char tmp[MAX_PATH_LEN];
-			size_t n;
-			handle->queue_read(sizeof(tmp));
 
-			Vfs::Read_result read_result;
+			Vfs::Read_result read_result = Vfs::Read_error::DENIED;
 
 			Byte_range_ptr const dst { tmp, sizeof(tmp) };
 
-			while ((read_result =
-			        handle->complete_read(dst, n)) ==
-			       Vfs::READ_QUEUED)
+			for (;;) {
+				read_result = handle->read(dst);
+				if (read_result != Vfs::Read_error::RETRY)
+					break;
 				_io.commit_and_wait();
+			}
 
 			assert_read(read_result);
 
-			if (strcmp(path.base(), tmp, (size_t)n))
-				error("read returned bad data");
-			count += n;
+			read_result.with_result(
+				[&] (size_t n) {
+					if (strcmp(path.base(), tmp, (size_t)n))
+						error("read returned bad data");
+					count += n;
+				},
+				[&] (Vfs::Read_error e) {
+					switch (e) {
+					case Vfs::Read_error::RETRY:  error("Read_error::RETRY");  break;
+					case Vfs::Read_error::DENIED: error("Read_error::DENIED"); break;
+					}
+					throw Exception();
+				});
 		}
 
 		switch (dir_type) {
@@ -442,13 +448,21 @@ struct Unlink_test : public Stress_test
 		Vfs::Directory_service::Dirent dirent { };
 		for (Vfs::file_size i = vfs.num_dirent(path); i;) {
 			dir_handle->seek(--i * sizeof(dirent));
-			dir_handle->queue_read(sizeof(dirent));
 
 			Byte_range_ptr const dst { (char*)&dirent, sizeof(dirent) };
-			size_t out_count;
 
-			while (dir_handle->complete_read(dst, out_count) == Vfs::READ_QUEUED)
+			Vfs::Read_result result = Vfs::Read_error::DENIED;
+
+			for (;;) {
+				result = dir_handle->read(dst);
+				if (result != Vfs::Read_error::RETRY)
+					break;
 				_io.commit_and_wait();
+			}
+			if (result.failed()) {
+				error("read of dir entry failed");
+				throw Exception();
+			}
 
 			subpath.append(dirent.name.buf);
 			switch (dirent.type) {

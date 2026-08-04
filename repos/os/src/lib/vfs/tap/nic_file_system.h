@@ -148,14 +148,14 @@ class Vfs_nic::File_system::Nic_vfs_handle : public Single_vfs_handle
 			return _link_state;
 		}
 
-		Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result read(Byte_range_ptr const &dst) override
 		{
 			if (!read_ready()) {
 				_blocked = true;
-				return Read_result::READ_QUEUED;
+				return Read_error::RETRY;
 			}
 
-			out_count = 0;
+			size_t out_count = 0;
 
 			/* process a single packet from rx stream */
 			Packet_descriptor const rx_pkt { _nic.rx()->get_packet() };
@@ -172,7 +172,7 @@ class Vfs_nic::File_system::Nic_vfs_handle : public Single_vfs_handle
 				_nic.rx()->acknowledge_packet(rx_pkt);
 			}
 
-			return Read_result::READ_OK;
+			return out_count;
 		}
 
 		Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override

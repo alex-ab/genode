@@ -1258,7 +1258,7 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &src, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &src) override
 			{
 				_trust_anchor.execute();
 
@@ -1266,17 +1266,17 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 					try {
 						bool const ok =
 							_trust_anchor.queue_read_last_hash();
-						if (!ok) {
-							return READ_ERR_IO;
-						}
+						if (!ok)
+							return Read_error::DENIED;
+
 						_state = State::PENDING_READ;
 					} catch (...) {
-						return READ_ERR_INVALID;
+						return Read_error::DENIED;
 					}
 
 					_trust_anchor.execute();
-					return READ_QUEUED;
-				} else
+					return Read_error::RETRY;
+				}
 
 				if (_state == State::PENDING_READ) {
 					try {
@@ -1284,16 +1284,15 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 							_trust_anchor.complete_read_last_hash(src);
 						if (!cr.valid) {
 							_trust_anchor.execute();
-							return READ_QUEUED;
+							return Read_error::RETRY;
 						}
 
 						_state = State::NONE;
-						out_count = src.num_bytes;
-						return cr.success ? READ_OK : READ_ERR_IO;
-					} catch (...) {
-						return READ_ERR_INVALID;
-					}
-				} else
+						if (cr.success)
+							return src.num_bytes;
+					} catch (...) { }
+					return Read_error::DENIED;
+				}
 
 				if (_state == State::PENDING_WRITE_ACK) {
 					try {
@@ -1301,18 +1300,17 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 							_trust_anchor.complete_update_last_hash();
 						if (!cr.valid) {
 							_trust_anchor.execute();
-							return READ_QUEUED;
+							return Read_error::RETRY;
 						}
 
 						_state = State::NONE;
-						out_count = src.num_bytes;
-						return cr.success ? READ_OK : READ_ERR_IO;
-					} catch (...) {
-						return READ_ERR_INVALID;
-					}
+						if (cr.success)
+							return src.num_bytes;
+					} catch (...) { }
+					return Read_error::DENIED;
 				}
 
-				return READ_ERR_IO;
+				return Read_error::DENIED;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
@@ -1394,13 +1392,13 @@ class Vfs_tresor_trust_anchor::Generate_key_file_system : public Single_file_sys
 				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
 				if (_state == State::NONE) {
 
-					if (!_trust_anchor.queue_generate_key()) {
-						return READ_QUEUED;
-					}
+					if (!_trust_anchor.queue_generate_key())
+						return Read_error::RETRY;
+
 					_state = State::PENDING;
 				}
 
@@ -1408,13 +1406,13 @@ class Vfs_tresor_trust_anchor::Generate_key_file_system : public Single_file_sys
 
 				Trust_anchor::Complete_request const cr =
 					_trust_anchor.complete_generate_key(dst);
-				if (!cr.valid) {
-					return READ_QUEUED;
-				}
+				if (!cr.valid)
+					return Read_error::RETRY;
 
 				_state = State::NONE;
-				out_count = dst.num_bytes;
-				return cr.success ? READ_OK : READ_ERR_IO;
+				if (cr.success)
+					return dst.num_bytes;
+				return Read_error::DENIED;
 			}
 
 			Write_result write(Const_byte_range_ptr const &, size_t &) override
@@ -1478,30 +1476,25 @@ class Vfs_tresor_trust_anchor::Encrypt_file_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta), _state(State::NONE)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
-				if (_state != State::PENDING) {
-					return READ_ERR_IO;
-				}
+				if (_state != State::PENDING)
+					return Read_error::DENIED;
 
 				_trust_anchor.execute();
 
 				try {
 					Trust_anchor::Complete_request const cr =
 						_trust_anchor.complete_encrypt_key(dst);
-					if (!cr.valid) {
-						return READ_QUEUED;
-					}
+					if (!cr.valid)
+						return Read_error::RETRY;
 
 					_state = State::NONE;
 
-					out_count = dst.num_bytes;
-					return cr.success ? READ_OK : READ_ERR_IO;
-				} catch (...) {
-					return READ_ERR_INVALID;
-				}
-
-				return READ_ERR_IO;
+					if (cr.success)
+						return dst.num_bytes;
+				} catch (...) { }
+				return Read_error::DENIED;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
@@ -1581,30 +1574,24 @@ class Vfs_tresor_trust_anchor::Decrypt_file_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta), _state(State::NONE)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
-				if (_state != State::PENDING) {
-					return READ_ERR_IO;
-				}
+				if (_state != State::PENDING)
+					return Read_error::DENIED;
 
 				_trust_anchor.execute();
 
 				try {
 					Trust_anchor::Complete_request const cr =
 						_trust_anchor.complete_decrypt_key(dst);
-					if (!cr.valid) {
-						return READ_QUEUED;
-					}
+					if (!cr.valid)
+						return Read_error::RETRY;
 
 					_state = State::NONE;
-
-					out_count = dst.num_bytes;
-					return cr.success ? READ_OK : READ_ERR_IO;
-				} catch (...) {
-					return READ_ERR_INVALID;
-				}
-
-				return READ_ERR_IO;
+					if (cr.success)
+						return dst.num_bytes;
+				} catch (...) { }
+				return Read_error::DENIED;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
@@ -1686,20 +1673,18 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &buf, size_t &nr_of_read_bytes) override
+			Read_result read(Byte_range_ptr const &buf) override
 			{
-				if (_state != State::PENDING) {
-					return READ_ERR_INVALID;
-				}
+				if (_state != State::PENDING)
+					return Read_error::DENIED;
 
 				(void)_trust_anchor.execute();
 
 				Trust_anchor::Complete_request const cr =
 					_init_pending ? _trust_anchor.complete_queue_unlock()
 					              : _trust_anchor.complete_queue_initialize();
-				if (!cr.valid) {
-					return READ_QUEUED;
-				}
+				if (!cr.valid)
+					return Read_error::RETRY;
 
 				_state        = State::NONE;
 				_init_pending = false;
@@ -1709,22 +1694,21 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 					char const *str { "ok" };
 					if (buf.num_bytes < 3) {
 						error("read buffer too small");
-						return READ_ERR_IO;
+						return Read_error::DENIED;
 					}
 					memcpy(buf.start, str, 3);
-					nr_of_read_bytes = buf.num_bytes;
+					return 3;
 
 				} else {
 
 					char const *str { "failed" };
 					if (buf.num_bytes < 7) {
 						error("read buffer too small");
-						return READ_ERR_IO;
+						return Read_error::DENIED;
 					}
 					memcpy(buf.start, str, 7);
-					nr_of_read_bytes = buf.num_bytes;
+					return 7;
 				}
-				return READ_OK;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override

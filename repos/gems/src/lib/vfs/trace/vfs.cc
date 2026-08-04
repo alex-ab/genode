@@ -134,9 +134,9 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _entries(entries)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
-				out_count = 0;
+				size_t out_count = 0;
 				_entries.for_each_new_entry([&](Trace::Buffer::Entry entry) {
 					size_t const size = min(dst.num_bytes - out_count, entry.length());
 					memcpy(dst.start + out_count, entry.data(), size);
@@ -148,7 +148,7 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 					return true;
 				});
 
-				return READ_OK;
+				return out_count;
 			}
 
 			Write_result write(Const_byte_range_ptr const &, size_t &out_count) override

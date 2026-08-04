@@ -68,17 +68,12 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				{ }
 			};
 
-			Dir_file_system          &_fs;
-			Absolute_path             path;
-			Vfs_handle               *queued_read_handle { nullptr };
-			Subdir_handle_registry    subdir_handle_registry { };
+			Dir_file_system       &_fs;
+			Absolute_path          path;
+			Subdir_handle_registry subdir_handle_registry { };
 
-			bool _queue_read_of_file_systems()
+			Read_result _read_of_file_systems(Byte_range_ptr const &dst)
 			{
-				bool result = true;
-
-				queued_read_handle = nullptr;
-
 				file_offset index = seek() / sizeof(Dirent);
 
 				char const *sub_path = _fs._sub_path(path.base());
@@ -89,9 +84,13 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				/* base of composite directory index */
 				int base = 0;
 
-				auto f = [&] (Subdir_handle_element const &handle_element) {
+				bool done = false;
 
-					if (queued_read_handle) return; /* skip through */
+				Read_result result = 0ul; /* EOF if no fs matches 'index' */
+
+				subdir_handle_registry.for_each([&] (Subdir_handle_element const &handle_element) {
+
+					if (done) return; /* skip through */
 
 					Vfs_handle &vfs_handle = handle_element.vfs_handle;
 
@@ -106,8 +105,6 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 					 * system.
 					 */
 					if (index - base < fs_num_dirent) {
-						/* set this handle to be used for read completion */
-						queued_read_handle = &vfs_handle;
 
 						/* seek to file-system local index */
 						index = index - base;
@@ -117,38 +114,13 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 						apply_handler([&] (Read_ready_response_handler &h) {
 							vfs_handle.handler(&h); });
 
-						result = vfs_handle.queue_read(sizeof(Dirent));
+						result = vfs_handle.read(dst);
+						done = true;
 					}
 
 					/* adjust base index for next file system */
 					base += fs_num_dirent;
-				};
-
-				subdir_handle_registry.for_each(f);
-
-				return result;
-			}
-
-			Read_result _complete_read_of_file_systems(Byte_range_ptr const &dst,
-			                                           size_t &out_count)
-			{
-				if (!queued_read_handle) {
-					/*
-					 * no fs was found for the given index or
-					 * fs->opendir() failed
-					 */
-					if (dst.num_bytes < sizeof(Dirent))
-						return READ_ERR_INVALID;
-
-					out_count = 0; /* eof */
-					return READ_OK;
-				}
-
-				Read_result result = queued_read_handle->complete_read(dst, out_count);
-
-				if (result != READ_QUEUED)
-					queued_read_handle = nullptr;
-
+				});
 				return result;
 			}
 
@@ -167,26 +139,13 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				subdir_handle_registry.for_each(f);
 			}
 
-			bool queue_read(size_t) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
-				if (_fs._vfs_root)
-					return _queue_read_of_file_systems();
-
-				if (_fs._top_dir(path.base()))
-					return true;
-
-				return _queue_read_of_file_systems();
-			}
-
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
-			{
-				out_count = 0;
-
 				if (dst.num_bytes < sizeof(Dirent))
-					return READ_ERR_INVALID;
+					return Read_error::DENIED;
 
 				if (_fs._vfs_root)
-					return _complete_read_of_file_systems(dst, out_count);
+					return _read_of_file_systems(dst);
 
 				if (_fs._top_dir(path.base())) {
 
@@ -211,12 +170,10 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 						};
 					}
 
-					out_count = sizeof(Dirent);
-
-					return READ_OK;
+					return sizeof(Dirent);
 				}
 
-				return _complete_read_of_file_systems(dst, out_count);
+				return _read_of_file_systems(dst);
 			}
 
 			bool read_ready()  const override { return true; }

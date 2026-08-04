@@ -67,7 +67,7 @@ class Vfs_capture::Data_file_system : public Single_file_system
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return true; }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
 				_capture->capture_at(Point(0, 0));
 
@@ -75,9 +75,7 @@ class Vfs_capture::Data_file_system : public Single_file_system
 
 				Genode::memcpy(dst.start, _capture_ds->local_addr<char>(), len);
 
-				out_count = len;
-
-				return READ_OK;
+				return len;
 			}
 
 			Write_result write(Const_byte_range_ptr const &, size_t &) override

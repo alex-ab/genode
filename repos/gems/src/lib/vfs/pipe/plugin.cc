@@ -73,7 +73,7 @@ struct Vfs_pipe::Pipe_handle : Vfs_handle, private Pipe_handle_registry_element
 	virtual ~Pipe_handle();
 
 	Write_result write(Const_byte_range_ptr const &, size_t &) override;
-	Read_result  complete_read(Byte_range_ptr const &, size_t &) override;
+	Read_result  read(Byte_range_ptr const &) override;
 
 	Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_ERR_NO_PERM; }
 
@@ -89,7 +89,7 @@ struct Vfs_pipe::Dir_handle : Vfs_handle
 
 	Write_result write(Const_byte_range_ptr const &, size_t &) override { return WRITE_ERR_INVALID; }
 
-	Read_result  complete_read(Byte_range_ptr const &, size_t &) override { return READ_ERR_INVALID; }
+	Read_result read(Byte_range_ptr const &) override { return Read_error::DENIED; }
 
 	Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_ERR_NO_PERM; }
 
@@ -238,7 +238,7 @@ struct Vfs_pipe::Pipe
 		return Write_result::WRITE_OK;
 	}
 
-	Read_result read(Pipe_handle &, Byte_range_ptr const &dst, size_t &out_count)
+	Read_result read(Pipe_handle &, Byte_range_ptr const &dst)
 	{
 		size_t out = 0;
 
@@ -248,22 +248,20 @@ struct Vfs_pipe::Pipe
 			++out;
 		}
 
-		out_count = out;
-
 		if (out == 0) {
 
 			/* Send only EOF when at least one writer opened the pipe */
 			if ((num_writers == 0) && !waiting_for_writers)
-				return Read_result::READ_OK; /* EOF */
+				return 0; /* EOF */
 
-			return Read_result::READ_QUEUED;
+			return Read_error::RETRY;
 		}
 
 		/* new pipe space may unblock the writer */
 		if (out > 0)
 			vfs_user.wakeup_vfs_user();
 
-		return Read_result::READ_OK;
+		return out;
 	}
 };
 
@@ -282,9 +280,9 @@ Vfs_pipe::Pipe_handle::write(Const_byte_range_ptr const &src, size_t &out_count)
 
 
 Vfs_pipe::Read_result
-Vfs_pipe::Pipe_handle::complete_read(Byte_range_ptr const &dst, size_t &out_count)
+Vfs_pipe::Pipe_handle::read(Byte_range_ptr const &dst)
 {
-	return Pipe_handle::pipe.read(*this, dst, out_count);
+	return Pipe_handle::pipe.read(*this, dst);
 }
 
 
@@ -332,15 +330,14 @@ struct Vfs_pipe::New_pipe_handle : Vfs_handle
 		pipe.remove_new_handle();
 	}
 
-	Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+	Read_result read(Byte_range_ptr const &dst) override
 	{
 		auto name = pipe.name();
 		if (name.length() < dst.num_bytes) {
 			memcpy(dst.start, name.string(), name.length());
-			out_count = name.length();
-			return Read_result::READ_OK;
+			return name.length();
 		}
-		return Read_result::READ_ERR_INVALID;
+		return Read_error::DENIED;
 	}
 
 	bool read_ready()  const override { return true; }

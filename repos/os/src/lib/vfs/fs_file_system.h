@@ -215,25 +215,28 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				return _write(seek(), src, out_count);
 			}
 
-			bool _queue_read(size_t count, file_size const seek_offset)
+			Read_result _try_queue_read(Byte_range_ptr const &dst,
+			                            file_size const seek_offset)
 			{
 				if (queued_read_state != Handle_state::Queued_state::IDLE)
-					return false;
+					return Read_error::RETRY;
+
+				/* queue read into fs session */
 
 				::File_system::Session::Tx::Source &source = *_fs._fs.tx();
 
 				/* if not ready to submit suggest retry */
 				if (!source.ready_to_submit())
-					return false;
+					return Read_error::RETRY;
 
 				size_t const max_packet_size = source.bulk_buffer_size() / 2;
-				size_t const clipped_count = min(max_packet_size, count);
+				size_t const clipped_count = min(max_packet_size, dst.num_bytes);
 
 				::File_system::Packet_descriptor p;
 				try {
 					p = source.alloc_packet((size_t)clipped_count);
 				} catch (::File_system::Session::Tx::Source::Packet_alloc_failed) {
-					return false;
+					return Read_error::DENIED;
 				}
 
 				::File_system::Packet_descriptor const
@@ -246,31 +249,33 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 				/* pass packet to server side */
 				_fs._submit_packet(packet);
-
-				return true;
+				return Read_error::RETRY;
 			}
 
-			bool queue_read(size_t count) override { return _queue_read(count, seek()); }
-
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
+				if (queued_read_state == Handle_state::Queued_state::IDLE)
+					if (_try_queue_read(dst, seek()) == Read_error::DENIED)
+						return Read_error::DENIED;
+
 				if (queued_read_state != Handle_state::Queued_state::ACK)
-					return READ_QUEUED;
+					return Read_error::RETRY; /* Queued_state::QUEUED */
 
 				::File_system::Session::Tx::Source &source = *_fs._fs.tx();
 
 				/* obtain result packet descriptor with updated status info */
-				::File_system::Packet_descriptor const
-					packet = queued_read_packet;
+				::File_system::Packet_descriptor const packet = queued_read_packet;
 
-				Read_result result = packet.succeeded() ? READ_OK : READ_ERR_IO;
+				Read_result result = Read_error::DENIED;
 
-				if (result == READ_OK) {
-					size_t const read_num_bytes = min(packet.length(), dst.num_bytes);
-
-					memcpy(dst.start, source.packet_content(packet), (size_t)read_num_bytes);
-
-					out_count = read_num_bytes;
+				if (packet.succeeded()) {
+					if (packet.position() == seek()) {
+						size_t const read_num_bytes = min(packet.length(), dst.num_bytes);
+						memcpy(dst.start, source.packet_content(packet), (size_t)read_num_bytes);
+						result = read_num_bytes;
+					} else {
+						result = Read_error::RETRY; /* drop response of discarded read */
+					}
 				}
 
 				queued_read_state  = Handle_state::Queued_state::IDLE;
@@ -419,58 +424,46 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 			using Fs_vfs_handle::Fs_vfs_handle;
 
-			bool queue_read(size_t count) override
-			{
-				if (count < sizeof(Dirent))
-					return true;
-
-				return _queue_read(DIRENT_SIZE,
-				                   (seek() / sizeof(Dirent) * DIRENT_SIZE));
-			}
-
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
 				if (dst.num_bytes < sizeof(Dirent))
-					return READ_ERR_INVALID;
+					return Read_error::DENIED;
+
+				file_size const seek_offset = seek();
+				if (seek_offset % sizeof(Dirent)) /* must be aligned to 'Dirent' */
+					return Read_error::DENIED;
 
 				using ::File_system::Directory_entry;
 
 				Directory_entry entry { };
 
-				size_t entry_out_count = 0;
-
 				Read_result const read_result =
-					Fs_vfs_handle::complete_read(Byte_range_ptr((char *)(&entry), DIRENT_SIZE),
-					                             entry_out_count);
+					Fs_vfs_handle::read(Byte_range_ptr((char *)(&entry), DIRENT_SIZE));
 
-				if (read_result != READ_OK)
-					return read_result;
+				return read_result.convert<Read_result>([&] (size_t num_bytes) {
 
-				entry.sanitize();
+					entry.sanitize();
 
-				Dirent &dirent = *(Dirent*)dst.start;
+					Dirent &dirent = *(Dirent*)dst.start;
 
-				if (entry_out_count < DIRENT_SIZE) {
+					if (num_bytes < DIRENT_SIZE) {
 
-					/* no entry found for the given index, or error */
-					dirent = Dirent {
-						.type = Dirent_type::END,
-						.rwx  = { },
-						.name = { }
-					};
-					out_count = sizeof(Dirent);
-					return READ_OK;
-				}
-
-				dirent = Dirent {
-					.type = _dirent_type(entry.type),
-					.rwx  = _node_rwx(entry.rwx),
-					.name = { entry.name.buf }
-				};
-
-				out_count = sizeof(Dirent);
-
-				return READ_OK;
+						/* no entry found for the given index, or error */
+						dirent = Dirent {
+							.type = Dirent_type::END,
+							.rwx  = { },
+							.name = { }
+						};
+					} else {
+						dirent = Dirent {
+							.type = _dirent_type(entry.type),
+							.rwx  = _node_rwx(entry.rwx),
+							.name = { entry.name.buf }
+						};
+					}
+					return sizeof(Dirent);
+				},
+				[&] (Read_error e) { return e; });
 			}
 		};
 

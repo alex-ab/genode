@@ -139,17 +139,17 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 			return _drv_link_state;
 		}
 
-		Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result read(Byte_range_ptr const &dst) override
 		{
 			if (!_conn.constructed())
-				return Read_result::READ_ERR_INVALID;
+				return Read_error::DENIED;
 
 			if (!read_ready()) {
 				_blocked = true;
-				return Read_result::READ_QUEUED;
+				return Read_error::RETRY;
 			}
 
-			out_count = 0;
+			size_t out_count = 0;
 
 			/* process a single packet from rx stream */
 			Packet_descriptor const conn_rx_pkt { _conn->rx()->get_packet() };
@@ -160,13 +160,13 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 				const char *const conn_rx_pkt_base {
 					_conn->rx()->packet_content(conn_rx_pkt) };
 
-				out_count = min(conn_rx_pkt.size(), dst.num_bytes);
+				size_t out_count = min(conn_rx_pkt.size(), dst.num_bytes);
 				memcpy(dst.start, conn_rx_pkt_base, out_count);
 
 				_conn->rx()->acknowledge_packet(conn_rx_pkt);
 			}
 
-			return Read_result::READ_OK;
+			return out_count;
 		}
 
 		using Write_result = Vfs::Write_result;

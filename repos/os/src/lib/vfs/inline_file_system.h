@@ -122,7 +122,7 @@ class Vfs_inline::File_system : public Single_file_system
 					Single_vfs_handle(ds, alloc, 0), _fs(inline_fs)
 				{ }
 
-				inline Read_result complete_read(Byte_range_ptr const &, size_t &) override;
+				inline Read_result read(Byte_range_ptr const &) override;
 
 				Write_result write(Const_byte_range_ptr const &,
 				                   size_t &out_count) override
@@ -189,9 +189,9 @@ class Vfs_inline::File_system : public Single_file_system
 
 
 Genode::Vfs::Read_result
-Vfs_inline::File_system::Handle::complete_read(Byte_range_ptr const &dst, size_t &out_count)
+Vfs_inline::File_system::Handle::read(Byte_range_ptr const &dst)
 {
-	out_count = 0;
+	Read_result result = 0ul; /* EOF */
 
 	_fs._data.with_bytes([&] (char const *start, size_t const len) {
 
@@ -215,10 +215,9 @@ Vfs_inline::File_system::Handle::complete_read(Byte_range_ptr const &dst, size_t
 		size_t const num_bytes = end_offset - read_offset;
 
 		memcpy(dst.start, src, num_bytes);
-		out_count = num_bytes;
+		result = num_bytes;
 	});
-
-	return READ_OK;
+	return result;
 }
 
 #endif /* _INCLUDE__VFS__INLINE_FILE_SYSTEM_H_ */

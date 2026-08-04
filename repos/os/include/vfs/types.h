@@ -107,9 +107,9 @@ namespace Genode::Vfs {
 	enum Write_result { WRITE_ERR_WOULD_BLOCK, WRITE_ERR_INVALID,
 	                    WRITE_ERR_IO,          WRITE_OK };
 
-	enum Read_result { READ_ERR_WOULD_BLOCK, READ_ERR_INVALID,
-	                   READ_ERR_IO,          READ_QUEUED,
-	                   READ_OK };
+	enum class Read_error { RETRY, DENIED };
+
+	using Read_result = Attempt<size_t, Read_error>;
 
 	enum Ftruncate_result { FTRUNCATE_ERR_NO_PERM,  FTRUNCATE_ERR_INTERRUPT,
 	                        FTRUNCATE_ERR_NO_SPACE, FTRUNCATE_OK };

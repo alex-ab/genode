@@ -71,9 +71,6 @@ namespace Vfs_block {
 			case State::PENDING:
 
 				_handle.seek(base_offset + current_offset);
-				if (!_handle.queue_read(current_count))
-					return progress;
-
 				state = State::IN_PROGRESS;
 				progress = true;
 			[[fallthrough]];
@@ -82,29 +79,24 @@ namespace Vfs_block {
 				using Result = Genode::Vfs::Read_result;
 
 				bool completed = false;
-				size_t out = 0;
 
 				Genode::Byte_range_ptr const dst { data + current_offset,
 				                                   current_count };
 
-				Result const result = _handle.complete_read(dst, out);
-
-				if (result == Result::READ_QUEUED
-				 || result == Result::READ_ERR_WOULD_BLOCK) {
+				Result const result = _handle.read(dst);
+				if (result == Genode::Vfs::Read_error::RETRY)
 					return progress;
-				} else
 
-				if (result == Result::READ_OK) {
-					current_offset += out;
-					current_count  -= out;
-					success = true;
-				} else
-
-				if (   result == Result::READ_ERR_IO
-				    || result == Result::READ_ERR_INVALID) {
-					success   = false;
-					completed = true;
-				}
+				result.with_result(
+					[&] (size_t num_bytes) {
+						current_offset += num_bytes;
+						current_count  -= num_bytes;
+						success = true;
+					},
+					[&] (Genode::Vfs::Read_error) {
+						success   = false;
+						completed = true;
+					});
 
 				if (current_count == 0 || completed) {
 					state = State::COMPLETE;

@@ -45,12 +45,7 @@ struct Vfs_null::File_system : Single_file_system
 			Single_vfs_handle(ds, alloc, 0)
 		{ }
 
-		Read_result complete_read(Byte_range_ptr const &, size_t &out_count) override
-		{
-			out_count = 0;
-
-			return READ_OK;
-		}
+		Read_result read(Byte_range_ptr const &) override { return 0; }
 
 		Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
 		{

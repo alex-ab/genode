@@ -237,13 +237,13 @@ class Vfs_block::Data_file_system : public Single_file_system
 					bool _any_finished_job() const {
 						return _job.constructed() && _job->done; }
 
-					Read_result _handle_finished_job(size_t &out_count)
+					Read_result _handle_finished_job()
 					{
-						out_count = _job->range.num_bytes;
-						bool const success = _job->success;
+						size_t const out_count = _job->range.num_bytes;
+						bool   const success   = _job->success;
 						_job.destruct();
-						return success ? Read_result::READ_OK
-						               : Read_result::READ_ERR_IO;
+						if (success) return out_count;
+						return Read_error::DENIED;
 					}
 
 					Read_handler(Block::Session::Info const &info)
@@ -252,17 +252,16 @@ class Vfs_block::Data_file_system : public Single_file_system
 						_block_count  { info.block_count }
 					{ }
 
-					Read_result read(Block_connection            &block,
-					                 file_size             const  seek_offset,
-					                 Byte_range_ptr        const &dst,
-					                 size_t                      &out_count)
+					Read_result read(Block_connection     &block,
+					                 file_size      const  seek_offset,
+					                 Byte_range_ptr const &dst)
 					{
 						/* fast-exit for pending jobs */
 						if (_any_pending_job())
-							return Read_result::READ_QUEUED;
+							return Read_error::RETRY;
 
 						if (_any_finished_job())
-							return _handle_finished_job(out_count);
+							return _handle_finished_job();
 
 						/* round down to cover first block for unaligned requests */
 						block_number_t const block_number =
@@ -281,10 +280,8 @@ class Vfs_block::Data_file_system : public Single_file_system
 						if (block_number + block_count.blocks > _block_count.blocks)
 							block_count = Block_count { _block_count.blocks - block_number };
 
-						if (block_number >= _block_count.blocks || block_count.blocks == 0) {
-							out_count = 0;
-							return Read_result::READ_OK;
-						}
+						if (block_number >= _block_count.blocks || block_count.blocks == 0)
+							return 0ul;
 
 						Block::Operation const op {
 							.type         = Block::Operation::Type::READ,
@@ -300,7 +297,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 						               (size_t)block_offset);
 
 						block.update_jobs(block);
-						return Read_result::READ_QUEUED;
+						return Read_error::RETRY;
 					}
 				};
 
@@ -525,8 +522,8 @@ class Vfs_block::Data_file_system : public Single_file_system
 					_sync_handler     { _block.info() }
 				{ }
 
-				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override {
-					return _read_handler.read(_block, seek(), dst, out_count); }
+				Read_result read(Byte_range_ptr const &dst) override {
+					return _read_handler.read(_block, seek(), dst); }
 
 				Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
 				{

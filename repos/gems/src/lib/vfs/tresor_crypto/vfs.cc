@@ -63,30 +63,25 @@ class Vfs_tresor_crypto::Encrypt_file_system : public Vfs::Single_file_system
 				_crypto(crypto), _key_id(key_id), _state(State::NONE)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
-				if (_state != State::PENDING) {
-					return READ_ERR_IO;
-				}
+				if (_state != State::PENDING)
+					return Read_error::DENIED;
 
 				_crypto.execute();
 
 				try {
 					Tresor_crypto::Interface::Complete_request const cr =
 						_crypto.encryption_request_complete(dst);
-					if (!cr.valid) {
-						return READ_ERR_INVALID;
-					}
+					if (!cr.valid)
+						return Read_error::DENIED;
 
 					_state = State::NONE;
+					return dst.num_bytes;
 
-					out_count = dst.num_bytes;
-					return READ_OK;
-				} catch (Tresor_crypto::Interface::Buffer_too_small) {
-					return READ_ERR_INVALID;
-				}
+				} catch (Tresor_crypto::Interface::Buffer_too_small) { }
 
-				return READ_ERR_IO;
+				return Read_error::DENIED;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src,
@@ -172,28 +167,22 @@ class Vfs_tresor_crypto::Decrypt_file_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _crypto(crypto), _key_id(key_id), _state(State::NONE)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
-				if (_state != State::PENDING) {
-					return READ_ERR_IO;
-				}
+				if (_state != State::PENDING)
+					return Read_error::DENIED;
 
 				_crypto.execute();
 
 				try {
 					Tresor_crypto::Interface::Complete_request const cr =
 						_crypto.decryption_request_complete(dst);
-					if (cr.valid) {
-					}
+					(void)cr;
 					_state = State::NONE;
+					return dst.num_bytes;
+				} catch (Tresor_crypto::Interface::Buffer_too_small) { }
 
-					out_count = dst.num_bytes;
-					return READ_OK;
-				} catch (Tresor_crypto::Interface::Buffer_too_small) {
-					return READ_ERR_INVALID;
-				}
-
-				return READ_ERR_IO;
+				return Read_error::DENIED;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
@@ -439,14 +428,11 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 
 			bool const _root_dir { false };
 
-			Read_result _query_keys(size_t index,
-			                        size_t &out_count,
-			                        Dirent &out)
+			Read_result _query_keys(size_t index, Dirent &out)
 			{
 				if (index >= _key_reg.number_of_keys()) {
-					out_count = sizeof(Dirent);
 					out.type = Dirent_type::END;
-					return READ_OK;
+					return sizeof(Dirent);
 				}
 
 				try {
@@ -458,16 +444,14 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 						.rwx  = Node_rwx::rx(),
 						.name = { name.string() },
 					};
-					out_count = sizeof(Dirent);
-					return READ_OK;
-				} catch (Key_registry::Invalid_index) {
-					return READ_ERR_INVALID;
-				}
+					return sizeof(Dirent);
+
+				} catch (Key_registry::Invalid_index) { }
+
+				return Read_error::DENIED;
 			}
 
-			Read_result _query_root(size_t  index,
-			                        size_t &out_count,
-			                        Dirent &out)
+			Read_result _query_root(size_t index, Dirent &out)
 			{
 				if (index == 0) {
 					out = {
@@ -478,9 +462,7 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 				} else {
 					out.type = Dirent_type::END;
 				}
-
-				out_count = sizeof(Dirent);
-				return READ_OK;
+				return sizeof(Dirent);
 			}
 
 			Dir_vfs_handle(Directory_service  &ds,
@@ -492,12 +474,10 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 				_key_reg(key_reg), _root_dir(root_dir)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
-				out_count = 0;
-
 				if (dst.num_bytes < sizeof(Dirent))
-					return READ_ERR_INVALID;
+					return Read_error::DENIED;
 
 				size_t const index = size_t(seek() / sizeof(Dirent));
 
@@ -506,11 +486,11 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 				if (!_root_dir) {
 
 					/* opended as "/<name>" */
-					return _query_keys(index, out_count, out);
+					return _query_keys(index, out);
 
 				} else {
 					/* opened as "/" */
-					return _query_root(index, out_count, out);
+					return _query_root(index, out);
 				}
 			}
 
@@ -541,10 +521,10 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 				vfs_handle.close();
 			}
 
-			Read_result complete_read(Byte_range_ptr const &, size_t &) override
+			Read_result read(Byte_range_ptr const &) override
 			{
 				warning("Tresor_crypto::Dir_snap_vfs_handle::complete_read not implemented");
-				return READ_ERR_INVALID;
+				return Read_error::DENIED;
 			}
 
 			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
@@ -816,9 +796,9 @@ class Vfs_tresor_crypto::Management_file_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _type(type), _crypto(crypto)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &, size_t &) override
+			Read_result read(Byte_range_ptr const &) override
 			{
-				return READ_ERR_IO;
+				return Read_error::DENIED;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src,

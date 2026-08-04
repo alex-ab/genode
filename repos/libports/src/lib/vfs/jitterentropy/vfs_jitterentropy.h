@@ -74,10 +74,10 @@ class Vfs_jitterentropy::File_system : public Single_file_system
 				  _ec_stir(ec_stir),
 				  _initialized(initialized) { }
 
-				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result read(Byte_range_ptr const &dst) override
 				{
 					if (!_initialized)
-						return READ_ERR_IO;
+						return Read_error::DENIED;
 
 					enum { MAX_BUF_LEN = 256UL };
 					char buf[MAX_BUF_LEN];
@@ -85,13 +85,11 @@ class Vfs_jitterentropy::File_system : public Single_file_system
 					size_t const len = min(dst.num_bytes, MAX_BUF_LEN);
 
 					if (jent_read_entropy(_ec_stir, buf, len) < 0)
-						return READ_ERR_IO;
+						return Read_error::DENIED;
 
 					memcpy(dst.start, buf, len);
 
-					out_count = len;
-
-					return READ_OK;
+					return len;
 				}
 
 				Write_result write(Const_byte_range_ptr const &, size_t &) override

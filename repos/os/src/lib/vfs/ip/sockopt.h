@@ -62,20 +62,17 @@ class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 				_sock(sock)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
-				out_count = 0;
-
 				long     opt = 0;
 				unsigned len = BUF_SIZE;
 				Errno err = genode_socket_getsockopt(&_sock, LEVEL, OPTNAME, &opt, &len);
-				if (err != GENODE_ENONE) return READ_ERR_IO;
+				if (err != GENODE_ENONE)
+					return Read_error::DENIED;
 
 				len = Genode::min(len, unsigned(dst.num_bytes));
 				Genode::memcpy(dst.start, &opt, len);
-				out_count = len;
-
-				return READ_OK;
+				return len;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override

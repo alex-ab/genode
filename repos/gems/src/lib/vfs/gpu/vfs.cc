@@ -63,20 +63,19 @@ struct Vfs_gpu::File_system : Single_file_system
 			_gpu_session.completion_sigh(_completion_sigh);
 		}
 
-		Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result read(Byte_range_ptr const &dst) override
 		{
-			if (!_complete) return READ_QUEUED;
+			if (!_complete) return Read_error::RETRY;
 
 			unsigned long const id_value = _elem.id().value;
 
 			if (dst.num_bytes < sizeof(id_value))
-				return READ_ERR_INVALID;
+				return Read_error::DENIED;
 
-			_complete    = false;
-			out_count    = sizeof(id_value);
+			_complete = false;
 			memcpy(dst.start, &id_value, sizeof(id_value));
 
-			return READ_OK;
+			return sizeof(id_value);
 		}
 
 		Write_result write(Const_byte_range_ptr const &, size_t &) override

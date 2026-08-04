@@ -71,9 +71,9 @@ struct Vfs_ram_log::File_system : Single_file_system
 			Single_vfs_handle { ds, alloc, 0 }, _ram_log(ram_log)
 		{ }
 
-		Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result read(Byte_range_ptr const &dst) override
 		{
-			out_count = 0;
+			size_t out_count = 0;
 			for (size_t i = 0; i < dst.num_bytes; i++) {
 
 				auto const byte = _ram_log._buffer.byte_at(seek());
@@ -86,7 +86,7 @@ struct Vfs_ram_log::File_system : Single_file_system
 					out_count++;
 				}, [&] (auto) { });
 			}
-			return READ_OK;
+			return out_count;
 		}
 
 		Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override

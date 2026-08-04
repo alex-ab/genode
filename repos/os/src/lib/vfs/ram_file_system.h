@@ -85,7 +85,7 @@ struct Vfs_ram::Io_handle final : Vfs_handle, private List<Io_handle>::Element
 	{ }
 
 	inline Write_result write(Const_byte_range_ptr const &, size_t &) override;
-	inline Read_result complete_read(Byte_range_ptr const &, size_t &) override;
+	inline Read_result  read(Byte_range_ptr const &) override;
 
 	bool read_ready () const override { return true; }
 	bool write_ready() const override { return true; }
@@ -153,18 +153,10 @@ class Vfs_ram::Node : private Avl_node<Node>
 			         .executable = true };
 		}
 
-		virtual size_t read(Byte_range_ptr const &, Seek)
+		virtual Read_result read(Byte_range_ptr const &, Seek)
 		{
 			error("Vfs_ram::Node::read() called");
-			return 0;
-		}
-
-		virtual Read_result complete_read(Byte_range_ptr const &,
-		                                                   Seek,
-		                                                   size_t & /* out count */)
-		{
-			error("Vfs_ram::Node::complete_read() called");
-			return READ_ERR_INVALID;
+			return Read_error::DENIED;
 		}
 
 		virtual size_t write(Const_byte_range_ptr const &, Seek)
@@ -240,7 +232,7 @@ class Vfs_ram::File : public Vfs_ram::Node
 		File(char const * const name, Allocator &alloc)
 		: Node(name), _chunk(alloc, Seek{0}) { }
 
-		size_t read(Byte_range_ptr const &dst, Seek seek) override
+		Read_result read(Byte_range_ptr const &dst, Seek seek) override
 		{
 			size_t const chunk_used_size = _chunk.used_size();
 
@@ -274,13 +266,6 @@ class Vfs_ram::File : public Vfs_ram::Node
 				bzero(dst.start + read_len, len - read_len);
 
 			return len;
-		}
-
-		Read_result complete_read(Byte_range_ptr const &dst,
-		                          Seek seek, size_t &out_count) override
-		{
-			out_count = read(dst, seek);
-			return READ_OK;
 		}
 
 		size_t write(Const_byte_range_ptr const &src, Seek const seek) override
@@ -330,14 +315,11 @@ class Vfs_ram::Symlink : public Vfs_ram::Node
 
 		size_t length() override { return _len; }
 
-		Read_result complete_read(Byte_range_ptr const &dst, Seek,
-		                          size_t &out_count) override
+		Read_result read(Byte_range_ptr const &dst, Seek) override
 		{
-			out_count = min(dst.num_bytes, _len);
-
-			memcpy(dst.start, _target, out_count);
-
-			return READ_OK;
+			size_t n = min(dst.num_bytes, _len);
+			memcpy(dst.start, _target, n);
+			return n;
 		}
 
 		size_t write(Const_byte_range_ptr const &src, Seek) override
@@ -408,14 +390,12 @@ class Vfs_ram::Directory : public Vfs_ram::Node
 
 		size_t length() override { return _count; }
 
-		Read_result complete_read(Byte_range_ptr const &dst,
-		                          Seek const seek,
-		                          size_t &out_count) override
+		Read_result read(Byte_range_ptr const &dst, Seek const seek) override
 		{
 			using Dirent = Directory_service::Dirent;
 
 			if (dst.num_bytes < sizeof(Dirent))
-				return READ_ERR_INVALID;
+				return Read_error::DENIED;
 
 			size_t index = seek.value / sizeof(Dirent);
 
@@ -423,13 +403,11 @@ class Vfs_ram::Directory : public Vfs_ram::Node
 
 			using Dirent_type = Directory_service::Dirent_type;
 
-			out_count = sizeof(Dirent);
-
 			Node *node_ptr = _entries.first();
 			if (node_ptr) node_ptr = node_ptr->index(index);
 			if (!node_ptr) {
 				dirent.type = Dirent_type::END;
-				return READ_OK;
+				return sizeof(Dirent);
 			}
 
 			Node &node = *node_ptr;
@@ -446,7 +424,7 @@ class Vfs_ram::Directory : public Vfs_ram::Node
 			Dirent_type const type = dirent_type();
 
 			if (type == Dirent_type::END)
-				return READ_ERR_INVALID;
+				return 0;
 
 			dirent = {
 				.type = type,
@@ -454,7 +432,7 @@ class Vfs_ram::Directory : public Vfs_ram::Node
 				.name = { node.name() }
 			};
 
-			return READ_OK;
+			return sizeof(Dirent);
 		}
 };
 
@@ -884,7 +862,7 @@ class Vfs_ram::File_system : public Vfs::File_system
 						.at   = { },  .executable = { },  .writeable = true
 					}).convert<Dataspace_capability>(
 						[&] (Genode::Env::Local_rm::Attachment &a) {
-							file->read(Byte_range_ptr((char *)a.ptr, len), Seek{0});
+							(void)file->read(Byte_range_ptr((char *)a.ptr, len), Seek{0});
 							allocation.deallocate = false;
 							return allocation.cap;
 						},
@@ -926,13 +904,11 @@ Vfs_ram::Write_result Vfs_ram::Io_handle::write(Const_byte_range_ptr const &buf,
 }
 
 
-Vfs_ram::Read_result Vfs_ram::Io_handle::complete_read(Byte_range_ptr const &dst, size_t &out_count)
+Vfs_ram::Read_result Vfs_ram::Io_handle::read(Byte_range_ptr const &dst)
 {
-	out_count = 0;
-
 	Seek const seek { size_t(Vfs_handle::seek()) };
 
-	return node.complete_read(dst, seek, out_count);
+	return node.read(dst, seek);
 }
 
 

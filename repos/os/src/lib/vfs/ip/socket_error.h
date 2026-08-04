@@ -49,13 +49,11 @@ class Vfs_ip::Error_file_system : public Single_file_system
 				_fs(fs)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
 				unsigned len = min(_fs.BUF_SIZE, unsigned(dst.num_bytes));
 				memcpy(dst.start, &_fs._error, len);
-				out_count = len;
-
-				return READ_OK;
+				return len;
 			}
 
 			Write_result write(Const_byte_range_ptr const &, size_t &) override {

@@ -146,20 +146,22 @@ class Vfs_rump::File_system : public Vfs::File_system
 				return FTRUNCATE_OK;
 			}
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
 				ssize_t n = rump_sys_pread(attr.fd, dst.start, dst.num_bytes, seek());
-				if (n == -1) switch (errno) {
-				case EWOULDBLOCK: return READ_ERR_WOULD_BLOCK;
-				case EINVAL:      return READ_ERR_INVALID;
-				case EIO:         return READ_ERR_IO;
-				case EINTR:       return READ_ERR_IO;
+				if (n >= 0)
+					return n;
+
+				switch (errno) {
+				case EWOULDBLOCK:
+				case EINVAL:
+				case EIO:
+				case EINTR:
+					break;
 				default:
-					error(__func__, ": unhandled rump error ", errno);
-					return READ_ERR_IO;
+					error(__func__, ": expected rump error ", errno, " during read");
 				}
-				out_count = n;
-				return READ_OK;
+				return Read_error::DENIED;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
@@ -244,7 +246,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 					.rwx  = rwx,
 					.name = { dent->d_name }
 				};
-				return READ_OK;
+				return sizeof(Dirent);
 			}
 
 			Rump_vfs_dir_handle(File_system &fs, Allocator &alloc, int flags, Attr attr)
@@ -257,18 +259,14 @@ class Vfs_rump::File_system : public Vfs::File_system
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return false; }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
-				out_count = 0;
-
 				if (dst.num_bytes < sizeof(Dirent))
-					return READ_ERR_INVALID;
+					return Read_error::DENIED;
 
 				size_t const index = size_t(seek() / sizeof(Dirent));
 
 				Dirent *vfs_dir = (Dirent*)dst.start;
-
-				out_count = sizeof(Dirent);
 
 				rump_sys_lseek(attr.fd, 0, SEEK_SET);
 
@@ -294,7 +292,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 				} while (bytes > 0);
 
 				*vfs_dir = Dirent();
-				return READ_OK;
+				return sizeof(Dirent);
 			}
 		};
 
@@ -308,22 +306,15 @@ class Vfs_rump::File_system : public Vfs::File_system
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return true; }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
-				out_count = 0;
-
-				if (seek() != 0) {
-					/* partial read is not supported */
-					return READ_ERR_INVALID;
-				}
+				if (seek() != 0)
+					return Read_error::DENIED; /* partial read is not supported */
 
 				ssize_t n = rump_sys_readlink(attr.path.base(), dst.start, dst.num_bytes);
-				if (n == -1)
-					return READ_ERR_IO;
-
-				out_count = n;
-
-				return READ_OK;
+				if (n >= 0)
+					return n;
+				return Read_error::DENIED;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override

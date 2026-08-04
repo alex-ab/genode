@@ -89,9 +89,6 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 		struct Fatfs_handle : Vfs_handle
 		{
 			using Vfs_handle::Vfs_handle;
-
-			virtual Read_result complete_read(Byte_range_ptr const &dst,
-			                                  size_t &out_count) = 0;
 		};
 
 		struct Fatfs_file_handle : Fatfs_handle, Fatfs_file_handles::Element
@@ -105,35 +102,23 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				Fatfs_handle(fs, alloc, status_flags), _fs(fs)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst,
-			                          size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
 				if (!file) {
-					error("READ_ERR_INVALID");
-					return READ_ERR_INVALID;
+					error("Vfs_fatfs: Read_error::DENIED");
+					return Read_error::DENIED;
 				}
 				if ((status_flags()&OPEN_MODE_ACCMODE) == OPEN_MODE_WRONLY)
-					return READ_ERR_INVALID;
+					return Read_error::DENIED;
 
-				FRESULT fres;
 				FIL *fil = &file->fil;
-
-				fres = f_lseek(fil, seek());
+				FRESULT fres = f_lseek(fil, seek());
 				if (fres == FR_OK) {
 					UINT bw = 0;
 					fres = f_read(fil, dst.start, dst.num_bytes, &bw);
-					out_count = bw;
+					return bw;
 				}
-
-				switch (fres) {
-				case FR_OK:             return READ_OK;
-				case FR_INVALID_OBJECT: return READ_ERR_INVALID;
-				case FR_TIMEOUT:        return READ_ERR_WOULD_BLOCK;
-				case FR_DISK_ERR:       return READ_ERR_IO;
-				case FR_INT_ERR:        return READ_ERR_IO;
-				case FR_DENIED:         return READ_ERR_IO;
-				default:                return READ_ERR_IO;
-				}
+				return Read_error::DENIED;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
@@ -242,15 +227,12 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				Fatfs_handle(fs, alloc, 0), path(path)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst,
-			                          size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
 				/* not very efficient, just N calls to f_readdir */
 
-				out_count = 0;
-
 				if (dst.num_bytes < sizeof(Dirent))
-					return READ_ERR_INVALID;
+					return Read_error::DENIED;
 
 				size_t dir_index = size_t(seek() / sizeof(Dirent));
 				if (dir_index < cur_index) {
@@ -275,8 +257,7 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 							.rwx  = Node_rwx::rwx(),
 							.name = { }
 						};
-						out_count = sizeof(Dirent);
-						return READ_OK;
+						return sizeof(Dirent);
 					}
 					cur_index++;
 				}
@@ -288,8 +269,7 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 					.rwx  = Node_rwx::rwx(),
 					.name = { (char const *)info.fname }
 				};
-				out_count = sizeof(Dirent);
-				return READ_OK;
+				return sizeof(Dirent);
 			}
 
 			bool read_ready()  const override { return true; }

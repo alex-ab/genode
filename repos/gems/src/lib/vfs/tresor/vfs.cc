@@ -897,21 +897,14 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 					Single_vfs_handle(ds, alloc, 0), _plugin(plugin)
 				{ }
 
-				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result read(Byte_range_ptr const &dst) override
 				{
-					out_count = 0;
-					Read_result result = READ_QUEUED;
+					Read_result result = Read_error::DENIED;
 					_plugin.with_data_operation([&] (Data_operation &data_operation) {
-
 						switch (data_operation.read(seek(), dst)) {
-						case Data_operation::PENDING: break;
-						case Data_operation::SUCCEEDED:
-
-							out_count = dst.num_bytes;
-							result = READ_OK;
-							break;
-
-						case Data_operation::FAILED: result = READ_ERR_IO; break;
+						case Data_operation::PENDING:   result = Read_error::RETRY;  break;
+						case Data_operation::SUCCEEDED: result = dst.num_bytes;      break;
+						case Data_operation::FAILED:    result = Read_error::DENIED; break;
 						};
 					});
 					return result;
@@ -1011,11 +1004,10 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 
 				Plugin &_plugin;
 
-				static Read_result _read_ok(Content_string const &content, Byte_range_ptr const &dst, size_t &out_count)
+				static Read_result _read_ok(Content_string const &content, Byte_range_ptr const &dst)
 				{
 					copy_cstring(dst.start, content.string(), dst.num_bytes);
-					out_count = dst.num_bytes;
-					return READ_OK;
+					return dst.num_bytes;
 				}
 
 			public:
@@ -1025,25 +1017,23 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 					Single_vfs_handle(ds, alloc, 0), _plugin(plugin)
 				{ }
 
-				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result read(Byte_range_ptr const &dst) override
 				{
-					out_count = 0;
-					if (seek() == dst.num_bytes) {
-						return READ_OK;
-					}
+					if (seek() == dst.num_bytes)
+						return 0; /* EOF */
+
 					if (seek() || dst.num_bytes < Content_string::capacity()) {
 						if (_plugin.verbose())
 							log("reading extend file failed: malformed arguments");
-						return READ_ERR_IO;
+						return Read_error::DENIED;
 					}
-					Read_result result = READ_QUEUED;
+					Read_result result = Read_error::DENIED;
 					_plugin.with_extend_operation([&] (Extend_operation &extend_operation) {
-
 						switch (extend_operation.result()) {
-						case Extend_operation::NONE: result = _read_ok("none", dst, out_count); break;
-						case Extend_operation::SUCCEEDED: result = _read_ok("succeeded", dst, out_count); break;
-						case Extend_operation::FAILED: result = _read_ok("failed", dst, out_count); break;
-						case Extend_operation::PENDING: break;
+						case Extend_operation::NONE:      result = _read_ok("none",      dst); break;
+						case Extend_operation::SUCCEEDED: result = _read_ok("succeeded", dst); break;
+						case Extend_operation::FAILED:    result = _read_ok("failed",    dst); break;
+						case Extend_operation::PENDING:   result = Read_error::RETRY; break;
 						}
 					});
 					return result;
@@ -1155,11 +1145,10 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 
 				Plugin &_plugin;
 
-				static Read_result _read_ok(Content_string const &content, Byte_range_ptr const &dst, size_t &out_count)
+				static Read_result _read_ok(Content_string const &content, Byte_range_ptr const &dst)
 				{
 					copy_cstring(dst.start, content.string(), dst.num_bytes);
-					out_count = dst.num_bytes;
-					return READ_OK;
+					return dst.num_bytes;
 				}
 
 			public:
@@ -1169,25 +1158,23 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 					Single_vfs_handle(ds, alloc, 0), _plugin(plugin)
 				{ }
 
-				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result read(Byte_range_ptr const &dst) override
 				{
-					out_count = 0;
-					if (seek() == dst.num_bytes) {
-						return READ_OK;
-					}
+					if (seek() == dst.num_bytes)
+						return 0; /* EOF */
+
 					if (seek() || dst.num_bytes < Content_string::capacity()) {
 						if (_plugin.verbose())
 							log("reading rekey file failed: malformed arguments");
-						return READ_ERR_IO;
+						return Read_error::DENIED;
 					}
-					Read_result result = READ_QUEUED;
+					Read_result result = Read_error::DENIED;
 					_plugin.with_rekey_operation([&] (Rekey_operation &rekey_operation) {
-
 						switch (rekey_operation.result()) {
-						case Rekey_operation::NONE: result = _read_ok("none", dst, out_count); break;
-						case Rekey_operation::SUCCEEDED: result = _read_ok("succeeded", dst, out_count); break;
-						case Rekey_operation::FAILED: result = _read_ok("failed", dst, out_count); break;
-						case Rekey_operation::PENDING: break;
+						case Rekey_operation::NONE:      result = _read_ok("none",      dst); break;
+						case Rekey_operation::SUCCEEDED: result = _read_ok("succeeded", dst); break;
+						case Rekey_operation::FAILED:    result = _read_ok("failed",    dst); break;
+						case Rekey_operation::PENDING:   result = Read_error::RETRY; break;
 						}
 					});
 					return result;
@@ -1277,11 +1264,10 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 
 				Plugin &_plugin;
 
-				static Read_result _read_ok(Content_string const &content, Byte_range_ptr const &dst, size_t &out_count)
+				static Read_result _read_ok(Content_string const &content, Byte_range_ptr const &dst)
 				{
 					copy_cstring(dst.start, content.string(), dst.num_bytes);
-					out_count = dst.num_bytes;
-					return READ_OK;
+					return dst.num_bytes;
 				}
 
 			public:
@@ -1291,25 +1277,23 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 					Single_vfs_handle(ds, alloc, 0), _plugin(plugin)
 				{ }
 
-				Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+				Read_result read(Byte_range_ptr const &dst) override
 				{
-					out_count = 0;
-					if (seek() == dst.num_bytes) {
-						return READ_OK;
-					}
+					if (seek() == dst.num_bytes)
+						return 0; /* EOF */
+
 					if (seek() || dst.num_bytes < Content_string::capacity()) {
 						if (_plugin.verbose())
 							log("reading deinitialize file failed: malformed arguments");
-						return READ_ERR_IO;
+						return Read_error::DENIED;
 					}
-					Read_result result = READ_QUEUED;
+					Read_result result = Read_error::DENIED;
 					_plugin.with_deinit_operation([&] (Deinitialize_operation &deinit_operation) {
-
 						switch (deinit_operation.result()) {
-						case Deinitialize_operation::NONE: result = _read_ok("none", dst, out_count); break;
-						case Deinitialize_operation::SUCCEEDED: result = _read_ok("succeeded", dst, out_count); break;
-						case Deinitialize_operation::FAILED: result = _read_ok("failed", dst, out_count); break;
-						case Deinitialize_operation::PENDING: break;
+						case Deinitialize_operation::NONE:      result = _read_ok("none",      dst); break;
+						case Deinitialize_operation::SUCCEEDED: result = _read_ok("succeeded", dst); break;
+						case Deinitialize_operation::FAILED:    result = _read_ok("failed",    dst); break;
+						case Deinitialize_operation::PENDING:   result = Read_error::RETRY; break;
 						}
 					});
 					return result;

@@ -175,17 +175,8 @@ class Vfs_tar::File_system : public Vfs::File_system
 			: Vfs_handle(fs, alloc, status_flags), _fs(fs), _node(node)
 			{ }
 
-			virtual Read_result read(Byte_range_ptr const &dst, size_t &out_count) = 0;
-
-			Read_result complete_read(Byte_range_ptr const &dst,
-			                          size_t &out_count) override
-			{
-				out_count = 0;
-				return read(dst, out_count);
-			}
-
-		bool read_ready () const override { return true; }
-		bool write_ready() const override { return false; }
+			bool read_ready () const override { return true; }
+			bool write_ready() const override { return false; }
 	};
 
 
@@ -193,7 +184,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 	{
 		using Tar_vfs_handle::Tar_vfs_handle;
 
-		Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result read(Byte_range_ptr const &dst) override
 		{
 			file_size const record_size = _node->record->size();
 
@@ -206,8 +197,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 
 			memcpy(dst.start, data, count);
 
-			out_count = count;
-			return READ_OK;
+			return count;
 		}
 	};
 
@@ -215,10 +205,10 @@ class Vfs_tar::File_system : public Vfs::File_system
 	{
 		using Tar_vfs_handle::Tar_vfs_handle;
 
-		Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result read(Byte_range_ptr const &dst) override
 		{
 			if (dst.num_bytes < sizeof(Dirent))
-				return READ_ERR_INVALID;
+				return Read_error::DENIED;
 
 			Dirent &dirent = *(Dirent*)dst.start;
 
@@ -228,8 +218,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 
 			if (!node_ptr) {
 				dirent = Dirent { };
-				out_count = 0;
-				return READ_OK;
+				return 0; /* EOF */
 			}
 
 			Node const &node = *node_ptr;
@@ -250,8 +239,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 					.rwx  = Node_rwx::rx(),
 					.name = { node.name }
 				};
-				out_count = sizeof(Dirent);
-				return READ_OK;
+				return sizeof(Dirent);
 			}
 
 			Record const &record = *record_ptr;
@@ -276,8 +264,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 				          .executable = record.rwx().executable },
 				.name = { node.name }
 			};
-			out_count = sizeof(Dirent);
-			return READ_OK;
+			return sizeof(Dirent);
 		}
 	};
 
@@ -285,7 +272,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 	{
 		using Tar_vfs_handle::Tar_vfs_handle;
 
-		Read_result read(Byte_range_ptr const &dst, size_t &out_count) override
+		Read_result read(Byte_range_ptr const &dst) override
 		{
 			Record const *record = _node->record;
 
@@ -293,9 +280,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 
 			memcpy(dst.start, record->linked_name(), count);
 
-			out_count = count;
-
-			return READ_OK;
+			return count;
 		}
 	};
 

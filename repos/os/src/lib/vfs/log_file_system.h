@@ -102,10 +102,10 @@ class Vfs_log::File_system : public Single_file_system
 					if (_line_pos > 0) _flush();
 				}
 
-				Read_result complete_read(Byte_range_ptr const &, size_t &) override
+				Read_result read(Byte_range_ptr const &) override
 				{
 					/* block indefinitely - mimics stdout resp. stdin w/o input */
-					return READ_QUEUED;
+					return Read_error::RETRY;
 				}
 
 				Write_result write(Const_byte_range_ptr const &buf, size_t &out_count) override

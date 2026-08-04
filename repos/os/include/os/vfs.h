@@ -156,34 +156,31 @@ struct Genode::Directory : Noncopyable, Interface
 
 			_handle->seek(i * sizeof(entry._dirent));
 
-			while (!_handle->queue_read(sizeof(entry._dirent)))
-				_io.commit_and_wait();
-
-			Vfs::Read_result read_result;
-
-			size_t out_count = 0;
+			Vfs::Read_result read_result = 0;
 
 			for (;;) {
-
 				Byte_range_ptr const dst { (char*)&entry._dirent,
 				                            sizeof(entry._dirent) };
 
-				read_result = _handle->complete_read(dst, out_count);
-
-				if (read_result != Vfs::READ_QUEUED)
+				read_result = _handle->read(dst);
+				if (read_result != Vfs::Read_error::RETRY)
 					break;
 
 				_io.commit_and_wait();
 			}
 
-			bool const ok = (read_result == Vfs::READ_OK)
-			             && (out_count == sizeof(entry._dirent))
-			             && (entry._dirent.type != Vfs::Directory_service::Dirent_type::END);
+			bool const ok = read_result.convert<bool>(
+				[&] (size_t num_bytes) {
+					if ((num_bytes > 0) && (num_bytes < sizeof(entry._dirent)))
+						warning("failed to access dir entry ", i, " of '", _path, "'");
+
+					return (num_bytes == sizeof(entry._dirent))
+					    && (entry._dirent.type != Vfs::Directory_service::Dirent_type::END);
+				},
+				[&] (Vfs::Read_error) { return false; });
+
 			if (ok)
 				return fn(static_cast<Entry const &>(entry));
-
-			if ((out_count > 0) && (out_count < sizeof(entry._dirent)))
-				warning("failed to access dir entry ", i, " of '", _path, "'");
 
 			return missing_fn();
 		}
@@ -327,29 +324,18 @@ struct Genode::Directory : Noncopyable, Interface
 
 			char buf[MAX_PATH_LEN];
 
-			size_t count = sizeof(buf)-1;
-			size_t out_count = 0;
-
-			while (!link_handle->queue_read(count)) {
-				_io.commit_and_wait();
-			}
-
-			Read_result result;
-
+			Read_result result = Vfs::Read_error::DENIED;
 			for (;;) {
-				result = link_handle->complete_read(Byte_range_ptr(buf, count),
-				                                    out_count);
-
-				if (result != READ_QUEUED)
+				result = link_handle->read(Byte_range_ptr(buf, sizeof(buf) - 1));
+				if (result != Vfs::Read_error::RETRY)
 					break;
 
 				_io.commit_and_wait();
 			};
 
-			if (result != READ_OK)
-				throw Nonexistent_file();
-
-			return Path(Genode::Cstring(buf, (size_t)out_count));
+			return result.convert<Path>(
+				[&] (size_t num_bytes) { return Path(Genode::Cstring(buf, num_bytes)); },
+				[&] (Vfs::Read_error) -> Path  { throw Nonexistent_file(); });
 		}
 
 		/**
@@ -557,25 +543,23 @@ class Genode::Readonly_file : public File
 
 				_handle->seek(at.value + total);
 
-				while (!_handle->queue_read(range.num_bytes))
-					_io.commit_and_wait();
-
-				Vfs::Read_result result;
-
-				size_t read_bytes = 0; /* byte count for this iteration */
-
+				Vfs::Read_result result = Vfs::Read_error::DENIED;
 				for (;;) {
 
 					Byte_range_ptr const partial_range { range.start     + total,
 					                                     range.num_bytes - total };
 
-					result = _handle->complete_read(partial_range, read_bytes);
-
-					if (result != Vfs::READ_QUEUED)
+					result = _handle->read(partial_range);
+					if (result != Vfs::Read_error::RETRY)
 						break;
 
 					_io.commit_and_wait();
 				};
+
+				/* byte count for this iteration */
+				size_t const read_bytes = result.convert<size_t>(
+					[&] (size_t n)        { return n; },
+					[&] (Vfs::Read_error) { return 0ul; });
 
 				if (read_bytes > range.num_bytes - total) {
 					error("read beyond buffer size");

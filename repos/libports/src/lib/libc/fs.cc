@@ -675,27 +675,22 @@ ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 
 		of.blocking = true; /* sync with close */
 
-		if (!queued)
-			queued = of.handle.queue_read(count);
-
-		if (!queued)
-			return Fn::INCOMPLETE; /* keep blocking until 'queue_read' succeeds */
-
 		Byte_range_ptr const dst { (char *)buf, count };
 
-		switch (of.handle.complete_read(dst, out_count)) {
-		case Result::READ_ERR_WOULD_BLOCK: result_errno = EWOULDBLOCK; break;
-		case Result::READ_ERR_INVALID:     result_errno = EINVAL;      break;
-		case Result::READ_ERR_IO:          result_errno = EIO;         break;
-		case Result::READ_OK:              break;
-		case Result::READ_QUEUED:
+		Result result = of.handle.read(dst);
+		if (result == Vfs::Read_error::RETRY) {
+			queued = true;
 			return Fn::INCOMPLETE; /* keep blocking */
 		}
 
 		of.blocking = false;
 
-		if (!result_errno)
-			of.handle.advance_seek(out_count);
+		result.with_result(
+			[&] (size_t num_bytes) {
+				of.handle.advance_seek(num_bytes);
+				out_count = num_bytes;
+			},
+			[&] (Vfs::Read_error) { result_errno = EINVAL; });
 
 		return Fn::COMPLETE; /* success or error out */
 	});
@@ -718,30 +713,23 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 	using Dirent = Vfs::Directory_service::Dirent;
 
 	Dirent dirent_out;
-
-	/* TODO refactor multiple monitor() calls to state machine in one call */
-
-	_monitor.monitor([&] {
-		return od.handle.queue_read(sizeof(Dirent)) ? Fn::COMPLETE : Fn::INCOMPLETE;
-	});
-
-	Result   out_result;
-	::size_t out_count;
+	Result result = Vfs::Read_error::DENIED;
 
 	_monitor.monitor([&] {
+
 		Byte_range_ptr const dst { (char *)&dirent_out, sizeof(Dirent) };
-		out_result = od.handle.complete_read(dst, out_count);
-		return out_result != Result::READ_QUEUED ? Fn::COMPLETE : Fn::INCOMPLETE;
+		result = od.handle.read(dst);
+
+		return result == Vfs::Read_error::RETRY ? Fn::INCOMPLETE : Fn::COMPLETE;
 	});
 
-	if ((out_result != Result::READ_OK) ||
-	    (out_count < sizeof(Dirent))) {
-		return 0;
-	}
+	bool const ok = result.convert<bool>(
+		[&] (size_t num_bytes) { return num_bytes >= sizeof(Dirent); },
+		[&] (Vfs::Read_error) { return false; });
 
 	using Dirent_type = Vfs::Directory_service::Dirent_type;
 
-	if (dirent_out.type == Dirent_type::END)
+	if (!ok || dirent_out.type == Dirent_type::END)
 		return 0;
 
 	/*
@@ -1895,7 +1883,7 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 
 ssize_t Libc::Fs::readlink(const char *link_path, char *buf, ::size_t buf_size)
 {
-	enum class Stage { OPEN, QUEUE_READ, COMPLETE_READ };
+	enum class Stage { OPEN, READ };
 
 	Stage stage { Stage::OPEN };
 
@@ -1933,34 +1921,27 @@ ssize_t Libc::Fs::readlink(const char *link_path, char *buf, ::size_t buf_size)
 
 				handle_ptr->handler(&_response_handler);
 			}
-			stage = Stage::QUEUE_READ; [[ fallthrough ]];
+			stage = Stage::READ; [[ fallthrough ]];
 
-		case Stage::QUEUE_READ:
+		case Stage::READ:
 			{
-				if (!handle_ptr->queue_read(buf_size))
-					return Fn::INCOMPLETE;
-			}
-			stage = Stage::COMPLETE_READ; [[ fallthrough ]];
-
-		case Stage::COMPLETE_READ:
-			{
-				using Result = Vfs::Read_result;
-
 				Byte_range_ptr const dst { buf, buf_size };
 
-				Result out_result =
-					handle_ptr->complete_read(dst, out_count);
+				Vfs::Read_result const result = handle_ptr->read(dst);
+				if (result == Vfs::Read_error::RETRY)
+					return Fn::INCOMPLETE;
 
-				switch (out_result) {
-				case Result::READ_QUEUED: return Fn::INCOMPLETE;;
-
-				case Result::READ_ERR_WOULD_BLOCK: result_errno = EWOULDBLOCK; break;
-				case Result::READ_ERR_INVALID:     result_errno = EINVAL;      break;
-				case Result::READ_ERR_IO:          result_errno = EIO;         break;
-				case Result::READ_OK:              succeeded = true;           break;
-				};
 				handle_ptr->close();
-			} break;
+
+				result.with_result(
+					[&] (size_t num_bytes) {
+						out_count = num_bytes;
+						succeeded = true;
+					},
+					[&] (Vfs::Read_error) {
+						result_errno = EINVAL; });
+			}
+			break;
 		}
 
 		return Fn::COMPLETE;
@@ -2294,50 +2275,37 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 				if ((fd.flags & O_ACCMODE) == O_WRONLY) {
 					aio_job.result = -1;
 					aio_job.error  = EBADF;
-					aio_job.state = Aio_job::State::COMPLETE;
+					aio_job.state  = Aio_job::State::COMPLETE;
 					break;
 				}
-
-				vfs_handle.seek(aio_job.iocb->aio_offset);
-
-				if (!vfs_handle.queue_read(aio_job.iocb->aio_nbytes))
-					break;
 
 				aio_handle.state = Aio_handle::State::QUEUED;
 				progress = true;
-				break;
+
+				[[fallthrough]];
 			}
 			case Aio_handle::State::QUEUED:
 			{
+				vfs_handle.seek(aio_job.iocb->aio_offset);
 				Genode::Byte_range_ptr const dst {
 					(char *)aio_job.iocb->aio_buf, aio_job.iocb->aio_nbytes };
-				::size_t out_count = 0;
-				Result const out_result =
-					vfs_handle.complete_read(dst, out_count);
-				if (out_result != Result::READ_QUEUED) {
 
-					aio_job.result = -1;
+				Result const result = vfs_handle.read(dst);
+				if (result == Genode::Vfs::Read_error::RETRY)
+					break;
 
-					switch (out_result) {
-					case Result::READ_ERR_WOULD_BLOCK:
-						aio_job.error  = EWOULDBLOCK;
-						break;
-					case Result::READ_ERR_INVALID:
-						aio_job.error  = EINVAL;
-						break;
-					case Result::READ_ERR_IO:
-						aio_job.error  = EIO;
-						break;
-					case Result::READ_OK:
-						aio_job.result = out_count;
+				result.with_result(
+					[&] (size_t num_bytes) {
+						aio_job.result = num_bytes;
 						aio_job.error  = 0;
-						break;
-					case Result::READ_QUEUED: /* never reached */ break;
-					}
-					aio_handle.state = Aio_handle::State::COMPLETE;
-					progress = true;
-				}
-				break;
+					},
+					[&] (Genode::Vfs::Read_error) {
+						aio_job.result = -1;
+						aio_job.error  = EINVAL;
+					});
+
+				aio_handle.state = Aio_handle::State::COMPLETE;
+				progress = true;
 			}
 			case Aio_handle::State::COMPLETE:
 				aio_job.state = Aio_job::State::COMPLETE;

@@ -142,23 +142,6 @@ static inline void print(Genode::Output &output, Vfs::Write_result const &r)
 }
 
 
-static inline void print(Genode::Output &output, Vfs::Read_result const &r)
-{
-#define CASE_PRINT(x) \
-	case Vfs::Read_result::x: output.out_string(#x); break
-
-	switch (r) {
-		CASE_PRINT(READ_OK);
-		CASE_PRINT(READ_ERR_WOULD_BLOCK);
-		CASE_PRINT(READ_ERR_INVALID);
-		CASE_PRINT(READ_ERR_IO);
-		CASE_PRINT(READ_QUEUED);
-	}
-
-#undef CASE_PRINT
-}
-
-
 static inline void print(Genode::Output &output, Vfs::Ftruncate_result const &r)
 {
 #define CASE_PRINT(x) \

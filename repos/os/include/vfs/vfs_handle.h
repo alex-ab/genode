@@ -162,17 +162,16 @@ class Genode::Vfs::Vfs_handle
 		}
 
 		/**
-		 * Queue read operation
+		 * Initiate or complete read operation
 		 *
-		 * \return false if queue is full
+		 * On success, the method returns the number of read bytes.
+		 * If zero, the end of file is reached.
 		 *
-		 * If the queue is full, the caller can try again after a previous VFS
-		 * request is completed.
+		 * \return Read_error::RETRY  if the read operation is not yet
+		 *                            complete and must by tried again once
+		 *                            external I/O has progressed
 		 */
-		virtual bool queue_read(size_t) { return true; }
-
-		virtual Read_result complete_read(Byte_range_ptr const &dst,
-		                                  size_t &out_count) = 0;
+		virtual Read_result read(Byte_range_ptr const &dst) = 0;
 
 		/**
 		 * Return true if the handle has readable data

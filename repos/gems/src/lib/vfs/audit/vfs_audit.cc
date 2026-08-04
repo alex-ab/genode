@@ -116,24 +116,20 @@ class Vfs_audit::File_system : public Vfs::File_system
 				return result;
 			}
 
-			bool queue_read(size_t len) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
 				_sync_state();
-				_log(__func__, " ", path, " ", len);
-				return audited.queue_read(len);
-			}
+				Read_result const result = audited.read(dst);
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out) override
-			{
-				_sync_state();
-				Read_result const result = audited.complete_read(dst, out);
-
-				if (result == READ_OK)
-					_log("completed read from ", path, " ", out);
-				else if (result == READ_QUEUED)
-					_log("read queued for ", path);
-				else
-					_log("read error for ", path);
+				result.with_result(
+					[&] (size_t num_bytes) {
+						_log("completed read from ", path, " ", num_bytes); },
+					[&] (Read_error e) {
+						if (result == Read_error::RETRY)
+							_log("read needs retry for ", path);
+						else
+							_log("read error ", (int)e, " for ", path);
+					});
 
 				return result;
 			}

@@ -44,12 +44,11 @@ class Vfs_symlink::File_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _target(target)
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
 				size_t const n = min(dst.num_bytes, _target.length());
 				copy_cstring(dst.start, _target.string(), n);
-				out_count = (n > 0) ? n - 1 : 0;
-				return READ_OK;
+				return (n > 0) ? n - 1 : 0;
 			}
 
 			Write_result write(Const_byte_range_ptr const &, size_t &) override {

@@ -313,14 +313,8 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 				return Submit_result::DENIED;
 
 			_handle.seek(seek_offset);
-
-			bool const queuing_succeeded = _handle.queue_read(_packet.length());
-
-			if (queuing_succeeded)
-				_packet_in_progress = true;
-
-			return queuing_succeeded ? Submit_result::ACCEPTED
-			                         : Submit_result::STALLED;
+			_packet_in_progress = true;
+			return Submit_result::ACCEPTED;
 		}
 
 		Submit_result _submit_write_at(file_offset seek_offset)
@@ -376,25 +370,16 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 
 		void _execute_read()
 		{
-			size_t out_count = 0;
-
 			Byte_range_ptr dst { _payload_ptr.ptr, _packet.length() };
 
-			switch (_handle.complete_read(dst, out_count)) {
-
-			case Read_result::READ_OK:
-				_acknowledge_as_success((size_t)out_count);
-				break;
-
-			case Read_result::READ_ERR_IO:
-			case Read_result::READ_ERR_INVALID:
-				_acknowledge_as_failure();
-				break;
-
-			case Read_result::READ_ERR_WOULD_BLOCK:
-			case Read_result::READ_QUEUED:
-				break;
-			}
+			_handle.read(dst).with_result(
+				[&] (size_t num_bytes) {
+					_acknowledge_as_success(num_bytes);
+				},
+				[&] (Read_error e) {
+					if (e != Read_error::RETRY)
+						_acknowledge_as_failure();
+				});
 		}
 
 		/**

@@ -92,56 +92,37 @@ namespace Util {
 
 			switch (_state) {
 			case State::PENDING:
-
-				_handle.seek(_base_offset + _current_offset);
-				if (!_handle.queue_read(_current_count)) {
-					return progress;
-				}
-
 				_state = State::IN_PROGRESS;
 				progress = true;
-			[[fallthrough]];
+				[[fallthrough]];
+
 			case State::IN_PROGRESS:
-			{
-				using Result = Vfs::Read_result;
+				{
+					_handle.seek(_base_offset + _current_offset);
+					Byte_range_ptr const dst { _data + _current_offset, _current_count };
+					Vfs::Read_result const result = _handle.read(dst);
 
-				bool completed = false;
-				size_t out = 0;
+					if (result == Vfs::Read_error::RETRY)
+						return progress;
 
-				Byte_range_ptr const dst { _data + _current_offset, _current_count };
-				Result const result = _handle.complete_read(dst, out);
-
-				if (result == Result::READ_QUEUED
-				 || result == Result::READ_ERR_WOULD_BLOCK) {
-					return progress;
-				} else
-
-				if (result == Result::READ_OK) {
-					_current_offset += out;
-					_current_count  -= out;
-					_success = true;
-				} else
-
-				if (   result == Result::READ_ERR_IO
-				    || result == Result::READ_ERR_INVALID) {
-					_success   = false;
-					completed = true;
+					result.with_result(
+						[&] (size_t num_bytes) {
+							_current_offset += num_bytes;
+							_current_count  -= num_bytes;
+							_success = true;
+							if (_current_count == 0 || (num_bytes == 0 && _allow_partial))
+								_state = State::COMPLETE;
+						},
+						[&] (Vfs::Read_error) {
+							_success = false;
+						});
 				}
+				[[fallthrough]];
 
-				if (_current_count == 0 || completed || (out == 0 && _allow_partial)) {
-					_state = State::COMPLETE;
-				} else {
-					_state = State::PENDING;
-					/* partial read, keep trying */
-					return true;
-				}
-				progress = true;
-			}
-			[[fallthrough]];
 			case State::COMPLETE:
-
 				_complete = true;
 				progress = true;
+
 			default: break;
 			}
 

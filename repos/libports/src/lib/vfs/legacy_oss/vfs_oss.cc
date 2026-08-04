@@ -452,29 +452,24 @@ struct Vfs_oss::Audio
 			return false;
 		}
 
-		bool read(Byte_range_ptr const &dst, size_t &out_size)
+		Read_result read(Byte_range_ptr const &dst)
 		{
-			out_size = 0;
-
 			_start_input();
 
-			if (_info.ifrag_bytes == 0) {
-				/* block */
-				return true;
-			}
+			if (_info.ifrag_bytes == 0)
+				return Read_error::RETRY; /* block */
 
 			size_t const buf_size = min(dst.num_bytes, _info.ifrag_bytes);
 
 			unsigned samples_to_read = buf_size / CHANNELS / sizeof(int16_t);
 
-			if (samples_to_read == 0) {
-				/* invalid argument */
-				return false;
-			}
+			if (samples_to_read == 0)
+				return Read_error::DENIED; /* invalid argument */
 
 			Audio_in::Stream *stream = _in->stream();
 
 			unsigned samples_read = 0;
+			size_t out_size = 0;
 
 			/* packet loop */
 
@@ -485,7 +480,7 @@ struct Vfs_oss::Audio
 
 				if (!p || !p->valid()) {
 					update_info_ifrag_avail();
-					return true;
+					return out_size;
 				}
 
 				/* sample loop */
@@ -494,7 +489,7 @@ struct Vfs_oss::Audio
 
 					if (samples_read == samples_to_read) {
 						update_info_ifrag_avail();
-						return true;
+						return out_size;
 					}
 
 					for (unsigned c = 0; c < CHANNELS; c++) {
@@ -516,7 +511,7 @@ struct Vfs_oss::Audio
 					}
 				}
 			}
-			return true;
+			return out_size;
 		}
 
 		Write_result write(Const_byte_range_ptr const &src, size_t &out_size)
@@ -651,26 +646,19 @@ class Vfs_oss::Data_file_system : public Single_file_system
 				_audio { audio }
 			{ }
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
 				if (!dst.start)
-					return READ_ERR_INVALID;
+					return Read_error::DENIED;
 
-				if (dst.num_bytes == 0) {
-					out_count = 0;
-					return READ_OK;
-				}
+				if (dst.num_bytes == 0)
+					return 0;
 
-				bool success = _audio.read(dst, out_count);
+				Read_result result = _audio.read(dst);
+				if (result == Read_error::RETRY)
+					blocked = true;
 
-				if (success) {
-					if (out_count == 0) {
-						blocked = true;
-						return READ_QUEUED;
-					}
-					return READ_OK;
-				}
-				return READ_ERR_INVALID;
+				return result;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override

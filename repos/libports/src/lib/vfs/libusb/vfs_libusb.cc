@@ -74,8 +74,8 @@ class Vfs_libusb::File_system : public Vfs::Single_file_system
 				bool read_ready() const override {
 					return libusb_genode_backend_signaling; }
 
-				Read_result complete_read(Byte_range_ptr const &, size_t &) override {
-					return READ_ERR_IO; }
+				Read_result read(Byte_range_ptr const &) override {
+					return Read_error::DENIED; }
 
 				bool write_ready() const override {
 					return true; }

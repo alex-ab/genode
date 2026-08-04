@@ -143,22 +143,20 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 				return true;
 			}
 
-			Read_result complete_read(Byte_range_ptr const &dst, size_t &out_count) override
+			Read_result read(Byte_range_ptr const &dst) override
 			{
 				if (_read_buffer.empty())
 					_fetch_data_from_terminal(_terminal, _read_buffer,
 					                          _interrupt_handler, _raw);
 
 				if (_read_buffer.empty())
-					return READ_QUEUED;
+					return Read_error::RETRY;
 
 				unsigned consumed = 0;
 				for (; consumed < dst.num_bytes && !_read_buffer.empty(); consumed++)
 					dst.start[consumed] = _read_buffer.get();
 
-				out_count = consumed;
-
-				return READ_OK;
+				return consumed;
 			}
 
 			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
