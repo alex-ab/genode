@@ -12,7 +12,7 @@ XHCI controller
 The virtual XHCI controller can be enabled with the following
 configuration option.
 
-! + conifg | xhci: yes
+! + config | xhci: yes
 
 CapsLock
 ~~~~~~~~
@@ -24,12 +24,12 @@ monitored by VirtualBox if configured like follows.
 
 ! + config | capslock: rom
 
-VirtualBox requests a "capslock" ROM, which is interpreted as XML. The
-top-level node attribute 'enabled' is expected boolean and represents
-the CapsLock state. If ROM and VM-internal CapsLock state differ, the
-VMM sends aritifical CapsLock key events to the VM. In this mode,
-incoming KEY_CAPSLOCK input events a dropped and not sent to the guest
-to prevent the state divergence.
+VirtualBox requests a "capslock" ROM module. The boolean attribute 'enabled'
+of its top-level node denotes the system-global capslock state. Whenever the
+global state differs from the VM-internal capslock state, the VMM sends
+aritifical capslock key events to the VM to converge the VMM's state towards
+the global state. In this mode, incoming KEY_CAPSLOCK input events are dropped
+and not sent to the guest to prevent the state divergence.
 
 Monitors
 ~~~~~~~~
@@ -37,8 +37,8 @@ Monitors
 Virtual monitors for VirtualBox must be configured in two steps. First, the
 '<Display monitorCount="<num>">' node in the .vbox file defines the number
 of _connectors_ and, thus, the maximum number of connected virtual monitors.
-Each enabled VirtualBox monitor requests a dedicated GUI session. Enablement
-and labeling of these sessions is done via '<monitor>' nodes in the
+Each enabled monitor, VirtualBox requests a dedicated GUI session. Enablement
+and labeling of these sessions is done via 'monitor' nodes in the
 component configuration like follows.
 
 ! + monitor | label: DP-1
