@@ -1396,10 +1396,10 @@ int Libc::socket_ioctl(Socket &socket, unsigned long request, char *buf)
 
 		int const enable = *(int *)buf;
 
-		int const old_flags = context->fd_flags();
+		int const old_flags = socket.fd_flags();
 		int const new_flags = enable ? (old_flags | O_NONBLOCK)
-	                                 : (old_flags & ~O_NONBLOCK);
-		context->fd_flags(new_flags);
+		                             : (old_flags & ~O_NONBLOCK);
+		socket.fd_flags(new_flags);
 		return 0;
 	}
 
