@@ -504,7 +504,10 @@ class Device_component
 		 ******************************/
 
 		Acquisition_result acquire_interface(uint8_t index, size_t buf_size);
-		void release_interface(Interface_capability cap);
+		Release_result release_interface(Interface_capability cap);
+
+		void release_sigh(Signal_context_capability) {
+			/* currently not implemented */ };
 };
 
 class Usb_root;
@@ -637,7 +640,10 @@ class Session_component
 		Rom_session_capability devices_rom() override;
 		Acquisition_result acquire_device(Device_name const &name) override;
 		Acquisition_result acquire_single_device() override;
-		void release_device(Device_capability) override;
+		Release_result release_device(Device_capability) override;
+
+		void release_sigh(Signal_context_capability) override {
+			/* currently not implemented */ };
 
 
 		/***************************************
@@ -982,16 +988,19 @@ Device_component::acquire_interface(uint8_t index, size_t buf_size)
 }
 
 
-void Device_component::release_interface(Interface_capability cap)
+Device_component::Release_result
+Device_component::release_interface(Interface_capability cap)
 {
 	if (!cap.valid())
-		return;
+		return Release_result::OK;
 
 	_interfaces.apply(
 		[&] (Interface_component &ic) {
 			return cap.local_name() == ic.cap().local_name(); },
 		[&] (Interface_component &ic) {
 			destroy(_heap, &ic); });
+
+	return Release_result::OK;
 }
 
 
@@ -1498,16 +1507,19 @@ Session_component::acquire_single_device()
 }
 
 
-void Session_component::release_device(Device_capability cap)
+Session_component::Release_result
+Session_component::release_device(Device_capability cap)
 {
 	if (!cap.valid())
-		return;
+		return Release_result::OK;
 
 	_device_sessions.apply(
 		[&] (Device_component & dc) {
 			return cap.local_name() == dc.cap().local_name(); },
 		[&] (Device_component & dc) {
 			_release(dc); });
+
+	return Release_result::OK;
 }
 
 

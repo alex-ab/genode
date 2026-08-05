@@ -162,6 +162,8 @@ struct Usb::Device_session : Interface
 	using Acquisition_result = Attempt<Interface_capability,
 	                                   Acquisition_error>;
 
+	enum class Release_result { OK, PENDING };
+
 
 	/*********************
 	 ** RPC declaration **
@@ -169,11 +171,12 @@ struct Usb::Device_session : Interface
 
 	GENODE_RPC(Rpc_acquire_interface, Acquisition_result,
 	                 acquire_interface, uint8_t, size_t);
-	GENODE_RPC(Rpc_release_interface, void, release_interface,
+	GENODE_RPC(Rpc_release_sigh, void, release_sigh, Signal_context_capability);
+	GENODE_RPC(Rpc_release_interface, Release_result, release_interface,
 	           Interface_capability);
 	GENODE_RPC(Rpc_tx_cap, Capability<Tx>, tx_cap);
-	GENODE_RPC_INTERFACE(Rpc_acquire_interface, Rpc_release_interface,
-	                     Rpc_tx_cap);
+	GENODE_RPC_INTERFACE(Rpc_acquire_interface, Rpc_release_sigh,
+	                     Rpc_release_interface, Rpc_tx_cap);
 };
 
 
@@ -212,10 +215,18 @@ struct Usb::Session : public Genode::Session
 	 */
 	virtual Acquisition_result acquire_single_device() = 0;
 
+
+	/**
+	 * Register signal handler for device release notifications
+	 */
+	virtual void release_sigh(Signal_context_capability) = 0;
+
+	enum class Release_result { OK, PENDING };
+
 	/**
 	 * Release all resources regarding the given 'device' session
 	 */
-	virtual void release_device(Device_capability device) = 0;
+	virtual Release_result release_device(Device_capability device) = 0;
 
 
 	/*********************
@@ -227,9 +238,12 @@ struct Usb::Session : public Genode::Session
 	           Device_name const &);
 	GENODE_RPC(Rpc_acquire_single_device, Acquisition_result,
 	           acquire_single_device);
-	GENODE_RPC(Rpc_release_device, void, release_device, Device_capability);
+	GENODE_RPC(Rpc_release_sigh, void, release_sigh, Signal_context_capability);
+	GENODE_RPC(Rpc_release_device, Release_result, release_device,
+	           Device_capability);
 	GENODE_RPC_INTERFACE(Rpc_devices_rom, Rpc_acquire_device,
-	                     Rpc_acquire_single_device, Rpc_release_device);
+	                     Rpc_acquire_single_device, Rpc_release_sigh,
+	                     Rpc_release_device);
 };
 
 #endif /* _INCLUDE__USB_SESSION__USB_SESSION_H_ */

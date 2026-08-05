@@ -81,6 +81,15 @@ class Usb::Connection : public Genode::Connection<Session>, public Usb::Client
 			});
 		}
 
+		void _release_device(Device_capability cap)
+		{
+			for (;;) {
+				if (Client::release_device(cap) == Release_result::OK)
+					return;
+				_env.ep().wait_and_dispatch_one_io_signal();
+			}
+		}
+
 	public:
 
 		Connection(Genode::Env    &env,
@@ -95,9 +104,11 @@ class Usb::Connection : public Genode::Connection<Session>, public Usb::Client
 
 			/*
 			 * Initially register dummy handler, to be able to receive signals
-			 * if _wait_for_device probes for a valid devices rom
+			 * if _wait_for_device probes for a valid devices rom, and if release
+			 * device is pending
 			 */
-			sigh(_handler);
+			_rom.sigh(_handler);
+			release_sigh(_handler);
 		}
 
 		void update()

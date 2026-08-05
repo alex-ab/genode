@@ -501,16 +501,31 @@ class Usb::Device
 		Env::Local_rm     &_rm;
 		Name         const _name { };
 
+		Io_signal_handler<Device> _handler { _session._env.ep(), *this,
+		                                     &Device::_handle_io };
+
 		Urb_handler<Device_session> _urb_handler;
 
 		Interface_capability _interface_cap(uint8_t num, size_t buf_size);
 
 		Name _first_device_name();
 
+		void _handle_io() { }
+
 		template <typename FN>
 		void _for_each_iface(FN const &fn);
 
 		Interface::Index _interface_index(Interface::Type);
+
+		void _release_interface(Interface_capability cap)
+		{
+			for (;;) {
+				auto result = call<Device_session::Rpc_release_interface>(cap);
+				if (result == Release_result::OK)
+					return;
+				_session._env.ep().wait_and_dispatch_one_io_signal();
+			}
+		}
 
 	public:
 
@@ -519,7 +534,7 @@ class Usb::Device
 
 		Device(Connection &session, Allocator &md_alloc, Env::Local_rm &rm);
 
-		~Device() { _session.release_device(*this); }
+		~Device() { _session._release_device(*this); }
 
 		void sigh(Signal_context_capability cap) {
 			_urb_handler.sigh(cap); }
@@ -696,7 +711,7 @@ inline Usb::Interface::Interface(Device &device, size_t buffer_size)
 
 
 inline Usb::Interface::~Interface() {
-	_device.call<Device_session::Rpc_release_interface>(*this); }
+	_device._release_interface(*this); }
 
 
 inline Usb::Interface_capability
@@ -769,7 +784,10 @@ inline Usb::Device::Device(Connection    &session,
 	_md_alloc(md_alloc),
 	_rm(rm),
 	_name(name),
-	_urb_handler(call<Rpc_tx_cap>(), rm, md_alloc) {}
+	_urb_handler(call<Rpc_tx_cap>(), rm, md_alloc)
+{
+	call<Device_session::Rpc_release_sigh>(_handler);
+}
 
 
 inline Usb::Device::Device(Connection    &session,
@@ -781,6 +799,9 @@ inline Usb::Device::Device(Connection    &session,
 	_md_alloc(md_alloc),
 	_rm(rm),
 	_name(_first_device_name()),
-	_urb_handler(call<Rpc_tx_cap>(), rm, md_alloc) {}
+	_urb_handler(call<Rpc_tx_cap>(), rm, md_alloc)
+{
+	call<Device_session::Rpc_release_sigh>(_handler);
+}
 
 #endif /* _INCLUDE__USB_SESSION__DEVICE_H_ */

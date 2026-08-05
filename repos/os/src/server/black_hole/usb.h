@@ -58,7 +58,10 @@ class Black_hole::Usb_session : public Session_object<Usb::Session>,
 		Acquisition_result acquire_single_device() override {
 			return Device_capability(); }
 
-		void release_device(Device_capability) override {}
+		void release_sigh(Signal_context_capability) override { }
+
+		Release_result release_device(Device_capability) override {
+			return Release_result::OK; }
 
 
 		/***************************************

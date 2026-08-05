@@ -35,8 +35,11 @@ struct Usb::Client : Genode::Rpc_client<Session>
 	Acquisition_result acquire_single_device() override {
 		return call<Rpc_acquire_single_device>(); }
 
-	void release_device(Device_capability device) override {
-		call<Rpc_release_device>(device); }
+	void release_sigh(Signal_context_capability sigh) override {
+		call<Rpc_release_sigh>(sigh); }
+
+	Release_result release_device(Device_capability device) override {
+		return call<Rpc_release_device>(device); }
 };
 
 #endif /* _INCLUDE__USB_SESSION__CLIENT_H_ */
