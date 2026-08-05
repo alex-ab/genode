@@ -73,12 +73,20 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_handle
 		float              size;
 		Cached_font::Limit cache_limit;
 
-		Font_config(Node const &config)
-		:
-			path(config.attribute_value("path", Directory::Path())),
-			size((float)config.attribute_value("size_px", 16.0d)),
-			cache_limit({config.attribute_value("cache", Number_of_bytes())})
-		{ }
+		static Font_config from_node(Node const &node)
+		{
+			return {
+				.path        = node.attribute_value("path", Directory::Path()),
+				.size        = (float)node.attribute_value("size_px", 16.0d),
+				.cache_limit = { node.attribute_value("cache", Number_of_bytes()) }
+			};
+		}
+
+		bool operator != (Font_config const &other) const
+		{
+			return path != other.path || size != other.size
+			    || cache_limit.value != other.cache_limit.value;
+		}
 	} _font_config;
 
 	struct Font
@@ -133,10 +141,13 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_handle
 
 	void update(Node const &config, File_system_factory &) override
 	{
-		_font_config = Font_config(config);
+		Font_config const orig = _font_config;
+		_font_config = Font_config::from_node(config);
 		_font.construct(_env, _font_config);
 		_update_attributes();
-		_glyphs_fs.notify_watchers();
+
+		if (orig != _font_config)
+			_glyphs_fs.notify_watchers();
 	}
 
 	/**
@@ -174,7 +185,7 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_handle
 	:
 		Dir_file_system(vfs_env, parent_fs, Node(_config(node))),
 		_env(vfs_env),
-		_font_config(node),
+		_font_config(Font_config::from_node(node)),
 		_font(vfs_env, _font_config),
 		_watch_handle(vfs_env.watch_handles(), vfs_env.root_dir(), _font_config.path, *this)
 	{
