@@ -52,10 +52,10 @@ class Black_hole::Usb_session : public Session_object<Usb::Session>,
 		Rom_session_capability devices_rom() override {
 			return _rom_session.cap(); }
 
-		Device_capability acquire_device(Device_name const &) override {
+		Acquisition_result acquire_device(Device_name const &) override {
 			return Device_capability(); }
 
-		Device_capability acquire_single_device() override {
+		Acquisition_result acquire_single_device() override {
 			return Device_capability(); }
 
 		void release_device(Device_capability) override {}
