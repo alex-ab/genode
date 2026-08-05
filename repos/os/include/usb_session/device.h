@@ -702,9 +702,11 @@ inline Usb::Interface::~Interface() {
 inline Usb::Interface_capability
 Usb::Device::_interface_cap(uint8_t num, size_t buf_size)
 {
-	return _session.retry_with_upgrade(Ram_quota{buf_size + 4096},
-	                                   Cap_quota{6}, [&] () {
-		return call<Device_session::Rpc_acquire_interface>(num, buf_size); });
+	return _session.retry(Ram_quota{buf_size + 4096}, Cap_quota{6}, [&] () {
+		return call<Device_session::Rpc_acquire_interface>(num, buf_size);
+	}).convert<Interface_capability>(
+		[] (auto cap) { return cap; },
+		[] (auto) { return Interface_capability(); });
 }
 
 
@@ -762,7 +764,7 @@ inline Usb::Device::Device(Connection    &session,
                            Env::Local_rm &rm,
                            Name           name)
 :
-	Device_capability(session.acquire_device(name)),
+	Device_capability(session._acquire_device(name)),
 	_session(session),
 	_md_alloc(md_alloc),
 	_rm(rm),
@@ -774,7 +776,7 @@ inline Usb::Device::Device(Connection    &session,
                            Allocator     &md_alloc,
                            Env::Local_rm &rm)
 :
-	Device_capability(session.acquire_device()),
+	Device_capability(session._acquire_single_device()),
 	_session(session),
 	_md_alloc(md_alloc),
 	_rm(rm),

@@ -158,15 +158,17 @@ struct Usb::Device_session : Interface
 	                                       TX_QUEUE_SIZE, TX_QUEUE_SIZE, char>;
 	using Tx = Packet_stream_tx::Channel<Tx_policy>;
 
+	enum class Acquisition_error { OUT_OF_RAM, OUT_OF_CAPS };
+	using Acquisition_result = Attempt<Interface_capability,
+	                                   Acquisition_error>;
+
 
 	/*********************
 	 ** RPC declaration **
 	 *********************/
 
-	GENODE_RPC_THROW(Rpc_acquire_interface, Interface_capability,
-	                 acquire_interface,
-	                 GENODE_TYPE_LIST(Out_of_ram, Out_of_caps),
-	                 uint8_t, size_t);
+	GENODE_RPC(Rpc_acquire_interface, Acquisition_result,
+	                 acquire_interface, uint8_t, size_t);
 	GENODE_RPC(Rpc_release_interface, void, release_interface,
 	           Interface_capability);
 	GENODE_RPC(Rpc_tx_cap, Capability<Tx>, tx_cap);
@@ -196,15 +198,19 @@ struct Usb::Session : public Genode::Session
 	 */
 	virtual Rom_session_capability devices_rom() = 0;
 
+	enum class Acquisition_error { OUT_OF_RAM, OUT_OF_CAPS };
+	using Acquisition_result = Attempt<Device_capability,
+	                                   Acquisition_error>;
+
 	/**
 	 * Acquire device known by unique 'name'
 	 */
-	virtual Device_capability acquire_device(Device_name const &name) = 0;
+	virtual Acquisition_result acquire_device(Device_name const &name) = 0;
 
 	/**
 	 * Acquire the first resp. single device of this session
 	 */
-	virtual Device_capability acquire_single_device() = 0;
+	virtual Acquisition_result acquire_single_device() = 0;
 
 	/**
 	 * Release all resources regarding the given 'device' session
@@ -217,12 +223,10 @@ struct Usb::Session : public Genode::Session
 	 *********************/
 
 	GENODE_RPC(Rpc_devices_rom, Rom_session_capability, devices_rom);
-	GENODE_RPC_THROW(Rpc_acquire_device, Device_capability, acquire_device,
-	                 GENODE_TYPE_LIST(Out_of_ram, Out_of_caps),
-	                 Device_name const &);
-	GENODE_RPC_THROW(Rpc_acquire_single_device, Device_capability,
-	                 acquire_single_device,
-	                 GENODE_TYPE_LIST(Out_of_ram, Out_of_caps));
+	GENODE_RPC(Rpc_acquire_device, Acquisition_result, acquire_device,
+	           Device_name const &);
+	GENODE_RPC(Rpc_acquire_single_device, Acquisition_result,
+	           acquire_single_device);
 	GENODE_RPC(Rpc_release_device, void, release_device, Device_capability);
 	GENODE_RPC_INTERFACE(Rpc_devices_rom, Rpc_acquire_device,
 	                     Rpc_acquire_single_device, Rpc_release_device);

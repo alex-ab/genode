@@ -29,10 +29,10 @@ struct Usb::Client : Genode::Rpc_client<Session>
 	Rom_session_capability devices_rom() override {
 		return call<Rpc_devices_rom>(); }
 
-	Device_capability acquire_device(Device_name const &name) override {
+	Acquisition_result acquire_device(Device_name const &name) override {
 		return call<Rpc_acquire_device>(name); }
 
-	Device_capability acquire_single_device() override {
+	Acquisition_result acquire_single_device() override {
 		return call<Rpc_acquire_single_device>(); }
 
 	void release_device(Device_capability device) override {

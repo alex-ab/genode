@@ -503,7 +503,7 @@ class Device_component
 		 ** Device_session interface **
 		 ******************************/
 
-		Interface_capability acquire_interface(uint8_t index, size_t buf_size);
+		Acquisition_result acquire_interface(uint8_t index, size_t buf_size);
 		void release_interface(Interface_capability cap);
 };
 
@@ -635,8 +635,8 @@ class Session_component
 		 ***************************/
 
 		Rom_session_capability devices_rom() override;
-		Device_capability acquire_device(Device_name const &name) override;
-		Device_capability acquire_single_device() override;
+		Acquisition_result acquire_device(Device_name const &name) override;
+		Acquisition_result acquire_single_device() override;
 		void release_device(Device_capability) override;
 
 
@@ -964,15 +964,21 @@ Device_component::_handle_request(Constructible<Packet_descriptor> &cpd,
 }
 
 
-Interface_capability Device_component::acquire_interface(uint8_t index,
-                                                         size_t  buf_size)
+Device_component::Acquisition_result
+Device_component::acquire_interface(uint8_t index, size_t buf_size)
 {
-	if (!_session.matches(_device_label, index))
-		return (new (_heap) Interface_component(_env, _interfaces, _session,
-		                                        buf_size, _sigh_cap))->session_cap();
-	return (new (_heap)
-		Interface_component(_env, _interfaces, _session, _device_label,
-		                    buf_size, _sigh_cap, index))->session_cap();
+	try {
+		if (!_session.matches(_device_label, index))
+			return (new (_heap) Interface_component(_env, _interfaces, _session,
+			                                        buf_size, _sigh_cap))->session_cap();
+		return (new (_heap)
+			Interface_component(_env, _interfaces, _session, _device_label,
+			                    buf_size, _sigh_cap, index))->session_cap();
+	} catch (Out_of_ram) {
+		return Acquisition_error::OUT_OF_RAM;
+	} catch (Out_of_caps) {
+		return Acquisition_error::OUT_OF_CAPS;
+	}
 }
 
 
@@ -1415,66 +1421,80 @@ void Session_component::handle_disconnected()
 }
 
 
-Device_capability Session_component::acquire_device(Device_name const &name)
+Session_component::Acquisition_result
+Session_component::acquire_device(Device_name const &name)
 {
-	Device_capability cap;
-	bool found = false;
+	try {
+		Device_capability cap;
+		bool found = false;
 
-	_devices.apply(
-		[&] (genode_usb_device & device) {
-			return device.label() == name && _matches(device); },
+		_devices.apply(
+			[&] (genode_usb_device & device) {
+				return device.label() == name && _matches(device); },
 
-		[&] (genode_usb_device & device) {
-			found = true;
-			_sessions.apply(
-				[&] (Session_component &sc) {
-					return sc.acquired(device); },
-				[&] (Session_component &) {
-					found = false; });
+			[&] (genode_usb_device & device) {
+				found = true;
+				_sessions.apply(
+					[&] (Session_component &sc) {
+						return sc.acquired(device); },
+					[&] (Session_component &) {
+						found = false; });
 
-			if (!found) {
-				warning("USB device ", name,
-				        "already acquired by another session");
-			}
+				if (!found) {
+					warning("USB device ", name,
+					        "already acquired by another session");
+				}
 
-			cap = _acquire(device.label(), true);
-			_sessions.for_each([&] (Session_component &sc) {
-				if (sc._matches(device)) sc.update_devices_rom(); });
-			_root.report();
-	});
+				cap = _acquire(device.label(), true);
+				_sessions.for_each([&] (Session_component &sc) {
+					if (sc._matches(device)) sc.update_devices_rom(); });
+				_root.report();
+		});
 
-	if (!found)
-		cap = (new (_heap)
-			Device_component(_env, _heap, _device_sessions, *this,
-			                 false, _sigh_cap))->session_cap();
-	return cap;
+		if (!found)
+			cap = (new (_heap)
+				Device_component(_env, _heap, _device_sessions, *this,
+				                 false, _sigh_cap))->session_cap();
+		return cap;
+	} catch (Out_of_ram) {
+		return Acquisition_error::OUT_OF_RAM;
+	} catch (Out_of_caps) {
+		return Acquisition_error::OUT_OF_CAPS;
+	}
 }
 
 
-Device_capability Session_component::acquire_single_device()
+Session_component::Acquisition_result
+Session_component::acquire_single_device()
 {
-	Device_capability cap;
-	_devices.apply(
-		[&] (genode_usb_device & device) {
-			return !cap.valid() && _matches(device); },
-		[&] (genode_usb_device & device) {
+	try {
+		Device_capability cap;
+		_devices.apply(
+			[&] (genode_usb_device & device) {
+				return !cap.valid() && _matches(device); },
+			[&] (genode_usb_device & device) {
 
-			bool acquired = false;
-			_sessions.apply(
-				[&] (Session_component &sc) {
-					return sc.acquired(device); },
-				[&] (Session_component &) {
-					acquired = true; });
+				bool acquired = false;
+				_sessions.apply(
+					[&] (Session_component &sc) {
+						return sc.acquired(device); },
+					[&] (Session_component &) {
+						acquired = true; });
 
-			if (acquired)
-				return;
+				if (acquired)
+					return;
 
-			cap = _acquire(device.label(), true);
-			_sessions.for_each([&] (Session_component &sc) {
-				if (sc._matches(device)) sc.update_devices_rom(); });
-			_root.report();
-	});
-	return cap;
+				cap = _acquire(device.label(), true);
+				_sessions.for_each([&] (Session_component &sc) {
+					if (sc._matches(device)) sc.update_devices_rom(); });
+				_root.report();
+		});
+		return cap;
+	} catch (Out_of_ram) {
+		return Acquisition_error::OUT_OF_RAM;
+	} catch (Out_of_caps) {
+		return Acquisition_error::OUT_OF_CAPS;
+	}
 }
 
 

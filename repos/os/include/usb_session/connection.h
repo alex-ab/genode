@@ -19,12 +19,17 @@
 #include <rom_session/client.h>
 #include <usb_session/client.h>
 
-namespace Usb { struct Connection; }
+namespace Usb {
+	class Device;
+	struct Connection;
+}
 
 
 class Usb::Connection : public Genode::Connection<Session>, public Usb::Client
 {
 	private:
+
+		friend class Usb::Device;
 
 		Env                              &_env;
 		Rom_session_client                _rom     { devices_rom() };
@@ -52,6 +57,28 @@ class Usb::Connection : public Genode::Connection<Session>, public Usb::Client
 
 				_env.ep().wait_and_dispatch_one_io_signal();
 			}
+		}
+
+		Device_capability _acquire_device(Device_name const &name)
+		{
+			Ram_quota ram_quota(Device_session::TX_BUFFER_SIZE + 4096);
+			return retry(ram_quota, Cap_quota{6}, [&] () {
+				return Client::acquire_device(name);
+			}).convert<Device_capability>(
+				[] (auto cap) { return cap; },
+				[] (auto) { return Device_capability(); });
+		}
+
+		Device_capability _acquire_single_device()
+		{
+			return _wait_for_device([&] () {
+				Ram_quota ram_quota(Device_session::TX_BUFFER_SIZE + 4096);
+				return retry(ram_quota, Cap_quota{6}, [&] () {
+					return Client::acquire_single_device();
+				}).convert<Device_capability>(
+					[] (auto cap) { return cap; },
+					[] (auto) { return Device_capability(); });
+			});
 		}
 
 	public:
@@ -83,18 +110,6 @@ class Usb::Connection : public Genode::Connection<Session>, public Usb::Client
 
 		void sigh(Signal_context_capability sigh) { _rom.sigh(sigh); }
 
-		void with_xml(auto const &fn)
-		{
-			update();
-			try {
-				if (_ds.constructed() && _ds->local_addr<void const>()) {
-					Xml_node xml(_ds->local_addr<char>(), _ds->size());
-					fn(xml);
-				}
-			}  catch (Xml_node::Invalid_syntax) {
-				warning("Devices rom has invalid XML syntax"); }
-		}
-
 		void with_node(auto const &fn)
 		{
 			update();
@@ -102,22 +117,6 @@ class Usb::Connection : public Genode::Connection<Session>, public Usb::Client
 				Node node(Const_byte_range_ptr(_ds->local_addr<char>(), _ds->size()));
 				fn(node);
 			}
-		}
-
-		Device_capability acquire_device(Device_name const &name) override
-		{
-			Ram_quota ram_quota(Device_session::TX_BUFFER_SIZE + 4096);
-			return retry_with_upgrade(ram_quota, Cap_quota{6}, [&] () {
-				return Client::acquire_device(name); });
-		}
-
-		Device_capability acquire_device()
-		{
-			return _wait_for_device([&] () {
-				Ram_quota ram_quota(Device_session::TX_BUFFER_SIZE + 4096);
-				return retry_with_upgrade(ram_quota, Cap_quota{6}, [&] () {
-					return Client::acquire_single_device(); });
-			});
 		}
 };
 
