@@ -530,7 +530,10 @@ void Vmcs::store(Genode::Vcpu_state &state)
 	state.cr0.charge(read(E_GUEST_CR0));
 	state.cr2.charge(cr2);
 	state.cr3.charge(read(E_GUEST_CR3));
-	state.cr4.charge(read(E_GUEST_CR4));
+
+	/* build the cr4 the guest actually observes when reading */
+	state.cr4.charge((read(E_GUEST_CR4)       & ~cr4_mask) |
+	                 (read(E_CR4_READ_SHADOW) &  cr4_mask));
 
 	state.cs.charge(Segment {
 				.sel   = static_cast<uint16_t>(read(E_GUEST_CS_SELECTOR)),
@@ -674,7 +677,7 @@ void Vmcs::load(Genode::Vcpu_state &state)
 		cr2 = state.cr2.value();
 		write(E_GUEST_CR3, state.cr3.value());
 		write(E_GUEST_CR4, (state.cr4.value() & cr4_fixed1) | cr4_fixed0);
-		write(E_CR4_READ_SHADOW, (state.cr4.value() & cr4_fixed1) | cr4_fixed0);
+		write(E_CR4_READ_SHADOW, state.cr4.value());
 	}
 
 	if (state.cs.charged() || state.ss.charged()) {
