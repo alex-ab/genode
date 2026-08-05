@@ -292,8 +292,6 @@ struct Sculpt::Main : Input_event_handler,
 		.mmc   = _mnt_reform || _mnt_pocket || _armstone,
 		.modem = false,
 		.nic   = _mnt_reform || _mnt_pocket || _armstone || _linux,
-
-		.fb_on_dedicated_cpu = _mnt_pocket
 	};
 
 	Drivers _drivers { _env, _heap, *this };
