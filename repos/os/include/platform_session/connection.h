@@ -111,17 +111,6 @@ class Platform::Connection : public Genode::Connection<Session>,
 
 		void sigh(Signal_context_capability sigh) { _rom.sigh(sigh); }
 
-		void with_xml(auto const &fn)
-		{
-			try {
-				if (_ds.constructed() && _ds->local_addr<void const>()) {
-					Xml_node xml(_ds->local_addr<char>(), _ds->size());
-					fn(xml);
-				}
-			}  catch (Xml_node::Invalid_syntax) {
-				warning("Devices rom has invalid XML syntax"); }
-		}
-
 		void with_node(auto const &fn)
 		{
 			if (_ds.constructed() && _ds->local_addr<void const>()) {

@@ -265,13 +265,6 @@ class Lx_kit::Device_list : List<Device>
 			for (Device * d = first(); d; d = d->next()) fn(*d); }
 
 		template <typename FN>
-		void with_xml(FN const &fn)
-		{
-			_platform.update();
-			_platform.with_xml(fn);
-		}
-
-		template <typename FN>
 		void with_node(FN const &fn)
 		{
 			_platform.update();
