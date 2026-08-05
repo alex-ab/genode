@@ -210,7 +210,7 @@ struct Vfs_ip::File : Vfs_ip::Node
 		return -1;
 	}
 
-	virtual Sync_result sync() { return Sync_result::SYNC_OK; }
+	virtual Sync_result sync() { return Sync_result::OK; }
 };
 
 
@@ -340,9 +340,9 @@ struct Vfs_ip::Ip_vfs_file_handle final : Vfs_handle
 		return true;
 	}
 
-	virtual Sync_result complete_sync() override
+	virtual Sync_result sync() override
 	{
-		return (file) ? file->sync() : Sync_result::SYNC_ERR_INVALID;
+		return file ? file->sync() : Sync_result::OK;
 	}
 
 	bool notify_read_ready() override
@@ -440,8 +440,11 @@ class Vfs_ip::Ip_file : public Vfs_ip::File
 
 		Sync_result sync() override
 		{
-			return _write_err ? Sync_result::SYNC_ERR_INVALID
-			                  : Sync_result::SYNC_OK;
+			if (!_write_err)
+				return Sync_result::OK;
+
+			error("vfs_ip: sync failed (write error)");
+			return Sync_result::RETRY;
 		}
 };
 

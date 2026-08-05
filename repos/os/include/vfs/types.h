@@ -114,7 +114,7 @@ namespace Genode::Vfs {
 	enum Ftruncate_result { FTRUNCATE_ERR_NO_PERM,  FTRUNCATE_ERR_INTERRUPT,
 	                        FTRUNCATE_ERR_NO_SPACE, FTRUNCATE_OK };
 
-	enum Sync_result { SYNC_QUEUED, SYNC_ERR_INVALID, SYNC_OK };
+	enum class Sync_result { OK, RETRY };
 }
 
 #endif /* _INCLUDE__VFS__TYPES_H_ */

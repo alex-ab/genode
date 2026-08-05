@@ -383,7 +383,7 @@ void Libc::Fs::destroy(Open_dir &od)
 
 struct Sync
 {
-	enum { INITIAL, TIMESTAMP_UPDATED, QUEUED, COMPLETE } state { INITIAL };
+	enum { INITIAL, TIMESTAMP_UPDATED, SYNCED } state { INITIAL };
 
 	Genode::Vfs::Vfs_handle &vfs_handle;
 	Genode::Vfs::Timestamp   mtime { };
@@ -396,7 +396,6 @@ struct Sync
 		vfs_handle(vfs_handle)
 	{
 		if (!attr.update_mtime || !current_real_time.has_real_time()) {
-
 			state = TIMESTAMP_UPDATED;
 
 		} else {
@@ -411,19 +410,15 @@ struct Sync
 	bool complete()
 	{
 		switch (state) {
-		case Sync::INITIAL:
+		case INITIAL:
 			if (!vfs_handle.update_modification_timestamp(mtime))
 				return false;
-			state = Sync::TIMESTAMP_UPDATED; [[ fallthrough ]];
-		case Sync::TIMESTAMP_UPDATED:
-			if (!vfs_handle.queue_sync())
+			state = TIMESTAMP_UPDATED; [[ fallthrough ]];
+		case TIMESTAMP_UPDATED:
+			if (vfs_handle.sync() == Genode::Vfs::Sync_result::RETRY)
 				return false;
-			state = Sync::QUEUED; [[ fallthrough ]];
-		case Sync::QUEUED:
-			if (vfs_handle.complete_sync() == Genode::Vfs::SYNC_QUEUED)
-				return false;
-			state = Sync::COMPLETE; [[ fallthrough ]];
-		case Sync::COMPLETE:
+			state = SYNCED; [[ fallthrough ]];
+		case SYNCED:
 			break;
 		}
 		return true;

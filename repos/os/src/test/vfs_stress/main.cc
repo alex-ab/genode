@@ -287,8 +287,8 @@ struct Write_test : public Stress_test
 
 			size_t n;
 			assert_write(handle->write(Const_byte_range_ptr(path.base(), path_len), n));
-			handle->queue_sync();
-			while (handle->complete_sync() == Vfs::SYNC_QUEUED)
+
+			while (handle->sync() == Vfs::Sync_result::RETRY)
 				_io.commit_and_wait();
 			count += n;
 		}
@@ -548,10 +548,7 @@ void Component::construct(Genode::Env &env)
 
 	auto vfs_root_sync = [&] ()
 	{
-		while (!vfs_root_handle->queue_sync())
-			vfs_env.io().commit_and_wait();
-
-		while (vfs_root_handle->complete_sync() == Vfs::SYNC_QUEUED)
+		while (vfs_root_handle->sync() == Genode::Vfs::Sync_result::RETRY)
 			vfs_env.io().commit_and_wait();
 	};
 

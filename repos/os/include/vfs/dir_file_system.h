@@ -179,53 +179,33 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return false; }
 
-			bool queue_sync() override
+			Sync_result sync() override
 			{
-				bool result = true;
+				auto idle = [&]
+				{
+					bool result = true;
+					subdir_handle_registry.for_each([&] (Subdir_handle_element &e) {
+						if (!e.synced) result = false; });
+					return result;
+				};
 
-				auto fn = [&] (Subdir_handle_element &e) {
-					/* forward the response handler */
-					apply_handler([&] (Read_ready_response_handler &h) {
-						e.vfs_handle.handler(&h); });
-					e.synced = false;
+				/* charge new sync operation */
+				if (idle())
+					subdir_handle_registry.for_each([&] (Subdir_handle_element &e) {
+						e.synced = false; });
 
-					if (!e.vfs_handle.queue_sync()) {
-						result = false;
+				bool all_ok = true;
+				subdir_handle_registry.for_each([&] (Subdir_handle_element &e) {
+					if (!e.synced) {
+						switch (e.vfs_handle.sync()) {
+						case Sync_result::OK:    e.synced = true;  break;
+						case Sync_result::RETRY: all_ok   = false; break;
+						}
 					}
-				};
+				});
 
-				subdir_handle_registry.for_each(fn);
-
-				return result;
+				return all_ok ? Sync_result::OK : Sync_result::RETRY;
 			}
-
-			Sync_result complete_sync() override
-			{
-				Sync_result result = SYNC_OK;
-
-				auto fn = [&] (Subdir_handle_element &e) {
-					if (e.synced)
-						return;
-
-					Sync_result r = e.vfs_handle.complete_sync();
-					if (r != SYNC_OK)
-						result = r;
-					else
-						e.synced = true;
-				};
-
-				subdir_handle_registry.for_each(fn);
-
-				return result;
-			}
-
-			private:
-
-				/*
-				 * Noncopyable
-				 */
-				Dir_vfs_handle(Dir_vfs_handle const &);
-				Dir_vfs_handle &operator = (Dir_vfs_handle const &);
 		};
 
 		/* pointer to first child file system */

@@ -91,7 +91,7 @@ struct Vfs_ram::Io_handle final : Vfs_handle, private List<Io_handle>::Element
 	bool write_ready() const override { return true; }
 
 	inline Ftruncate_result ftruncate(file_size) override;
-	inline Sync_result complete_sync() override;
+	inline Sync_result sync() override;
 	inline bool update_modification_timestamp(Timestamp) override;
 };
 
@@ -925,7 +925,7 @@ Vfs_ram::Ftruncate_result Vfs_ram::Io_handle::ftruncate(file_size len)
 }
 
 
-Vfs_ram::Sync_result Vfs_ram::Io_handle::complete_sync()
+Vfs_ram::Sync_result Vfs_ram::Io_handle::sync()
 {
 	if (modifying) {
 		modifying = false;
@@ -933,7 +933,7 @@ Vfs_ram::Sync_result Vfs_ram::Io_handle::complete_sync()
 		_fs._notify_watchers(path.string());
 		node.open(*this);
 	}
-	return SYNC_OK;
+	return Sync_result::OK;
 }
 
 

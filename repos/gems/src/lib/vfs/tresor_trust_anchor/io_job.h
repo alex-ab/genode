@@ -195,28 +195,19 @@ namespace Util {
 			switch (_state) {
 			case State::PENDING:
 
-				if (!_handle.queue_sync()) {
-					return progress;
-				}
 				_state = State::IN_PROGRESS;
 				progress = true;
 			[[fallthrough]];
 			case State::IN_PROGRESS:
 			{
 				using Result = Vfs::Sync_result;
-				Result const result = _handle.complete_sync();
+				Result const result = _handle.sync();
 
-				if (result == Result::SYNC_QUEUED) {
+				if (result == Result::RETRY)
 					return progress;
-				} else
 
-				if (result == Result::SYNC_ERR_INVALID) {
-					_success = false;
-				} else
-
-				if (result == Result::SYNC_OK) {
+				if (result == Result::OK)
 					_success = true;
-				}
 
 				_state = State::COMPLETE;
 				progress = true;

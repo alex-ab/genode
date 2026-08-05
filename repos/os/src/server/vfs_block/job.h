@@ -185,30 +185,15 @@ namespace Vfs_block {
 
 			switch (state) {
 			case State::PENDING:
-
-				if (!_handle.queue_sync()) {
-					return progress;
-				}
 				state = State::IN_PROGRESS;
 				progress = true;
 			[[fallthrough]];
 			case State::IN_PROGRESS:
 			{
-				using Result = Genode::Vfs::Sync_result;
-				Result const result = _handle.complete_sync();
-
-				if (result == Result::SYNC_QUEUED) {
+				if (_handle.sync() == Genode::Vfs::Sync_result::RETRY)
 					return progress;
-				} else
 
-				if (result == Result::SYNC_ERR_INVALID) {
-					success = false;
-				} else
-
-				if (result == Result::SYNC_OK) {
-					success = true;
-				}
-
+				success = true;
 				state = State::COMPLETE;
 				progress = true;
 			}

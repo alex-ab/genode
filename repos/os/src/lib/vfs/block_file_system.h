@@ -479,8 +479,12 @@ class Vfs_block::Data_file_system : public Single_file_system
 					{
 						bool const success = _job->success;
 						_job.destruct();
-						return success ? Sync_result::SYNC_OK
-						               : Sync_result::SYNC_ERR_INVALID;
+
+						if (!success)
+							error("vfs_block: sync failed");
+
+						return success ? Sync_result::OK
+						               : Sync_result::RETRY;
 					}
 
 					Sync_handler(Block::Session::Info const &info)
@@ -489,7 +493,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 					Sync_result sync(Block_connection &block)
 					{
 						if (_any_pending_job())
-							return Sync_result::SYNC_QUEUED;
+							return Sync_result::RETRY;
 
 						if (_any_finished_job())
 							return _handle_finished_job();
@@ -503,7 +507,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 						_job.construct(block, nullptr, 0, op);
 
 						block.update_jobs(block);
-						return Sync_result::SYNC_QUEUED;
+						return Sync_result::RETRY;
 					}
 				};
 
@@ -537,7 +541,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 					return _write_handler.write(_block, seek(), src, out_count);
 				}
 
-				Sync_result complete_sync() override
+				Sync_result sync() override
 				{
 					return _sync_handler.sync(_block);
 				}

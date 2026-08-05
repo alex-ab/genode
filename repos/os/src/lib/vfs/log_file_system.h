@@ -142,12 +142,12 @@ class Vfs_log::File_system : public Single_file_system
 				bool read_ready()  const override { return false; }
 				bool write_ready() const override { return true; }
 
-				Sync_result complete_sync() override
+				Sync_result sync() override
 				{
 					if (_line_pos > 0)
 						_flush();
 
-					return SYNC_OK;
+					return Sync_result::OK;
 				}
 
 				Ftruncate_result ftruncate(file_size) override

@@ -376,25 +376,8 @@ struct Genode::Directory : Noncopyable, Interface
 			}
 
 			/* sync before the handle gets closed */
-
-			while (!link_handle->queue_sync())
+			while (link_handle->sync() == Sync_result::RETRY)
 				_io.commit_and_wait();
-
-			Sync_result result;
-
-			for (;;) {
-				result = link_handle->complete_sync();
-
-				if (result != SYNC_QUEUED)
-					break;
-
-				_io.commit_and_wait();
-			};
-
-			if (result != SYNC_OK) {
-				unlink(rel_path);
-				return;
-			}
 		}
 
 		void unlink(Path const &rel_path)
@@ -828,29 +811,8 @@ class Genode::Writeable_file : Noncopyable
 
 		static void _sync(Vfs::Vfs_handle &handle, Vfs::Env::Io &io)
 		{
-			while (handle.queue_sync() == false)
+			while (handle.sync() == Vfs::Sync_result::RETRY)
 				io.commit_and_wait();
-
-			for (bool sync_done = false; !sync_done; ) {
-
-				switch (handle.complete_sync()) {
-
-				case Vfs::SYNC_QUEUED:
-					break;
-
-				case Vfs::SYNC_ERR_INVALID:
-					warning("could not complete file sync operation");
-					sync_done = true;
-					break;
-
-				case Vfs::SYNC_OK:
-					sync_done = true;
-					break;
-				}
-
-				if (!sync_done)
-					io.commit_and_wait();
-			}
 		}
 
 		static Append_result _append(Vfs::Vfs_handle &handle, Vfs::Env::Io &io,

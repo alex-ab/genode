@@ -107,10 +107,7 @@ class Fs_report::Session_component : public Genode::Rpc_object<Report::Session>
 			fn(handle);
 
 			/* sync file operations before close */
-			while (!handle->queue_sync())
-				_io.commit_and_wait();
-
-			while (handle->complete_sync() == Vfs::SYNC_QUEUED)
+			while (handle->sync() == Vfs::Sync_result::RETRY)
 				_io.commit_and_wait();
 
 			handle->close();

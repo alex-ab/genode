@@ -49,7 +49,7 @@ class Tresor::File
 {
 	private:
 
-		enum State { IDLE, SYNC_QUEUED, READ, WRITE_INITIALIZED, WRITE_OFFSET_APPLIED };
+		enum State { IDLE, SYNC, READ, WRITE_INITIALIZED, WRITE_OFFSET_APPLIED };
 
 		Vfs::Env *_env { };
 		Tresor::Path const *_path { };
@@ -175,19 +175,15 @@ class Tresor::File
 		{
 			switch (_state) {
 			case IDLE:
-
-				if (!_handle.queue_sync())
-					break;
-
-				_state = SYNC_QUEUED;
+				_state = SYNC;
 				progress = true;
 				break;
 
-			case SYNC_QUEUED:
+			case SYNC:
 
-				switch (_handle.complete_sync()) {
-				case Vfs::Sync_result::SYNC_QUEUED: break;
-				case Vfs::Sync_result::SYNC_OK:
+				switch (_handle.sync()) {
+				case Vfs::Sync_result::RETRY: break;
+				case Vfs::Sync_result::OK:
 
 					_state = IDLE;
 					_host_state = succeeded;

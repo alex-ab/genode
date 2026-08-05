@@ -199,16 +199,9 @@ class Genode::Vfs::Vfs_handle
 		}
 
 		/**
-		 * Queue sync operation
-		 *
-		 * \return false if queue is full
-		 *
-		 * If the queue is full, the caller can try again after a previous VFS
-		 * request is completed.
+		 * Initiate or complete sync operation
 		 */
-		virtual bool queue_sync() { return true; }
-
-		virtual Sync_result complete_sync() { return SYNC_OK; }
+		virtual Sync_result sync() { return Sync_result::OK; }
 
 		/**
 		 * Update the modification time of a file

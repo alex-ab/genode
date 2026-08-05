@@ -44,12 +44,8 @@ class Vfs_import::Flush_guard
 
 		~Flush_guard()
 		{
-			while (true) {
-				if ((_handle.queue_sync())
-				 && (_handle.complete_sync() == SYNC_OK))
-					break;
+			while (_handle.sync() == Vfs::Sync_result::RETRY)
 				_io.commit_and_wait();
-			}
 		}
 };
 

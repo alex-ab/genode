@@ -183,7 +183,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 				return WRITE_OK;
 			}
 
-			Sync_result complete_sync() override
+			Sync_result sync() override
 			{
 				_rump_sync();
 				if (modifying) {
@@ -192,7 +192,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 				}
 				if (attr.new_dir_entry)
 					_fs._notify_compound_dir_watchers(attr.path.base());
-				return SYNC_OK;
+				return Sync_result::OK;
 			}
 
 			bool update_modification_timestamp(Timestamp time) override

@@ -157,21 +157,6 @@ static inline void print(Genode::Output &output, Vfs::Ftruncate_result const &r)
 #undef CASE_PRINT
 }
 
-
-static inline void print(Genode::Output &output, Vfs::Sync_result const &r)
-{
-#define CASE_PRINT(x) \
-	case Vfs::Sync_result::x: output.out_string(#x); break
-
-	switch (r) {
-	CASE_PRINT(SYNC_OK);
-	CASE_PRINT(SYNC_QUEUED);
-	CASE_PRINT(SYNC_ERR_INVALID);
-	}
-
-#undef CASE_PRINT
-}
-
 }
 
 #endif /* _INCLUDE__VFS__PRINT_H_ */

@@ -296,55 +296,54 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				return !_fs._write_would_block;
 			}
 
-			bool queue_sync() override
+			Sync_result sync() override
 			{
-				if (queued_sync_state != Handle_state::Queued_state::IDLE)
-					return true;
+				if (queued_sync_state == Handle_state::Queued_state::IDLE) {
 
-				::File_system::Session::Tx::Source &source = *_fs._fs.tx();
+					::File_system::Session::Tx::Source &source = *_fs._fs.tx();
 
-				/* if not ready to submit suggest retry */
-				if (!source.ready_to_submit()) return false;
+					/* if not ready to submit suggest retry */
+					if (!source.ready_to_submit()) return Sync_result::RETRY;
 
-				::File_system::Packet_descriptor p;
-				try {
-					p = source.alloc_packet(0);
-				} catch (::File_system::Session::Tx::Source::Packet_alloc_failed) {
-					return false;
+					::File_system::Packet_descriptor p;
+					try {
+						p = source.alloc_packet(0);
+					} catch (::File_system::Session::Tx::Source::Packet_alloc_failed) {
+						return Sync_result::RETRY;
+					}
+
+					::File_system::Packet_descriptor const
+						packet(p, file_handle(),
+						       ::File_system::Packet_descriptor::SYNC, 0, 0);
+
+					queued_sync_state = Handle_state::Queued_state::QUEUED;
+
+					/* pass packet to server side */
+					_fs._submit_packet(packet);
 				}
 
-				::File_system::Packet_descriptor const
-					packet(p, file_handle(),
-					       ::File_system::Packet_descriptor::SYNC, 0, 0);
+				if (queued_sync_state == Handle_state::Queued_state::ACK) {
 
-				queued_sync_state = Handle_state::Queued_state::QUEUED;
+					/* obtain result packet descriptor */
+					::File_system::Packet_descriptor const
+						packet = queued_sync_packet;
 
-				/* pass packet to server side */
-				_fs._submit_packet(packet);
+					::File_system::Session::Tx::Source &source = *_fs._fs.tx();
 
-				return true;
-			}
+					bool const ok = packet.succeeded();
 
-			Sync_result complete_sync() override
-			{
-				if (queued_sync_state != Handle_state::Queued_state::ACK)
-					return SYNC_QUEUED;
+					queued_sync_state  = Handle_state::Queued_state::IDLE;
+					queued_sync_packet = ::File_system::Packet_descriptor();
 
-				/* obtain result packet descriptor */
-				::File_system::Packet_descriptor const
-					packet = queued_sync_packet;
+					source.release_packet(packet);
 
-				::File_system::Session::Tx::Source &source = *_fs._fs.tx();
+					if (ok)
+						return Sync_result::OK;
+					else
+						error("vfs_fs: sync failed");
+				}
 
-				Sync_result result = packet.succeeded()
-					? SYNC_OK : SYNC_ERR_INVALID;
-
-				queued_sync_state  = Handle_state::Queued_state::IDLE;
-				queued_sync_packet = ::File_system::Packet_descriptor();
-
-				source.release_packet(packet);
-
-				return result;
+				return Sync_result::RETRY;
 			}
 
 			bool update_modification_timestamp(Timestamp time) override

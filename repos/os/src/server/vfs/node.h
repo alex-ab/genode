@@ -330,13 +330,8 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 
 		Submit_result _submit_sync()
 		{
-			bool const queuing_succeeded = _handle.queue_sync();
-
-			if (queuing_succeeded)
-				_packet_in_progress = true;
-
-			return queuing_succeeded ? Submit_result::ACCEPTED
-			                         : Submit_result::STALLED;
+			_packet_in_progress = true;
+			return Submit_result::ACCEPTED;
 		}
 
 		Submit_result _submit_read_ready()
@@ -413,17 +408,13 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 
 		void _execute_sync()
 		{
-			switch (_handle.complete_sync()) {
+			switch (_handle.sync()) {
 
-			case Sync_result::SYNC_OK:
+			case Sync_result::OK:
 				_acknowledge_as_success(0);
 				break;
 
-			case Sync_result::SYNC_ERR_INVALID:
-				_acknowledge_as_failure();
-				break;
-
-			case Sync_result::SYNC_QUEUED:
+			case Sync_result::RETRY:
 				break;
 			}
 		}

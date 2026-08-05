@@ -159,20 +159,13 @@ class Vfs_audit::File_system : public Vfs::File_system
 				return audited.ftruncate(len);
 			}
 
-			bool queue_sync() override
+			Sync_result sync() override
 			{
 				_sync_state();
-				_log("sync ", path);
-				return audited.queue_sync();
-			}
+				Sync_result const result = audited.sync();
 
-			Sync_result complete_sync() override
-			{
-				_sync_state();
-				Sync_result const result = audited.complete_sync();
-
-				if (result == SYNC_OK)          _log("synced ", path);
-				if (result == SYNC_ERR_INVALID) _log("sync failed for ", path);
+				if (result == Sync_result::RETRY) _log("syncing ", path);
+				if (result == Sync_result::OK)    _log("synced ", path);
 
 				return result;
 			}

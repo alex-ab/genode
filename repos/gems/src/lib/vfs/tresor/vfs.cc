@@ -930,19 +930,22 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 					return result;
 				}
 
-				Sync_result complete_sync() override
+				Sync_result sync() override
 				{
-					Sync_result result = SYNC_QUEUED;
+					Sync_result result = Sync_result::RETRY;
 					_plugin.with_data_operation([&] (Data_operation &data_operation) {
 
 						switch (data_operation.sync()) {
-						case Data_operation::PENDING: break;
-						case Data_operation::SUCCEEDED:
-
-							result = SYNC_OK;
+						case Data_operation::PENDING:
 							break;
 
-						case Data_operation::FAILED: result = SYNC_ERR_INVALID; break;
+						case Data_operation::SUCCEEDED:
+							result = Sync_result::OK;
+							break;
+
+						case Data_operation::FAILED:
+							error("vfs_tresor: sync failed");
+							break;
 						};
 					});
 					return result;

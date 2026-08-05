@@ -204,7 +204,7 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 			 *
 			 * Files are flushed to blocks after every write.
 			 */
-			Sync_result complete_sync() override
+			Sync_result sync() override
 			{
 				if (file && modifying) {
 					modifying = false;
@@ -212,7 +212,7 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 					_fs._notify(*file);
 					file->handles.insert(this);
 				}
-				return SYNC_OK;
+				return Sync_result::OK;
 			}
 		};
 
