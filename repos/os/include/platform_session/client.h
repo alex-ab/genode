@@ -28,10 +28,10 @@ struct Platform::Client : Genode::Rpc_client<Session>
 	Rom_session_capability devices_rom() override {
 		return call<Rpc_devices_rom>(); }
 
-	Capability<Device_interface> acquire_device(Device_name const &name) override {
+	Acquisition_result acquire_device(Device_name const &name) override {
 		return call<Rpc_acquire_device>(name); }
 
-	Capability<Device_interface> acquire_single_device() override {
+	Acquisition_result acquire_single_device() override {
 		return call<Rpc_acquire_single_device>(); }
 
 	void release_device(Capability<Device_interface> device) override {

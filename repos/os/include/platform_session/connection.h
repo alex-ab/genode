@@ -55,14 +55,33 @@ class Platform::Connection : public Genode::Connection<Session>,
 
 		Capability<Device_interface> _wait_for_device(auto const &fn)
 		{
+			/* repeatedly check for availability of device */
 			for (;;) {
-				/* repeatedly check for availability of device */
-				Capability<Device_interface> cap = fn();
+				auto cap = fn().template convert<Capability<Device_interface>>(
+						[] (auto cap) { return cap; },
+						[] (auto)     { return Capability<Device_interface>(); });
+;
 				if (cap.valid())
 					return cap;
 
 				_env.ep().wait_and_dispatch_one_io_signal();
 			}
+		}
+
+		Capability<Device_interface> _acquire_device(Device_name const &name)
+		{
+			return _wait_for_device([&] () {
+				return retry(Ram_quota{20*1024}, Cap_quota{6}, [&] () {
+					return Client::acquire_device(name); });
+			});
+		}
+
+		Capability<Device_interface> _acquire_device()
+		{
+			return _wait_for_device([&] () {
+				return retry(Ram_quota{20*1024}, Cap_quota{6}, [&] () {
+					return Client::acquire_single_device(); });
+			});
 		}
 
 	public:
@@ -91,22 +110,6 @@ class Platform::Connection : public Genode::Connection<Session>,
 		}
 
 		void sigh(Signal_context_capability sigh) { _rom.sigh(sigh); }
-
-		Capability<Device_interface> acquire_device(Device_name const &name) override
-		{
-			return _wait_for_device([&] () {
-				return retry_with_upgrade(Ram_quota{20*1024}, Cap_quota{6}, [&] () {
-					return Client::acquire_device(name); });
-			});
-		}
-
-		Capability<Device_interface> acquire_device()
-		{
-			return _wait_for_device([&] () {
-				return retry_with_upgrade(Ram_quota{20*1024}, Cap_quota{6}, [&] () {
-					return Client::acquire_single_device(); });
-			});
-		}
 
 		void with_xml(auto const &fn)
 		{
@@ -155,11 +158,11 @@ class Platform::Connection : public Genode::Connection<Session>,
 							return;
 
 						name = node.attribute_value("name", Device_name());
-						cap = acquire_device(name);
+						cap = _acquire_device(name);
 					});
 				});
 
-				return cap;
+				return Acquisition_result(cap);
 			}), name);
 		}
 

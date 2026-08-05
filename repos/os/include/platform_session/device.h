@@ -78,7 +78,7 @@ class Platform::Device : Interface, Noncopyable
 
 		explicit Device(Connection &platform)
 		:
-			_platform(platform), _cap(platform.acquire_device()),
+			_platform(platform), _cap(platform._acquire_device()),
 			_name()
 		{ }
 
@@ -95,7 +95,7 @@ class Platform::Device : Interface, Noncopyable
 
 		Device(Connection &platform, Name name)
 		:
-			_platform(platform), _cap(platform.acquire_device(name)),
+			_platform(platform), _cap(platform._acquire_device(name)),
 			_name(name)
 		{ }
 

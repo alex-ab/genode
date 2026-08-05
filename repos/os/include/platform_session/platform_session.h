@@ -80,15 +80,18 @@ struct Platform::Session : Genode::Session
 	 */
 	virtual Rom_session_capability devices_rom() = 0;
 
+	using Acquisition_result = Attempt<Capability<Device_interface>,
+	                                   Alloc_error>;
+
 	/**
 	 * Acquire device known by unique 'name'
 	 */
-	virtual Capability<Device_interface> acquire_device(Device_name const &name) = 0;
+	virtual Acquisition_result acquire_device(Device_name const &name) = 0;
 
 	/**
 	 * Acquire the first resp. single device of this session
 	 */
-	virtual Capability<Device_interface> acquire_single_device() = 0;
+	virtual Acquisition_result acquire_single_device() = 0;
 
 	/**
 	 * Free server-internal data structures representing the device
@@ -103,12 +106,12 @@ struct Platform::Session : Genode::Session
 	 *********************/
 
 	GENODE_RPC(Rpc_devices_rom, Rom_session_capability, devices_rom);
-	GENODE_RPC_THROW(Rpc_acquire_device, Capability<Device_interface>, acquire_device,
-	                 GENODE_TYPE_LIST(Out_of_ram, Out_of_caps),
-	                 Device_name const &);
-	GENODE_RPC_THROW(Rpc_acquire_single_device, Capability<Device_interface>,
-	                 acquire_single_device, GENODE_TYPE_LIST(Out_of_ram, Out_of_caps));
-	GENODE_RPC(Rpc_release_device, void, release_device, Capability<Device_interface>);
+	GENODE_RPC(Rpc_acquire_device, Acquisition_result, acquire_device,
+	           Device_name const &);
+	GENODE_RPC(Rpc_acquire_single_device, Acquisition_result,
+	           acquire_single_device);
+	GENODE_RPC(Rpc_release_device, void, release_device,
+	           Capability<Device_interface>);
 
 	GENODE_RPC_INTERFACE(Rpc_devices_rom, Rpc_acquire_device,
 	                     Rpc_acquire_single_device, Rpc_release_device);

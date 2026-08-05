@@ -232,10 +232,10 @@ class Platform::Session_component : public Rpc_object<Session>,
 			_reset_handler.reset();
 		}
 
-		Device_capability acquire_single_device() override
+		Acquisition_result acquire_single_device() override
 		{
 			if (_acquired || !_hw_ready.mmio_ready())
-				return { };
+				return Alloc_error::DENIED;
 
 			_acquired = true;
 			return _device_component.cap();
@@ -246,7 +246,7 @@ class Platform::Session_component : public Rpc_object<Session>,
 			_acquired = false;
 		}
 
-		Device_capability acquire_device(Device_name const & /* string */) override
+		Acquisition_result acquire_device(Device_name const & /* string */) override
 		{
 			return acquire_single_device();
 		}

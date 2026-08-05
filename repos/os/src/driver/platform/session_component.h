@@ -86,8 +86,8 @@ class Driver::Session_component
 		using Device_name       = Platform::Session::Device_name;
 
 		Rom_session_capability devices_rom() override;
-		Device_capability acquire_device(Device_name const &) override;
-		Device_capability acquire_single_device() override;
+		Acquisition_result acquire_device(Device_name const &) override;
+		Acquisition_result acquire_single_device() override;
 		void release_device(Device_capability) override;
 
 	private:

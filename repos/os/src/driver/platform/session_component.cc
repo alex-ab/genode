@@ -119,33 +119,45 @@ Genode::Rom_session_capability Session_component::devices_rom() {
 	return _rom_session.cap(); }
 
 
-Genode::Capability<Platform::Device_interface>
+Session_component::Acquisition_result
 Session_component::acquire_device(Platform::Session::Device_name const &name)
 {
 	Capability<Platform::Device_interface> cap;
 
-	_devices.for_each([&] (Device &dev)
-	{
-		if (dev.name() != name || !_pd.matches(dev))
-			return;
-		if (dev.owned())
-			warning("Cannot aquire device ", name, " already in use");
-		else
-			cap = _acquire(dev);
-	});
+	try {
+		_devices.for_each([&] (Device &dev)
+		{
+			if (dev.name() != name || !_pd.matches(dev))
+				return;
+			if (dev.owned())
+				warning("Cannot aquire device ", name, " already in use");
+			else
+				cap = _acquire(dev);
+		});
+	} catch (Out_of_ram) {
+		return Alloc_error::OUT_OF_RAM;
+	} catch (Out_of_caps) {
+		return Alloc_error::OUT_OF_CAPS;
+	}
 
 	return cap;
 }
 
 
-Genode::Capability<Platform::Device_interface>
-Session_component::acquire_single_device()
+Session_component::Acquisition_result Session_component::acquire_single_device()
 {
 	Capability<Platform::Device_interface> cap;
 
-	_devices.for_each([&] (Device &dev) {
-		if (!cap.valid() && _pd.matches(dev) && !dev.owned())
-			cap = _acquire(dev); });
+	try {
+		_devices.for_each([&] (Device &dev) {
+			if (!cap.valid() && _pd.matches(dev) && !dev.owned())
+				cap = _acquire(dev); });
+	} catch (Out_of_ram) {
+		return Alloc_error::OUT_OF_RAM;
+	} catch (Out_of_caps) {
+		return Alloc_error::OUT_OF_CAPS;
+	}
+
 
 	return cap;
 }
