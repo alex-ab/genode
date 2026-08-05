@@ -1,4 +1,4 @@
-REQUIRES = arm
+REQUIRES = arm_64
 
 include $(PRG_DIR)/../../target.inc
 
@@ -7,3 +7,5 @@ include $(PRG_DIR)/../../target.inc
 CC_OPT += -DEXPECTED_RATIO=0.7
 
 SRC_CC += sleep_or_busy_loop.cc
+
+vpath sleep_or_busy_loop.cc $(PRG_DIR)/../arm
