@@ -1133,17 +1133,13 @@ extern "C" int __getcwd(char *dst, ::size_t dst_size)
 }
 
 
-static int with_aio_fd(auto /* const or non-const */ *iocb_ptr, auto const &fn)
+static int query_aio_fd(struct aiocb const *iocb_ptr, auto const &fn)
 {
 	if (!iocb_ptr)
 		return Errno(EINVAL);
 
 	return with_fd(iocb_ptr->aio_fildes, "aio", [&] (File_descriptor &fd) -> int {
-		if (fd.lio_list_queued >= File_descriptor::MAX_AIOCB_PER_FD)
-			return Errno(EAGAIN);
-
-		return fn(fd);
-	});
+		return fn(fd); });
 }
 
 
@@ -1163,7 +1159,7 @@ extern "C" int aio_cancel(int fildes, struct aiocb *iocb)
 
 extern "C" ssize_t aio_return(struct aiocb *iocb)
 {
-	return with_aio_fd(iocb, [&] (File_descriptor &fd) -> ssize_t {
+	return query_aio_fd(iocb, [&] (File_descriptor &fd) -> ssize_t {
 
 		int error = EINVAL;
 		ssize_t result = 0;
@@ -1192,7 +1188,7 @@ extern "C" ssize_t aio_return(struct aiocb *iocb)
 
 extern "C" int aio_error(const struct aiocb *iocb)
 {
-	return with_aio_fd(iocb, [&] (File_descriptor const &fd) -> int {
+	return query_aio_fd(iocb, [&] (File_descriptor const &fd) -> int {
 
 		int error = EINVAL;
 		File_descriptor::apply_lio(fd, iocb, [&] (File_descriptor::Aio_job const &aio_job) {
@@ -1241,9 +1237,23 @@ extern "C" int aio_suspend(const struct aiocb * const iocbs[], int niocb,
 }
 
 
+static int try_enqueue_aio(struct aiocb *iocb_ptr, auto const &fn)
+{
+	if (!iocb_ptr)
+		return Errno(EINVAL);
+
+	return with_fd(iocb_ptr->aio_fildes, "aio", [&] (File_descriptor &fd) -> int {
+		if (fd.lio_list_queued >= File_descriptor::MAX_AIOCB_PER_FD)
+			return Errno(EAGAIN);
+
+		return fn(fd);
+	});
+}
+
+
 extern "C" int aio_read(struct aiocb *iocb)
 {
-	return with_aio_fd(iocb, [&] (File_descriptor &fd) -> int {
+	return try_enqueue_aio(iocb, [&] (File_descriptor &fd) -> int {
 		iocb->aio_lio_opcode = LIO_READ;
 		return fs().enqueue_aiocb(fd, *iocb);
 	});
@@ -1252,7 +1262,7 @@ extern "C" int aio_read(struct aiocb *iocb)
 
 extern "C" int aio_write(struct aiocb *iocb)
 {
-	return with_aio_fd(iocb, [&] (File_descriptor &fd) -> int {
+	return try_enqueue_aio(iocb, [&] (File_descriptor &fd) -> int {
 		iocb->aio_lio_opcode = LIO_WRITE;
 		return fs().enqueue_aiocb(fd, *iocb);
 	});
@@ -1276,7 +1286,7 @@ extern "C" int lio_listio(int mode, struct aiocb * const list[], int nent,
 
 		struct aiocb *iocb = list[i];
 
-		result = with_aio_fd(iocb, [&] (File_descriptor &fd) -> int {
+		result = try_enqueue_aio(iocb, [&] (File_descriptor &fd) -> int {
 			return fs().enqueue_aiocb(fd, *iocb); });
 
 		if (result != 0)
