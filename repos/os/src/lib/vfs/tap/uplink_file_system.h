@@ -160,7 +160,7 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 				const char *const conn_rx_pkt_base {
 					_conn->rx()->packet_content(conn_rx_pkt) };
 
-				size_t out_count = min(conn_rx_pkt.size(), dst.num_bytes);
+				out_count = min(conn_rx_pkt.size(), dst.num_bytes);
 				memcpy(dst.start, conn_rx_pkt_base, out_count);
 
 				_conn->rx()->acknowledge_packet(conn_rx_pkt);
