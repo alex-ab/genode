@@ -84,29 +84,24 @@ class Vfs_tresor_crypto::Encrypt_file_system : public Vfs::Single_file_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src,
-			                   size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
-				if (_state != State::NONE) {
-					return WRITE_ERR_IO;
-				}
+				if (_state != State::NONE)
+					return Write_error::DENIED;
 
 				try {
 					uint64_t const block_number = seek() / Tresor_crypto::BLOCK_SIZE;
 					bool const ok =
 						_crypto.submit_encryption_request(block_number, _key_id, src);
-					if (!ok) {
-						out_count = 0;
-						return WRITE_OK;
-					}
+					if (!ok)
+						return Write_error::RETRY;
 					_state = State::PENDING;
 				} catch (Tresor_crypto::Interface::Buffer_too_small) {
-					return WRITE_ERR_INVALID;
+					return Write_error::DENIED;
 				}
 
 				_crypto.execute();
-				out_count = src.num_bytes;
-				return WRITE_OK;
+				return src.num_bytes;
 			}
 
 			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
@@ -185,28 +180,24 @@ class Vfs_tresor_crypto::Decrypt_file_system : public Single_file_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
-				if (_state != State::NONE) {
-					return WRITE_ERR_IO;
-				}
+				if (_state != State::NONE)
+					return Write_error::DENIED;
 
 				try {
 					uint64_t const block_number = seek() / Tresor_crypto::BLOCK_SIZE;
 					bool const ok =
 						_crypto.submit_decryption_request(block_number, _key_id, src);
-					if (!ok) {
-						out_count = 0;
-						return WRITE_OK;
-					}
+					if (!ok)
+						return Write_error::RETRY;
 					_state = State::PENDING;
 				} catch (Tresor_crypto::Interface::Buffer_too_small) {
-					return WRITE_ERR_INVALID;
+					return Write_error::DENIED;
 				}
 
 				_crypto.execute();
-				out_count = src.num_bytes;
-				return WRITE_OK;
+				return src.num_bytes;
 			}
 
 			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
@@ -492,11 +483,6 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 					/* opened as "/" */
 					return _query_root(index, out);
 				}
-			}
-
-			Write_result write(Const_byte_range_ptr const &, size_t &) override
-			{
-				return WRITE_ERR_INVALID;
 			}
 
 			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
@@ -801,54 +787,40 @@ class Vfs_tresor_crypto::Management_file_system : public Single_file_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src,
-			                   size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
-				out_count = 0;
+				if (seek() != 0)
+					return Write_error::DENIED;
 
-				if (seek() != 0) {
-					return WRITE_ERR_IO;
-				}
-
-				if (src.start == nullptr || src.num_bytes < sizeof (uint32_t)) {
-					return WRITE_ERR_INVALID;
-				}
+				if (src.start == nullptr || src.num_bytes < sizeof (uint32_t))
+					return Write_error::DENIED;
 
 				uint32_t id = *reinterpret_cast<uint32_t const*>(src.start);
-				if (id == 0) {
-					return WRITE_ERR_INVALID;
-				}
+				if (id == 0)
+					return Write_error::DENIED;
 
 				if (_type == Type::ADD_KEY) {
 
-					if (src.num_bytes != sizeof (uint32_t) + 32 /* XXX Tresor::Key::value*/) {
-						return WRITE_ERR_INVALID;
-					}
+					if (src.num_bytes != sizeof (uint32_t) + 32 /* XXX Tresor::Key::value*/)
+						return Write_error::DENIED;
 
 					try {
 						char const * value     = src.start     + sizeof (uint32_t);
 						size_t const value_len = src.num_bytes - sizeof (uint32_t);
-						if (_crypto.add_key(id, value, value_len)) {
-							out_count = src.num_bytes;
-							return WRITE_OK;
-						}
+						if (_crypto.add_key(id, value, value_len))
+							return src.num_bytes;
 					} catch (...) { }
 
-				} else
+				} else if (_type == Type::REMOVE_KEY) {
 
-				if (_type == Type::REMOVE_KEY) {
+					if (src.num_bytes != sizeof (uint32_t))
+						return Write_error::DENIED;
 
-					if (src.num_bytes != sizeof (uint32_t)) {
-						return WRITE_ERR_INVALID;
-					}
-
-					if (_crypto.remove_key(id)) {
-						out_count = src.num_bytes;
-						return WRITE_OK;
-					}
+					if (_crypto.remove_key(id))
+						return src.num_bytes;
 				}
 
-				return WRITE_ERR_IO;
+				return Write_error::DENIED;
 			}
 
 			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }

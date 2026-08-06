@@ -91,30 +91,24 @@ inline void assert_opendir(Vfs::Directory_service::Opendir_result r)
 
 inline void assert_write(Vfs::Write_result r)
 {
-	using Result = Vfs::Write_result;
-	switch (r) {
-	case Result::WRITE_OK: return;
-	case Result::WRITE_ERR_WOULD_BLOCK:
-		error("WRITE_ERR_WOULD_BLOCK"); break;
-	case Result::WRITE_ERR_INVALID:
-		error("WRITE_ERR_INVALID"); break;
-	case Result::WRITE_ERR_IO:
-		error("WRITE_ERR_IO"); break;
-	}
-	throw Exception();
+	r.with_error([&] (Vfs::Write_error e) {
+		switch (e) {
+		case Vfs::Write_error::RETRY:  error("Vfs::Write_error::RETRY");  break;
+		case Vfs::Write_error::DENIED: error("Vfs::Write_error::DENIED"); break;
+		}
+		throw Exception();
+	});
 }
 
 inline void assert_read(Vfs::Read_result r)
 {
-	if (r.ok()) return;
-
 	r.with_error([&] (Vfs::Read_error e) {
 		switch (e) {
 		case Vfs::Read_error::RETRY:  error("Read_error::RETRY");  break;
 		case Vfs::Read_error::DENIED: error("Read_error::DENIED"); break;
 		}
+		throw Exception();
 	});
-	throw Exception();
 }
 
 inline void assert_unlink(Vfs::Directory_service::Unlink_result r)
@@ -285,12 +279,14 @@ struct Write_test : public Stress_test
 				path.base(), Directory_service::OPEN_MODE_WRONLY, &handle, alloc));
 			Vfs_handle::Guard guard(handle);
 
-			size_t n;
-			assert_write(handle->write(Const_byte_range_ptr(path.base(), path_len), n));
+			Write_result r = handle->write(Const_byte_range_ptr(path.base(), path_len));
+			assert_write(r);
 
 			while (handle->sync() == Vfs::Sync_result::RETRY)
 				_io.commit_and_wait();
-			count += n;
+
+			count += r.convert<size_t>([&] (size_t n)    { return n; },
+			                           [&] (Write_error) { return 0ul; });
 		}
 
 		switch (dir_type) {

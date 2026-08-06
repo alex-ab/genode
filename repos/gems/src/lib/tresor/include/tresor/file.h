@@ -139,32 +139,32 @@ class Tresor::File
 
 			case WRITE_OFFSET_APPLIED:
 			{
-				size_t num_written_bytes { 0 };
-				Const_byte_range_ptr curr_src { src.start + _num_processed_bytes, src.num_bytes - _num_processed_bytes };
-				switch (_handle.write(curr_src, num_written_bytes)) {
-				case Vfs::Write_result::WRITE_ERR_WOULD_BLOCK: break;
-				case Vfs::Write_result::WRITE_OK:
+				Span curr_src { src.start     + _num_processed_bytes,
+				                src.num_bytes - _num_processed_bytes };
 
-					_num_processed_bytes += num_written_bytes;
-					if (_num_processed_bytes < src.num_bytes) {
-						_state = WRITE_INITIALIZED;
+				_handle.write(curr_src).with_result(
+					[&] (size_t num_bytes) {
+						_num_processed_bytes += num_bytes;
+						if (_num_processed_bytes < src.num_bytes) {
+							_state = WRITE_INITIALIZED;
+							progress = true;
+							return;
+						}
+						ASSERT(_num_processed_bytes == src.num_bytes);
+						_state = IDLE;
+						_host_state = succeeded;
 						progress = true;
-						break;
+					},
+					[&] (Vfs::Write_error e) {
+						if (e == Vfs::Write_error::RETRY)
+							return;
+
+						error("file: write failed");
+						_host_state = failed;
+						_state = IDLE;
+						progress = true;
 					}
-					ASSERT(_num_processed_bytes == src.num_bytes);
-					_state = IDLE;
-					_host_state = succeeded;
-					progress = true;
-					break;
-
-				default:
-
-					error("file: write failed");
-					_host_state = failed;
-					_state = IDLE;
-					progress = true;
-					break;
-				}
+				);
 				break;
 			}
 			default: ASSERT_NEVER_REACHED;

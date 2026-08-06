@@ -135,29 +135,25 @@ namespace Vfs_block {
 				using Result = Genode::Vfs::Write_result;
 
 				bool completed = false;
-				size_t out = 0;
 
 				Genode::Const_byte_range_ptr const src { data + current_offset,
 				                                         current_count };
 
-				Result result = _handle.write(src, out);
+				Result result = _handle.write(src);
 
-				switch (result) {
-				case Result::WRITE_ERR_WOULD_BLOCK:
+				if (result == Genode::Vfs::Write_error::RETRY)
 					return progress;
 
-				case Result::WRITE_OK:
-					current_offset += out;
-					current_count  -= out;
-					success = true;
-					break;
-
-				case Result::WRITE_ERR_IO:
-				case Result::WRITE_ERR_INVALID:
-					success = false;
-					completed = true;
-					break;
-				}
+				result.with_result(
+					[&] (size_t num_bytes) {
+						current_offset += num_bytes;
+						current_count  -= num_bytes;
+						success = true;
+					},
+					[&] (Genode::Vfs::Write_error) {
+						success = false;
+						completed = true;
+					});
 
 				if (current_count == 0 || completed) {
 					state = State::COMPLETE;

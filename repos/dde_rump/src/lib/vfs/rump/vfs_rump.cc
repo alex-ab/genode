@@ -164,23 +164,24 @@ class Vfs_rump::File_system : public Vfs::File_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
-				out_count = 0;
-
 				ssize_t n = rump_sys_pwrite(attr.fd, src.start, src.num_bytes, seek());
 				if (n == -1) switch (errno) {
-				case EWOULDBLOCK: return WRITE_ERR_WOULD_BLOCK;
-				case EINVAL:      return WRITE_ERR_INVALID;
-				case EIO:         return WRITE_ERR_IO;
-				case EINTR:       return WRITE_ERR_IO;
+				case EWOULDBLOCK:
+					return Write_error::RETRY;
+
+				case EINVAL:
+				case EIO:
+				case EINTR:
+					return Write_error::DENIED;
+
 				default:
 					error(__func__, ": unhandled rump error ", errno);
-					return WRITE_ERR_IO;
+					return Write_error::DENIED;
 				}
 				modifying = true;
-				out_count = n;
-				return WRITE_OK;
+				return n;
 			}
 
 			Sync_result sync() override
@@ -317,19 +318,16 @@ class Vfs_rump::File_system : public Vfs::File_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
 				rump_sys_unlink(attr.path.base());
 
-				if (rump_sys_symlink(src.start, attr.path.base()) != 0) {
-					out_count = 0;
-					return WRITE_OK;
-				}
+				if (rump_sys_symlink(src.start, attr.path.base()) != 0)
+					return Write_error::DENIED;
 
 				_fs._parent_fs.notify_watchers(Span::from_cstring(attr.path.base()));
 
-				out_count = src.num_bytes;
-				return WRITE_OK;
+				return src.num_bytes;
 			}
 		};
 

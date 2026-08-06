@@ -101,17 +101,21 @@ class Vfs_audit::File_system : public Vfs::File_system
 				Vfs_handle(fs, alloc, flags), _audit_log(log), path(path), audited(audited)
 			{ }
 
-			Write_result write(Const_byte_range_ptr const &src, size_t &out) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
 				_sync_state();
-				Write_result const result = audited.write(src, out);
+				Write_result const result = audited.write(src);
 
-				if (result == WRITE_OK)
-					_log("wrote to ", path, " ", out, " / ", src.num_bytes);
-				else if (result == WRITE_ERR_WOULD_BLOCK)
-					_log("write stalled for ", path);
-				else
-					_log("write failed for ", path);
+				result.with_result(
+					[&] (size_t n) {
+						_log("wrote to ", path, " ", n, " / ", src.num_bytes);
+					},
+					[&] (Write_error e) {
+						if (e == Write_error::RETRY)
+							_log("write stalled for ", path);
+						else
+							_log("write failed for ", path);
+					});
 
 				return result;
 			}

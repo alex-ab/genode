@@ -121,10 +121,10 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
-				if (!file)        return WRITE_ERR_INVALID;
-				if (!writeable()) return WRITE_ERR_INVALID;
+				if (!file)        return Write_error::DENIED;
+				if (!writeable()) return Write_error::DENIED;
 
 				FRESULT fres = FR_OK;
 				FIL *fil = &file->fil;
@@ -137,12 +137,12 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 					 * and is not the expected behavior
 					 */
 					if (f_size(fil) < wpos)
-						return WRITE_ERR_INVALID;
+						return Write_error::DENIED;
 
 					fres = f_lseek(fil, wpos);
 					/* check the seek again */
 					if (f_tell(fil) != seek())
-						return WRITE_ERR_IO;
+						return Write_error::DENIED;
 				}
 
 				if (fres == FR_OK) {
@@ -150,16 +150,13 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 					fres = f_write(fil, src.start, src.num_bytes, &bw);
 					f_sync(fil);
 					modifying = true;
-					out_count = bw;
+					return bw;
 				}
 
-				switch (fres) {
-				case FR_OK:
-					return WRITE_OK;
-				case FR_INVALID_OBJECT: return WRITE_ERR_INVALID;
-				case FR_TIMEOUT:        return WRITE_ERR_WOULD_BLOCK;
-				default:                return WRITE_ERR_IO;
-				}
+				if (fres == FR_TIMEOUT)
+					return Write_error::RETRY;
+
+				return Write_error::DENIED;
 			}
 
 			Ftruncate_result ftruncate(file_size len) override

@@ -97,11 +97,6 @@ class Vfs_rtc::File_system : public Single_file_system
 					return len;
 				}
 
-				Write_result write(Const_byte_range_ptr const &, size_t &) override
-				{
-					return WRITE_ERR_IO;
-				}
-
 				bool read_ready()  const override { return true; }
 				bool write_ready() const override { return false; }
 		};

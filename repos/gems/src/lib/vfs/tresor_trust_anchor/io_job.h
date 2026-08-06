@@ -143,38 +143,31 @@ namespace Util {
 			[[fallthrough]];
 			case State::IN_PROGRESS:
 			{
-				using Result = Vfs::Write_result;
-
-				bool completed = false;
-				size_t out = 0;
-
 				Const_byte_range_ptr const src { _data + _current_offset, _current_count };
-				Result const result = _handle.write(src, out);
 
-				switch (result) {
-				case Result::WRITE_ERR_WOULD_BLOCK:
+				Vfs::Write_result result = _handle.write(src);
+				if (result == Vfs::Write_error::RETRY) {
+					if (_allow_partial) {
+						_state = State::COMPLETE;
+						return true;
+					}
 					return progress;
-
-				case Result::WRITE_OK:
-					_current_offset += out;
-					_current_count  -= out;
-					_success = true;
-					break;
-
-				case Result::WRITE_ERR_IO:
-				case Result::WRITE_ERR_INVALID:
-					_success = false;
-					completed = true;
-					break;
 				}
 
-				if (_current_count == 0 || completed || (out == 0 && _allow_partial)) {
-					_state = State::COMPLETE;
-				} else {
-					_state = State::PENDING;
-					/* partial write, keep trying */
-					return true;
-				}
+				result.with_result(
+					[&] (size_t num_bytes) {
+						_current_offset += num_bytes;
+						_current_count  -= num_bytes;
+						_success = true;
+						_state = (_current_count == 0)
+						       ? State::COMPLETE
+						       : State::PENDING; /* partial write, keep trying */
+					},
+					[&] (Vfs::Write_error) {
+						_success = false;
+						_state = State::COMPLETE;
+					});
+
 				progress = true;
 			}
 			[[fallthrough]];

@@ -124,13 +124,6 @@ class Vfs_inline::File_system : public Single_file_system
 
 				inline Read_result read(Byte_range_ptr const &) override;
 
-				Write_result write(Const_byte_range_ptr const &,
-				                   size_t &out_count) override
-				{
-					out_count = 0;
-					return WRITE_ERR_INVALID;
-				}
-
 				bool read_ready()  const override { return true; }
 				bool write_ready() const override { return false; }
 		};

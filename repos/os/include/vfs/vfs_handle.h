@@ -156,9 +156,9 @@ class Genode::Vfs::Vfs_handle
 		 ** File I/O **
 		 **************/
 
-		virtual Write_result write(Const_byte_range_ptr const &, size_t &)
+		virtual Write_result write(Const_byte_range_ptr const &)
 		{
-			return WRITE_ERR_INVALID;
+			return Write_error::DENIED;
 		}
 
 		/**

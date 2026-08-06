@@ -171,12 +171,13 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 
 		using Write_result = Vfs::Write_result;
 
-		Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+		Write_result write(Const_byte_range_ptr const &src) override
 		{
-			if (!_conn.constructed())
-				return Write_result::WRITE_ERR_INVALID;
+			size_t out_count = 0;
 
-			out_count = 0;
+			if (!_conn.constructed())
+				return Write_error::DENIED;
+
 			_drv_rx_handle_pkt(src.num_bytes, [&] (void * dst, size_t dst_size) {
 				out_count = dst_size;
 				memcpy(dst, src.start, dst_size);
@@ -184,9 +185,9 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 			});
 
 			if (out_count == src.num_bytes)
-				return Write_result::WRITE_OK;
+				return out_count;
 			else
-				return Write_result::WRITE_ERR_WOULD_BLOCK;
+				return Write_error::RETRY;
 		}
 };
 

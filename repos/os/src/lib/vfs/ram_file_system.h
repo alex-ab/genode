@@ -84,7 +84,7 @@ struct Vfs_ram::Io_handle final : Vfs_handle, private List<Io_handle>::Element
 		Vfs_handle(ds, alloc, status_flags), _fs(fs), node(node), path(path)
 	{ }
 
-	inline Write_result write(Const_byte_range_ptr const &, size_t &) override;
+	inline Write_result write(Const_byte_range_ptr const &) override;
 	inline Read_result  read(Byte_range_ptr const &) override;
 
 	bool read_ready () const override { return true; }
@@ -890,17 +890,17 @@ class Vfs_ram::File_system : public Vfs::File_system
 };
 
 
-Vfs_ram::Write_result Vfs_ram::Io_handle::write(Const_byte_range_ptr const &buf, size_t &out)
+Vfs_ram::Write_result Vfs_ram::Io_handle::write(Const_byte_range_ptr const &buf)
 {
-	if ((status_flags() & Directory_service::OPEN_MODE_ACCMODE) == Directory_service::OPEN_MODE_RDONLY)
-		return WRITE_ERR_INVALID;
+	if (!writeable())
+		return Write_error::DENIED;
 
 	Seek const seek { size_t(Vfs_handle::seek()) };
 
-	out = node.write(buf, seek);
+	size_t const num_bytes = node.write(buf, seek);
 	modifying = true;
 
-	return WRITE_OK;
+	return num_bytes;
 }
 
 

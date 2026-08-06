@@ -51,9 +51,6 @@ class Vfs_symlink::File_system : public Single_file_system
 				return (n > 0) ? n - 1 : 0;
 			}
 
-			Write_result write(Const_byte_range_ptr const &, size_t &) override {
-				return WRITE_ERR_INVALID; }
-
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return false; }
 		};

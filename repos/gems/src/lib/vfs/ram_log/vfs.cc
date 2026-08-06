@@ -89,7 +89,7 @@ struct Vfs_ram_log::File_system : Single_file_system
 			return out_count;
 		}
 
-		Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+		Write_result write(Const_byte_range_ptr const &src) override
 		{
 			if (seek() != _ram_log._buffer._write_pos) {
 				warning("vfs_ram_log is append-only, reset write position to ", seek());
@@ -100,9 +100,7 @@ struct Vfs_ram_log::File_system : Single_file_system
 				_ram_log._buffer.append(src.start[i]);
 
 			advance_seek(src.num_bytes);
-			out_count = src.num_bytes;
-
-			return WRITE_OK;
+			return src.num_bytes;
 		}
 
 		bool read_ready()  const override { return true; }

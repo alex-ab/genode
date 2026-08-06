@@ -78,11 +78,6 @@ class Vfs_capture::Data_file_system : public Single_file_system
 				return len;
 			}
 
-			Write_result write(Const_byte_range_ptr const &, size_t &) override
-			{
-				return WRITE_ERR_IO;
-			}
-
 			bool notify_read_ready() override
 			{
 				notifying = true;

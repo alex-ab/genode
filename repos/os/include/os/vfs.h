@@ -367,13 +367,21 @@ struct Genode::Directory : Noncopyable, Interface
 
 			Const_byte_range_ptr const src { target.string(), target.length() };
 
-			size_t out_count = 0;
-			link_handle->write(src, out_count);
+			Write_result write_result = Write_error::DENIED;
 
-			if (out_count < src.num_bytes) {
-				unlink(rel_path);
-				return;
+			for (;;) {
+				write_result = link_handle->write(src);
+				if (write_result != Write_error::RETRY)
+					break;
+				_io.commit_and_wait();
 			}
+
+			write_result.with_result([&] (size_t num_bytes) {
+				if (num_bytes < src.num_bytes) {
+					warning("failed to write complete symlink");
+					unlink(rel_path);
+				}
+			}, [&] (Write_error) { });
 
 			/* sync before the handle gets closed */
 			while (link_handle->sync() == Sync_result::RETRY)
@@ -826,33 +834,26 @@ class Genode::Writeable_file : Noncopyable
 
 			while (remaining_bytes > 0 && !write_error) {
 
-				bool stalled = false;
-
-				size_t out_count = 0;
-
 				Const_byte_range_ptr const partial_src { src_ptr, remaining_bytes };
 
-				switch (handle.write(partial_src, out_count)) {
-
-				case Vfs::Write_result::WRITE_ERR_WOULD_BLOCK:
-					stalled = true;
-					break;
-
-				case Vfs::Write_result::WRITE_ERR_INVALID:
-				case Vfs::Write_result::WRITE_ERR_IO:
-					write_error = true;
-					break;
-
-				case Vfs::Write_result::WRITE_OK:
-					out_count = min(remaining_bytes, out_count);
-					remaining_bytes -= (size_t)out_count;
-					src_ptr         += out_count;
-					handle.advance_seek(out_count);
-					break;
-				};
-
-				if (stalled)
+				Vfs::Write_result result = Vfs::Write_error::DENIED;
+				for (;;) {
+					Vfs::Write_result result = handle.write(partial_src);
+					if (result != Vfs::Write_error::RETRY)
+						break;
 					io.commit_and_wait();
+				}
+
+				result.with_result(
+					[&] (size_t num_bytes) {
+						num_bytes = min(remaining_bytes, num_bytes);
+						remaining_bytes -= num_bytes;
+						src_ptr         += num_bytes;
+						handle.advance_seek(num_bytes);
+					},
+					[&] (Vfs::Write_error) {
+						write_error = true;
+					});
 			}
 			return write_error ? Append_result::WRITE_ERROR
 			                   : Append_result::OK;

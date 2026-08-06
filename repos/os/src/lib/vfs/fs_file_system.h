@@ -170,7 +170,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			}
 
 			Write_result _write(file_size const seek_offset,
-			                    Const_byte_range_ptr const &src, size_t &out_count)
+			                    Const_byte_range_ptr const &src)
 			{
 				/* reclaim as much space in the packet stream as possible */
 				_fs._handle_ack();
@@ -183,7 +183,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 				if (!source.ready_to_submit()) {
 					_fs._write_would_block = true;
-					return Write_result::WRITE_ERR_WOULD_BLOCK;
+					return Write_error::RETRY;
 				}
 
 				try {
@@ -199,20 +199,18 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				}
 				catch (::File_system::Session::Tx::Source::Packet_alloc_failed) {
 					_fs._write_would_block = true;
-					return Write_result::WRITE_ERR_WOULD_BLOCK;
+					return Write_error::RETRY;
 				}
 				catch (...) {
 					error("unhandled exception");
-					return Write_result::WRITE_ERR_IO;
+					return Write_error::DENIED;
 				}
-				out_count = count;
-				return Write_result::WRITE_OK;
+				return count;
 			}
 
-			virtual Write_result write(Const_byte_range_ptr const &src,
-			                           size_t &out_count) override
+			virtual Write_result write(Const_byte_range_ptr const &src) override
 			{
-				return _write(seek(), src, out_count);
+				return _write(seek(), src);
 			}
 
 			Read_result _try_queue_read(Byte_range_ptr const &dst,

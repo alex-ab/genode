@@ -531,32 +531,26 @@ int Libc::Fs::stat(char const *path, struct stat &buf)
 
 ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 {
-	using Result = Vfs::Write_result;
-
 	if (!fd.open_file_ptr || (fd.flags & O_ACCMODE) == O_RDONLY)
 		return Errno(EBADF);
 
 	Open_file &of = *fd.open_file_ptr;
 
-	::size_t out_count  = 0;
-	Result   out_result = Result::WRITE_OK;
-
-	Const_byte_range_ptr const src { (char const *)buf, count };
+	Vfs::Write_result result = 0;
 
 	if (fd.flags & O_NONBLOCK) {
 		_monitor.monitor([&] {
-			out_result = of.handle.write(src, out_count);
+			Const_byte_range_ptr const src { (char const *)buf, count };
+			result = of.handle.write(src);
 			return Fn::COMPLETE;
 		});
 	} else {
 		Vfs::file_size const initial_seek { of.handle.seek() };
 
-		void const *_buf        { buf };
-		::size_t    _count      { count };
-		::size_t   &_out_count  { out_count };
-		Result     &_out_result { out_result };
-		::off_t     _offset     { 0 };
-		unsigned    _iteration  { 0 };
+		size_t   total_written_bytes = 0;
+		size_t   remaining_bytes = count;
+		::off_t  offset = 0;
+		unsigned iteration = 0;
 
 		auto _fd_refers_to_continuous_file = [&]
 		{
@@ -574,25 +568,31 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 		{
 			for (;;) {
 
-				/* number of bytes written in one iteration */
-				::size_t partial_out_count = 0;
+				Span const src { (char const *)buf + offset, remaining_bytes };
 
-				Const_byte_range_ptr const src { (char const *)_buf + _offset,
-				                                  _count };
+				Vfs::Write_result partial_result = of.handle.write(src);
 
-				_out_result = of.handle.write(src, partial_out_count);
-
-				if (_out_result == Result::WRITE_ERR_WOULD_BLOCK)
+				if (partial_result == Vfs::Write_error::RETRY)
 					return Fn::INCOMPLETE;
 
-				if (_out_result != Result::WRITE_OK)
+				partial_result.with_result(
+					[&] (size_t num_bytes) {
+						total_written_bytes += num_bytes;
+						offset              += num_bytes;
+						remaining_bytes     -= num_bytes;
+
+						of.handle.advance_seek(num_bytes);
+
+						result = total_written_bytes;
+					},
+					[&] (Vfs::Write_error e) {
+						result = e;
+					});
+
+				if (partial_result.failed())
 					return Fn::COMPLETE;
 
-				/* increment byte count reported to caller */
-				_out_count += partial_out_count;
-
-				bool const write_complete = (partial_out_count == _count);
-				if (write_complete)
+				if (remaining_bytes == 0)
 					return Fn::COMPLETE;
 
 				/*
@@ -603,25 +603,14 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 				 * The costly 'fd_refers_to_continuous_file' is called
 				 * for the first iteration only.
 				 */
-				bool const continuous_file = (_iteration > 0 || _fd_refers_to_continuous_file());
+				bool const continuous_file = (iteration > 0 || _fd_refers_to_continuous_file());
 
 				if (!continuous_file) {
 					warning("partial write on transactional file");
-					_out_result = Result::WRITE_ERR_IO;
+					result = Vfs::Write_error::DENIED;
 					return Fn::COMPLETE;
 				}
-
-				_iteration++;
-
-				bool const stalled = (partial_out_count == 0);
-				if (stalled) {
-					return Fn::INCOMPLETE;
-				}
-
-				/* issue new write operation for remaining bytes */
-				_count  -= partial_out_count;
-				_offset += partial_out_count;
-				of.handle.advance_seek(partial_out_count);
+				iteration++;
 			}
 		});
 
@@ -629,17 +618,19 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 		of.handle.seek(initial_seek);
 	}
 
-	switch (out_result) {
-	case Result::WRITE_ERR_WOULD_BLOCK: return Errno(EWOULDBLOCK);
-	case Result::WRITE_ERR_INVALID:     return Errno(EINVAL);
-	case Result::WRITE_ERR_IO:          return Errno(EIO);
-	case Result::WRITE_OK:              break;
-	}
-
-	of.handle.advance_seek(out_count);
-	of.modified = true;
-
-	return out_count;
+	return result.convert<ssize_t>(
+		[&] (size_t num_bytes) -> ssize_t {
+			of.handle.advance_seek(num_bytes);
+			of.modified = true;
+			return num_bytes;
+		},
+		[&] (Vfs::Write_error e) -> ssize_t {
+			switch (e) {
+			case Vfs::Write_error::RETRY:  return Errno(EWOULDBLOCK);
+			case Vfs::Write_error::DENIED: break;
+			}
+			return Errno(EINVAL);
+		});
 }
 
 
@@ -1786,8 +1777,6 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 
 	size_t const count = ::strlen(target_path) + 1;
 
-	size_t out_count = 0;
-
 	{
 		bool succeeded { false };
 		int result_errno { 0 };
@@ -1831,8 +1820,8 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 	/* must be done outside the monitor because constructor needs libc I/O */
 	sync.construct(handle, Sync::Attr { .update_mtime = _config.update_mtime }, _now);
 	{
-		bool succeeded { false };
-		int result_errno { 0 };
+		Vfs::Write_result write_result = Vfs::Write_error::DENIED;
+
 		enum class Stage { WRITE, SYNC } stage = Stage::WRITE;
 
 		_monitor.monitor([&] {
@@ -1841,13 +1830,8 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 
 			case Stage::WRITE:
 				{
-					using Result = Vfs::Write_result;
-
-					Const_byte_range_ptr const src { target_path, count };
-
-					Result result = handle.write(src, out_count);
-
-					if (result == Result::WRITE_ERR_WOULD_BLOCK)
+					write_result = handle.write( { target_path, count });
+					if (write_result == Vfs::Write_error::RETRY)
 						return Fn::INCOMPLETE;
 				}
 				stage = Stage::SYNC;
@@ -1861,15 +1845,15 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 				} break;
 			}
 
-			if (out_count != count)
-				result_errno = ENAMETOOLONG;
-			else
-				succeeded = true;
 			return Fn::COMPLETE;
 		});
 
-		if (!succeeded)
-		return Errno(result_errno);
+		bool const name_too_long = write_result.convert<bool>(
+			[&] (size_t num_bytes) { return (num_bytes != count); },
+			[&] (Vfs::Write_error) { return true; });
+
+		if (name_too_long)
+			return Errno(ENAMETOOLONG);
 	}
 
 	return 0;
@@ -2320,15 +2304,14 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 static bool _handle_aio_write(Libc::File_descriptor          &fd,
                               Libc::File_descriptor::Aio_job &aio_job)
 {
-	using Aio_job    = Libc::File_descriptor::Aio_job;
-	using Aio_handle = Libc::File_descriptor::Aio_handle;
-	using Vfs_handle = Genode::Vfs::Vfs_handle;
-	using Result     = Genode::Vfs::Write_result;
+	using namespace Libc;
+	using Aio_job    = File_descriptor::Aio_job;
+	using Aio_handle = File_descriptor::Aio_handle;
 
 	bool progress = false;
 
 	aio_job.with_aio_handle([&] (Aio_handle &aio_handle) {
-		aio_handle.with_vfs_handle([&] (Vfs_handle &vfs_handle) {
+		aio_handle.with_vfs_handle([&] (Vfs::Vfs_handle &vfs_handle) {
 
 			switch (aio_handle.state) {
 			case Aio_handle::State::INVALID:
@@ -2354,42 +2337,34 @@ static bool _handle_aio_write(Libc::File_descriptor          &fd,
 			}
 			case Aio_handle::State::QUEUED:
 			{
-				Genode::Const_byte_range_ptr const src {
+				Const_byte_range_ptr const src {
 					(char *)aio_job.iocb->aio_buf + aio_handle.offset, aio_handle.count };
-				::size_t out_count = 0;
-				Result const out_result = vfs_handle.write(src, out_count);
 
-				if (out_result == Result::WRITE_OK) {
-					aio_handle.count  -= out_count;
-					aio_handle.offset += out_count;
+				vfs_handle.write(src).with_result(
+					[&] (size_t num_bytes) {
+						aio_handle.count  -= num_bytes;
+						aio_handle.offset += num_bytes;
 
-					aio_job.result += out_count;
+						aio_job.result += num_bytes;
 
-					vfs_handle.advance_seek(out_count);
+						vfs_handle.advance_seek(num_bytes);
 
-					if (!aio_handle.count)
-						aio_handle.state = Aio_handle::State::COMPLETE;
+						if (!aio_handle.count)
+							aio_handle.state = Aio_handle::State::COMPLETE;
 
-					progress = true;
-					break;
-				}
-
-				if (out_result != Result::WRITE_ERR_WOULD_BLOCK) {
-					switch (out_result) {
-					case Result::WRITE_ERR_INVALID:
-						aio_job.result = -1;
-						aio_job.error  = EINVAL;
-						break;
-					case Result::WRITE_ERR_IO:
-						aio_job.result = -1;
-						aio_job.error  = EIO;
-						break;
-					case Result::WRITE_ERR_WOULD_BLOCK: /* never reached */ break;
-					case Result::WRITE_OK:              /* never reached */ break;
-					}
-					aio_handle.state = Aio_handle::State::COMPLETE;
-					progress = true;
-				}
+						progress = true;
+					},
+					[&] (Vfs::Write_error e) {
+						switch (e) {
+						case Vfs::Write_error::DENIED:
+							aio_job.result = -1;
+							aio_job.error  = EINVAL;
+							aio_handle.state = Aio_handle::State::COMPLETE;
+							progress = true;
+							break;
+						case Vfs::Write_error::RETRY: break;
+						}
+					});
 				break;
 			}
 			case Aio_handle::State::COMPLETE:

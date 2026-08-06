@@ -56,9 +56,6 @@ class Vfs_ip::Error_file_system : public Single_file_system
 				return len;
 			}
 
-			Write_result write(Const_byte_range_ptr const &, size_t &) override {
-				return Write_result::WRITE_ERR_INVALID; }
-
 			bool read_ready()  const override { return true;  }
 			bool write_ready() const override { return false; }
 

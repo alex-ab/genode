@@ -62,20 +62,18 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 				return len;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
-				out_count = 0;
 				if (seek() > BUF_SIZE)
-					return WRITE_ERR_INVALID;
+					return Write_error::DENIED;
 
 				size_t const len = min(size_t(BUF_SIZE- seek()), src.num_bytes);
 
 				_buffer = Buffer(Cstring(src.start, len));
-				out_count = len;
 
 				_value_fs._notify_watchers();
 
-				return WRITE_OK;
+				return len;
 			}
 
 			Ftruncate_result ftruncate(file_size size) override

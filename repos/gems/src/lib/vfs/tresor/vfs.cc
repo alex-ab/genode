@@ -910,21 +910,14 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 					return result;
 				}
 
-				Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+				Write_result write(Const_byte_range_ptr const &src) override
 				{
-					out_count = 0;
-					Write_result result = WRITE_ERR_WOULD_BLOCK;
+					Write_result result = Write_error::RETRY;
 					_plugin.with_data_operation([&] (Data_operation &data_operation) {
-
 						switch (data_operation.write(seek(), src)) {
-						case Data_operation::PENDING: break;
-						case Data_operation::SUCCEEDED:
-
-							out_count = src.num_bytes;
-							result = WRITE_OK;
-							break;
-
-						case Data_operation::FAILED: result = WRITE_ERR_IO; break;
+						case Data_operation::PENDING:   break;
+						case Data_operation::SUCCEEDED: result = src.num_bytes; break;
+						case Data_operation::FAILED:    result = Write_error::DENIED; break;
 						};
 					});
 					return result;
@@ -1042,24 +1035,22 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 					return result;
 				}
 
-				Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+				Write_result write(Const_byte_range_ptr const &src) override
 				{
-					out_count = 0;
 					char tree_arg[16];
 					Arg_string::find_arg(src.start, "tree").string(tree_arg, sizeof(tree_arg), "-");
 					unsigned long blocks_arg = Arg_string::find_arg(src.start, "blocks").ulong_value(0);
 					if (seek() || !blocks_arg) {
 						if (_plugin.verbose())
 							log("writing extend file failed: malformed arguments");
-						return WRITE_ERR_IO;
+						return Write_error::DENIED;
 					}
-					Write_result result = WRITE_ERR_IO;
+					Write_result result = Write_error::DENIED;
 					_plugin.with_extend_operation([&] (Extend_operation &extend_operation) {
 
 						if (!strcmp("ft", tree_arg, 2)) {
 
 							if (!extend_operation.request_for_free_tree(blocks_arg)) {
-								result = WRITE_ERR_IO;
 								if (_plugin.verbose())
 									log("writing extend file failed: failed to request operation");
 								return;
@@ -1068,7 +1059,6 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 						} else if (!strcmp("vbd", tree_arg, 3)) {
 
 							if (!extend_operation.request_for_vbd(blocks_arg)) {
-								result = WRITE_ERR_IO;
 								if (_plugin.verbose())
 									log("writing extend file failed: failed to request operation");
 								return;
@@ -1076,13 +1066,11 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 
 						} else {
 
-							result = WRITE_ERR_IO;
 							if (_plugin.verbose())
 								log("writing extend file failed: malformed tree argument");
 							return;
 						}
-						out_count = src.num_bytes;
-						result = WRITE_OK;
+						result = src.num_bytes;
 					});
 					return result;
 				}
@@ -1183,27 +1171,24 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 					return result;
 				}
 
-				Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+				Write_result write(Const_byte_range_ptr const &src) override
 				{
-					out_count = 0;
 					bool rekey_arg { false };
 					Genode::ascii_to(src.start, rekey_arg);
 					if (seek() || !rekey_arg) {
 						if (_plugin.verbose())
 							log("writing rekey file failed: malformed arguments");
-						return WRITE_ERR_IO;
+						return Write_error::DENIED;
 					}
-					Write_result result = WRITE_ERR_IO;
+					Write_result result = Write_error::DENIED;
 					_plugin.with_rekey_operation([&] (Rekey_operation &rekey_operation) {
 
 						if (!rekey_operation.request()) {
-							result = WRITE_ERR_IO;
 							if (_plugin.verbose())
 								log("writing rekey file failed: failed to request operation");
 							return;
 						}
-						out_count = src.num_bytes;
-						result = WRITE_OK;
+						result = src.num_bytes;
 					});
 					return result;
 				}
@@ -1302,28 +1287,25 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 					return result;
 				}
 
-				Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+				Write_result write(Const_byte_range_ptr const &src) override
 				{
-					out_count = 0;
 					bool deinitialize_arg { false };
 					Genode::ascii_to(src.start, deinitialize_arg);
 					if (seek() || !deinitialize_arg) {
 						if (_plugin.verbose())
 							log("writing deinitialize file failed: malformed arguments");
 
-						return WRITE_ERR_IO;
+						return Write_error::DENIED;
 					}
-					Write_result result = WRITE_ERR_IO;
+					Write_result result = Write_error::DENIED;
 					_plugin.with_deinit_operation([&] (Deinitialize_operation &deinit_operation) {
 
 						if (!deinit_operation.request()) {
-							result = WRITE_ERR_IO;
 							if (_plugin.verbose())
 								log("writing deinitialize file failed: failed to request operation");
 							return;
 						}
-						out_count = src.num_bytes;
-						result = WRITE_OK;
+						result = src.num_bytes;
 					});
 					return result;
 				}

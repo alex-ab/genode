@@ -126,22 +126,6 @@ static inline void print(Genode::Output &output, Vfs::Directory_service::Rename_
 }
 
 
-static inline void print(Genode::Output &output, Vfs::Write_result const &r)
-{
-#define CASE_PRINT(x) \
-	case Vfs::Write_result::x: output.out_string(#x); break
-
-	switch (r) {
-		CASE_PRINT(WRITE_OK);
-		CASE_PRINT(WRITE_ERR_WOULD_BLOCK);
-		CASE_PRINT(WRITE_ERR_INVALID);
-		CASE_PRINT(WRITE_ERR_IO);
-	}
-
-#undef CASE_PRINT
-}
-
-
 static inline void print(Genode::Output &output, Vfs::Ftruncate_result const &r)
 {
 #define CASE_PRINT(x) \

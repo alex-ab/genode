@@ -175,15 +175,13 @@ class Vfs_nic::File_system::Nic_vfs_handle : public Single_vfs_handle
 			return out_count;
 		}
 
-		Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+		Write_result write(Const_byte_range_ptr const &src) override
 		{
-			out_count = 0;
-
 			_handle_ack_avail();
 
-			if (!_nic.tx()->ready_to_submit()) {
-				return Write_result::WRITE_ERR_WOULD_BLOCK;
-			}
+			if (!_nic.tx()->ready_to_submit())
+				return Write_error::RETRY;
+
 			try {
 				Packet_descriptor tx_pkt {
 					_nic.tx()->alloc_packet(src.num_bytes) };
@@ -194,15 +192,14 @@ class Vfs_nic::File_system::Nic_vfs_handle : public Single_vfs_handle
 				memcpy(tx_pkt_base, src.start, src.num_bytes);
 
 				_nic.tx()->submit_packet(tx_pkt);
-				out_count = src.num_bytes;
+				return src.num_bytes;
 
-				return Write_result::WRITE_OK;
 			} catch (...) {
 
 				warning("exception while trying to forward packet from driver "
 				        "to Nic connection TX");
 
-				return Write_result::WRITE_ERR_INVALID;
+				return Write_error::DENIED;
 			}
 		}
 };

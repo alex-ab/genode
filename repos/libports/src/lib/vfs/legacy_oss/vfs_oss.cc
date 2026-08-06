@@ -514,14 +514,14 @@ struct Vfs_oss::Audio
 			return out_size;
 		}
 
-		Write_result write(Const_byte_range_ptr const &src, size_t &out_size)
+		Write_result write(Const_byte_range_ptr const &src)
 		{
 			using namespace Genode;
 
-			out_size = 0;
+			size_t out_size = 0;
 
 			if (_info.ofrag_bytes == 0)
-				return Write_result::WRITE_ERR_WOULD_BLOCK;
+				return Write_error::RETRY;
 
 			bool block_write = false;
 
@@ -535,7 +535,7 @@ struct Vfs_oss::Audio
 			unsigned stream_samples_to_write = buf_size / CHANNELS / sizeof(int16_t);
 
 			if (stream_samples_to_write == 0)
-				return Write_result::WRITE_ERR_INVALID;
+				return Write_error::DENIED;
 
 			_start_output();
 
@@ -608,14 +608,14 @@ struct Vfs_oss::Audio
 						update_info_ofrag_avail_from_optr_fifo_samples();
 
 						if (block_write)
-							return Write_result::WRITE_ERR_WOULD_BLOCK;
+							return Write_error::RETRY;
 
-						return Write_result::WRITE_OK;
+						return out_size;
 					}
 				}
 			}
 
-			return Write_result::WRITE_OK;
+			return out_size;
 		}
 };
 
@@ -661,13 +661,13 @@ class Vfs_oss::Data_file_system : public Single_file_system
 				return result;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
-				Write_result const result = _audio.write(src, out_count);
+				Write_result const result = _audio.write(src);
 
-				if (result == Write_result::WRITE_ERR_WOULD_BLOCK) {
+				if (result == Write_error::RETRY) {
 					blocked = true;
-					return WRITE_OK;
+					return result;
 				}
 				return result;
 			}

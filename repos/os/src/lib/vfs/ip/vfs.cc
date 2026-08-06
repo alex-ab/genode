@@ -317,16 +317,17 @@ struct Vfs_ip::Ip_vfs_file_handle final : Vfs_handle
 		catch (File::Would_block) { return Read_error::RETRY; }
 	}
 
-	Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+	Write_result write(Const_byte_range_ptr const &src) override
 	{
-		if (!file) return Write_result::WRITE_ERR_INVALID;
+		if (!file)
+			return Write_error::DENIED;
 		try {
 			long res = file->write(*this, src, seek());
-			if (res < 0) return Write_result::WRITE_ERR_IO;
-			out_count = res;
-			return Write_result::WRITE_OK;
+			if (res < 0)
+				return Write_error::DENIED;
+			return res;
 		}
-		catch (File::Would_block) { return WRITE_ERR_WOULD_BLOCK; }
+		catch (File::Would_block) { return Write_error::RETRY; }
 	}
 
 	bool write_content_line(Const_byte_range_ptr const &src)
@@ -380,9 +381,6 @@ struct Vfs_ip::Ip_vfs_dir_handle final : Vfs_handle
 			return Read_error::DENIED;
 		return res;
 	}
-
-	Write_result write(Const_byte_range_ptr const &, size_t &) override {
-		return Write_result::WRITE_ERR_INVALID; }
 };
 
 
@@ -1214,9 +1212,6 @@ struct Vfs_ip::Ip_socket_handle final : Vfs_handle
 		return Format::snprintf(
 			dst.start, dst.num_bytes, "%s/%s\n", _dir.parent().name(), _dir.name());
 	}
-
-	Write_result write(Const_byte_range_ptr const &, size_t &) override {
-		return Write_result::WRITE_ERR_INVALID; }
 
 	bool write_ready() const override { return false; }
 };

@@ -67,6 +67,11 @@ namespace Genode::Vfs {
 		                                 .executable = true }; }
 	};
 
+	/**
+	 * Seek position in bytes, for read and write operations
+	 */
+	struct At { file_size offset; };
+
 	using Absolute_path = Path<MAX_PATH_LEN>;
 
 	struct Scanner_policy_path_element
@@ -104,8 +109,9 @@ namespace Genode::Vfs {
 
 	struct File_system_factory;
 
-	enum Write_result { WRITE_ERR_WOULD_BLOCK, WRITE_ERR_INVALID,
-	                    WRITE_ERR_IO,          WRITE_OK };
+	enum class Write_error { RETRY, DENIED };
+
+	using Write_result = Attempt<size_t, Write_error>;
 
 	enum class Read_error { RETRY, DENIED };
 

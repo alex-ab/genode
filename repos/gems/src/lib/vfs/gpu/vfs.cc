@@ -78,11 +78,6 @@ struct Vfs_gpu::File_system : Single_file_system
 			return sizeof(id_value);
 		}
 
-		Write_result write(Const_byte_range_ptr const &, size_t &) override
-		{
-			return WRITE_ERR_IO;
-		}
-
 		bool read_ready()  const override { return _complete; }
 		bool write_ready() const override { return true; }
 

@@ -1264,8 +1264,7 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 
 				if (_state == State::NONE) {
 					try {
-						bool const ok =
-							_trust_anchor.queue_read_last_hash();
+						bool const ok = _trust_anchor.queue_read_last_hash();
 						if (!ok)
 							return Read_error::DENIED;
 
@@ -1313,27 +1312,24 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
 				_trust_anchor.execute();
 
-				if (_state != State::NONE) {
-					return WRITE_ERR_IO;
-				}
+				if (_state != State::NONE)
+					return Write_error::RETRY;
 
 				try {
 					bool const ok = _trust_anchor.queue_update_last_hash(src);
-					if (!ok) {
-						return WRITE_ERR_IO;
-					}
+					if (!ok)
+						return Write_error::RETRY;
 					_state = State::PENDING_WRITE_ACK;
 				} catch (...) {
-					return WRITE_ERR_INVALID;
+					return Write_error::DENIED;
 				}
 
 				_trust_anchor.execute();
-				out_count = src.num_bytes;
-				return WRITE_OK;
+				return src.num_bytes;
 			}
 
 			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
@@ -1415,11 +1411,6 @@ class Vfs_tresor_trust_anchor::Generate_key_file_system : public Single_file_sys
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &, size_t &) override
-			{
-				return WRITE_ERR_IO;
-			}
-
 			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
 
 			bool read_ready()  const override { return true; }
@@ -1497,26 +1488,22 @@ class Vfs_tresor_trust_anchor::Encrypt_file_system : public Single_file_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
-				if (_state != State::NONE) {
-					return WRITE_ERR_IO;
-				}
+				if (_state != State::NONE)
+					return Write_error::RETRY;
 
 				try {
-					bool const ok =
-						_trust_anchor.queue_encrypt_key(src);
-					if (!ok) {
-						return WRITE_ERR_IO;
-					}
+					bool const ok = _trust_anchor.queue_encrypt_key(src);
+					if (!ok)
+						return Write_error::RETRY;
 					_state = State::PENDING;
 				} catch (...) {
-					return WRITE_ERR_INVALID;
+					return Write_error::DENIED;
 				}
 
 				_trust_anchor.execute();
-				out_count = src.num_bytes;
-				return WRITE_OK;
+				return src.num_bytes;
 			}
 
 			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
@@ -1594,26 +1581,22 @@ class Vfs_tresor_trust_anchor::Decrypt_file_system : public Single_file_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
-				if (_state != State::NONE) {
-					return WRITE_ERR_IO;
-				}
+				if (_state != State::NONE)
+					return Write_error::RETRY;
 
 				try {
-					bool const ok =
-						_trust_anchor.queue_decrypt_key(src);
-					if (!ok) {
-						return WRITE_ERR_IO;
-					}
+					bool const ok = _trust_anchor.queue_decrypt_key(src);
+					if (!ok)
+						return Write_error::RETRY;
 					_state = State::PENDING;
 				} catch (...) {
-					return WRITE_ERR_INVALID;
+					return Write_error::DENIED;
 				}
 
 				_trust_anchor.execute();
-				out_count = src.num_bytes;
-				return WRITE_OK;
+				return src.num_bytes;
 			}
 
 			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
@@ -1711,24 +1694,22 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 				}
 			}
 
-			Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+			Write_result write(Const_byte_range_ptr const &src) override
 			{
-				if (_state != State::NONE) {
-					return WRITE_ERR_INVALID;
-				}
+				if (_state != State::NONE)
+					return Write_error::RETRY;
 
 				_init_pending = _trust_anchor.initialized();
 
 				bool const res = _init_pending ? _trust_anchor.queue_unlock(src)
 				                               : _trust_anchor.queue_initialize(src);
 
-				if (!res) {
-					return WRITE_ERR_IO;
-				}
+				if (!res)
+					return Write_error::DENIED;
+
 				_state = State::PENDING;
 
-				out_count = src.num_bytes;
-				return WRITE_OK;
+				return src.num_bytes;
 			}
 
 			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }

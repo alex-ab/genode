@@ -148,27 +148,33 @@ class Fs_report::Session_component : public Genode::Rpc_object<Report::Session>
 
 				size_t offset = 0;
 				while (offset < length) {
-					size_t n = 0;
 
 					handle->seek(offset);
 
-					Const_byte_range_ptr const src(_ds.local_addr<char>() + offset,
-					                               length - offset);
+					Span const src(_ds.local_addr<char>() + offset, length - offset);
 
-					Vfs::Write_result res = handle->write(src, n);
+					_success = handle->write(src).convert<bool>(
+						[&] (size_t num_bytes) {
+							offset += num_bytes;
+							return true;
+						},
+						[&] (Vfs::Write_error e)
+						{
+							if (e == Vfs::Write_error::RETRY) {
+								_io.commit_and_wait();
+								return true;
+							}
 
-					if (res == Vfs::Write_result::WRITE_ERR_WOULD_BLOCK)
-						_io.commit_and_wait();
-					else if (res != Vfs::Write_result::WRITE_OK) {
-						/* do not spam the log */
-						if (_success)
-							error("failed to write report to '", _path, "'");
-						_file_size = 0;
-						_success = false;
+							/* do not spam the log */
+							if (_success)
+								error("failed to write report to '", _path, "'");
+							_file_size = 0;
+							return false;
+						}
+					);
+
+					if (!_success)
 						return;
-					}
-
-					offset += n;
 				}
 
 				_file_size = length;

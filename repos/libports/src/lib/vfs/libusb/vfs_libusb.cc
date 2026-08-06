@@ -79,10 +79,6 @@ class Vfs_libusb::File_system : public Vfs::Single_file_system
 
 				bool write_ready() const override {
 					return true; }
-
-				Write_result write(Const_byte_range_ptr const &,
-				                   size_t &) override {
-					return WRITE_ERR_IO; }
 		};
 
 	public:

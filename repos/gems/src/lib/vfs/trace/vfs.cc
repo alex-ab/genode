@@ -151,12 +151,6 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 				return out_count;
 			}
 
-			Write_result write(Const_byte_range_ptr const &, size_t &out_count) override
-			{
-				out_count = 0;
-				return WRITE_ERR_INVALID;
-			}
-
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return false; }
 		};

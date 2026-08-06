@@ -89,21 +89,24 @@ class Vfs_import::File_system : public Vfs::File_system
 
 				Const_byte_range_ptr const src { target.string(), target.length() };
 
+				Write_result write_result = Write_error::DENIED;
 				for (;;) {
-					size_t out_count = 0;
-					auto wres = dst_handle->write(src, out_count);
-
-					switch (wres) {
-					case WRITE_ERR_WOULD_BLOCK:
+					write_result = dst_handle->write(src);
+					if (write_result != Write_error::RETRY)
 						break;
-					default:
-						if (out_count < src.num_bytes) {
-							error("failed to write symlink ", path, ", ", wres);
+					env.io().commit_and_wait();
+				}
+
+				write_result.with_result(
+					[&] (size_t num_bytes) {
+						if (num_bytes != src.num_bytes) {
+							error("failed to import symlink ", path, " (too long)");
 							env.root_dir().unlink(path.string());
 						}
-						return;
-					}
-				}
+					},
+					[&] (Write_error) {
+						error("failed to import symlink ", path, " (denied)");
+					});
 			}
 		}
 
@@ -155,30 +158,28 @@ class Vfs_import::File_system : public Vfs::File_system
 
 				while (remaining_bytes > 0 && !write_error) {
 
-					size_t out_count = 0;
-
 					Const_byte_range_ptr const src { src_ptr, remaining_bytes };
 
-					switch (dst_handle->write(src, out_count)) {
+					dst_handle->write(src).with_result(
+						[&] (size_t num_bytes) {
+							num_bytes = min(remaining_bytes, num_bytes);
+							remaining_bytes -= num_bytes;
+							src_ptr         += num_bytes;
+							at.value        += num_bytes;
+							dst_handle->advance_seek(num_bytes);
+						},
+						[&] (Write_error e) {
+							switch (e) {
+							case Write_error::RETRY:
+								env.io().commit_and_wait();
+								break;
 
-					case WRITE_ERR_WOULD_BLOCK:
-						env.io().commit_and_wait();
-						break;
-
-					case Write_result::WRITE_ERR_INVALID:
-					case Write_result::WRITE_ERR_IO:
-						env.root_dir().unlink(path.string());
-						write_error = true;
-						break;
-
-					case WRITE_OK:
-						out_count = min(remaining_bytes, out_count);
-						remaining_bytes -= out_count;
-						src_ptr         += out_count;
-						at.value        += out_count;
-						dst_handle->advance_seek(out_count);
-						break;
-					}
+							case Write_error::DENIED:
+								env.root_dir().unlink(path.string());
+								write_error = true;
+								break;
+							}
+						});
 				}
 				if (write_error)
 					break;

@@ -108,12 +108,10 @@ class Vfs_log::File_system : public Single_file_system
 					return Read_error::RETRY;
 				}
 
-				Write_result write(Const_byte_range_ptr const &buf, size_t &out_count) override
+				Write_result write(Const_byte_range_ptr const &buf) override
 				{
 					size_t       count = buf.num_bytes;
 					char const * src   = buf.start;
-
-					out_count = count;
 
 					/* count does not include the trailing '\0' */
 					while (count > 0) {
@@ -136,7 +134,7 @@ class Vfs_log::File_system : public Single_file_system
 						count -= curr_count;
 						src   += curr_count;
 					}
-					return WRITE_OK;
+					return buf.num_bytes;
 				}
 
 				bool read_ready()  const override { return false; }

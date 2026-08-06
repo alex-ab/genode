@@ -72,7 +72,7 @@ struct Vfs_pipe::Pipe_handle : Vfs_handle, private Pipe_handle_registry_element
 
 	virtual ~Pipe_handle();
 
-	Write_result write(Const_byte_range_ptr const &, size_t &) override;
+	Write_result write(Const_byte_range_ptr const &) override;
 	Read_result  read(Byte_range_ptr const &) override;
 
 	Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_ERR_NO_PERM; }
@@ -86,8 +86,6 @@ struct Vfs_pipe::Pipe_handle : Vfs_handle, private Pipe_handle_registry_element
 struct Vfs_pipe::Dir_handle : Vfs_handle
 {
 	using Vfs_handle::Vfs_handle;
-
-	Write_result write(Const_byte_range_ptr const &, size_t &) override { return WRITE_ERR_INVALID; }
 
 	Read_result read(Byte_range_ptr const &) override { return Read_error::DENIED; }
 
@@ -213,14 +211,12 @@ struct Vfs_pipe::Pipe
 		return Open_result::OPEN_ERR_UNACCESSIBLE;
 	}
 
-	Write_result write(Pipe_handle &, Const_byte_range_ptr const &src, size_t &out_count)
+	Write_result write(Pipe_handle &, Const_byte_range_ptr const &src)
 	{
 		size_t out = 0;
 
-		if (buffer.avail_capacity() == 0) {
-			out_count = 0;
-			return Write_result::WRITE_OK;
-		}
+		if (buffer.avail_capacity() == 0)
+			return Write_error::RETRY;
 
 		char const *buf_ptr = src.start;
 		while (out < src.num_bytes && 0 < buffer.avail_capacity()) {
@@ -228,14 +224,12 @@ struct Vfs_pipe::Pipe
 			++out;
 		}
 
-		out_count = out;
-
 		if (out > 0) {
 			vfs_user.wakeup_vfs_user();
 			notify_read();
 		}
 
-		return Write_result::WRITE_OK;
+		return out;
 	}
 
 	Read_result read(Pipe_handle &, Byte_range_ptr const &dst)
@@ -273,9 +267,9 @@ Vfs_pipe::Pipe_handle::~Pipe_handle()
 
 
 Vfs_pipe::Write_result
-Vfs_pipe::Pipe_handle::write(Const_byte_range_ptr const &src, size_t &out_count)
+Vfs_pipe::Pipe_handle::write(Const_byte_range_ptr const &src)
 {
-	return Pipe_handle::pipe.write(*this, src, out_count);
+	return Pipe_handle::pipe.write(*this, src);
 }
 
 

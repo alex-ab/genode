@@ -331,14 +331,13 @@ class Vfs_block::Data_file_system : public Single_file_system
 						               _helper.block_size(), op);
 
 						block.update_jobs(block);
-						return Write_result::WRITE_ERR_WOULD_BLOCK;
+						return Write_error::RETRY;
 					}
 
 					Write_result _handle_finished_job(Block_connection           &block,
 					                                  Const_byte_range_ptr const &src,
 					                                  file_size            const  block_offset,
-					                                  block_number_t       const  block_number,
-					                                  size_t                     &out_count)
+					                                  block_number_t       const  block_number)
 					{
 						/*
 						 * We do not care whether READ (for unaligned or partial requests)
@@ -348,14 +347,14 @@ class Vfs_block::Data_file_system : public Single_file_system
 
 						if (!_job->success) {
 							_job.destruct();
-							return Write_result::WRITE_ERR_IO;
+							return Write_error::DENIED;
 						}
 
 						if (_job->operation().type == Block::Operation::Type::WRITE) {
-							out_count = _job->actual_length ? _job->actual_length
-							                                : _job->range.num_bytes;
+							size_t num_bytes = _job->actual_length ? _job->actual_length
+							                                       : _job->range.num_bytes;
 							_job.destruct();
-							return Write_result::WRITE_OK;
+							return num_bytes;
 						}
 
 						/*
@@ -367,7 +366,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 
 						/* should never happen */
 						if (!partial_length)
-							return Write_result::WRITE_ERR_IO;
+							return Write_error::DENIED;
 
 						memcpy(_unaligned_buffer + block_offset, src.start, (size_t)partial_length);
 
@@ -384,7 +383,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 						_job->actual_length = (size_t)partial_length;
 
 						block.update_jobs(block);
-						return Write_result::WRITE_ERR_WOULD_BLOCK;
+						return Write_error::RETRY;
 					}
 
 					Write_handler(Block::Session::Info const &info)
@@ -395,12 +394,11 @@ class Vfs_block::Data_file_system : public Single_file_system
 
 					Write_result write(Block_connection            &block,
 					                   file_size             const  seek_offset,
-					                   Const_byte_range_ptr  const &src,
-					                   size_t                      &out_count)
+					                   Const_byte_range_ptr  const &src)
 					{
 						/* fast-exit for pending jobs */
 						if (_any_pending_job())
-							return Write_result::WRITE_ERR_WOULD_BLOCK;
+							return Write_error::RETRY;
 
 						file_size const block_offset =
 							_helper.mask(seek_offset);
@@ -417,7 +415,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 
 						if (block_number >= _block_count.blocks
 						 || block_number + block_count.blocks > _block_count.blocks)
-							return Write_result::WRITE_ERR_INVALID;
+							return Write_error::DENIED;
 
 						/*
 						 * The actual WRITE job will be set up here if the finished
@@ -426,7 +424,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 						 */
 						if (_any_finished_job())
 							return _handle_finished_job(block, src, block_offset,
-							                            block_number, out_count);
+							                            block_number);
 
 						/*
 						 * If the request is unaligned or partial we first have to
@@ -457,7 +455,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 						               (size_t)rounded_length, op);
 
 						block.update_jobs(block);
-						return Write_result::WRITE_ERR_WOULD_BLOCK;
+						return Write_error::RETRY;
 					}
 				};
 
@@ -529,16 +527,12 @@ class Vfs_block::Data_file_system : public Single_file_system
 				Read_result read(Byte_range_ptr const &dst) override {
 					return _read_handler.read(_block, seek(), dst); }
 
-				Write_result write(Const_byte_range_ptr const &src, size_t &out_count) override
+				Write_result write(Const_byte_range_ptr const &src) override
 				{
 					if (!_block.info().writeable)
-						return WRITE_ERR_INVALID;
+						return Write_error::DENIED;
 
-					/*
-					 * Since there is no explicit queue reseult value we issue
-					 * WRITE_ERR_WOULD_BLOCK for this case.
-					 */
-					return _write_handler.write(_block, seek(), src, out_count);
+					return _write_handler.write(_block, seek(), src);
 				}
 
 				Sync_result sync() override

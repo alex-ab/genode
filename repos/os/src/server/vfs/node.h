@@ -384,22 +384,19 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 		 */
 		size_t _execute_write(Const_byte_range_ptr const &src, seek_off_t write_pos)
 		{
-			size_t out_count = 0;
 			_handle.seek(_initial_write_seek_offset + write_pos);
 
-			switch (_handle.write(src, out_count)) {
-
-			case Write_result::WRITE_ERR_WOULD_BLOCK:
-				break;
-
-			case Write_result::WRITE_ERR_INVALID:
-			case Write_result::WRITE_ERR_IO:
-				_acknowledge_as_failure();
-				break;
-
-			case Write_result::WRITE_OK:
-				break;
-			}
+			size_t out_count = 0;
+			_handle.write(src).with_result(
+				[&] (size_t num_bytes) {
+					out_count = num_bytes;
+				},
+				[&] (Write_error e) {
+					switch (e) {
+					case Write_error::RETRY:  break;
+					case Write_error::DENIED: _acknowledge_as_failure(); break;
+					}
+				});
 
 			_modified = true;
 
