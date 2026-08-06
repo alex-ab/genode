@@ -236,7 +236,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				try {
 					p = source.alloc_packet((size_t)clipped_count);
 				} catch (::File_system::Session::Tx::Source::Packet_alloc_failed) {
-					return Read_error::DENIED;
+					return Read_error::RETRY;
 				}
 
 				::File_system::Packet_descriptor const
