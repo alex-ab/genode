@@ -440,11 +440,8 @@ class Vfs_ip::Ip_file : public Vfs_ip::File
 
 		Sync_result sync() override
 		{
-			if (!_write_err)
-				return Sync_result::OK;
-
-			error("vfs_ip: sync failed (write error)");
-			return Sync_result::RETRY;
+			if (_write_err) warning("vfs_ip: write error happened before sync");
+			return Sync_result::OK;
 		}
 };
 
