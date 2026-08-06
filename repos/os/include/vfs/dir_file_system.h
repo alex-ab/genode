@@ -57,8 +57,6 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 
 			struct Subdir_handle_element : Subdir_handle_registry::Element
 			{
-				bool synced { false };
-
 				Vfs_handle &vfs_handle;
 				Subdir_handle_element(Subdir_handle_registry &registry,
 				                      Vfs_handle &vfs_handle)
@@ -178,34 +176,6 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return false; }
-
-			Sync_result sync() override
-			{
-				auto idle = [&]
-				{
-					bool result = true;
-					subdir_handle_registry.for_each([&] (Subdir_handle_element &e) {
-						if (!e.synced) result = false; });
-					return result;
-				};
-
-				/* charge new sync operation */
-				if (idle())
-					subdir_handle_registry.for_each([&] (Subdir_handle_element &e) {
-						e.synced = false; });
-
-				bool all_ok = true;
-				subdir_handle_registry.for_each([&] (Subdir_handle_element &e) {
-					if (!e.synced) {
-						switch (e.vfs_handle.sync()) {
-						case Sync_result::OK:    e.synced = true;  break;
-						case Sync_result::RETRY: all_ok   = false; break;
-						}
-					}
-				});
-
-				return all_ok ? Sync_result::OK : Sync_result::RETRY;
-			}
 		};
 
 		/* pointer to first child file system */
