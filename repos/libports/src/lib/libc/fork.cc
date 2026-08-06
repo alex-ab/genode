@@ -153,7 +153,8 @@ static void generate_open_fds(Genode::Generator &g, Libc::Fs &fs, Libc::Fds &fds
 					::off_t const seek = fs.lseek(fd, 0, SEEK_CUR);
 					if (seek)
 						g.attribute("seek", seek);
-				}
+				} else if (fd.kqueue_ptr)
+					g.attribute("type", "kqueue");
 			});
 		});
 	});

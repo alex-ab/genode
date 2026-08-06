@@ -262,8 +262,12 @@ void Libc::Kernel::_init_file_descriptors()
 				                          : (wr ? O_WRONLY : 0);
 
 				if (!fd.has_attribute("path")) {
-					warning("unknown path for file descriptor ", id);
-					diag_guard.show = true;
+					if (fd.attribute_value("type", String<8>()) == "kqueue")
+						warning("kqueue fd in libc config is currently not supported");
+					else {
+						warning("unknown path for file descriptor ", id);
+						diag_guard.show = true;
+					}
 				}
 
 				init_fd(fd, "path", id, flags);
