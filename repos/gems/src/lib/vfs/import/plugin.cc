@@ -91,7 +91,7 @@ class Vfs_import::File_system : public Vfs::File_system
 
 				Write_result write_result = Write_error::DENIED;
 				for (;;) {
-					write_result = dst_handle->write(src);
+					write_result = dst_handle->write({ }, src);
 					if (write_result != Write_error::RETRY)
 						break;
 					env.io().commit_and_wait();
@@ -140,7 +140,7 @@ class Vfs_import::File_system : public Vfs::File_system
 			char              buf[4096];
 			Vfs_handle::Guard guard { dst_handle };
 			Flush_guard       flush { env.io(), *dst_handle };
-			Readonly_file::At at    { };
+			At                at    { };
 
 			while (true) {
 
@@ -160,13 +160,12 @@ class Vfs_import::File_system : public Vfs::File_system
 
 					Const_byte_range_ptr const src { src_ptr, remaining_bytes };
 
-					dst_handle->write(src).with_result(
+					dst_handle->write(at, src).with_result(
 						[&] (size_t num_bytes) {
 							num_bytes = min(remaining_bytes, num_bytes);
 							remaining_bytes -= num_bytes;
 							src_ptr         += num_bytes;
-							at.value        += num_bytes;
-							dst_handle->advance_seek(num_bytes);
+							at.pos          += num_bytes;
 						},
 						[&] (Write_error e) {
 							switch (e) {

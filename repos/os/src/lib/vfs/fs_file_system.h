@@ -169,8 +169,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				return ::File_system::File_handle { id().value };
 			}
 
-			Write_result _write(file_size const seek_offset,
-			                    Const_byte_range_ptr const &src)
+			virtual Write_result write(At const at, Const_byte_range_ptr const &src) override
 			{
 				/* reclaim as much space in the packet stream as possible */
 				_fs._handle_ack();
@@ -191,7 +190,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 					                            file_handle(),
 					                            Packet_descriptor::WRITE,
 					                            count,
-					                            seek_offset);
+					                            at.pos);
 
 					memcpy(source.packet_content(packet_in), src.start, count);
 
@@ -208,13 +207,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				return count;
 			}
 
-			virtual Write_result write(Const_byte_range_ptr const &src) override
-			{
-				return _write(seek(), src);
-			}
-
-			Read_result _try_queue_read(Byte_range_ptr const &dst,
-			                            file_size const seek_offset)
+			Read_result _try_queue_read(At const at, Byte_range_ptr const &dst)
 			{
 				if (queued_read_state != Handle_state::Queued_state::IDLE)
 					return Read_error::RETRY;
@@ -240,7 +233,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				::File_system::Packet_descriptor const
 					packet(p, file_handle(),
 					       ::File_system::Packet_descriptor::READ,
-					       (size_t)clipped_count, seek_offset);
+					       (size_t)clipped_count, at.pos);
 
 				read_ready_state  = Handle_state::Read_ready_state::IDLE;
 				queued_read_state = Handle_state::Queued_state::QUEUED;
@@ -250,10 +243,10 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				return Read_error::RETRY;
 			}
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
 				if (queued_read_state == Handle_state::Queued_state::IDLE)
-					if (_try_queue_read(dst, seek()) == Read_error::DENIED)
+					if (_try_queue_read(at, dst) == Read_error::DENIED)
 						return Read_error::DENIED;
 
 				if (queued_read_state != Handle_state::Queued_state::ACK)
@@ -267,7 +260,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				Read_result result = Read_error::DENIED;
 
 				if (packet.succeeded()) {
-					if (packet.position() == seek()) {
+					if (packet.position() == at.pos) {
 						size_t const read_num_bytes = min(packet.length(), dst.num_bytes);
 						memcpy(dst.start, source.packet_content(packet), (size_t)read_num_bytes);
 						result = read_num_bytes;
@@ -421,13 +414,12 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 			using Fs_vfs_handle::Fs_vfs_handle;
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
 				if (dst.num_bytes < sizeof(Dirent))
 					return Read_error::DENIED;
 
-				file_size const seek_offset = seek();
-				if (seek_offset % sizeof(Dirent)) /* must be aligned to 'Dirent' */
+				if (at.pos % sizeof(Dirent)) /* must be aligned to 'Dirent' */
 					return Read_error::DENIED;
 
 				using ::File_system::Directory_entry;
@@ -435,7 +427,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				Directory_entry entry { };
 
 				Read_result const read_result =
-					Fs_vfs_handle::read(Byte_range_ptr((char *)(&entry), DIRENT_SIZE));
+					Fs_vfs_handle::read(at, Byte_range_ptr((char *)(&entry), DIRENT_SIZE));
 
 				return read_result.convert<Read_result>([&] (size_t num_bytes) {
 

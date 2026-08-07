@@ -71,35 +71,33 @@ struct Vfs_ram_log::File_system : Single_file_system
 			Single_vfs_handle { ds, alloc, 0 }, _ram_log(ram_log)
 		{ }
 
-		Read_result read(Byte_range_ptr const &dst) override
+		Read_result read(At const at, Byte_range_ptr const &dst) override
 		{
 			size_t out_count = 0;
 			for (size_t i = 0; i < dst.num_bytes; i++) {
 
-				auto const byte = _ram_log._buffer.byte_at(seek());
+				auto const byte = _ram_log._buffer.byte_at(at.pos);
 				if (byte.failed())
 					break;
 
 				byte.with_result([&] (char c) {
 					dst.start[i] = c;
-					advance_seek(1);
 					out_count++;
 				}, [&] (auto) { });
 			}
 			return out_count;
 		}
 
-		Write_result write(Const_byte_range_ptr const &src) override
+		Write_result write(At const at, Const_byte_range_ptr const &src) override
 		{
-			if (seek() != _ram_log._buffer._write_pos) {
-				warning("vfs_ram_log is append-only, reset write position to ", seek());
-				_ram_log._buffer._write_pos = seek();
+			if (at.pos != _ram_log._buffer._write_pos) {
+				warning("vfs_ram_log is append-only, reset write position to ", at.pos);
+				_ram_log._buffer._write_pos = at.pos;
 			}
 
 			for (size_t i = 0; i < src.num_bytes; i++)
 				_ram_log._buffer.append(src.start[i]);
 
-			advance_seek(src.num_bytes);
 			return src.num_bytes;
 		}
 

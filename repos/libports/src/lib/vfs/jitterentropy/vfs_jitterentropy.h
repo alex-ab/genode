@@ -74,7 +74,7 @@ class Vfs_jitterentropy::File_system : public Single_file_system
 				  _ec_stir(ec_stir),
 				  _initialized(initialized) { }
 
-				Read_result read(Byte_range_ptr const &dst) override
+				Read_result read(At, Byte_range_ptr const &dst) override
 				{
 					if (!_initialized)
 						return Read_error::DENIED;

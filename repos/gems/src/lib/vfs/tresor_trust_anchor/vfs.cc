@@ -1258,7 +1258,7 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta)
 			{ }
 
-			Read_result read(Byte_range_ptr const &src) override
+			Read_result read(At, Byte_range_ptr const &src) override
 			{
 				_trust_anchor.execute();
 
@@ -1312,7 +1312,7 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src) override
+			Write_result write(At, Const_byte_range_ptr const &src) override
 			{
 				_trust_anchor.execute();
 
@@ -1388,7 +1388,7 @@ class Vfs_tresor_trust_anchor::Generate_key_file_system : public Single_file_sys
 				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At, Byte_range_ptr const &dst) override
 			{
 				if (_state == State::NONE) {
 
@@ -1467,7 +1467,7 @@ class Vfs_tresor_trust_anchor::Encrypt_file_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta), _state(State::NONE)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At, Byte_range_ptr const &dst) override
 			{
 				if (_state != State::PENDING)
 					return Read_error::DENIED;
@@ -1488,7 +1488,7 @@ class Vfs_tresor_trust_anchor::Encrypt_file_system : public Single_file_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src) override
+			Write_result write(At, Const_byte_range_ptr const &src) override
 			{
 				if (_state != State::NONE)
 					return Write_error::RETRY;
@@ -1561,7 +1561,7 @@ class Vfs_tresor_trust_anchor::Decrypt_file_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta), _state(State::NONE)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At, Byte_range_ptr const &dst) override
 			{
 				if (_state != State::PENDING)
 					return Read_error::DENIED;
@@ -1581,7 +1581,7 @@ class Vfs_tresor_trust_anchor::Decrypt_file_system : public Single_file_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src) override
+			Write_result write(At, Const_byte_range_ptr const &src) override
 			{
 				if (_state != State::NONE)
 					return Write_error::RETRY;
@@ -1656,7 +1656,7 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 				Single_vfs_handle(ds, alloc, 0), _trust_anchor(ta)
 			{ }
 
-			Read_result read(Byte_range_ptr const &buf) override
+			Read_result read(At, Byte_range_ptr const &buf) override
 			{
 				if (_state != State::PENDING)
 					return Read_error::DENIED;
@@ -1694,7 +1694,7 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 				}
 			}
 
-			Write_result write(Const_byte_range_ptr const &src) override
+			Write_result write(At, Const_byte_range_ptr const &src) override
 			{
 				if (_state != State::NONE)
 					return Write_error::RETRY;

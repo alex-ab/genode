@@ -49,8 +49,11 @@ class Vfs_ip::Error_file_system : public Single_file_system
 				_fs(fs)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
+				if (at.pos)
+					return Read_error::DENIED;
+
 				unsigned len = min(_fs.BUF_SIZE, unsigned(dst.num_bytes));
 				memcpy(dst.start, &_fs._error, len);
 				return len;

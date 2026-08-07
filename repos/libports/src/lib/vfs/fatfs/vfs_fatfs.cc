@@ -102,7 +102,7 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				Fatfs_handle(fs, alloc, status_flags), _fs(fs)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
 				if (!file) {
 					error("Vfs_fatfs: Read_error::DENIED");
@@ -112,7 +112,7 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 					return Read_error::DENIED;
 
 				FIL *fil = &file->fil;
-				FRESULT fres = f_lseek(fil, seek());
+				FRESULT fres = f_lseek(fil, at.pos);
 				if (fres == FR_OK) {
 					UINT bw = 0;
 					fres = f_read(fil, dst.start, dst.num_bytes, &bw);
@@ -121,14 +121,14 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src) override
+			Write_result write(At const at, Const_byte_range_ptr const &src) override
 			{
 				if (!file)        return Write_error::DENIED;
 				if (!writeable()) return Write_error::DENIED;
 
 				FRESULT fres = FR_OK;
 				FIL *fil = &file->fil;
-				FSIZE_t const wpos = seek();
+				FSIZE_t const wpos = at.pos;
 
 				/* seek file pointer */
 				if (f_tell(fil) != wpos) {
@@ -141,7 +141,7 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 
 					fres = f_lseek(fil, wpos);
 					/* check the seek again */
-					if (f_tell(fil) != seek())
+					if (f_tell(fil) != at.pos)
 						return Write_error::DENIED;
 				}
 
@@ -174,11 +174,8 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 						FTRUNCATE_ERR_NO_SPACE : FTRUNCATE_ERR_NO_PERM;
 
 				/* ... otherwise truncate will shorten to the seek position */
-				if ((res == FR_OK) && (len < f_size(fil))) {
+				if ((res == FR_OK) && (len < f_size(fil)))
 					res = f_truncate(fil);
-					if (res == FR_OK && len < seek())
-						seek(len);
-				}
 
 				modifying = true;
 
@@ -224,14 +221,14 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 				Fatfs_handle(fs, alloc, 0), path(path)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
 				/* not very efficient, just N calls to f_readdir */
 
 				if (dst.num_bytes < sizeof(Dirent))
 					return Read_error::DENIED;
 
-				size_t dir_index = size_t(seek() / sizeof(Dirent));
+				size_t dir_index = size_t(at.pos / sizeof(Dirent));
 				if (dir_index < cur_index) {
 					/* reset the seek position */
 					f_readdir(&dir, nullptr);

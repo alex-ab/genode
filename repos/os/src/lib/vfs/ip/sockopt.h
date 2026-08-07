@@ -62,8 +62,11 @@ class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 				_sock(sock)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
+				if (at.pos)
+					return Read_error::DENIED;
+
 				long     opt = 0;
 				unsigned len = BUF_SIZE;
 				Errno err = genode_socket_getsockopt(&_sock, LEVEL, OPTNAME, &opt, &len);
@@ -75,9 +78,9 @@ class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 				return len;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src) override
+			Write_result write(At const at, Const_byte_range_ptr const &src) override
 			{
-				if (READONLY || src.num_bytes > BUF_SIZE)
+				if (READONLY || src.num_bytes > BUF_SIZE || at.pos)
 					return Write_error::DENIED;
 
 				long opt = 0;

@@ -93,18 +93,15 @@ class Vfs_audit::File_system : public Vfs::File_system
 
 			void _log(auto &&... args) { _audit_log.log(args...); }
 
-			void _sync_state() { audited.seek(Vfs_handle::seek()); }
-
 			Handle(Vfs_audit::File_system &fs, Allocator &alloc,
 			       int flags, char const *path, Log &log, Vfs_handle &audited)
 			:
 				Vfs_handle(fs, alloc, flags), _audit_log(log), path(path), audited(audited)
 			{ }
 
-			Write_result write(Const_byte_range_ptr const &src) override
+			Write_result write(At const at, Const_byte_range_ptr const &src) override
 			{
-				_sync_state();
-				Write_result const result = audited.write(src);
+				Write_result const result = audited.write(at, src);
 
 				result.with_result(
 					[&] (size_t n) {
@@ -120,10 +117,9 @@ class Vfs_audit::File_system : public Vfs::File_system
 				return result;
 			}
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
-				_sync_state();
-				Read_result const result = audited.read(dst);
+				Read_result const result = audited.read(at, dst);
 
 				result.with_result(
 					[&] (size_t num_bytes) {
@@ -140,32 +136,27 @@ class Vfs_audit::File_system : public Vfs::File_system
 
 			bool read_ready() const override
 			{
-				const_cast<Handle *>(this)->_sync_state();
 				return audited.read_ready();
 			}
 
 			bool write_ready() const override
 			{
-				const_cast<Handle *>(this)->_sync_state();
 				return audited.write_ready();
 			}
 
 			bool notify_read_ready() override
 			{
-				_sync_state();
 				return audited.notify_read_ready();
 			}
 
 			Ftruncate_result ftruncate(file_size len) override
 			{
-				_sync_state();
 				_log(__func__, " ", path, " ", len);
 				return audited.ftruncate(len);
 			}
 
 			Sync_result sync() override
 			{
-				_sync_state();
 				Sync_result const result = audited.sync();
 
 				if (result == Sync_result::RETRY) _log("syncing ", path);

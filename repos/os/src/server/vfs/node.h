@@ -300,29 +300,21 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 		 */
 		Packet_descriptor _packet { };
 
-		/**
-		 * Initial seek offset from where to start writing
-		 */
-		seek_off_t _initial_write_seek_offset { 0 };
-
 	protected:
 
-		Submit_result _submit_read_at(file_offset seek_offset)
+		Submit_result _submit_read()
 		{
 			if (!(_mode & READ_ONLY))
 				return Submit_result::DENIED;
 
-			_handle.seek(seek_offset);
 			_packet_in_progress = true;
 			return Submit_result::ACCEPTED;
 		}
 
-		Submit_result _submit_write_at(file_offset seek_offset)
+		Submit_result _submit_write()
 		{
 			if (!(_mode & WRITE_ONLY))
 				return Submit_result::DENIED;
-
-			_initial_write_seek_offset = seek_offset;
 
 			_packet_in_progress = true;
 			return Submit_result::ACCEPTED;
@@ -363,11 +355,11 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 			return Submit_result::ACCEPTED;
 		}
 
-		void _execute_read()
+		void _execute_read(At at)
 		{
 			Byte_range_ptr dst { _payload_ptr.ptr, _packet.length() };
 
-			_handle.read(dst).with_result(
+			_handle.read(at, dst).with_result(
 				[&] (size_t num_bytes) {
 					_acknowledge_as_success(num_bytes);
 				},
@@ -382,12 +374,10 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 		 *
 		 * \return number of consumed bytes
 		 */
-		size_t _execute_write(Const_byte_range_ptr const &src, seek_off_t write_pos)
+		size_t _execute_write(At const at, Const_byte_range_ptr const &src)
 		{
-			_handle.seek(_initial_write_seek_offset + write_pos);
-
 			size_t out_count = 0;
-			_handle.write(src).with_result(
+			_handle.write(at, src).with_result(
 				[&] (size_t num_bytes) {
 					out_count = num_bytes;
 				},
@@ -601,7 +591,7 @@ struct Vfs_server::Symlink : Io_node
 				if (_partial_operation())
 					return Submit_result::DENIED;
 
-				return _submit_read_at(0);
+				return _submit_read();
 
 			case Packet_descriptor::WRITE:
 				{
@@ -611,7 +601,7 @@ struct Vfs_server::Symlink : Io_node
 					/* accessed by 'execute_job' */
 					_write_buffer = Write_buffer(Cstring(_payload_ptr.ptr,
 					                                     packet.length()));
-					return _submit_write_at(0);
+					return _submit_write();
 				}
 
 			case Packet_descriptor::SYNC:            return _submit_sync();
@@ -641,7 +631,7 @@ struct Vfs_server::Symlink : Io_node
 					Const_byte_range_ptr const src { _write_buffer.string(),
 					                                 _write_buffer.length() };
 
-					if (_execute_write(src, 0) == src.num_bytes)
+					if (_execute_write({ }, src) == src.num_bytes)
 						_acknowledge_as_success(src.num_bytes);
 					else
 						_acknowledge_as_failure();
@@ -649,8 +639,8 @@ struct Vfs_server::Symlink : Io_node
 				}
 
 			/* generic */
-			case Packet_descriptor::READ:            _execute_read();  break;
-			case Packet_descriptor::SYNC:            _execute_sync();  break;
+			case Packet_descriptor::READ:            _execute_read({ }); break;
+			case Packet_descriptor::SYNC:            _execute_sync();    break;
 			case Packet_descriptor::WRITE_TIMESTAMP: _execute_write_timestamp(); break;
 
 			/* never executed */
@@ -749,8 +739,8 @@ class Vfs_server::File : public Io_node
 
 			switch (packet.operation()) {
 
-			case Packet_descriptor::READ:            return _submit_read_at(_seek_pos());
-			case Packet_descriptor::WRITE:           return _submit_write_at(_seek_pos());
+			case Packet_descriptor::READ:            return _submit_read();
+			case Packet_descriptor::WRITE:           return _submit_write();
 			case Packet_descriptor::SYNC:            return _submit_sync();
 			case Packet_descriptor::READ_READY:      return _submit_read_ready();
 			case Packet_descriptor::CONTENT_CHANGED: return _submit_content_changed();
@@ -771,8 +761,9 @@ class Vfs_server::File : public Io_node
 				{
 					Const_byte_range_ptr const src { _payload_ptr.ptr + _write_pos,
 					                                 _packet.length() - _write_pos };
+					At const at { _seek_pos() + _write_pos };
 
-					size_t const consumed = _execute_write(src, _write_pos);
+					size_t const consumed = _execute_write(at, src);
 
 					if (consumed == src.num_bytes) {
 						_acknowledge_as_success(src.num_bytes);
@@ -797,7 +788,7 @@ class Vfs_server::File : public Io_node
 				}
 
 			/* generic */
-			case Packet_descriptor::READ:            _execute_read(); break;
+			case Packet_descriptor::READ:            _execute_read({ _seek_pos() }); break;
 			case Packet_descriptor::SYNC:            _execute_sync(); break;
 			case Packet_descriptor::WRITE_TIMESTAMP: _execute_write_timestamp(); break;
 
@@ -977,7 +968,7 @@ struct Vfs_server::Directory : Io_node
 				if (!_position_and_length_aligned_with_dirent_size())
 					return Submit_result::DENIED;
 
-				return _submit_read_at(_packet.position());
+				return _submit_read();
 
 			case Packet_descriptor::WRITE:
 				return Submit_result::DENIED;
@@ -998,7 +989,7 @@ struct Vfs_server::Directory : Io_node
 			switch (_packet.operation()) {
 
 			case Packet_descriptor::READ:
-				_execute_read();
+				_execute_read(At { _packet.position() });
 
 				if (_acked_packet_valid) {
 					size_t const length = _convert_vfs_dirents_to_fs_dirents();

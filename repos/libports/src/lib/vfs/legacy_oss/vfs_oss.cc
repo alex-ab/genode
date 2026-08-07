@@ -646,7 +646,7 @@ class Vfs_oss::Data_file_system : public Single_file_system
 				_audio { audio }
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At, Byte_range_ptr const &dst) override
 			{
 				if (!dst.start)
 					return Read_error::DENIED;
@@ -661,7 +661,7 @@ class Vfs_oss::Data_file_system : public Single_file_system
 				return result;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src) override
+			Write_result write(At, Const_byte_range_ptr const &src) override
 			{
 				Write_result const result = _audio.write(src);
 

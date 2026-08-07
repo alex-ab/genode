@@ -190,7 +190,7 @@ struct Vfs_xoroshiro::File_system : Single_file_system
 			_xoroshiro        { _entropy_src }
 		{ }
 
-		Read_result read(Byte_range_ptr const &dst) override
+		Read_result read(At, Byte_range_ptr const &dst) override
 		{
 			using Query_ok    = Xoroshiro_128_plus_reseeding::Query_ok;
 			using Query_error = Xoroshiro_128_plus_reseeding::Query_error;

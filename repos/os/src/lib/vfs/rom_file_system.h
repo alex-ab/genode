@@ -82,26 +82,26 @@ class Vfs_rom::File_system : public Single_file_system
 					_rom(rom), _content_size(content_size)
 				{ }
 
-				Read_result read(Byte_range_ptr const &dst) override
+				Read_result read(At const at, Byte_range_ptr const &dst) override
 				{
 					/* file read limit is the size of the dataspace */
 					size_t const max_size = _content_size;
 
 					/* current read offset */
-					size_t const read_offset = size_t(seek());
+					size_t const read_pos = size_t(at.pos);
 
-					/* maximum read offset, clamped to dataspace size */
-					size_t const end_offset = min(dst.num_bytes + read_offset, max_size);
+					/* maximum read position, clamped to dataspace size */
+					size_t const end_pos = min(dst.num_bytes + read_pos, max_size);
 
 					/* check if end of file is reached */
-					if (read_offset >= end_offset)
+					if (read_pos >= end_pos)
 						return 0; /* EOF */
 
 					/* source address within the dataspace */
-					char const *src = _rom.local_addr<char>() + read_offset;
+					char const *src = _rom.local_addr<char>() + read_pos;
 
 					/* copy-out bytes from ROM dataspace */
-					size_t const num_bytes = end_offset - read_offset;
+					size_t const num_bytes = end_pos - read_pos;
 
 					memcpy(dst.start, src, num_bytes);
 

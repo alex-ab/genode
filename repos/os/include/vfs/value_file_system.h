@@ -50,24 +50,24 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 				_value_fs(value_fs)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
-				if (seek() > _buffer.length())
+				if (at.pos > _buffer.length())
 					return Read_error::DENIED;
 
-				char const * const src = _buffer.string() + seek();
-				size_t const len = min((size_t)(_buffer.length() - seek()), dst.num_bytes);
+				char const * const src = _buffer.string() + at.pos;
+				size_t const len = min((size_t)(_buffer.length() - at.pos), dst.num_bytes);
 
 				memcpy(dst.start, src, len);
 				return len;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src) override
+			Write_result write(At const at, Const_byte_range_ptr const &src) override
 			{
-				if (seek() > BUF_SIZE)
+				if (at.pos > BUF_SIZE)
 					return Write_error::DENIED;
 
-				size_t const len = min(size_t(BUF_SIZE- seek()), src.num_bytes);
+				size_t const len = min(size_t(BUF_SIZE - at.pos), src.num_bytes);
 
 				_buffer = Buffer(Cstring(src.start, len));
 

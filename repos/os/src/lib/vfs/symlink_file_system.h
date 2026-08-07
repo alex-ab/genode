@@ -44,8 +44,11 @@ class Vfs_symlink::File_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _target(target)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
+				if (at.pos != 0)
+					return Read_error::DENIED;
+
 				size_t const n = min(dst.num_bytes, _target.length());
 				copy_cstring(dst.start, _target.string(), n);
 				return (n > 0) ? n - 1 : 0;

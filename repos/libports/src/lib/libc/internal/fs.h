@@ -39,6 +39,8 @@ namespace Libc {
 	{
 		Vfs::Vfs_handle &handle;
 
+		uint64_t pos = 0;       /* read/write position */
+
 		bool modified = false;  /* fsync is needed */
 		bool blocking = false;  /* read is blocking */
 		bool closing  = false;
@@ -51,7 +53,10 @@ namespace Libc {
 		using Path = String<Vfs::MAX_PATH_LEN>;
 
 		Vfs::Vfs_handle &handle;
-		Path const path; /* for computing 'fileno' values in getdirentries */
+
+		Path const path;  /* for computing 'fileno' values in getdirentries */
+
+		uint64_t pos = 0; /* read position */
 
 		Open_dir(Vfs::Vfs_handle &handle, Path const &path)
 		: handle(handle), path(path) { }
@@ -74,6 +79,7 @@ struct Libc::Fs
 
 	using off_t  = ::off_t;
 	using size_t = ::size_t;
+	using At = Vfs::At;
 
 	void destroy_vfs_handle(Vfs::Vfs_handle &);
 

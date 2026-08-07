@@ -222,7 +222,7 @@ void Fs_tool::Main::_copy_file(Path const &from, Path const &to,
 
 			dst.append(buffer.start, read_bytes);
 
-			at.value += read_bytes;
+			at.pos += read_bytes;
 
 			if (read_bytes < buffer.num_bytes)
 				break;

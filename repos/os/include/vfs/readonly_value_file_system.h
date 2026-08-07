@@ -49,13 +49,13 @@ class Genode::Vfs::Readonly_value_file_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _buffer(buffer)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
-				if (seek() > _buffer.length())
+				if (at.pos > _buffer.length())
 					return Read_error::DENIED;
 
-				char const * const src = _buffer.string() + seek();
-				size_t const len = min(size_t(_buffer.length() - seek()), dst.num_bytes);
+				char const * const src = _buffer.string() + at.pos;
+				size_t const len = min(size_t(_buffer.length() - at.pos), dst.num_bytes);
 				memcpy(dst.start, src, len);
 
 				return len;

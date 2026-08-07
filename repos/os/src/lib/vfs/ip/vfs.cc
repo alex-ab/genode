@@ -304,12 +304,12 @@ struct Vfs_ip::Ip_vfs_file_handle final : Vfs_handle
 	bool write_ready() const override {
 		return (file) ? file->write_ready() : false; }
 
-	Read_result read(Byte_range_ptr const &dst) override
+	Read_result read(At const at, Byte_range_ptr const &dst) override
 	{
 		if (!file) return Read_error::DENIED;
 
 		try {
-			long const res = file->read(*this, dst, seek());
+			long const res = file->read(*this, dst, at.pos);
 			if (res < 0)
 				return Read_error::DENIED;
 			return res;
@@ -317,12 +317,12 @@ struct Vfs_ip::Ip_vfs_file_handle final : Vfs_handle
 		catch (File::Would_block) { return Read_error::RETRY; }
 	}
 
-	Write_result write(Const_byte_range_ptr const &src) override
+	Write_result write(At const at, Const_byte_range_ptr const &src) override
 	{
 		if (!file)
 			return Write_error::DENIED;
 		try {
-			long res = file->write(*this, src, seek());
+			long res = file->write(*this, src, at.pos);
 			if (res < 0)
 				return Write_error::DENIED;
 			return res;
@@ -374,9 +374,9 @@ struct Vfs_ip::Ip_vfs_dir_handle final : Vfs_handle
 	bool read_ready()  const override { return true; }
 	bool write_ready() const override { return false; }
 
-	Read_result read(Byte_range_ptr const &dst) override
+	Read_result read(At const at, Byte_range_ptr const &dst) override
 	{
-		long const res = dir.read(dst, seek());
+		long const res = dir.read(dst, at.pos);
 		if (res < 0)
 			return Read_error::DENIED;
 		return res;
@@ -1207,7 +1207,7 @@ struct Vfs_ip::Ip_socket_handle final : Vfs_handle
 
 	bool read_ready() const override { return true; }
 
-	Read_result read(Byte_range_ptr const &dst) override
+	Read_result read(At, Byte_range_ptr const &dst) override
 	{
 		return Format::snprintf(
 			dst.start, dst.num_bytes, "%s/%s\n", _dir.parent().name(), _dir.name());

@@ -139,7 +139,7 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 			return _drv_link_state;
 		}
 
-		Read_result read(Byte_range_ptr const &dst) override
+		Read_result read(At, Byte_range_ptr const &dst) override
 		{
 			if (!_conn.constructed())
 				return Read_error::DENIED;
@@ -171,7 +171,7 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 
 		using Write_result = Vfs::Write_result;
 
-		Write_result write(Const_byte_range_ptr const &src) override
+		Write_result write(At, Const_byte_range_ptr const &src) override
 		{
 			size_t out_count = 0;
 

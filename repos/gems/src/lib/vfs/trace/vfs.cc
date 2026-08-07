@@ -134,7 +134,7 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _entries(entries)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At, Byte_range_ptr const &dst) override
 			{
 				size_t out_count = 0;
 				_entries.for_each_new_entry([&](Trace::Buffer::Entry entry) {

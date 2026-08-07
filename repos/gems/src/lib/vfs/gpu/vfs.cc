@@ -63,7 +63,7 @@ struct Vfs_gpu::File_system : Single_file_system
 			_gpu_session.completion_sigh(_completion_sigh);
 		}
 
-		Read_result read(Byte_range_ptr const &dst) override
+		Read_result read(At, Byte_range_ptr const &dst) override
 		{
 			if (!_complete) return Read_error::RETRY;
 

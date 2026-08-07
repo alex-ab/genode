@@ -111,18 +111,19 @@ struct Libc::File_descriptor
 	{
 		enum class State { INVALID, QUEUED, COMPLETE };
 
-		Vfs::Vfs_handle *vfs_handle = nullptr;
-		State            state      = State::INVALID;
+		State state = State::INVALID;
+
+		Open_file *of_ptr = nullptr;
 
 		bool used = false;
 
 		::size_t count  = 0;
 		::off_t  offset = 0;
 
-		void with_vfs_handle(auto const &vfs_handle_fn)
+		void with_open_file(auto const &fn)
 		{
-			if (vfs_handle)
-				vfs_handle_fn(*vfs_handle);
+			if (of_ptr)
+				fn(*of_ptr);
 		}
 
 		void reset()
@@ -146,12 +147,12 @@ struct Libc::File_descriptor
 			}
 	}
 
-	void close_aio_handles()
+	void close_aio_handles(Fs &fs)
 	{
 		for (auto & handle : _aio_handles)
-			if (handle.vfs_handle) {
-				handle.vfs_handle->close();
-				handle.vfs_handle = nullptr;
+			if (handle.of_ptr) {
+				fs.destroy(*handle.of_ptr);
+				handle.of_ptr = nullptr;
 			}
 	}
 

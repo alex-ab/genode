@@ -46,7 +46,6 @@ class Genode::Vfs::Vfs_handle
 
 		Directory_service &_ds;
 		Allocator         &_alloc;
-		file_size          _seek = 0;
 		int                _status_flags;
 
 		Read_ready_response_handler *_handler_ptr = nullptr;
@@ -108,21 +107,6 @@ class Genode::Vfs::Vfs_handle
 		}
 
 		/**
-		 * Return seek offset in bytes
-		 */
-		file_size seek() const { return _seek; }
-
-		/**
-		 * Set seek offset in bytes
-		 */
-		void seek(file_offset seek) { _seek = seek; }
-
-		/**
-		 * Advance seek offset by 'incr' bytes
-		 */
-		void advance_seek(file_size incr) { _seek += incr; }
-
-		/**
 		 * Set response handler, unset with nullptr
 		 */
 		virtual void handler(Read_ready_response_handler *handler_ptr)
@@ -156,7 +140,7 @@ class Genode::Vfs::Vfs_handle
 		 ** File I/O **
 		 **************/
 
-		virtual Write_result write(Const_byte_range_ptr const &)
+		virtual Write_result write(At, Const_byte_range_ptr const &)
 		{
 			return Write_error::DENIED;
 		}
@@ -171,7 +155,7 @@ class Genode::Vfs::Vfs_handle
 		 *                            complete and must by tried again once
 		 *                            external I/O has progressed
 		 */
-		virtual Read_result read(Byte_range_ptr const &dst) = 0;
+		virtual Read_result read(At, Byte_range_ptr const &dst) = 0;
 
 		/**
 		 * Return true if the handle has readable data

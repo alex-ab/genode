@@ -122,7 +122,7 @@ class Vfs_inline::File_system : public Single_file_system
 					Single_vfs_handle(ds, alloc, 0), _fs(inline_fs)
 				{ }
 
-				inline Read_result read(Byte_range_ptr const &) override;
+				inline Read_result read(At, Byte_range_ptr const &) override;
 
 				bool read_ready()  const override { return true; }
 				bool write_ready() const override { return false; }
@@ -182,33 +182,25 @@ class Vfs_inline::File_system : public Single_file_system
 
 
 Genode::Vfs::Read_result
-Vfs_inline::File_system::Handle::read(Byte_range_ptr const &dst)
+Vfs_inline::File_system::Handle::read(At const at, Byte_range_ptr const &dst)
 {
 	Read_result result = 0ul; /* EOF */
 
-	_fs._data.with_bytes([&] (char const *start, size_t const len) {
+	/* file read limit is the size of the node content */
+	_fs._data.with_bytes([&] (char const *data_start, size_t const data_num_bytes) {
 
-		/* file read limit is the size of the node content */
-		size_t const max_size = len;
-
-		/* current read offset */
-		size_t const read_offset = size_t(seek());
-
-		/* maximum read offset, clamped to dataspace size */
-		size_t const end_offset = min(dst.num_bytes + read_offset, max_size);
-
-		/* source address within the content */
-		char const * const src = start + read_offset;
+		/* maximum read position, clamped to dataspace size */
+		size_t const end_pos = min(dst.num_bytes + at.pos, data_num_bytes);
 
 		/* check if end of file is reached */
-		if (read_offset >= end_offset)
+		if (at.pos >= end_pos)
 			return;
 
-		/* copy-out bytes from ROM dataspace */
-		size_t const num_bytes = end_offset - read_offset;
+		size_t const n = end_pos - at.pos;
 
-		memcpy(dst.start, src, num_bytes);
-		result = num_bytes;
+		/* copy-out bytes from ROM dataspace */
+		memcpy(dst.start, data_start + at.pos, n);
+		result = n;
 	});
 	return result;
 }

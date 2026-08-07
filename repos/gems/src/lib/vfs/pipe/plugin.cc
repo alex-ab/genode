@@ -72,8 +72,8 @@ struct Vfs_pipe::Pipe_handle : Vfs_handle, private Pipe_handle_registry_element
 
 	virtual ~Pipe_handle();
 
-	Write_result write(Const_byte_range_ptr const &) override;
-	Read_result  read(Byte_range_ptr const &) override;
+	Write_result write(At, Const_byte_range_ptr const &) override;
+	Read_result  read(At, Byte_range_ptr const &) override;
 
 	Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_ERR_NO_PERM; }
 
@@ -87,7 +87,7 @@ struct Vfs_pipe::Dir_handle : Vfs_handle
 {
 	using Vfs_handle::Vfs_handle;
 
-	Read_result read(Byte_range_ptr const &) override { return Read_error::DENIED; }
+	Read_result read(At, Byte_range_ptr const &) override { return Read_error::DENIED; }
 
 	Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_ERR_NO_PERM; }
 
@@ -267,14 +267,14 @@ Vfs_pipe::Pipe_handle::~Pipe_handle()
 
 
 Vfs_pipe::Write_result
-Vfs_pipe::Pipe_handle::write(Const_byte_range_ptr const &src)
+Vfs_pipe::Pipe_handle::write(At, Const_byte_range_ptr const &src)
 {
 	return Pipe_handle::pipe.write(*this, src);
 }
 
 
 Vfs_pipe::Read_result
-Vfs_pipe::Pipe_handle::read(Byte_range_ptr const &dst)
+Vfs_pipe::Pipe_handle::read(At, Byte_range_ptr const &dst)
 {
 	return Pipe_handle::pipe.read(*this, dst);
 }
@@ -324,7 +324,7 @@ struct Vfs_pipe::New_pipe_handle : Vfs_handle
 		pipe.remove_new_handle();
 	}
 
-	Read_result read(Byte_range_ptr const &dst) override
+	Read_result read(At, Byte_range_ptr const &dst) override
 	{
 		auto name = pipe.name();
 		if (name.length() < dst.num_bytes) {

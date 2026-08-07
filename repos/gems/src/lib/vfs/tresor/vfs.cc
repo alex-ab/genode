@@ -101,12 +101,12 @@ class Vfs_tresor::Data_operation : private Noncopyable
 
 		Data_operation(bool verbose) : _verbose(verbose) { }
 
-		Result write(Vfs::file_size seek, Const_byte_range_ptr const &src)
+		Result write(At const at, Const_byte_range_ptr const &src)
 		{
 			switch (_state) {
 			case INIT:
 
-				_seek = seek;
+				_seek = at.pos;
 				_src.construct(src.start, src.num_bytes);
 				_state = WRITE_REQUESTED;
 				if (_verbose)
@@ -127,12 +127,12 @@ class Vfs_tresor::Data_operation : private Noncopyable
 			ASSERT_NEVER_REACHED;
 		}
 
-		Result read(Vfs::file_size seek, Byte_range_ptr const &dst)
+		Result read(At const at, Byte_range_ptr const &dst)
 		{
 			switch (_state) {
 			case INIT:
 
-				_seek = seek;
+				_seek = at.pos;
 				_dst.construct(dst.start, dst.num_bytes);
 				_state = READ_REQUESTED;
 				if (_verbose)
@@ -897,11 +897,11 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 					Single_vfs_handle(ds, alloc, 0), _plugin(plugin)
 				{ }
 
-				Read_result read(Byte_range_ptr const &dst) override
+				Read_result read(At const at, Byte_range_ptr const &dst) override
 				{
 					Read_result result = Read_error::DENIED;
 					_plugin.with_data_operation([&] (Data_operation &data_operation) {
-						switch (data_operation.read(seek(), dst)) {
+						switch (data_operation.read(at, dst)) {
 						case Data_operation::PENDING:   result = Read_error::RETRY;  break;
 						case Data_operation::SUCCEEDED: result = dst.num_bytes;      break;
 						case Data_operation::FAILED:    result = Read_error::DENIED; break;
@@ -910,11 +910,11 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 					return result;
 				}
 
-				Write_result write(Const_byte_range_ptr const &src) override
+				Write_result write(At const at, Const_byte_range_ptr const &src) override
 				{
 					Write_result result = Write_error::RETRY;
 					_plugin.with_data_operation([&] (Data_operation &data_operation) {
-						switch (data_operation.write(seek(), src)) {
+						switch (data_operation.write(at, src)) {
 						case Data_operation::PENDING:   break;
 						case Data_operation::SUCCEEDED: result = src.num_bytes; break;
 						case Data_operation::FAILED:    result = Write_error::DENIED; break;
@@ -1013,9 +1013,9 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 					Single_vfs_handle(ds, alloc, 0), _plugin(plugin)
 				{ }
 
-				Read_result read(Byte_range_ptr const &dst) override
+				Read_result read(At const at, Byte_range_ptr const &dst) override
 				{
-					if (seek() || dst.num_bytes < Content_string::capacity()) {
+					if (at.pos || dst.num_bytes < Content_string::capacity()) {
 						if (_plugin.verbose())
 							log("reading extend file failed: malformed arguments");
 						return Read_error::DENIED;
@@ -1032,12 +1032,12 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 					return result;
 				}
 
-				Write_result write(Const_byte_range_ptr const &src) override
+				Write_result write(At const at, Const_byte_range_ptr const &src) override
 				{
 					char tree_arg[16];
 					Arg_string::find_arg(src.start, "tree").string(tree_arg, sizeof(tree_arg), "-");
 					unsigned long blocks_arg = Arg_string::find_arg(src.start, "blocks").ulong_value(0);
-					if (seek() || !blocks_arg) {
+					if (at.pos || !blocks_arg) {
 						if (_plugin.verbose())
 							log("writing extend file failed: malformed arguments");
 						return Write_error::DENIED;
@@ -1146,9 +1146,9 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 					Single_vfs_handle(ds, alloc, 0), _plugin(plugin)
 				{ }
 
-				Read_result read(Byte_range_ptr const &dst) override
+				Read_result read(At const at, Byte_range_ptr const &dst) override
 				{
-					if (seek() || dst.num_bytes < Content_string::capacity()) {
+					if (at.pos || dst.num_bytes < Content_string::capacity()) {
 						if (_plugin.verbose())
 							log("reading rekey file failed: malformed arguments");
 						return Read_error::DENIED;
@@ -1165,11 +1165,11 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 					return result;
 				}
 
-				Write_result write(Const_byte_range_ptr const &src) override
+				Write_result write(At const at, Const_byte_range_ptr const &src) override
 				{
 					bool rekey_arg { false };
 					Genode::ascii_to(src.start, rekey_arg);
-					if (seek() || !rekey_arg) {
+					if (at.pos || !rekey_arg) {
 						if (_plugin.verbose())
 							log("writing rekey file failed: malformed arguments");
 						return Write_error::DENIED;
@@ -1259,9 +1259,9 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 					Single_vfs_handle(ds, alloc, 0), _plugin(plugin)
 				{ }
 
-				Read_result read(Byte_range_ptr const &dst) override
+				Read_result read(At const at, Byte_range_ptr const &dst) override
 				{
-					if (seek() || dst.num_bytes < Content_string::capacity()) {
+					if (at.pos || dst.num_bytes < Content_string::capacity()) {
 						if (_plugin.verbose())
 							log("reading deinitialize file failed: malformed arguments");
 						return Read_error::DENIED;
@@ -1278,11 +1278,11 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 					return result;
 				}
 
-				Write_result write(Const_byte_range_ptr const &src) override
+				Write_result write(At const at, Const_byte_range_ptr const &src) override
 				{
 					bool deinitialize_arg { false };
 					Genode::ascii_to(src.start, deinitialize_arg);
-					if (seek() || !deinitialize_arg) {
+					if (at.pos || !deinitialize_arg) {
 						if (_plugin.verbose())
 							log("writing deinitialize file failed: malformed arguments");
 

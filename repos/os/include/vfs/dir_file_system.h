@@ -70,9 +70,9 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 			Absolute_path          path;
 			Subdir_handle_registry subdir_handle_registry { };
 
-			Read_result _read_of_file_systems(Byte_range_ptr const &dst)
+			Read_result _read_of_file_systems(At const at, Byte_range_ptr const &dst)
 			{
-				file_offset index = seek() / sizeof(Dirent);
+				file_offset index = at.pos / sizeof(Dirent);
 
 				char const *sub_path = _fs._sub_path(path.base());
 
@@ -106,13 +106,12 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 
 						/* seek to file-system local index */
 						index = index - base;
-						vfs_handle.seek(index * sizeof(Dirent));
 
 						/* forward the response handler */
 						apply_handler([&] (Read_ready_response_handler &h) {
 							vfs_handle.handler(&h); });
 
-						result = vfs_handle.read(dst);
+						result = vfs_handle.read(At { index*sizeof(Dirent) }, dst);
 						done = true;
 					}
 
@@ -137,19 +136,19 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				subdir_handle_registry.for_each(f);
 			}
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
 				if (dst.num_bytes < sizeof(Dirent))
 					return Read_error::DENIED;
 
 				if (_fs._vfs_root)
-					return _read_of_file_systems(dst);
+					return _read_of_file_systems(at, dst);
 
 				if (_fs._top_dir(path.base())) {
 
 					Dirent &dirent = *(Dirent*)dst.start;
 
-					file_offset const index = seek() / sizeof(Dirent);
+					file_offset const index = at.pos / sizeof(Dirent);
 
 					if (index == 0) {
 
@@ -171,7 +170,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 					return sizeof(Dirent);
 				}
 
-				return _read_of_file_systems(dst);
+				return _read_of_file_systems(at, dst);
 			}
 
 			bool read_ready()  const override { return true; }

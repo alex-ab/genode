@@ -67,7 +67,7 @@ class Vfs_capture::Data_file_system : public Single_file_system
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return true; }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At, Byte_range_ptr const &dst) override
 			{
 				_capture->capture_at(Point(0, 0));
 

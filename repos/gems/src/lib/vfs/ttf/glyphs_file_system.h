@@ -54,15 +54,15 @@ class Vfs_glyphs::File_system : public Single_file_system
 				Single_vfs_handle(ds, alloc, 0), _font(font)
 			{ }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
-				if (seek() > FILE_SIZE)
+				if (at.pos > FILE_SIZE)
 					return Read_error::DENIED;
 
-				Codepoint const codepoint { uint32_t(seek() / Vfs_font::GLYPH_SLOT_BYTES) };
+				Codepoint const codepoint { uint32_t(at.pos / Vfs_font::GLYPH_SLOT_BYTES) };
 
 				size_t out_count = 0;
-				size_t byte_offset = size_t(seek() % Vfs_font::GLYPH_SLOT_BYTES);
+				size_t byte_offset = size_t(at.pos % Vfs_font::GLYPH_SLOT_BYTES);
 
 				char  *dst_ptr = dst.start;
 				size_t count   = dst.num_bytes;

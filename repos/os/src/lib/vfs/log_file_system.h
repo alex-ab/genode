@@ -102,13 +102,13 @@ class Vfs_log::File_system : public Single_file_system
 					if (_line_pos > 0) _flush();
 				}
 
-				Read_result read(Byte_range_ptr const &) override
+				Read_result read(At, Byte_range_ptr const &) override
 				{
 					/* block indefinitely - mimics stdout resp. stdin w/o input */
 					return Read_error::RETRY;
 				}
 
-				Write_result write(Const_byte_range_ptr const &buf) override
+				Write_result write(At, Const_byte_range_ptr const &buf) override
 				{
 					size_t       count = buf.num_bytes;
 					char const * src   = buf.start;

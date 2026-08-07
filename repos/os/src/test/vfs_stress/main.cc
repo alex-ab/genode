@@ -279,7 +279,7 @@ struct Write_test : public Stress_test
 				path.base(), Directory_service::OPEN_MODE_WRONLY, &handle, alloc));
 			Vfs_handle::Guard guard(handle);
 
-			Write_result r = handle->write(Const_byte_range_ptr(path.base(), path_len));
+			Write_result r = handle->write({ }, Const_byte_range_ptr(path.base(), path_len));
 			assert_write(r);
 
 			while (handle->sync() == Vfs::Sync_result::RETRY)
@@ -361,7 +361,7 @@ struct Read_test : public Stress_test
 			Byte_range_ptr const dst { tmp, sizeof(tmp) };
 
 			for (;;) {
-				read_result = handle->read(dst);
+				read_result = handle->read({ }, dst);
 				if (read_result != Vfs::Read_error::RETRY)
 					break;
 				_io.commit_and_wait();
@@ -443,14 +443,15 @@ struct Unlink_test : public Stress_test
 
 		Vfs::Directory_service::Dirent dirent { };
 		for (Vfs::file_size i = vfs.num_dirent(path); i;) {
-			dir_handle->seek(--i * sizeof(dirent));
+			--i;
 
 			Byte_range_ptr const dst { (char*)&dirent, sizeof(dirent) };
+			Vfs::At        const at  { i*sizeof(dirent) };
 
 			Vfs::Read_result result = Vfs::Read_error::DENIED;
 
 			for (;;) {
-				result = dir_handle->read(dst);
+				result = dir_handle->read(at, dst);
 				if (result != Vfs::Read_error::RETRY)
 					break;
 				_io.commit_and_wait();

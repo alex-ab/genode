@@ -317,7 +317,7 @@ __SYS_(int, close, (int libc_fd),
 		if (fd.open_dir_ptr) fs().destroy(*fd.open_dir_ptr);
 		if (fd.socket_ptr)   destroy_socket(*fd.socket_ptr);
 		if (fd.kqueue_ptr)   destroy_kqueue(*fd.kqueue_ptr);
-		fd.close_aio_handles();
+		fd.close_aio_handles(fs());
 		fd.closed = true;
 
 		/*

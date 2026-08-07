@@ -143,7 +143,7 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 				return true;
 			}
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At, Byte_range_ptr const &dst) override
 			{
 				if (_read_buffer.empty())
 					_fetch_data_from_terminal(_terminal, _read_buffer,
@@ -159,7 +159,7 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 				return consumed;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src) override
+			Write_result write(At, Const_byte_range_ptr const &src) override
 			{
 				return _terminal.write(src.start, src.num_bytes);
 			}

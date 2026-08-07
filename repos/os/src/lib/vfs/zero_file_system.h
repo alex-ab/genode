@@ -51,22 +51,17 @@ struct Vfs_zero::File_system : Single_file_system
 			_size(size)
 		{ }
 
-		Read_result read(Byte_range_ptr const &dst) override
+		Read_result read(At const at, Byte_range_ptr const &dst) override
 		{
 			size_t count = dst.num_bytes;
 
 			if (_size) {
 
-				/* current read offset */
-				file_size const read_offset = seek();
-
-				/* maximum read offset */
-				file_size const end_offset = min(dst.num_bytes + read_offset, _size);
-
-				if (read_offset >= end_offset)
+				file_size const end_pos = min(dst.num_bytes + at.pos, _size);
+				if (at.pos >= end_pos)
 					return 0; /* EOF */
 
-				count = size_t(end_offset - read_offset);
+				count = size_t(end_pos - at.pos);
 			}
 
 			bzero(dst.start, count);
@@ -74,7 +69,7 @@ struct Vfs_zero::File_system : Single_file_system
 			return count;
 		}
 
-		Write_result write(Const_byte_range_ptr const &src) override
+		Write_result write(At, Const_byte_range_ptr const &src) override
 		{
 			return src.num_bytes;
 		}

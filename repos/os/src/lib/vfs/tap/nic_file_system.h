@@ -148,7 +148,7 @@ class Vfs_nic::File_system::Nic_vfs_handle : public Single_vfs_handle
 			return _link_state;
 		}
 
-		Read_result read(Byte_range_ptr const &dst) override
+		Read_result read(At, Byte_range_ptr const &dst) override
 		{
 			if (!read_ready()) {
 				_blocked = true;
@@ -175,7 +175,7 @@ class Vfs_nic::File_system::Nic_vfs_handle : public Single_vfs_handle
 			return out_count;
 		}
 
-		Write_result write(Const_byte_range_ptr const &src) override
+		Write_result write(At, Const_byte_range_ptr const &src) override
 		{
 			_handle_ack_avail();
 

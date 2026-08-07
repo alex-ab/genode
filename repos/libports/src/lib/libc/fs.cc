@@ -541,12 +541,14 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 	if (fd.flags & O_NONBLOCK) {
 		_monitor.monitor([&] {
 			Const_byte_range_ptr const src { (char const *)buf, count };
-			result = of.handle.write(src);
+			result = of.handle.write({ .pos = of.pos }, src);
+			result.with_result([&] (size_t n) { of.pos += n; },
+			                   [&] (Vfs::Write_error) { });
 			return Fn::COMPLETE;
 		});
+		if (result == Vfs::Write_error::RETRY)
+			return Errno(EWOULDBLOCK);
 	} else {
-		Vfs::file_size const initial_seek { of.handle.seek() };
-
 		size_t   total_written_bytes = 0;
 		size_t   remaining_bytes = count;
 		::off_t  offset = 0;
@@ -569,8 +571,9 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 			for (;;) {
 
 				Span const src { (char const *)buf + offset, remaining_bytes };
+				Vfs::At const at { .pos = of.pos };
 
-				Vfs::Write_result partial_result = of.handle.write(src);
+				Vfs::Write_result partial_result = of.handle.write(at, src);
 
 				if (partial_result == Vfs::Write_error::RETRY)
 					return Fn::INCOMPLETE;
@@ -581,7 +584,8 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 						offset              += num_bytes;
 						remaining_bytes     -= num_bytes;
 
-						of.handle.advance_seek(num_bytes);
+						of.pos     += num_bytes;
+						of.modified = true;
 
 						result = total_written_bytes;
 					},
@@ -613,24 +617,11 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 				iteration++;
 			}
 		});
-
-		/* XXX reset seek pointer after loop (will be advanced below by out_count) */
-		of.handle.seek(initial_seek);
 	}
 
 	return result.convert<ssize_t>(
-		[&] (size_t num_bytes) -> ssize_t {
-			of.handle.advance_seek(num_bytes);
-			of.modified = true;
-			return num_bytes;
-		},
-		[&] (Vfs::Write_error e) -> ssize_t {
-			switch (e) {
-			case Vfs::Write_error::RETRY:  return Errno(EWOULDBLOCK);
-			case Vfs::Write_error::DENIED: break;
-			}
-			return Errno(EINVAL);
-		});
+		[&] (size_t num_bytes)   -> ssize_t { return num_bytes; },
+		[&] (Vfs::Write_error e) -> ssize_t { return Errno(EINVAL); });
 }
 
 
@@ -663,7 +654,7 @@ ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 
 		Byte_range_ptr const dst { (char *)buf, count };
 
-		Result result = of.handle.read(dst);
+		Result result = of.handle.read({ .pos = of.pos }, dst);
 		if (result == Vfs::Read_error::RETRY) {
 			queued = true;
 			return Fn::INCOMPLETE; /* keep blocking */
@@ -673,7 +664,7 @@ ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 
 		result.with_result(
 			[&] (size_t num_bytes) {
-				of.handle.advance_seek(num_bytes);
+				of.pos += num_bytes;
 				out_count = num_bytes;
 			},
 			[&] (Vfs::Read_error) { result_errno = EINVAL; });
@@ -704,7 +695,7 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 	_monitor.monitor([&] {
 
 		Byte_range_ptr const dst { (char *)&dirent_out, sizeof(Dirent) };
-		result = od.handle.read(dst);
+		result = od.handle.read({ .pos = od.pos }, dst);
 
 		return result == Vfs::Read_error::RETRY ? Fn::INCOMPLETE : Fn::COMPLETE;
 	});
@@ -744,15 +735,9 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 	dirent.d_type   = dirent_type(dirent_out.type);
 	dirent.d_fileno = pseudo_inode_from_path(entry_path.string());
 	dirent.d_reclen = sizeof(struct dirent);
-
-
 	dirent.d_namlen = Genode::strlen(dirent.d_name);
 
-	/*
-	 * Keep track of VFS seek pointer and user-supplied basep.
-	 */
-	od.handle.advance_seek(sizeof(Vfs::Directory_service::Dirent));
-
+	od.pos += sizeof(Vfs::Directory_service::Dirent);
 	*basep += sizeof(struct dirent);
 
 	return sizeof(struct dirent);
@@ -1689,14 +1674,14 @@ int Libc::Fs::ioctl(File_descriptor &fd, unsigned long request, char *argp)
 }
 
 
-void Libc::Fs::lseek_from_kernel(File_descriptor &fd, ::off_t offset)
+void Libc::Fs::lseek_from_kernel(File_descriptor &fd, ::off_t pos)
 {
 	if (!fd.open_file_ptr) {
 		error("lseek_from_kernel called for non-file descriptor");
 		return;
 	}
 
-	fd.open_file_ptr->handle.seek(offset);
+	fd.open_file_ptr->pos = pos;
 }
 
 
@@ -1705,22 +1690,21 @@ void Libc::Fs::lseek_from_kernel(File_descriptor &fd, ::off_t offset)
 	if (!fd.open_file_ptr && !fd.open_dir_ptr)
 		return Errno(EBADF);
 
-	Vfs::Vfs_handle &handle = fd.open_file_ptr ? fd.open_file_ptr->handle
-	                                           : fd.open_dir_ptr->handle;
-
+	uint64_t &pos = fd.open_file_ptr ? fd.open_file_ptr->pos
+	                                 : fd.open_dir_ptr->pos;
 	switch (whence) {
-	case SEEK_SET: handle.seek(offset); break;
-	case SEEK_CUR: handle.advance_seek(offset); break;
+	case SEEK_SET: pos  = offset; break;
+	case SEEK_CUR: pos += offset; break;
 	case SEEK_END:
 		{
 			struct stat stat;
 			::memset(&stat, 0, sizeof(stat));
 			fstat(fd, stat);
-			handle.seek(stat.st_size + offset);
+			pos = stat.st_size + offset;
 		}
 		break;
 	}
-	return handle.seek();
+	return pos;
 }
 
 
@@ -1830,7 +1814,7 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 
 			case Stage::WRITE:
 				{
-					write_result = handle.write( { target_path, count });
+					write_result = handle.write({ }, { target_path, count });
 					if (write_result == Vfs::Write_error::RETRY)
 						return Fn::INCOMPLETE;
 				}
@@ -1906,7 +1890,7 @@ ssize_t Libc::Fs::readlink(const char *link_path, char *buf, ::size_t buf_size)
 			{
 				Byte_range_ptr const dst { buf, buf_size };
 
-				Vfs::Read_result const result = handle_ptr->read(dst);
+				Vfs::Read_result const result = handle_ptr->read({ }, dst);
 				if (result == Vfs::Read_error::RETRY)
 					return Fn::INCOMPLETE;
 
@@ -2240,13 +2224,13 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 {
 	using Aio_job    = Libc::File_descriptor::Aio_job;
 	using Aio_handle = Libc::File_descriptor::Aio_handle;
-	using Vfs_handle = Genode::Vfs::Vfs_handle;
+	using Open_file  = Libc::Open_file;
 	using Result     = Genode::Vfs::Read_result;
 
 	bool progress = false;
 
 	aio_job.with_aio_handle([&] (Aio_handle &aio_handle) {
-		aio_handle.with_vfs_handle([&] (Vfs_handle &vfs_handle) {
+		aio_handle.with_open_file([&] (Open_file &of) {
 
 			switch (aio_handle.state) {
 			case Aio_handle::State::INVALID:
@@ -2265,11 +2249,11 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 			}
 			case Aio_handle::State::QUEUED:
 			{
-				vfs_handle.seek(aio_job.iocb->aio_offset);
 				Genode::Byte_range_ptr const dst {
 					(char *)aio_job.iocb->aio_buf, aio_job.iocb->aio_nbytes };
+				Genode::Vfs::At const at { .pos = uint64_t(aio_job.iocb->aio_offset) };
 
-				Result const result = vfs_handle.read(dst);
+				Result const result = of.handle.read(at, dst);
 				if (result == Genode::Vfs::Read_error::RETRY)
 					break;
 
@@ -2311,7 +2295,7 @@ static bool _handle_aio_write(Libc::File_descriptor          &fd,
 	bool progress = false;
 
 	aio_job.with_aio_handle([&] (Aio_handle &aio_handle) {
-		aio_handle.with_vfs_handle([&] (Vfs::Vfs_handle &vfs_handle) {
+		aio_handle.with_open_file([&] (Open_file &of) {
 
 			switch (aio_handle.state) {
 			case Aio_handle::State::INVALID:
@@ -2326,7 +2310,7 @@ static bool _handle_aio_write(Libc::File_descriptor          &fd,
 				aio_job.result = 0;
 				aio_job.error  = 0;
 
-				vfs_handle.seek(aio_job.iocb->aio_offset);
+				of.pos = aio_job.iocb->aio_offset;
 
 				aio_handle.count = aio_job.iocb->aio_nbytes;
 				aio_handle.offset = 0;
@@ -2340,14 +2324,12 @@ static bool _handle_aio_write(Libc::File_descriptor          &fd,
 				Const_byte_range_ptr const src {
 					(char *)aio_job.iocb->aio_buf + aio_handle.offset, aio_handle.count };
 
-				vfs_handle.write(src).with_result(
+				of.handle.write({ .pos = of.pos }, src).with_result(
 					[&] (size_t num_bytes) {
 						aio_handle.count  -= num_bytes;
 						aio_handle.offset += num_bytes;
-
-						aio_job.result += num_bytes;
-
-						vfs_handle.advance_seek(num_bytes);
+						aio_job.result    += num_bytes;
+						of.pos            += num_bytes;
 
 						if (!aio_handle.count)
 							aio_handle.state = Aio_handle::State::COMPLETE;
@@ -2399,6 +2381,7 @@ static bool _handle_aio_nop(Libc::File_descriptor          &fd,
 	return false;
 }
 
+
 int Libc::Fs::wait_aio(Libc::File_descriptor &fd, int /*timeout_ms*/)
 {
 	if (fd.lio_list_completed && fd.lio_list_queued == 0)
@@ -2409,7 +2392,6 @@ int Libc::Fs::wait_aio(Libc::File_descriptor &fd, int /*timeout_ms*/)
 
 	using Aio_job    = Libc::File_descriptor::Aio_job;
 	using Aio_handle = Libc::File_descriptor::Aio_handle;
-	using Vfs_handle = Vfs::Vfs_handle;
 
 	if (!fd.open_file_ptr) {
 		error("wait_aio called for non-file fd (", fd.path, ")");
@@ -2419,31 +2401,17 @@ int Libc::Fs::wait_aio(Libc::File_descriptor &fd, int /*timeout_ms*/)
 	fd.for_each_aio_job(Aio_job::State::PENDING, [&] (Aio_job &aio_job) {
 		fd.any_unused_aio_handle([&] (Aio_handle &aio_handle) {
 
-			if (aio_handle.vfs_handle == nullptr) {
-
-				auto open_vfs_handle = [&] (char const *path) -> Vfs_handle* {
-					Vfs_handle *vfs_handle = nullptr;
-
-					/*
-					 * We could already open the path once as otherwise we
-					 * would not be here.
-					 */
-					using Result = Vfs::Directory_service::Open_result;
-					Result const open_result = _vfs.open(path, fd.flags,
-					                                     &vfs_handle, _kernel_heap);
-					return open_result == Result::OPEN_OK ? vfs_handle
-					                                      : nullptr;
-				};
-				_monitor.monitor([&] {
-					aio_handle.vfs_handle = open_vfs_handle(fd.path.string());
-					return Fn::COMPLETE;
-				});
+			if (aio_handle.of_ptr == nullptr) {
+				aio_handle.of_ptr =
+					open_file(fd.path.string(), fd.flags).convert<Open_file *>(
+						[&] (Open_file &of)        { return &of; },
+						[&] (Errno) -> Open_file * { return nullptr; });
 
 				/*
 				 * This should not happen and at this point we bail
 				 * alltogether for now.
 				 */
-				if (aio_handle.vfs_handle == nullptr) {
+				if (aio_handle.of_ptr == nullptr) {
 					aio_job.result = -1;
 					aio_job.error = EIO;
 					aio_job.state = Aio_job::State::COMPLETE;

@@ -146,9 +146,9 @@ class Vfs_rump::File_system : public Vfs::File_system
 				return FTRUNCATE_OK;
 			}
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
-				ssize_t n = rump_sys_pread(attr.fd, dst.start, dst.num_bytes, seek());
+				ssize_t n = rump_sys_pread(attr.fd, dst.start, dst.num_bytes, at.pos);
 				if (n >= 0)
 					return n;
 
@@ -164,9 +164,9 @@ class Vfs_rump::File_system : public Vfs::File_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src) override
+			Write_result write(At const at, Const_byte_range_ptr const &src) override
 			{
-				ssize_t n = rump_sys_pwrite(attr.fd, src.start, src.num_bytes, seek());
+				ssize_t n = rump_sys_pwrite(attr.fd, src.start, src.num_bytes, at.pos);
 				if (n == -1) switch (errno) {
 				case EWOULDBLOCK:
 					return Write_error::RETRY;
@@ -260,12 +260,12 @@ class Vfs_rump::File_system : public Vfs::File_system
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return false; }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
 				if (dst.num_bytes < sizeof(Dirent))
 					return Read_error::DENIED;
 
-				size_t const index = size_t(seek() / sizeof(Dirent));
+				size_t const index = size_t(at.pos / sizeof(Dirent));
 
 				Dirent *vfs_dir = (Dirent*)dst.start;
 
@@ -307,9 +307,9 @@ class Vfs_rump::File_system : public Vfs::File_system
 			bool read_ready()  const override { return true; }
 			bool write_ready() const override { return true; }
 
-			Read_result read(Byte_range_ptr const &dst) override
+			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
-				if (seek() != 0)
+				if (at.pos != 0)
 					return Read_error::DENIED; /* partial read is not supported */
 
 				ssize_t n = rump_sys_readlink(attr.path.base(), dst.start, dst.num_bytes);
@@ -318,8 +318,11 @@ class Vfs_rump::File_system : public Vfs::File_system
 				return Read_error::DENIED;
 			}
 
-			Write_result write(Const_byte_range_ptr const &src) override
+			Write_result write(At const at, Const_byte_range_ptr const &src) override
 			{
+				if (at.pos != 0)
+					return Write_error::DENIED;
+
 				rump_sys_unlink(attr.path.base());
 
 				if (rump_sys_symlink(src.start, attr.path.base()) != 0)

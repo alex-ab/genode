@@ -149,11 +149,10 @@ class Fs_report::Session_component : public Genode::Rpc_object<Report::Session>
 				size_t offset = 0;
 				while (offset < length) {
 
-					handle->seek(offset);
-
 					Span const src(_ds.local_addr<char>() + offset, length - offset);
+					At   const at { .pos = offset };
 
-					_success = handle->write(src).convert<bool>(
+					_success = handle->write(at, src).convert<bool>(
 						[&] (size_t num_bytes) {
 							offset += num_bytes;
 							return true;

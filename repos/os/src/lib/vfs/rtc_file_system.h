@@ -57,9 +57,9 @@ class Vfs_rtc::File_system : public Single_file_system
 				 * On each read the current time is queried and afterwards formated
 				 * as '%Y-%m-%d %H:%M:%S\n' resp. '%F %T\n'.
 				 */
-				Read_result read(Byte_range_ptr const &dst) override
+				Read_result read(At const at, Byte_range_ptr const &dst) override
 				{
-					if (seek() >= TIMESTAMP_LEN)
+					if (at.pos >= TIMESTAMP_LEN)
 						return 0; /* EOF */
 
 					Rtc::Timestamp ts = _rtc.current_time();
@@ -89,8 +89,8 @@ class Vfs_rtc::File_system : public Single_file_system
 					char const *b = string.string();
 					size_t      n = string.length();
 
-					n -= size_t(seek());
-					b += seek();
+					n -= size_t(at.pos);
+					b += at.pos;
 
 					size_t const len = min(n, dst.num_bytes);
 					memcpy(dst.start, b, len);

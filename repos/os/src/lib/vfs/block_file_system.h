@@ -253,7 +253,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 					{ }
 
 					Read_result read(Block_connection     &block,
-					                 file_size      const  seek_offset,
+					                 At             const  at,
 					                 Byte_range_ptr const &dst)
 					{
 						/* fast-exit for pending jobs */
@@ -265,10 +265,9 @@ class Vfs_block::Data_file_system : public Single_file_system
 
 						/* round down to cover first block for unaligned requests */
 						block_number_t const block_number =
-							_helper.block_number(_helper.round_down(seek_offset));
+							_helper.block_number(_helper.round_down(at.pos));
 
-						file_size const block_offset =
-							_helper.mask(seek_offset);
+						file_size const block_offset = _helper.mask(at.pos);
 
 						/* always round up to cover last block for partial requests */
 						file_size const rounded_length =
@@ -392,16 +391,16 @@ class Vfs_block::Data_file_system : public Single_file_system
 						_block_count  { info.block_count }
 					{ }
 
-					Write_result write(Block_connection            &block,
-					                   file_size             const  seek_offset,
-					                   Const_byte_range_ptr  const &src)
+					Write_result write(Block_connection           &block,
+					                   At                   const  at,
+					                   Const_byte_range_ptr const &src)
 					{
 						/* fast-exit for pending jobs */
 						if (_any_pending_job())
 							return Write_error::RETRY;
 
 						file_size const block_offset =
-							_helper.mask(seek_offset);
+							_helper.mask(at.pos);
 
 						/* round down to handle partial requests later on */
 						file_size const rounded_length =
@@ -411,7 +410,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 							_helper.blocks(rounded_length);
 
 						block_number_t const block_number =
-							_helper.block_number(_helper.round_down(seek_offset));
+							_helper.block_number(_helper.round_down(at.pos));
 
 						if (block_number >= _block_count.blocks
 						 || block_number + block_count.blocks > _block_count.blocks)
@@ -524,15 +523,15 @@ class Vfs_block::Data_file_system : public Single_file_system
 					_sync_handler     { _block.info() }
 				{ }
 
-				Read_result read(Byte_range_ptr const &dst) override {
-					return _read_handler.read(_block, seek(), dst); }
+				Read_result read(At at, Byte_range_ptr const &dst) override {
+					return _read_handler.read(_block, at, dst); }
 
-				Write_result write(Const_byte_range_ptr const &src) override
+				Write_result write(At at, Const_byte_range_ptr const &src) override
 				{
 					if (!_block.info().writeable)
 						return Write_error::DENIED;
 
-					return _write_handler.write(_block, seek(), src);
+					return _write_handler.write(_block, at, src);
 				}
 
 				Sync_result sync() override

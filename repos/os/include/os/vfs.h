@@ -154,15 +154,13 @@ struct Genode::Directory : Noncopyable, Interface
 		{
 			Entry entry;
 
-			_handle->seek(i * sizeof(entry._dirent));
-
 			Vfs::Read_result read_result = 0;
-
 			for (;;) {
 				Byte_range_ptr const dst { (char*)&entry._dirent,
 				                            sizeof(entry._dirent) };
+				Vfs::At const at { .pos = i*sizeof(entry._dirent) };
 
-				read_result = _handle->read(dst);
+				read_result = _handle->read(at, dst);
 				if (read_result != Vfs::Read_error::RETRY)
 					break;
 
@@ -326,7 +324,7 @@ struct Genode::Directory : Noncopyable, Interface
 
 			Read_result result = Vfs::Read_error::DENIED;
 			for (;;) {
-				result = link_handle->read(Byte_range_ptr(buf, sizeof(buf) - 1));
+				result = link_handle->read({ }, Byte_range_ptr(buf, sizeof(buf) - 1));
 				if (result != Vfs::Read_error::RETRY)
 					break;
 
@@ -370,7 +368,7 @@ struct Genode::Directory : Noncopyable, Interface
 			Write_result write_result = Write_error::DENIED;
 
 			for (;;) {
-				write_result = link_handle->write(src);
+				write_result = link_handle->write({ }, src);
 				if (write_result != Write_error::RETRY)
 					break;
 				_io.commit_and_wait();
@@ -521,26 +519,24 @@ class Genode::Readonly_file : public File
 
 		~Readonly_file() { _handle->ds().close(_handle); }
 
-		struct At { Vfs::file_size value; };
+		using At = Vfs::At;
 
 		/**
 		 * Read file content starting at 'at' into byte buffer 'range'
 		 */
-		size_t read(At at, Byte_range_ptr const &range) const
+		size_t read(At const at, Byte_range_ptr const &range) const
 		{
 			size_t total = 0;
-
 			for (;;) {
-
-				_handle->seek(at.value + total);
 
 				Vfs::Read_result result = Vfs::Read_error::DENIED;
 				for (;;) {
 
 					Byte_range_ptr const partial_range { range.start     + total,
 					                                     range.num_bytes - total };
+					Vfs::At const partial_at { .pos = at.pos + total };
 
-					result = _handle->read(partial_range);
+					result = _handle->read(partial_at, partial_range);
 					if (result != Vfs::Read_error::RETRY)
 						break;
 
@@ -562,7 +558,6 @@ class Genode::Readonly_file : public File
 
 				total += size_t(read_bytes);
 			}
-
 			return total;
 		}
 
@@ -824,7 +819,7 @@ class Genode::Writeable_file : Noncopyable
 		}
 
 		static Append_result _append(Vfs::Vfs_handle &handle, Vfs::Env::Io &io,
-		                             Const_byte_range_ptr const &src)
+		                             Vfs::At &at, Const_byte_range_ptr const &src)
 		{
 			bool write_error = false;
 
@@ -838,7 +833,7 @@ class Genode::Writeable_file : Noncopyable
 
 				Vfs::Write_result result = Vfs::Write_error::DENIED;
 				for (;;) {
-					result = handle.write(partial_src);
+					result = handle.write(at, partial_src);
 					if (result != Vfs::Write_error::RETRY)
 						break;
 					io.commit_and_wait();
@@ -849,7 +844,7 @@ class Genode::Writeable_file : Noncopyable
 						num_bytes = min(remaining_bytes, num_bytes);
 						remaining_bytes -= num_bytes;
 						src_ptr         += num_bytes;
-						handle.advance_seek(num_bytes);
+						at.pos          += num_bytes;
 					},
 					[&] (Vfs::Write_error) {
 						write_error = true;
@@ -870,6 +865,7 @@ class Genode::Append_file : public Writeable_file
 
 		Vfs::Env::Io     &_io;
 		Vfs::Vfs_handle  &_handle;
+		Vfs::At           _at { };
 
 	public:
 
@@ -885,7 +881,7 @@ class Genode::Append_file : public Writeable_file
 		{
 			Vfs::Directory_service::Stat stat { };
 			if (_handle.ds().stat(path.string(), stat) == Vfs::Directory_service::STAT_OK)
-				_handle.seek(stat.size);
+				_at.pos = stat.size;
 		}
 
 		~Append_file()
@@ -895,10 +891,10 @@ class Genode::Append_file : public Writeable_file
 		}
 
 		Append_result append(Const_byte_range_ptr const &src) {
-			return _append(_handle, _io, src); }
+			return _append(_handle, _io, _at, src); }
 
 		Append_result append(char const *src, size_t size) {
-			return _append(_handle, _io, Const_byte_range_ptr(src, size)); }
+			return _append(_handle, _io, _at, Const_byte_range_ptr(src, size)); }
 };
 
 
@@ -911,6 +907,7 @@ class Genode::New_file : public Writeable_file
 
 		Vfs::Env::Io    &_io;
 		Vfs::Vfs_handle &_handle;
+		Vfs::At          _at { };
 
 	public:
 
@@ -937,10 +934,10 @@ class Genode::New_file : public Writeable_file
 		}
 
 		Append_result append(Const_byte_range_ptr const &src) {
-			return _append(_handle, _io, src); }
+			return _append(_handle, _io, _at, src); }
 
 		Append_result append(char const *src, size_t size) {
-			return _append(_handle, _io, Const_byte_range_ptr(src, size)); }
+			return _append(_handle, _io, _at, Const_byte_range_ptr(src, size)); }
 };
 
 
