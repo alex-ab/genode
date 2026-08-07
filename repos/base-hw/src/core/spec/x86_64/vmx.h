@@ -23,6 +23,7 @@
 #include <util/string.h>
 
 using Genode::addr_t;
+using Genode::uint8_t;
 using Genode::uint16_t;
 using Genode::uint32_t;
 using Genode::uint64_t;
@@ -93,7 +94,7 @@ struct alignas(Genode::PAGE_SIZE) Board::Vmcs_buf
 {
 	union {
 		uint32_t rev;
-		Genode::uint8_t  pad[Genode::PAGE_SIZE];
+		uint8_t  pad[Genode::PAGE_SIZE];
 	};
 
 	Vmcs_buf(uint32_t rev);
@@ -482,7 +483,7 @@ struct Board::Virtual_apic_state
 		VTPR_OFFSET = 0x80,
 	};
 
-	Genode::uint8_t pad[4096];
+	uint8_t pad[4096];
 
 	uint32_t get_vtpr()
 	{

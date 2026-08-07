@@ -21,7 +21,6 @@
 #include <util/construct_at.h>
 #include <util/mmio.h>
 
-using Genode::addr_t;
 using Kernel::Cpu;
 using Kernel::Vcpu;
 using Board::Vmcs;
@@ -29,26 +28,26 @@ using Board::Vmcs_buf;
 
 extern "C"
 {
-	extern Genode::addr_t _kernel_entry;
+	extern addr_t _kernel_entry;
 }
 
-Genode::uint32_t Vmcs::system_rev              = 0U;
-Genode::uint32_t Vmcs::pinbased_allowed_0      = 0U;
-Genode::uint32_t Vmcs::pinbased_allowed_1      = 0U;
-Genode::uint32_t Vmcs::pri_exit_allowed_0      = 0U;
-Genode::uint32_t Vmcs::pri_exit_allowed_1      = 0U;
-Genode::uint32_t Vmcs::vm_entry_allowed_0      = 0U;
-Genode::uint32_t Vmcs::vm_entry_allowed_1      = 0U;
-Genode::uint32_t Vmcs::pri_procbased_allowed_0 = 0U;
-Genode::uint32_t Vmcs::pri_procbased_allowed_1 = 0U;
-Genode::uint32_t Vmcs::sec_procbased_allowed_0 = 0U;
-Genode::uint32_t Vmcs::sec_procbased_allowed_1 = 0U;
-Genode::uint64_t Vmcs::cr0_fixed0              = 0U;
-Genode::uint64_t Vmcs::cr0_fixed1              = 0U;
-Genode::uint64_t Vmcs::cr0_mask                = 0U;
-Genode::uint64_t Vmcs::cr4_fixed0              = 0U;
-Genode::uint64_t Vmcs::cr4_fixed1              = 0U;
-Genode::uint64_t Vmcs::cr4_mask                = 0U;
+uint32_t Vmcs::system_rev              = 0U;
+uint32_t Vmcs::pinbased_allowed_0      = 0U;
+uint32_t Vmcs::pinbased_allowed_1      = 0U;
+uint32_t Vmcs::pri_exit_allowed_0      = 0U;
+uint32_t Vmcs::pri_exit_allowed_1      = 0U;
+uint32_t Vmcs::vm_entry_allowed_0      = 0U;
+uint32_t Vmcs::vm_entry_allowed_1      = 0U;
+uint32_t Vmcs::pri_procbased_allowed_0 = 0U;
+uint32_t Vmcs::pri_procbased_allowed_1 = 0U;
+uint32_t Vmcs::sec_procbased_allowed_0 = 0U;
+uint32_t Vmcs::sec_procbased_allowed_1 = 0U;
+uint64_t Vmcs::cr0_fixed0              = 0U;
+uint64_t Vmcs::cr0_fixed1              = 0U;
+uint64_t Vmcs::cr0_mask                = 0U;
+uint64_t Vmcs::cr4_fixed0              = 0U;
+uint64_t Vmcs::cr4_fixed1              = 0U;
+uint64_t Vmcs::cr4_mask                = 0U;
 extern int       __idt;
 
 Vmcs * current_vmcs[Hw::Pc_board::NR_OF_CPUS]  = { nullptr };
@@ -68,7 +67,7 @@ void kernel_entry_push_trap()
 	      : "memory");
 }
 
-Vmcs_buf::Vmcs_buf(Genode::uint32_t system_rev)
+Vmcs_buf::Vmcs_buf(uint32_t system_rev)
 {
 	bzero((void *)this, sizeof(Vmcs_buf));
 	rev = system_rev;
@@ -88,7 +87,6 @@ Vmcs::Vmcs(Board::Vcpu_state &state)
 	if (!system_rev)
 		setup_vmx_info();
 
-
 	Genode::construct_at<Vmcs_buf>((void *)(state.vmc_addr() + PAGE_SIZE), system_rev);
 }
 
@@ -100,7 +98,7 @@ void Vmcs::construct_host_vmcs()
 	if (!host_vmcs_buf[_cpu_id].constructed()) {
 		host_vmcs_buf[_cpu_id].construct(system_rev);
 
-		Genode::addr_t host_vmcs_phys =
+		addr_t host_vmcs_phys =
 			Core::Platform::core_phys_addr(
 				(addr_t)& host_vmcs_buf[_cpu_id]);
 
@@ -127,7 +125,7 @@ void Vmcs::setup_vmx_info()
 		Cpu::Ia32_vmx_basic::Clear_controls::get(vmx_basic);
 
 
-	Genode::uint64_t pinbased_ctls { };
+	uint64_t pinbased_ctls { };
 
 	if (clear_controls)
 		pinbased_ctls = Cpu::Ia32_vmx_true_pinbased_ctls::read();
@@ -154,7 +152,7 @@ void Vmcs::setup_vmx_info()
 
 
 	/* Get entry controls */
-	Genode::uint64_t vm_entry_ctls { };
+	uint64_t vm_entry_ctls { };
 
 	if (clear_controls)
 		vm_entry_ctls = Cpu::Ia32_vmx_true_entry_ctls::read();
@@ -168,7 +166,7 @@ void Vmcs::setup_vmx_info()
 
 
 	/* Get primary exit controls */
-	Genode::uint64_t pri_exit_ctls { };
+	uint64_t pri_exit_ctls { };
 
 	if (clear_controls)
 		pri_exit_ctls = Cpu::Ia32_vmx_true_exit_ctls::read();
@@ -181,7 +179,7 @@ void Vmcs::setup_vmx_info()
 		Cpu::Ia32_vmx_exit_ctls::Allowed_1_settings::get(pri_exit_ctls);
 
 	/* Get primary proc-based exit controls */
-	Genode::uint64_t pri_procbased_ctls { };
+	uint64_t pri_procbased_ctls { };
 
 	if (clear_controls)
 		pri_procbased_ctls = Cpu::Ia32_vmx_true_procbased_ctls::read();
@@ -255,7 +253,7 @@ void Vmcs::setup_vmx_info()
 	cr4_mask   = ~cr4_fixed1 | cr4_fixed0;
 }
 
-void Vmcs::initialize(Board::Cpu &c, Genode::addr_t page_table_phys)
+void Vmcs::initialize(Board::Cpu &c, addr_t page_table_phys)
 {
 	using Cpu = Hw::X86_64_cpu;
 
@@ -288,7 +286,6 @@ void Vmcs::initialize(Board::Cpu &c, Genode::addr_t page_table_phys)
 	construct_host_vmcs();
 
 	Genode::construct_at<Virtual_apic_state>((void *)(vcpu_state.vmc_addr() + 2*PAGE_SIZE));
-
 
 	_clear();
 
@@ -336,7 +333,7 @@ void Vmcs::initialize(Board::Cpu &c, Genode::addr_t page_table_phys)
 	 * see Vol. 3D of the Intel SDM (September 2023):
 	 * A.7 VMX-Fixed Bits in CR0
 	 */
-	Genode::uint64_t cr0 = Cpu::Cr0::read();
+	uint64_t cr0 = Cpu::Cr0::read();
 
 	cr0 = (cr0 & cr0_fixed1) | cr0_fixed0;
 	/* NW and CD shouln'd be set by hw in the first place, but to be sure. */
@@ -361,15 +358,15 @@ void Vmcs::initialize(Board::Cpu &c, Genode::addr_t page_table_phys)
 	write(E_HOST_FS_SELECTOR, 0);
 	write(E_HOST_GS_SELECTOR, 0);
 
-	write(E_HOST_TR_BASE, reinterpret_cast<Genode::addr_t>(&(cpu.tss)));
+	write(E_HOST_TR_BASE, reinterpret_cast<addr_t>(&(cpu.tss)));
 	/* see Cpu::Tss::init() / the tss_descriptor is in slot 5 of the GDT */
 	write(E_HOST_TR_SELECTOR, 0x28);
-	write(E_HOST_GDTR_BASE, reinterpret_cast<Genode::addr_t>(&(cpu.gdt)));
-	write(E_HOST_IDTR_BASE, reinterpret_cast<Genode::addr_t>(&__idt));
+	write(E_HOST_GDTR_BASE, reinterpret_cast<addr_t>(&(cpu.gdt)));
+	write(E_HOST_IDTR_BASE, reinterpret_cast<addr_t>(&__idt));
 
-	write(E_HOST_IA32_SYSENTER_ESP, reinterpret_cast<Genode::addr_t>(&(cpu.tss.rsp[0])));
+	write(E_HOST_IA32_SYSENTER_ESP, reinterpret_cast<addr_t>(&(cpu.tss.rsp[0])));
 	write(E_HOST_IA32_SYSENTER_CS, 0x8);
-	write(E_HOST_IA32_SYSENTER_EIP, reinterpret_cast<Genode::uint64_t>(&kernel_entry_push_trap));
+	write(E_HOST_IA32_SYSENTER_EIP, reinterpret_cast<uint64_t>(&kernel_entry_push_trap));
 
 	/*
 	 * Set the RSP to a stack offset such that kernel_entry_push_trap pushes
@@ -377,15 +374,15 @@ void Vmcs::initialize(Board::Cpu &c, Genode::addr_t page_table_phys)
 	 * subsequent jump to _kernel_entry.
 	 */
 	write(E_HOST_RSP, cpu.stack_start() - Hw::Mm::KERNEL_STACK_ERRCODE_OFFSET);
-	write(E_HOST_RIP, reinterpret_cast<Genode::uint64_t>(&kernel_entry_push_trap));
+	write(E_HOST_RIP, reinterpret_cast<uint64_t>(&kernel_entry_push_trap));
 }
 
 
 /*
  * Enforce VMX intercepts
  */
-void Vmcs::enforce_execution_controls(Genode::uint32_t desired_primary,
-                                      Genode::uint32_t desired_secondary)
+void Vmcs::enforce_execution_controls(uint32_t desired_primary,
+                                      uint32_t desired_secondary)
 {
 	/*
 	 * Processor-Based VM-Execution Controls
@@ -422,12 +419,12 @@ void Vmcs::enforce_execution_controls(Genode::uint32_t desired_primary,
 	 */
 	Primary_proc_based_execution_controls::Use_tpr_shadow::set(desired_primary);
 
-	Genode::uint32_t pri_procbased_set =
+	uint32_t pri_procbased_set =
 		(desired_primary | pri_procbased_allowed_0)
 		& pri_procbased_allowed_1;
 	write(E_PRI_PROC_BASED_VM_EXEC_CTRL, pri_procbased_set);
 
-	Genode::uint32_t sec_procbased_set =
+	uint32_t sec_procbased_set =
 		(desired_secondary | sec_procbased_allowed_0)
 		& sec_procbased_allowed_1;
 	write(E_SEC_PROC_BASED_VM_EXEC_CTRL, sec_procbased_set);
@@ -441,12 +438,12 @@ void Vmcs::prepare_vmcs()
 	 * For details, see Vol. 3C of the Intel SDM (September 2023):
 	 * 25.6.1 Pin-Based VM-Execution Controls
 	 */
-	Genode::uint32_t pinbased_want = 0U;
+	uint32_t pinbased_want = 0U;
 	Pin_based_execution_controls::External_interrupt_exiting::set(pinbased_want);
 	Pin_based_execution_controls::Nmi_exiting::set(pinbased_want);
 	Pin_based_execution_controls::Virtual_nmis::set(pinbased_want);
-	Genode::uint32_t pinbased_set = (pinbased_want | pinbased_allowed_0)
-	                              & pinbased_allowed_1;
+	uint32_t pinbased_set = (pinbased_want | pinbased_allowed_0)
+	                        & pinbased_allowed_1;
 	write(E_PIN_BASED_VM_EXECUTION_CTRL, pinbased_set);
 
 	/*
@@ -455,13 +452,13 @@ void Vmcs::prepare_vmcs()
 	 * For details, see Vol. 3C of the Intel SDM (September 2023):
 	 * Table 25-13. Definitions of Primary VM-Exit Controls
 	 */
-	Genode::uint32_t primary_exit_want = 0U;
+	uint32_t primary_exit_want = 0U;
 	Primary_vm_exit_controls::Save_debug_controls::set(primary_exit_want);
 	Primary_vm_exit_controls::Host_address_space_size::set(primary_exit_want);
 	Primary_vm_exit_controls::Ack_interrupt_on_exit::set(primary_exit_want);
 	Primary_vm_exit_controls::Save_ia32_efer::set(primary_exit_want);
 	Primary_vm_exit_controls::Load_ia32_efer::set(primary_exit_want);
-	Genode::uint32_t primary_exit_set =
+	uint32_t primary_exit_set =
 		(primary_exit_want | pri_exit_allowed_0) & pri_exit_allowed_1;
 	write(E_PRIMARY_VM_EXIT_CONTROLS, primary_exit_set);
 
@@ -472,10 +469,10 @@ void Vmcs::prepare_vmcs()
 	 * Table 25-13. Definitions of Primary VM-Exit Controls
 	 * 25.8.1 VM-Entry Controls
 	 */
-	Genode::uint32_t vm_entry_want = 0U;
+	uint32_t vm_entry_want = 0U;
 	Vm_entry_controls::Load_debug_controls::set(vm_entry_want);
 	Vm_entry_controls::Load_ia32_efer::set(vm_entry_want);
-	Genode::uint32_t vm_entry_set =
+	uint32_t vm_entry_set =
 		(vm_entry_want | vm_entry_allowed_0) & vm_entry_allowed_1;
 	write(E_VM_ENTRY_CONTROLS, vm_entry_set);
 
@@ -513,9 +510,6 @@ void Vmcs::store(Genode::Vcpu_state &state)
 {
 	using Range   = Genode::Vcpu_state::Range;
 	using Segment = Genode::Vcpu_state::Segment;
-
-	using Genode::uint16_t;
-	using Genode::uint32_t;
 
 	_load_pointer();
 
@@ -753,8 +747,8 @@ void Vmcs::load(Genode::Vcpu_state &state)
 	}
 
 	if (state.inj_info.charged() || state.inj_error.charged()) {
-		Genode::uint32_t pri_controls = static_cast<Genode::uint32_t> (read(E_PRI_PROC_BASED_VM_EXEC_CTRL));
-		Genode::uint32_t sec_controls = static_cast<Genode::uint32_t> (read(E_SEC_PROC_BASED_VM_EXEC_CTRL));
+		uint32_t pri_controls = static_cast<uint32_t> (read(E_PRI_PROC_BASED_VM_EXEC_CTRL));
+		uint32_t sec_controls = static_cast<uint32_t> (read(E_SEC_PROC_BASED_VM_EXEC_CTRL));
 		bool set_controls = false;
 
 		if (state.inj_info.value() & 0x1000) {
@@ -787,7 +781,7 @@ void Vmcs::load(Genode::Vcpu_state &state)
 		write(E_VM_ENTRY_INTERRUPT_INFO_FIELD,
 			/* Filter out special signaling bits */
 			(state.inj_info.value()     &
-			(Genode::uint32_t) ~0x3000));
+			(uint32_t) ~0x3000));
 
 		write(E_VM_ENTRY_EXCEPTION_ERROR_CODE, state.inj_error.value());
 	}
