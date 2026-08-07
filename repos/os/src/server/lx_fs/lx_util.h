@@ -64,7 +64,7 @@ namespace Lx_fs {
 
 	static inline timespec timespec_from_timestamp(File_system::Timestamp t)
 	{
-		return { .tv_sec  = time_t (t.ms_since_1970 * 1000),
+		return { .tv_sec  = time_t (t.ms_since_1970 / 1000),
 		         .tv_nsec = time_t((t.ms_since_1970 % 1000)*1000*1000) };
 	}
 
