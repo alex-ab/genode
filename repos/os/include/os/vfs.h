@@ -838,7 +838,7 @@ class Genode::Writeable_file : Noncopyable
 
 				Vfs::Write_result result = Vfs::Write_error::DENIED;
 				for (;;) {
-					Vfs::Write_result result = handle.write(partial_src);
+					result = handle.write(partial_src);
 					if (result != Vfs::Write_error::RETRY)
 						break;
 					io.commit_and_wait();
