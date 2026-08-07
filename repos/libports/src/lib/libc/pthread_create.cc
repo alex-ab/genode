@@ -154,6 +154,9 @@ static int pthread_create_from_env(Genode::Env &env, pthread_t *thread,
 
 	*thread = thread_obj;
 
+	/* use threaded mode in FreeBSD libc code */
+	__isthreaded = 1;
+
 	thread_obj->start();
 
 	return 0;

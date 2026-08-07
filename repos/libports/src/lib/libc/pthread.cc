@@ -83,9 +83,6 @@ size_t Pthread::_tls_pointer_offset;
 
 void Libc::Pthread::Thread_object::entry()
 {
-	/* use threaded mode in FreeBSD libc code */
-	__isthreaded = 1;
-
 	/*
 	 * Obtain stack attributes of new thread for
 	 * 'pthread_attr_get_np()'
