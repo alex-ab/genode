@@ -599,7 +599,7 @@ __SYS_(::off_t, lseek, (int libc_fd, ::off_t offset, int whence),
 	return with_fd(libc_fd, "lseek", [&] (File_descriptor &fd) -> ::off_t {
 		if (fd.open_file_ptr || fd.open_dir_ptr)
 			return fs().lseek(fd, offset, whence);
-		return Errno { EBADF };
+		return Errno { ESPIPE };
 	});
 })
 
