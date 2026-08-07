@@ -1015,9 +1015,6 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 
 				Read_result read(Byte_range_ptr const &dst) override
 				{
-					if (seek() == dst.num_bytes)
-						return 0; /* EOF */
-
 					if (seek() || dst.num_bytes < Content_string::capacity()) {
 						if (_plugin.verbose())
 							log("reading extend file failed: malformed arguments");
