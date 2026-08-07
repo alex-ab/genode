@@ -75,9 +75,15 @@ void Cpu_context::_interrupt()
 }
 
 
+bool Cpu_context::remotely_assigned()
+{
+	return _cpu().id() != Cpu::executing_id();
+}
+
+
 bool Cpu_context::remotely_running()
 {
-	return (_cpu().id() != Cpu::executing_id()) &&
+	return remotely_assigned() &&
 	       _cpu().scheduler().current_helping_destination(*this);
 }
 

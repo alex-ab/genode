@@ -84,6 +84,16 @@ class Kernel::Cpu_context : private Scheduler::Context
 
 		using Scheduler::Context::execution_time;
 
+		/**
+		 * Returns true if this context is assigned to a
+		 * different cpu than the currently executing one.
+		 */
+		bool remotely_assigned();
+
+		/**
+		 * Returns true if this context is running currently on a
+		 * different cpu than the currently executing one.
+		 */
 		bool remotely_running();
 
 		/**

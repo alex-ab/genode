@@ -35,18 +35,13 @@ Kernel::Core_thread::_call_vcpu_create(Core::Kernel_object<Vcpu> &kobj,
 
 void Kernel::Core_thread::_call_vcpu_destroy(Core::Kernel_object<Vcpu>& to_delete)
 {
-	/**
-	 * Delete a vcpu immediately if it is assigned to this cpu,
-	 * or the assigned cpu is not running it.
-	 */
-	if (!to_delete->remotely_running()) {
+	/* delete a vcpu immediately if it is assigned to this cpu */
+	if(!to_delete->remotely_assigned()) {
 		to_delete.destruct();
 		return;
 	}
 
-	/**
-	 * Construct a cross-cpu work item and send an IPI
-	 */
+	/* construct a cross-cpu work item and send an IPI */
 	_vcpu_destroy.construct(to_delete->_cpu(), *this, to_delete);
 }
 

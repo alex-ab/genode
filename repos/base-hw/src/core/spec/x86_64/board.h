@@ -93,6 +93,12 @@ struct Board::Vcpu_context
 	using Id = Genode::Attempt<addr_t, Genode::Bit_array_base::Error>;
 
 	Vcpu_context(Id id, Vcpu_state &vcpu_data, Cpu &cpu);
+
+	~Vcpu_context()
+	{
+		virt.release();
+	}
+
 	void initialize(Board::Cpu &cpu, addr_t table_phys_addr);
 	void load(Genode::Vcpu_state &state);
 	void store(Genode::Vcpu_state &state);

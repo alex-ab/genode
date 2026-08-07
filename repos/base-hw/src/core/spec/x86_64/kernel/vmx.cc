@@ -287,8 +287,6 @@ void Vmcs::initialize(Board::Cpu &c, addr_t page_table_phys)
 
 	Genode::construct_at<Virtual_apic_state>((void *)(vcpu_state.vmc_addr() + 2*PAGE_SIZE));
 
-	_clear();
-
 	_load_pointer();
 
 	prepare_vmcs();
@@ -348,6 +346,7 @@ void Vmcs::initialize(Board::Cpu &c, addr_t page_table_phys)
 	/* See above */
 	cr4 = (cr4 & cr4_fixed1) | cr4_fixed0;
 	Cpu::Cr4::write(cr4);
+
 	write(E_HOST_CR4, cr4);
 	write(E_CR4_GUEST_HOST_MASK, cr4_mask);
 
@@ -914,16 +913,20 @@ void Vmcs::save_host_msrs()
 }
 
 
-void Vmcs::_clear()
+void Vmcs::release()
 {
+	if (current_vmcs[_cpu_id] == nullptr)
+		return;
+
 	vmclear(vcpu_state.vmc_phys_addr() + PAGE_SIZE);
 
 	/*
 	 * vmclear invalidates the current VMCS pointer (if it is the same)
 	 * make sure to reflect this in our shadow state
 	 */
-	current_vmcs[_cpu_id] = (Board::Vmcs*)~0ULL;
+	current_vmcs[_cpu_id] = nullptr;
 }
+
 
 void Vmcs::_load_pointer()
 {

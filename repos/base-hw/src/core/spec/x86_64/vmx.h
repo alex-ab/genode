@@ -372,13 +372,13 @@ struct Board::Vmcs : public Board::Virt_interface
 	void store(Genode::Vcpu_state &state) override;
 	void switch_world(Cpu_state &, addr_t) override;
 	uint64_t handle_vm_exit() override;
+	void release() override;
 
 	void save_host_msrs();
 	void             prepare_vmcs();
 	void             setup_vmx_info();
 	static void      enforce_execution_controls(uint32_t desired_primary,
 	                                            uint32_t desired_secondary);
-	void _clear();
 	void _load_pointer();
 	void construct_host_vmcs();
 };
