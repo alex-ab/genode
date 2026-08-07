@@ -67,11 +67,6 @@ namespace Genode::Vfs {
 		                                 .executable = true }; }
 	};
 
-	/**
-	 * Seek position in bytes, for read and write operations
-	 */
-	struct At { file_size offset; };
-
 	using Absolute_path = Path<MAX_PATH_LEN>;
 
 	struct Scanner_policy_path_element
