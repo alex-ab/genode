@@ -1148,9 +1148,6 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 
 				Read_result read(Byte_range_ptr const &dst) override
 				{
-					if (seek() == dst.num_bytes)
-						return 0; /* EOF */
-
 					if (seek() || dst.num_bytes < Content_string::capacity()) {
 						if (_plugin.verbose())
 							log("reading rekey file failed: malformed arguments");
@@ -1264,9 +1261,6 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 
 				Read_result read(Byte_range_ptr const &dst) override
 				{
-					if (seek() == dst.num_bytes)
-						return 0; /* EOF */
-
 					if (seek() || dst.num_bytes < Content_string::capacity()) {
 						if (_plugin.verbose())
 							log("reading deinitialize file failed: malformed arguments");
