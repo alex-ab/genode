@@ -6,17 +6,18 @@ create_boot_directory
 import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/init \
                   [depot_user]/src/libc \
+                  [depot_user]/src/gmp \
                   [depot_user]/src/posix \
                   [depot_user]/src/vfs \
                   [depot_user]/src/vfs_import \
                   [depot_user]/src/vfs_jitterentropy \
                   [depot_user]/src/vfs_pipe \
-                  [depot_user]/src/openssl \
                   [depot_user]/src/zlib \
                   [depot_user]/pkg/system_rtc-[board] \
                   [depot_user]/src/libestr/0.1.11-2026-04-22 \
                   [depot_user]/src/libfastjson/1.2304.0-2026-04-22 \
-                  [depot_user]/src/rsyslog/8.2502.0-2026-04-22
+                  [depot_user]/src/openssl3/3.5.7-2026-08-10 \
+                  [depot_user]/src/rsyslog/8.2502.0-2026-08-10
 
 #
 # Generate config
