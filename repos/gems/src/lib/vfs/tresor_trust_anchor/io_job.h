@@ -79,7 +79,7 @@ namespace Util {
 		Operation        const  _op;
 		State                   _state;
 		char                   *_data;
-		Vfs::file_offset const  _base_offset;
+		Vfs::file_size   const  _base_offset;
 		size_t                  _current_offset;
 		size_t                  _current_count;
 		bool             const  _allow_partial;
@@ -219,7 +219,7 @@ namespace Util {
 		Io_job(Vfs::Vfs_handle &handle,
 		       Operation        op,
 		       Buffer          &buffer,
-		       Vfs::file_offset      base_offset,
+		       Vfs::file_size   base_offset,
 		       Partial_result   partial_result = Partial_result::DENY)
 		:
 			_handle(handle), _op(op), _state(_initial_state(op)), _data(buffer.base),

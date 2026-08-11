@@ -540,7 +540,7 @@ class Vfs_pipe::File_system : public Vfs::File_system
 		Rename_result rename(const char*, const char*) override {
 			return RENAME_ERR_NO_ENTRY; }
 
-		file_size num_dirent(char const *) override { return 0; }
+		unsigned num_dirent(char const *) override { return 0; }
 
 		bool dir_entry_exists(const char *cpath) override
 		{

@@ -678,7 +678,7 @@ class Vfs_server::Session_component : private Session_resources,
 		unsigned num_entries(Dir_handle dir_handle) override
 		{
 			return _apply(dir_handle, [&] (Directory &dir) {
-				return (unsigned)_vfs.num_dirent(dir.path()); });
+				return _vfs.num_dirent(dir.path()); });
 		}
 
 		void unlink(Dir_handle dir_handle, Name const &name) override

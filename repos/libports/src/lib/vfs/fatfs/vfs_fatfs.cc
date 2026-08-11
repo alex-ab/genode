@@ -511,11 +511,11 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 
 		void release(char const *path, Dataspace_capability ds_cap) override { }
 
-		file_size num_dirent(char const *path) override
+		unsigned num_dirent(char const *path) override
 		{
-			DIR       dir;
-			FILINFO   fno;
-			file_size count = 0;
+			DIR      dir;
+			FILINFO  fno;
+			unsigned count = 0;
 
 			if (f_opendir(&dir, (const TCHAR*)path) != FR_OK) return 0;
 

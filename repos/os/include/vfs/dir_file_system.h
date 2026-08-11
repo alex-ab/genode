@@ -72,7 +72,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 
 			Read_result _read_of_file_systems(At const at, Byte_range_ptr const &dst)
 			{
-				file_offset index = at.pos / sizeof(Dirent);
+				size_t index = size_t(at.pos / sizeof(Dirent));
 
 				char const *sub_path = _fs._sub_path(path.base());
 
@@ -80,7 +80,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 					sub_path = "/";
 
 				/* base of composite directory index */
-				int base = 0;
+				size_t base = 0;
 
 				bool done = false;
 
@@ -96,7 +96,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 					 * Determine number of matching directory entries within
 					 * the current file system.
 					 */
-					int const fs_num_dirent = (int)vfs_handle.ds().num_dirent(sub_path);
+					unsigned const fs_num_dirent = vfs_handle.ds().num_dirent(sub_path);
 
 					/*
 					 * Query directory entry if index lies with the file
@@ -307,9 +307,9 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 		 * Accumulate number of directory entries that match in any of
 		 * our sub file systems.
 		 */
-		file_size _sum_dirents_of_file_systems(char const *path)
+		unsigned _sum_dirents_of_file_systems(char const *path)
 		{
-			file_size cnt = 0;
+			unsigned cnt = 0;
 			for (File_system *fs = _first_file_system; fs; fs = fs->next)
 				cnt += fs->num_dirent(path);
 			return cnt;
@@ -416,7 +416,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 			return STAT_ERR_NO_ENTRY;
 		}
 
-		file_size num_dirent(char const *path) override
+		unsigned num_dirent(char const *path) override
 		{
 			if (_vfs_root) {
 				return _sum_dirents_of_file_systems(path);

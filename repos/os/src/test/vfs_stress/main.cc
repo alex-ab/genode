@@ -442,7 +442,7 @@ struct Unlink_test : public Stress_test
 		assert_opendir(vfs.opendir(path, false, &dir_handle, alloc));
 
 		Vfs::Directory_service::Dirent dirent { };
-		for (Vfs::file_size i = vfs.num_dirent(path); i;) {
+		for (unsigned i = vfs.num_dirent(path); i;) {
 			--i;
 
 			Byte_range_ptr const dst { (char*)&dirent, sizeof(dirent) };

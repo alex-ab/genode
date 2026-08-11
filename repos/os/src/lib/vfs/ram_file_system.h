@@ -546,11 +546,11 @@ class Vfs_ram::File_system : public Vfs::File_system
 		 ** Directory service interface **
 		 *********************************/
 
-		file_size num_dirent(char const *path) override
+		unsigned num_dirent(char const *path) override
 		{
 			if (Node * const node = lookup(path))
 				if (Directory * const dir = dynamic_cast<Directory *>(node))
-					return dir->length();
+					return unsigned(dir->length());
 
 			return 0;
 		}

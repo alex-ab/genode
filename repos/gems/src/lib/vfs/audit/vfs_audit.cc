@@ -255,7 +255,7 @@ class Vfs_audit::File_system : public Vfs::File_system
 			return _root_dir.rename(_expand(from).string(), _expand(to).string());
 		}
 
-		file_size num_dirent(const char *path) override
+		unsigned num_dirent(const char *path) override
 		{
 			return _root_dir.num_dirent(_expand(path).string());
 		}

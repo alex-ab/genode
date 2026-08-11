@@ -493,9 +493,9 @@ class Vfs_rump::File_system : public Vfs::File_system
 					static_cap_cast<Ram_dataspace>(ds_cap));
 		}
 
-		file_size num_dirent(char const *path) override
+		unsigned num_dirent(char const *path) override
 		{
-			file_size n = 0;
+			unsigned n = 0;
 			int fd = rump_sys_open(*path ? path : "/", O_RDONLY | O_DIRECTORY);
 			if (fd == -1)
 				return 0;

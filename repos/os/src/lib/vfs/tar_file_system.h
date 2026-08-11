@@ -344,9 +344,9 @@ class Vfs_tar::File_system : public Vfs::File_system
 		}
 
 
-		file_size num_dirent()
+		unsigned num_dirent()
 		{
-			file_size count = 0;
+			unsigned count = 0;
 			for (Node *child_node = first(); child_node; child_node = child_node->next(), count++) ;
 			return count;
 		}
@@ -484,12 +484,12 @@ class Vfs_tar::File_system : public Vfs::File_system
 		Node     &root_node;
 		bool      valid;              /* true after first lookup */
 		char      key[256];           /* key used for lookup */
-		file_size cached_num_dirent;  /* cached value */
+		unsigned  cached_num_dirent;  /* cached value */
 
 		Num_dirent_cache(Node &root_node)
 		: root_node(root_node), valid(false), cached_num_dirent(0) { }
 
-		file_size num_dirent(char const *path)
+		unsigned num_dirent(char const *path)
 		{
 			/* check for cache miss */
 			if (!valid || strcmp(path, key) != 0) {
@@ -656,7 +656,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 			return RENAME_ERR_NO_ENTRY;
 		}
 
-		file_size num_dirent(char const *path) override
+		unsigned num_dirent(char const *path) override
 		{
 			return _cached_num_dirent.num_dirent(path);
 		}

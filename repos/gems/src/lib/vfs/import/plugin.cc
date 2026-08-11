@@ -261,7 +261,7 @@ class Vfs_import::File_system : public Vfs::File_system
 		Rename_result rename(const char*, const char*) override {
 			return RENAME_ERR_NO_ENTRY; }
 
-		file_size num_dirent(const char*) override {
+		unsigned num_dirent(const char*) override {
 			return 0; }
 
 		bool directory(char const*) override {

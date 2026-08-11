@@ -698,7 +698,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			return RENAME_OK;
 		}
 
-		file_size num_dirent(char const *path) override
+		unsigned num_dirent(char const *path) override
 		{
 			if (strcmp(path, "") == 0)
 				path = "/";

@@ -169,7 +169,7 @@ class Genode::Vfs::Single_file_system : public File_system
 			return STAT_OK;
 		}
 
-		file_size num_dirent(char const *path) override
+		unsigned num_dirent(char const *path) override
 		{
 			if (_root(path))
 				return 1;

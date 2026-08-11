@@ -685,14 +685,12 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 			return RENAME_ERR_NO_PERM;
 		}
 
-		file_size num_dirent(char const *path) override
+		unsigned num_dirent(char const *path) override
 		{
 			_key_reg.update(_vfs_env);
 
-			if (_top_dir(path) || _root_dir(path)) {
-				file_size const num = _key_reg.number_of_keys();
-				return num;
-			}
+			if (_top_dir(path) || _root_dir(path))
+				return _key_reg.number_of_keys();
 
 			path = _sub_path(path);
 			if (!path) {
@@ -700,8 +698,7 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 			}
 			try {
 				Key_file_system &fs = _key_reg.by_path(path);
-				file_size const num = fs.num_dirent(path);
-				return num;
+				return fs.num_dirent(path);
 			} catch (Key_registry::Invalid_path) {
 				return 0;
 			}

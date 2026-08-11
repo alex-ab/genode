@@ -190,13 +190,13 @@ Vfs_inline::File_system::Handle::read(At const at, Byte_range_ptr const &dst)
 	_fs._data.with_bytes([&] (char const *data_start, size_t const data_num_bytes) {
 
 		/* maximum read position, clamped to dataspace size */
-		size_t const end_pos = min(dst.num_bytes + at.pos, data_num_bytes);
+		size_t const end_pos = min(size_t(dst.num_bytes + at.pos), data_num_bytes);
 
 		/* check if end of file is reached */
 		if (at.pos >= end_pos)
 			return;
 
-		size_t const n = end_pos - at.pos;
+		size_t const n = size_t(end_pos - at.pos);
 
 		/* copy-out bytes from ROM dataspace */
 		memcpy(dst.start, data_start + at.pos, n);

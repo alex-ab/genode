@@ -213,7 +213,7 @@ struct Genode::Vfs::Directory_service : Interface
 	/**
 	 * Return number of directory entries located at given path
 	 */
-	virtual file_size num_dirent(char const *path) = 0;
+	virtual unsigned num_dirent(char const *path) = 0;
 
 	virtual bool directory(char const *path) = 0;
 

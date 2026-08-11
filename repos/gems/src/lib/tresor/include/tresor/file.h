@@ -78,7 +78,7 @@ class Tresor::File
 				_env->root_dir().close(&_handle);
 		}
 
-		void read(HOST_STATE succeeded, HOST_STATE failed, Vfs::file_offset off, Byte_range_ptr dst, bool &progress)
+		void read(HOST_STATE succeeded, HOST_STATE failed, Vfs::file_size off, Byte_range_ptr dst, bool &progress)
 		{
 			switch (_state) {
 			case IDLE:
@@ -120,7 +120,7 @@ class Tresor::File
 			}
 		}
 
-		void write(HOST_STATE succeeded, HOST_STATE failed, Vfs::file_offset off, Const_byte_range_ptr src, bool &progress)
+		void write(HOST_STATE succeeded, HOST_STATE failed, Vfs::file_size off, Const_byte_range_ptr src, bool &progress)
 		{
 			switch (_state) {
 			case IDLE:
