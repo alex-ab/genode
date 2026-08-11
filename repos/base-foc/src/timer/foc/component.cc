@@ -328,7 +328,7 @@ struct Timer::Session_component : Session_object<Timer::Session, Session_compone
 
 		Clock const now = _device.now();
 
-		abs_us = max(abs_us = _creation_time.us, now.us + 250u);
+		abs_us = max(abs_us + _creation_time.us, now.us + 250u);
 		_alarm.construct(_alarms, *this, Clock { abs_us });
 
 		_device.update_deadline(next_deadline(_alarms));
