@@ -16,9 +16,8 @@
 
 namespace Vfs_block {
 
-	using file_size   = Genode::Vfs::file_size;
-	using file_offset = Genode::Vfs::file_offset;
-	using size_t      = Genode::size_t;
+	using file_size = Genode::Vfs::file_size;
+	using size_t    = Genode::size_t;
 
 	struct Job
 	{
@@ -54,11 +53,11 @@ namespace Vfs_block {
 		Genode::Vfs::Vfs_handle &_handle;
 
 		Block::Request const request;
-		char              *data;
-		State              state;
-		file_offset const  base_offset;
-		file_offset        current_offset;
-		size_t             current_count;
+		char           *data;
+		State           state;
+		file_size const base_offset;
+		file_size       current_offset;
+		size_t          current_count;
 
 		bool success;
 		bool complete;
@@ -217,7 +216,7 @@ namespace Vfs_block {
 
 		Job(Genode::Vfs::Vfs_handle &handle,
 		    Block::Request   request,
-		    file_offset      base_offset,
+		    file_size        base_offset,
 		    char            *data,
 		    size_t           length)
 		:

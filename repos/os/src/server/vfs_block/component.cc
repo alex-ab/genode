@@ -217,7 +217,7 @@ class Vfs_block::File
 
 		void submit(Block::Request req, void *ptr, size_t length)
 		{
-			file_offset const base_offset =
+			file_size const base_offset =
 				req.operation.block_number * _block_info.block_size;
 
 			_job.construct(*_vfs_handle, req, base_offset,

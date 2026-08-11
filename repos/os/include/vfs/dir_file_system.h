@@ -148,7 +148,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 
 					Dirent &dirent = *(Dirent*)dst.start;
 
-					file_offset const index = at.pos / sizeof(Dirent);
+					file_size const index = at.pos / sizeof(Dirent);
 
 					if (index == 0) {
 

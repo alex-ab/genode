@@ -879,7 +879,7 @@ struct Vfs_server::Directory : Io_node
 
 			size_t converted_length = 0;
 
-			for (file_offset offset = 0; offset + step <= length; offset += step) {
+			for (file_size offset = 0; offset + step <= length; offset += step) {
 
 				char * const ptr = _payload_ptr.ptr + offset;
 

@@ -28,7 +28,6 @@ namespace Genode::Vfs {
 
 	enum { MAX_PATH_LEN = 512 };
 
-	using file_offset = long long;
 	using file_size = unsigned long long;
 
 	struct Timestamp { uint64_t ms_since_1970; };

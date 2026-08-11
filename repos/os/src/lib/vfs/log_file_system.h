@@ -70,8 +70,8 @@ class Vfs_log::File_system : public Single_file_system
 
 				void _flush()
 				{
-					file_offset strip = 0;
-					for (file_offset i = _line_pos - 1; i > 0; --i) {
+					file_size strip = 0;
+					for (file_size i = _line_pos - 1; i > 0; --i) {
 						switch(_line_buf[i]) {
 						case '\n':
 						case '\t':
