@@ -59,6 +59,7 @@ aio_return T
 aio_suspend T
 aio_write T
 alarm T
+aligned_alloc T
 alphasort T
 arc4random T
 arc4random_addrandom T

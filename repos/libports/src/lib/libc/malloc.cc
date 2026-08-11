@@ -272,6 +272,12 @@ extern "C" void *realloc(void *ptr, size_t size)
 }
 
 
+extern "C" void *aligned_alloc(size_t alignment, size_t size)
+{
+	return mallocator->alloc(size, alignment);
+}
+
+
 int posix_memalign(void **memptr, size_t alignment, size_t size)
 {
 	*memptr = mallocator->alloc(size, alignment);
