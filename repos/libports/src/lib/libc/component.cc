@@ -43,17 +43,6 @@ void Component::construct(Genode::Env &env)
 	static long _kernel_obj[(sizeof(Libc::Kernel) + sizeof(long))/sizeof(long)];
 	Libc::Kernel &kernel = *new (_kernel_obj) Libc::Kernel(env, heap);
 
-	/*
-	 * XXX The following two steps leave us with the dilemma that we don't know
-	 * which linked library may depend on the successfull initialization of a
-	 * plugin. For example, some high-level library may try to open a network
-	 * connection in its constructor before the network-stack library is
-	 * initialized. But, we can't initialize plugins before calling static
-	 * constructors as those are needed to know about the libc plugin. The only
-	 * solution is to remove all libc plugins beside the VFS implementation,
-	 * which is our final goal anyway.
-	 */
-
 	/* finish static construction of component and libraries */
 	Libc::with_libc([&] () { env.exec_static_constructors(); });
 
