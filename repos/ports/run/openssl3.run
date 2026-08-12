@@ -18,7 +18,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/vfs_jitterentropy \
                   [depot_user]/src/vfs_lxip \
                   [depot_user]/src/vfs_pipe \
-                  [depot_user]/src/openssl3/3.5.7-2026-07-24
+                  [depot_user]/src/openssl3/3.5.7-2026-08-10
 
 #
 # Generate config
