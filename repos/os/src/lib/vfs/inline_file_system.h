@@ -181,7 +181,7 @@ class Vfs_inline::File_system : public Single_file_system
 };
 
 
-Genode::Vfs::Read_result
+Genode::Vfs::Vfs_handle::Read_result
 Vfs_inline::File_system::Handle::read(At const at, Byte_range_ptr const &dst)
 {
 	Read_result result = 0ul; /* EOF */

@@ -34,6 +34,7 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 
 		Deferred_wakeups _deferred_wakeups { };
 
+		File_handles  _file_handles  { };
 		Watch_handles _watch_handles { };
 
 		Global_file_system_factory _fs_factory { _alloc };
@@ -82,6 +83,7 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 		Genode::Env      &env()              override { return _env; }
 		Allocator        &alloc()            override { return _alloc; }
 		File_system      &root_dir()         override { return _root_dir; }
+		File_handles     &file_handles()     override { return _file_handles; }
 		Watch_handles    &watch_handles()    override { return _watch_handles; }
 		Deferred_wakeups &deferred_wakeups() override { return _deferred_wakeups; }
 		Env::Io          &io()               override { return *this; }

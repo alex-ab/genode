@@ -74,7 +74,7 @@ namespace Vfs_block {
 			[[fallthrough]];
 			case State::IN_PROGRESS:
 			{
-				using Result = Genode::Vfs::Read_result;
+				using Result = Genode::Vfs::Vfs_handle::Read_result;
 
 				bool completed = false;
 
@@ -83,7 +83,7 @@ namespace Vfs_block {
 				Genode::Vfs::At const at { Genode::uint64_t(base_offset + current_offset) };
 
 				Result const result = _handle.read(at, dst);
-				if (result == Genode::Vfs::Read_error::RETRY)
+				if (result == Genode::Vfs::Vfs_handle::Read_error::RETRY)
 					return progress;
 
 				result.with_result(
@@ -92,7 +92,7 @@ namespace Vfs_block {
 						current_count  -= num_bytes;
 						success = true;
 					},
-					[&] (Genode::Vfs::Read_error) {
+					[&] (Genode::Vfs::Vfs_handle::Read_error) {
 						success   = false;
 						completed = true;
 					});
@@ -130,7 +130,7 @@ namespace Vfs_block {
 			[[fallthrough]];
 			case State::IN_PROGRESS:
 			{
-				using Result = Genode::Vfs::Write_result;
+				using Result = Genode::Vfs::Vfs_handle::Write_result;
 
 				bool completed = false;
 
@@ -140,7 +140,7 @@ namespace Vfs_block {
 
 				Result result = _handle.write(at, src);
 
-				if (result == Genode::Vfs::Write_error::RETRY)
+				if (result == Genode::Vfs::Vfs_handle::Write_error::RETRY)
 					return progress;
 
 				result.with_result(
@@ -149,7 +149,7 @@ namespace Vfs_block {
 						current_count  -= num_bytes;
 						success = true;
 					},
-					[&] (Genode::Vfs::Write_error) {
+					[&] (Genode::Vfs::Vfs_handle::Write_error) {
 						success = false;
 						completed = true;
 					});

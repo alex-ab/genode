@@ -211,12 +211,12 @@ struct Vfs_pipe::Pipe
 		return Open_result::OPEN_ERR_UNACCESSIBLE;
 	}
 
-	Write_result write(Pipe_handle &, Const_byte_range_ptr const &src)
+	Vfs_handle::Write_result write(Pipe_handle &, Const_byte_range_ptr const &src)
 	{
 		size_t out = 0;
 
 		if (buffer.avail_capacity() == 0)
-			return Write_error::RETRY;
+			return Vfs_handle::Write_error::RETRY;
 
 		char const *buf_ptr = src.start;
 		while (out < src.num_bytes && 0 < buffer.avail_capacity()) {
@@ -232,7 +232,7 @@ struct Vfs_pipe::Pipe
 		return out;
 	}
 
-	Read_result read(Pipe_handle &, Byte_range_ptr const &dst)
+	Vfs_handle::Read_result read(Pipe_handle &, Byte_range_ptr const &dst)
 	{
 		size_t out = 0;
 
@@ -248,7 +248,7 @@ struct Vfs_pipe::Pipe
 			if ((num_writers == 0) && !waiting_for_writers)
 				return 0; /* EOF */
 
-			return Read_error::RETRY;
+			return Vfs_handle::Read_error::RETRY;
 		}
 
 		/* new pipe space may unblock the writer */
@@ -266,14 +266,14 @@ Vfs_pipe::Pipe_handle::~Pipe_handle()
 }
 
 
-Vfs_pipe::Write_result
+Vfs_pipe::Vfs_handle::Write_result
 Vfs_pipe::Pipe_handle::write(At, Const_byte_range_ptr const &src)
 {
 	return Pipe_handle::pipe.write(*this, src);
 }
 
 
-Vfs_pipe::Read_result
+Vfs_pipe::Vfs_handle::Read_result
 Vfs_pipe::Pipe_handle::read(At, Byte_range_ptr const &dst)
 {
 	return Pipe_handle::pipe.read(*this, dst);

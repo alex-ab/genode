@@ -89,10 +89,10 @@ class Vfs_import::File_system : public Vfs::File_system
 
 				Const_byte_range_ptr const src { target.string(), target.length() };
 
-				Write_result write_result = Write_error::DENIED;
+				Vfs_handle::Write_result write_result = Vfs_handle::Write_error::DENIED;
 				for (;;) {
 					write_result = dst_handle->write({ }, src);
-					if (write_result != Write_error::RETRY)
+					if (write_result != Vfs_handle::Write_error::RETRY)
 						break;
 					env.io().commit_and_wait();
 				}
@@ -104,7 +104,7 @@ class Vfs_import::File_system : public Vfs::File_system
 							env.root_dir().unlink(path.string());
 						}
 					},
-					[&] (Write_error) {
+					[&] (Vfs_handle::Write_error) {
 						error("failed to import symlink ", path, " (denied)");
 					});
 			}
@@ -167,13 +167,13 @@ class Vfs_import::File_system : public Vfs::File_system
 							src_ptr         += num_bytes;
 							at.pos          += num_bytes;
 						},
-						[&] (Write_error e) {
+						[&] (Vfs_handle::Write_error e) {
 							switch (e) {
-							case Write_error::RETRY:
+							case Vfs_handle::Write_error::RETRY:
 								env.io().commit_and_wait();
 								break;
 
-							case Write_error::DENIED:
+							case Vfs_handle::Write_error::DENIED:
 								env.root_dir().unlink(path.string());
 								write_error = true;
 								break;

@@ -140,6 +140,27 @@ class Genode::Vfs::Vfs_handle
 		 ** File I/O **
 		 **************/
 
+		/*
+		 * Result types excluding OUT_OF_RAM and OUT_OF_CAPS
+		 *
+		 * The allocation errors OUT_OF_RAM and OUT_OF_CAPS are only
+		 * expected at channel-creation time.
+		 */
+
+		enum class Write_error { RETRY, DENIED };
+
+		using Write_result = Attempt<size_t, Write_error>;
+
+		enum class Read_error { RETRY, DENIED };
+
+		using Read_result = Attempt<size_t, Read_error>;
+
+		enum class Write_mtime_result { OK, RETRY, DENIED };
+
+		enum Ftruncate_result { FTRUNCATE_ERR_NO_PERM,  FTRUNCATE_ERR_INTERRUPT,
+		                        FTRUNCATE_ERR_NO_SPACE, FTRUNCATE_OK };
+
+
 		virtual Write_result write(At, Const_byte_range_ptr const &)
 		{
 			return Write_error::DENIED;

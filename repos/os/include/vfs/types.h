@@ -108,18 +108,23 @@ namespace Genode::Vfs {
 
 	struct File_system_factory;
 
-	enum class Write_error { RETRY, DENIED };
+	enum class Write_error { RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
 
 	using Write_result = Attempt<size_t, Write_error>;
 
-	enum class Read_error { RETRY, DENIED };
+	enum class Read_error { RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
 
 	using Read_result = Attempt<size_t, Read_error>;
 
-	enum Ftruncate_result { FTRUNCATE_ERR_NO_PERM,  FTRUNCATE_ERR_INTERRUPT,
-	                        FTRUNCATE_ERR_NO_SPACE, FTRUNCATE_OK };
+	enum class Resize_result { OK, RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
 
 	enum class Sync_result { OK, RETRY };
+
+	enum class Write_mtime_result { OK,  RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
+
+	enum class Read_ready_result  { YES, RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
+
+	enum class Write_ready_result { YES, RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
 }
 
 #endif /* _INCLUDE__VFS__TYPES_H_ */

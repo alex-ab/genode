@@ -95,8 +95,8 @@ class Tresor::File
 					                          dst.num_bytes - _num_processed_bytes };
 					Vfs::At const at { .pos = off + _num_processed_bytes };
 
-					Vfs::Read_result result = _handle.read(at, curr_dst);
-					if (result == Vfs::Read_error::RETRY)
+					Vfs::Vfs_handle::Read_result result = _handle.read(at, curr_dst);
+					if (result == Vfs::Vfs_handle::Read_error::RETRY)
 						break;
 
 					progress = true;
@@ -109,7 +109,7 @@ class Tresor::File
 								_state      = IDLE;
 							}
 						},
-						[&] (Vfs::Read_error) {
+						[&] (Vfs::Vfs_handle::Read_error) {
 							error("file: read failed");
 							_host_state = failed;
 							_state      = IDLE;
@@ -148,8 +148,8 @@ class Tresor::File
 						_host_state = succeeded;
 						progress = true;
 					},
-					[&] (Vfs::Write_error e) {
-						if (e == Vfs::Write_error::RETRY)
+					[&] (Vfs::Vfs_handle::Write_error e) {
+						if (e == Vfs::Vfs_handle::Write_error::RETRY)
 							return;
 
 						error("file: write failed");

@@ -452,19 +452,19 @@ struct Vfs_oss::Audio
 			return false;
 		}
 
-		Read_result read(Byte_range_ptr const &dst)
+		Vfs_handle::Read_result read(Byte_range_ptr const &dst)
 		{
 			_start_input();
 
 			if (_info.ifrag_bytes == 0)
-				return Read_error::RETRY; /* block */
+				return Vfs_handle::Read_error::RETRY; /* block */
 
 			size_t const buf_size = min(dst.num_bytes, _info.ifrag_bytes);
 
 			unsigned samples_to_read = buf_size / CHANNELS / sizeof(int16_t);
 
 			if (samples_to_read == 0)
-				return Read_error::DENIED; /* invalid argument */
+				return Vfs_handle::Read_error::DENIED; /* invalid argument */
 
 			Audio_in::Stream *stream = _in->stream();
 
@@ -514,14 +514,14 @@ struct Vfs_oss::Audio
 			return out_size;
 		}
 
-		Write_result write(Const_byte_range_ptr const &src)
+		Vfs_handle::Write_result write(Const_byte_range_ptr const &src)
 		{
 			using namespace Genode;
 
 			size_t out_size = 0;
 
 			if (_info.ofrag_bytes == 0)
-				return Write_error::RETRY;
+				return Vfs_handle::Write_error::RETRY;
 
 			bool block_write = false;
 
@@ -535,7 +535,7 @@ struct Vfs_oss::Audio
 			unsigned stream_samples_to_write = buf_size / CHANNELS / sizeof(int16_t);
 
 			if (stream_samples_to_write == 0)
-				return Write_error::DENIED;
+				return Vfs_handle::Write_error::DENIED;
 
 			_start_output();
 
@@ -608,7 +608,7 @@ struct Vfs_oss::Audio
 						update_info_ofrag_avail_from_optr_fifo_samples();
 
 						if (block_write)
-							return Write_error::RETRY;
+							return Vfs_handle::Write_error::RETRY;
 
 						return out_size;
 					}
@@ -655,7 +655,7 @@ class Vfs_oss::Data_file_system : public Single_file_system
 					return 0;
 
 				Read_result result = _audio.read(dst);
-				if (result == Read_error::RETRY)
+				if (result == Vfs_handle::Read_error::RETRY)
 					blocked = true;
 
 				return result;
@@ -665,7 +665,7 @@ class Vfs_oss::Data_file_system : public Single_file_system
 			{
 				Write_result const result = _audio.write(src);
 
-				if (result == Write_error::RETRY) {
+				if (result == Vfs_handle::Write_error::RETRY) {
 					blocked = true;
 					return result;
 				}

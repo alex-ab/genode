@@ -89,23 +89,23 @@ inline void assert_opendir(Vfs::Directory_service::Opendir_result r)
 	throw Exception();
 }
 
-inline void assert_write(Vfs::Write_result r)
+inline void assert_write(Vfs::Vfs_handle::Write_result r)
 {
-	r.with_error([&] (Vfs::Write_error e) {
+	r.with_error([&] (Vfs::Vfs_handle::Write_error e) {
 		switch (e) {
-		case Vfs::Write_error::RETRY:  error("Vfs::Write_error::RETRY");  break;
-		case Vfs::Write_error::DENIED: error("Vfs::Write_error::DENIED"); break;
+		case Vfs::Vfs_handle::Write_error::RETRY:  error("Vfs::Write_error::RETRY");  break;
+		case Vfs::Vfs_handle::Write_error::DENIED: error("Vfs::Write_error::DENIED"); break;
 		}
 		throw Exception();
 	});
 }
 
-inline void assert_read(Vfs::Read_result r)
+inline void assert_read(Vfs::Vfs_handle::Read_result r)
 {
-	r.with_error([&] (Vfs::Read_error e) {
+	r.with_error([&] (Vfs::Vfs_handle::Read_error e) {
 		switch (e) {
-		case Vfs::Read_error::RETRY:  error("Read_error::RETRY");  break;
-		case Vfs::Read_error::DENIED: error("Read_error::DENIED"); break;
+		case Vfs::Vfs_handle::Read_error::RETRY:  error("Read_error::RETRY");  break;
+		case Vfs::Vfs_handle::Read_error::DENIED: error("Read_error::DENIED"); break;
 		}
 		throw Exception();
 	});
@@ -279,14 +279,14 @@ struct Write_test : public Stress_test
 				path.base(), Directory_service::OPEN_MODE_WRONLY, &handle, alloc));
 			Vfs_handle::Guard guard(handle);
 
-			Write_result r = handle->write({ }, Const_byte_range_ptr(path.base(), path_len));
+			Vfs_handle::Write_result r = handle->write({ }, Const_byte_range_ptr(path.base(), path_len));
 			assert_write(r);
 
 			while (handle->sync() == Vfs::Sync_result::RETRY)
 				_io.commit_and_wait();
 
-			count += r.convert<size_t>([&] (size_t n)    { return n; },
-			                           [&] (Write_error) { return 0ul; });
+			count += r.convert<size_t>([&] (size_t n)                { return n; },
+			                           [&] (Vfs_handle::Write_error) { return 0ul; });
 		}
 
 		switch (dir_type) {
@@ -356,13 +356,13 @@ struct Read_test : public Stress_test
 
 			char tmp[MAX_PATH_LEN];
 
-			Vfs::Read_result read_result = Vfs::Read_error::DENIED;
+			Vfs::Vfs_handle::Read_result read_result = Vfs::Vfs_handle::Read_error::DENIED;
 
 			Byte_range_ptr const dst { tmp, sizeof(tmp) };
 
 			for (;;) {
 				read_result = handle->read({ }, dst);
-				if (read_result != Vfs::Read_error::RETRY)
+				if (read_result != Vfs::Vfs_handle::Read_error::RETRY)
 					break;
 				_io.commit_and_wait();
 			}
@@ -375,10 +375,10 @@ struct Read_test : public Stress_test
 						error("read returned bad data");
 					count += n;
 				},
-				[&] (Vfs::Read_error e) {
+				[&] (Vfs::Vfs_handle::Read_error e) {
 					switch (e) {
-					case Vfs::Read_error::RETRY:  error("Read_error::RETRY");  break;
-					case Vfs::Read_error::DENIED: error("Read_error::DENIED"); break;
+					case Vfs::Vfs_handle::Read_error::RETRY:  error("Read_error::RETRY");  break;
+					case Vfs::Vfs_handle::Read_error::DENIED: error("Read_error::DENIED"); break;
 					}
 					throw Exception();
 				});
@@ -448,11 +448,11 @@ struct Unlink_test : public Stress_test
 			Byte_range_ptr const dst { (char*)&dirent, sizeof(dirent) };
 			Vfs::At        const at  { i*sizeof(dirent) };
 
-			Vfs::Read_result result = Vfs::Read_error::DENIED;
+			Vfs::Vfs_handle::Read_result result = Vfs::Vfs_handle::Read_error::DENIED;
 
 			for (;;) {
 				result = dir_handle->read(at, dst);
-				if (result != Vfs::Read_error::RETRY)
+				if (result != Vfs::Vfs_handle::Read_error::RETRY)
 					break;
 				_io.commit_and_wait();
 			}

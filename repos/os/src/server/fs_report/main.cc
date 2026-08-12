@@ -157,9 +157,9 @@ class Fs_report::Session_component : public Genode::Rpc_object<Report::Session>
 							offset += num_bytes;
 							return true;
 						},
-						[&] (Vfs::Write_error e)
+						[&] (Vfs::Vfs_handle::Write_error e)
 						{
-							if (e == Vfs::Write_error::RETRY) {
+							if (e == Vfs::Vfs_handle::Write_error::RETRY) {
 								_io.commit_and_wait();
 								return true;
 							}

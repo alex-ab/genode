@@ -835,12 +835,12 @@ struct Vfs_oss::Audio : Noncopyable
 			return result;
 		}
 
-		Read_result read(Byte_range_ptr const &dst)
+		Vfs_handle::Read_result read(Byte_range_ptr const &dst)
 		{
 			if (!_config.record_enabled)
-				return Read_error::DENIED;
+				return Vfs_handle::Read_error::DENIED;
 
-			Read_result result = Read_error::DENIED;
+			Vfs_handle::Read_result result = Vfs_handle::Read_error::DENIED;
 			_with_input([&] (Stereo_input &input) {
 
 				/* get the ball rolling on first read */
@@ -854,7 +854,7 @@ struct Vfs_oss::Audio : Noncopyable
 
 				unsigned const avail = input.bytes_avail();
 				if (avail < _info.ifrag_size) {
-					result = Read_error::RETRY;
+					result = Vfs_handle::Read_error::RETRY;
 					return;
 				}
 
@@ -946,25 +946,25 @@ struct Vfs_oss::Audio : Noncopyable
 			return result;
 		}
 
-		Write_result write(Const_byte_range_ptr const &src)
+		Vfs_handle::Write_result write(Const_byte_range_ptr const &src)
 		{
 			auto sample_count = [&] (Const_byte_range_ptr const &range) {
 				return (unsigned)range.num_bytes / _frame_size; };
 
 			unsigned const samples = sample_count(src);
 
-			Write_result result = Write_error::DENIED;
+			Vfs_handle::Write_result result = Vfs_handle::Write_error::DENIED;
 
 			_with_stereo_output([&] (Stereo_output &output) {
 
 				/* treat a full buffer and enough buffered in the same way */
 				if (!output.space_avail(samples)) {
-					result = Write_error::RETRY;
+					result = Vfs_handle::Write_error::RETRY;
 					return;
 				}
 
 				if (output.samples_avail(_config.frags_queued * output.samples_per_channel())) {
-					result = Write_error::RETRY;
+					result = Vfs_handle::Write_error::RETRY;
 					return;
 				}
 

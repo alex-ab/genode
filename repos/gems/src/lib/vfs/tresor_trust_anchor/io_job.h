@@ -101,9 +101,9 @@ namespace Util {
 					Byte_range_ptr const dst { _data + _current_offset, _current_count };
 					Vfs::At const at { .pos = _base_offset + _current_offset };
 
-					Vfs::Read_result const result = _handle.read(at, dst);
+					Vfs::Vfs_handle::Read_result const result = _handle.read(at, dst);
 
-					if (result == Vfs::Read_error::RETRY)
+					if (result == Vfs::Vfs_handle::Read_error::RETRY)
 						return progress;
 
 					result.with_result(
@@ -114,7 +114,7 @@ namespace Util {
 							if (_current_count == 0 || (num_bytes == 0 && _allow_partial))
 								_state = State::COMPLETE;
 						},
-						[&] (Vfs::Read_error) {
+						[&] (Vfs::Vfs_handle::Read_error) {
 							_success = false;
 						});
 				}
@@ -145,8 +145,8 @@ namespace Util {
 				Const_byte_range_ptr const src { _data + _current_offset, _current_count };
 				Vfs::At const at { .pos = _base_offset + _current_offset };
 
-				Vfs::Write_result result = _handle.write(at, src);
-				if (result == Vfs::Write_error::RETRY) {
+				Vfs::Vfs_handle::Write_result result = _handle.write(at, src);
+				if (result == Vfs::Vfs_handle::Write_error::RETRY) {
 					if (_allow_partial) {
 						_state = State::COMPLETE;
 						return true;
@@ -163,7 +163,7 @@ namespace Util {
 						       ? State::COMPLETE
 						       : State::PENDING; /* partial write, keep trying */
 					},
-					[&] (Vfs::Write_error) {
+					[&] (Vfs::Vfs_handle::Write_error) {
 						_success = false;
 						_state = State::COMPLETE;
 					});

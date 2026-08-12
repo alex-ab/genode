@@ -67,17 +67,6 @@ namespace File_system {
 		}
 	}
 
-	static inline void assert_truncate(Ftruncate_result r)
-	{
-		using Result = Ftruncate_result;
-		switch (r) {
-		case Result::FTRUNCATE_ERR_INTERRUPT: throw Invalid_handle();
-		case Result::FTRUNCATE_ERR_NO_SPACE:  throw No_space();
-		case Result::FTRUNCATE_ERR_NO_PERM:   throw Permission_denied();
-		case Result::FTRUNCATE_OK: break;
-		}
-	}
-
 	static inline void assert_unlink(Directory_service::Unlink_result r)
 	{
 		using Result = Directory_service::Unlink_result;

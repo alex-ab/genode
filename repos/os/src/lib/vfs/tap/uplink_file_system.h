@@ -168,7 +168,7 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 			return out_count;
 		}
 
-		using Write_result = Vfs::Write_result;
+		using Write_result = Vfs::Vfs_handle::Write_result;
 
 		Write_result write(At, Const_byte_range_ptr const &src) override
 		{

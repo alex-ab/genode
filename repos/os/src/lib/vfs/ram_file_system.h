@@ -153,6 +153,9 @@ class Vfs_ram::Node : private Avl_node<Node>
 			         .executable = true };
 		}
 
+		using Read_result = Vfs_handle::Read_result;
+		using Read_error  = Vfs_handle::Read_error;
+
 		virtual Read_result read(Byte_range_ptr const &, Seek)
 		{
 			error("Vfs_ram::Node::read() called");
@@ -890,7 +893,7 @@ class Vfs_ram::File_system : public Vfs::File_system
 };
 
 
-Vfs_ram::Write_result Vfs_ram::Io_handle::write(At at, Const_byte_range_ptr const &buf)
+Vfs_ram::Vfs_handle::Write_result Vfs_ram::Io_handle::write(At at, Const_byte_range_ptr const &buf)
 {
 	if (!writeable())
 		return Write_error::DENIED;
@@ -900,13 +903,13 @@ Vfs_ram::Write_result Vfs_ram::Io_handle::write(At at, Const_byte_range_ptr cons
 }
 
 
-Vfs_ram::Read_result Vfs_ram::Io_handle::read(At at, Byte_range_ptr const &dst)
+Vfs_ram::Vfs_handle::Read_result Vfs_ram::Io_handle::read(At at, Byte_range_ptr const &dst)
 {
 	return node.read(dst,  Seek { size_t(at.pos) });
 }
 
 
-Vfs_ram::Ftruncate_result Vfs_ram::Io_handle::ftruncate(file_size len)
+Vfs_ram::Vfs_handle::Ftruncate_result Vfs_ram::Io_handle::ftruncate(file_size len)
 {
 	if (!writeable())
 		return FTRUNCATE_ERR_NO_PERM;

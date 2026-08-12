@@ -50,6 +50,7 @@ namespace Vfs_server {
 
 	using Out_of_memory = Allocator::Out_of_memory;
 	using Watch_handle = File_system::Watch_handle;
+	using File_handle  = File_system::File_handle;
 
 	struct Payload_ptr { char *ptr; };
 
@@ -363,8 +364,8 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 				[&] (size_t num_bytes) {
 					_acknowledge_as_success(num_bytes);
 				},
-				[&] (Read_error e) {
-					if (e != Read_error::RETRY)
+				[&] (Vfs_handle::Read_error e) {
+					if (e != Vfs_handle::Read_error::RETRY)
 						_acknowledge_as_failure();
 				});
 		}
@@ -381,10 +382,10 @@ class Vfs_server::Io_node : public Vfs_server::Node_base,
 				[&] (size_t num_bytes) {
 					out_count = num_bytes;
 				},
-				[&] (Write_error e) {
+				[&] (Vfs_handle::Write_error e) {
 					switch (e) {
-					case Write_error::RETRY:  break;
-					case Write_error::DENIED: _acknowledge_as_failure(); break;
+					case Vfs_handle::Write_error::RETRY:  break;
+					case Vfs_handle::Write_error::DENIED: _acknowledge_as_failure(); break;
 					}
 				});
 
@@ -727,7 +728,7 @@ class Vfs_server::File : public Io_node
 
 		void truncate(file_size_t size)
 		{
-			assert_truncate(_handle.ftruncate(size));
+			(void)_handle.ftruncate(size);
 		}
 
 		Submit_result submit_job(Packet_descriptor packet, Payload_ptr payload_ptr) override

@@ -125,22 +125,6 @@ static inline void print(Genode::Output &output, Vfs::Directory_service::Rename_
 #undef CASE_PRINT
 }
 
-
-static inline void print(Genode::Output &output, Vfs::Ftruncate_result const &r)
-{
-#define CASE_PRINT(x) \
-	case Vfs::Ftruncate_result::x: output.out_string(#x); break
-
-	switch (r) {
-		CASE_PRINT(FTRUNCATE_OK);
-		CASE_PRINT(FTRUNCATE_ERR_NO_PERM);
-		CASE_PRINT(FTRUNCATE_ERR_INTERRUPT);
-		CASE_PRINT(FTRUNCATE_ERR_NO_SPACE);
-	}
-
-#undef CASE_PRINT
-}
-
 }
 
 #endif /* _INCLUDE__VFS__PRINT_H_ */

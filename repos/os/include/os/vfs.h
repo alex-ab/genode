@@ -20,6 +20,7 @@
 #include <vfs/simple_env.h>
 #include <vfs/dir_file_system.h>
 #include <vfs/file_system_factory.h>
+#include <vfs/file_handle.h>
 
 namespace Genode {
 	struct Directory;
@@ -154,14 +155,14 @@ struct Genode::Directory : Noncopyable, Interface
 		{
 			Entry entry;
 
-			Vfs::Read_result read_result = 0;
+			Vfs::Vfs_handle::Read_result read_result = 0;
 			for (;;) {
 				Byte_range_ptr const dst { (char*)&entry._dirent,
 				                            sizeof(entry._dirent) };
 				Vfs::At const at { .pos = i*sizeof(entry._dirent) };
 
 				read_result = _handle->read(at, dst);
-				if (read_result != Vfs::Read_error::RETRY)
+				if (read_result != Vfs::Vfs_handle::Read_error::RETRY)
 					break;
 
 				_io.commit_and_wait();
@@ -175,7 +176,7 @@ struct Genode::Directory : Noncopyable, Interface
 					return (num_bytes == sizeof(entry._dirent))
 					    && (entry._dirent.type != Vfs::Directory_service::Dirent_type::END);
 				},
-				[&] (Vfs::Read_error) { return false; });
+				[&] (Vfs::Vfs_handle::Read_error) { return false; });
 
 			if (ok)
 				return fn(static_cast<Entry const &>(entry));
@@ -322,10 +323,10 @@ struct Genode::Directory : Noncopyable, Interface
 
 			char buf[MAX_PATH_LEN];
 
-			Read_result result = Vfs::Read_error::DENIED;
+			Vfs_handle::Read_result result = Vfs_handle::Read_error::DENIED;
 			for (;;) {
 				result = link_handle->read({ }, Byte_range_ptr(buf, sizeof(buf) - 1));
-				if (result != Vfs::Read_error::RETRY)
+				if (result != Vfs_handle::Read_error::RETRY)
 					break;
 
 				_io.commit_and_wait();
@@ -333,7 +334,7 @@ struct Genode::Directory : Noncopyable, Interface
 
 			return result.convert<Path>(
 				[&] (size_t num_bytes) { return Path(Genode::Cstring(buf, num_bytes)); },
-				[&] (Vfs::Read_error) -> Path  { throw Nonexistent_file(); });
+				[&] (Vfs_handle::Read_error) -> Path  { throw Nonexistent_file(); });
 		}
 
 		/**
@@ -365,11 +366,11 @@ struct Genode::Directory : Noncopyable, Interface
 
 			Const_byte_range_ptr const src { target.string(), target.length() };
 
-			Write_result write_result = Write_error::DENIED;
+			Vfs_handle::Write_result write_result = Vfs_handle::Write_error::DENIED;
 
 			for (;;) {
 				write_result = link_handle->write({ }, src);
-				if (write_result != Write_error::RETRY)
+				if (write_result != Vfs_handle::Write_error::RETRY)
 					break;
 				_io.commit_and_wait();
 			}
@@ -379,7 +380,7 @@ struct Genode::Directory : Noncopyable, Interface
 					warning("failed to write complete symlink");
 					unlink(rel_path);
 				}
-			}, [&] (Write_error) { });
+			}, [&] (Vfs_handle::Write_error) { });
 
 			/* sync before the handle gets closed */
 			while (link_handle->sync() == Sync_result::RETRY)
@@ -529,7 +530,7 @@ class Genode::Readonly_file : public File
 			size_t total = 0;
 			for (;;) {
 
-				Vfs::Read_result result = Vfs::Read_error::DENIED;
+				Vfs::Vfs_handle::Read_result result = Vfs::Vfs_handle::Read_error::DENIED;
 				for (;;) {
 
 					Byte_range_ptr const partial_range { range.start     + total,
@@ -537,7 +538,7 @@ class Genode::Readonly_file : public File
 					Vfs::At const partial_at { .pos = at.pos + total };
 
 					result = _handle->read(partial_at, partial_range);
-					if (result != Vfs::Read_error::RETRY)
+					if (result != Vfs::Vfs_handle::Read_error::RETRY)
 						break;
 
 					_io.commit_and_wait();
@@ -545,8 +546,8 @@ class Genode::Readonly_file : public File
 
 				/* byte count for this iteration */
 				size_t const read_bytes = result.convert<size_t>(
-					[&] (size_t n)        { return n; },
-					[&] (Vfs::Read_error) { return 0ul; });
+					[&] (size_t n)                    { return n; },
+					[&] (Vfs::Vfs_handle::Read_error) { return 0ul; });
 
 				if (read_bytes > range.num_bytes - total) {
 					error("read beyond buffer size");
@@ -831,10 +832,10 @@ class Genode::Writeable_file : Noncopyable
 
 				Const_byte_range_ptr const partial_src { src_ptr, remaining_bytes };
 
-				Vfs::Write_result result = Vfs::Write_error::DENIED;
+				Vfs::Vfs_handle::Write_result result = Vfs::Vfs_handle::Write_error::DENIED;
 				for (;;) {
 					result = handle.write(at, partial_src);
-					if (result != Vfs::Write_error::RETRY)
+					if (result != Vfs::Vfs_handle::Write_error::RETRY)
 						break;
 					io.commit_and_wait();
 				}
@@ -846,7 +847,7 @@ class Genode::Writeable_file : Noncopyable
 						src_ptr         += num_bytes;
 						at.pos          += num_bytes;
 					},
-					[&] (Vfs::Write_error) {
+					[&] (Vfs::Vfs_handle::Write_error) {
 						write_error = true;
 					});
 			}

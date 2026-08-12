@@ -536,17 +536,17 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 
 	Open_file &of = *fd.open_file_ptr;
 
-	Vfs::Write_result result = 0;
+	Vfs::Vfs_handle::Vfs_handle::Write_result result = 0;
 
 	if (fd.flags & O_NONBLOCK) {
 		_monitor.monitor([&] {
 			Const_byte_range_ptr const src { (char const *)buf, count };
 			result = of.handle.write({ .pos = of.pos }, src);
 			result.with_result([&] (size_t n) { of.pos += n; },
-			                   [&] (Vfs::Write_error) { });
+			                   [&] (Vfs::Vfs_handle::Write_error) { });
 			return Fn::COMPLETE;
 		});
-		if (result == Vfs::Write_error::RETRY)
+		if (result == Vfs::Vfs_handle::Write_error::RETRY)
 			return Errno(EWOULDBLOCK);
 	} else {
 		size_t   total_written_bytes = 0;
@@ -573,9 +573,9 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 				Span const src { (char const *)buf + offset, remaining_bytes };
 				Vfs::At const at { .pos = of.pos };
 
-				Vfs::Write_result partial_result = of.handle.write(at, src);
+				Vfs::Vfs_handle::Write_result partial_result = of.handle.write(at, src);
 
-				if (partial_result == Vfs::Write_error::RETRY)
+				if (partial_result == Vfs::Vfs_handle::Write_error::RETRY)
 					return Fn::INCOMPLETE;
 
 				partial_result.with_result(
@@ -589,7 +589,7 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 
 						result = total_written_bytes;
 					},
-					[&] (Vfs::Write_error e) {
+					[&] (Vfs::Vfs_handle::Write_error e) {
 						result = e;
 					});
 
@@ -611,7 +611,7 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 
 				if (!continuous_file) {
 					warning("partial write on transactional file");
-					result = Vfs::Write_error::DENIED;
+					result = Vfs::Vfs_handle::Write_error::DENIED;
 					return Fn::COMPLETE;
 				}
 				iteration++;
@@ -620,14 +620,14 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 	}
 
 	return result.convert<ssize_t>(
-		[&] (size_t num_bytes)   -> ssize_t { return num_bytes; },
-		[&] (Vfs::Write_error e) -> ssize_t { return Errno(EINVAL); });
+		[&] (size_t num_bytes)               -> ssize_t { return num_bytes; },
+		[&] (Vfs::Vfs_handle::Write_error e) -> ssize_t { return Errno(EINVAL); });
 }
 
 
 ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 {
-	using Result = Vfs::Read_result;
+	using Result = Vfs::Vfs_handle::Read_result;
 
 	if (!fd.open_file_ptr)
 		return Errno { EBADF };
@@ -655,7 +655,7 @@ ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 		Byte_range_ptr const dst { (char *)buf, count };
 
 		Result result = of.handle.read({ .pos = of.pos }, dst);
-		if (result == Vfs::Read_error::RETRY) {
+		if (result == Vfs::Vfs_handle::Read_error::RETRY) {
 			queued = true;
 			return Fn::INCOMPLETE; /* keep blocking */
 		}
@@ -667,7 +667,7 @@ ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 				of.pos += num_bytes;
 				out_count = num_bytes;
 			},
-			[&] (Vfs::Read_error) { result_errno = EINVAL; });
+			[&] (Vfs::Vfs_handle::Read_error) { result_errno = EINVAL; });
 
 		return Fn::COMPLETE; /* success or error out */
 	});
@@ -686,23 +686,23 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 		return -1;
 	}
 
-	using Result = Vfs::Read_result;
+	using Result = Vfs::Vfs_handle::Read_result;
 	using Dirent = Vfs::Directory_service::Dirent;
 
 	Dirent dirent_out;
-	Result result = Vfs::Read_error::DENIED;
+	Result result = Vfs::Vfs_handle::Read_error::DENIED;
 
 	_monitor.monitor([&] {
 
 		Byte_range_ptr const dst { (char *)&dirent_out, sizeof(Dirent) };
 		result = od.handle.read({ .pos = od.pos }, dst);
 
-		return result == Vfs::Read_error::RETRY ? Fn::INCOMPLETE : Fn::COMPLETE;
+		return result == Vfs::Vfs_handle::Read_error::RETRY ? Fn::INCOMPLETE : Fn::COMPLETE;
 	});
 
 	bool const ok = result.convert<bool>(
 		[&] (size_t num_bytes) { return num_bytes >= sizeof(Dirent); },
-		[&] (Vfs::Read_error) { return false; });
+		[&] (Vfs::Vfs_handle::Read_error) { return false; });
 
 	using Dirent_type = Vfs::Directory_service::Dirent_type;
 
@@ -1722,7 +1722,7 @@ int Libc::Fs::ftruncate(Open_file &of, off_t length)
 			of.modified = false;
 		}
 
-		using Result = Vfs::Ftruncate_result;
+		using Result = Vfs::Vfs_handle::Ftruncate_result;
 
 		switch (of.handle.ftruncate(length)) {
 		case Result::FTRUNCATE_ERR_NO_PERM:   result_errno = EPERM;  break;
@@ -1804,7 +1804,7 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 	/* must be done outside the monitor because constructor needs libc I/O */
 	sync.construct(handle, Sync::Attr { .update_mtime = _config.update_mtime }, _now);
 	{
-		Vfs::Write_result write_result = Vfs::Write_error::DENIED;
+		Vfs::Vfs_handle::Write_result write_result = Vfs::Vfs_handle::Write_error::DENIED;
 
 		enum class Stage { WRITE, SYNC } stage = Stage::WRITE;
 
@@ -1815,7 +1815,7 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 			case Stage::WRITE:
 				{
 					write_result = handle.write({ }, { target_path, count });
-					if (write_result == Vfs::Write_error::RETRY)
+					if (write_result == Vfs::Vfs_handle::Write_error::RETRY)
 						return Fn::INCOMPLETE;
 				}
 				stage = Stage::SYNC;
@@ -1834,7 +1834,7 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 
 		bool const name_too_long = write_result.convert<bool>(
 			[&] (size_t num_bytes) { return (num_bytes != count); },
-			[&] (Vfs::Write_error) { return true; });
+			[&] (Vfs::Vfs_handle::Write_error) { return true; });
 
 		if (name_too_long)
 			return Errno(ENAMETOOLONG);
@@ -1890,8 +1890,8 @@ ssize_t Libc::Fs::readlink(const char *link_path, char *buf, ::size_t buf_size)
 			{
 				Byte_range_ptr const dst { buf, buf_size };
 
-				Vfs::Read_result const result = handle_ptr->read({ }, dst);
-				if (result == Vfs::Read_error::RETRY)
+				Vfs::Vfs_handle::Read_result const result = handle_ptr->read({ }, dst);
+				if (result == Vfs::Vfs_handle::Read_error::RETRY)
 					return Fn::INCOMPLETE;
 
 				handle_ptr->close();
@@ -1901,7 +1901,7 @@ ssize_t Libc::Fs::readlink(const char *link_path, char *buf, ::size_t buf_size)
 						out_count = num_bytes;
 						succeeded = true;
 					},
-					[&] (Vfs::Read_error) {
+					[&] (Vfs::Vfs_handle::Read_error) {
 						result_errno = EINVAL; });
 			}
 			break;
@@ -2225,7 +2225,7 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 	using Aio_job    = Libc::File_descriptor::Aio_job;
 	using Aio_handle = Libc::File_descriptor::Aio_handle;
 	using Open_file  = Libc::Open_file;
-	using Result     = Genode::Vfs::Read_result;
+	using Result     = Genode::Vfs::Vfs_handle::Read_result;
 
 	bool progress = false;
 
@@ -2254,7 +2254,7 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 				Genode::Vfs::At const at { .pos = uint64_t(aio_job.iocb->aio_offset) };
 
 				Result const result = of.handle.read(at, dst);
-				if (result == Genode::Vfs::Read_error::RETRY)
+				if (result == Genode::Vfs::Vfs_handle::Read_error::RETRY)
 					break;
 
 				result.with_result(
@@ -2262,7 +2262,7 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 						aio_job.result = num_bytes;
 						aio_job.error  = 0;
 					},
-					[&] (Genode::Vfs::Read_error) {
+					[&] (Genode::Vfs::Vfs_handle::Read_error) {
 						aio_job.result = -1;
 						aio_job.error  = EINVAL;
 					});
@@ -2336,15 +2336,15 @@ static bool _handle_aio_write(Libc::File_descriptor          &fd,
 
 						progress = true;
 					},
-					[&] (Vfs::Write_error e) {
+					[&] (Vfs::Vfs_handle::Write_error e) {
 						switch (e) {
-						case Vfs::Write_error::DENIED:
+						case Vfs::Vfs_handle::Write_error::DENIED:
 							aio_job.result = -1;
 							aio_job.error  = EINVAL;
 							aio_handle.state = Aio_handle::State::COMPLETE;
 							progress = true;
 							break;
-						case Vfs::Write_error::RETRY: break;
+							case Vfs::Vfs_handle::Write_error::RETRY: break;
 						}
 					});
 				break;
