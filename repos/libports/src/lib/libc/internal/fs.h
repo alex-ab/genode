@@ -37,7 +37,7 @@ namespace Libc {
 
 	struct Open_file : Noncopyable
 	{
-		Vfs::Vfs_handle &handle;
+		Vfs::File_handle handle;
 
 		uint64_t pos = 0;       /* read/write position */
 
@@ -45,7 +45,14 @@ namespace Libc {
 		bool blocking = false;  /* read is blocking */
 		bool closing  = false;
 
-		Open_file(Vfs::Vfs_handle &handle) : handle(handle) { }
+		Open_file(Vfs::Env &env,
+		          Vfs::Read_ready_response_handler &response_handler,
+		          Vfs::File_handle::Attr const &attr)
+		:
+			handle(env.file_handles(), env.root_dir(), env.alloc(), attr)
+		{
+			handle.response_handler_ptr = &response_handler;
+		}
 	};
 
 	struct Open_dir : Noncopyable
@@ -74,6 +81,7 @@ struct Libc::Fs
 	Config                     const &_config;
 	Current_real_time                &_now;
 	Genode::Allocator                &_kernel_heap;
+	Vfs::Env                         &_vfs_env;
 	Vfs::File_system                 &_vfs;
 	Directory                        &_root_dir;
 
@@ -99,8 +107,10 @@ struct Libc::Fs
 	using Open_file_result = Unique_attempt<Open_file &, Errno>;
 	using Open_dir_result  = Unique_attempt<Open_dir  &, Errno>;
 
-	Open_file_result open_file  (const char *path, int flags);
-	Open_file_result create_file(const char *path, int flags);
+	using Open_file_attr = Vfs::File_handle::Attr;
+
+	Open_file_result open_file  (Open_file_attr const &);
+	Open_file_result create_file(Open_file_attr const &);
 	Open_dir_result  open_dir   (const char *path, int flags);
 
 	void destroy(Open_file &);
@@ -125,7 +135,7 @@ struct Libc::Fs
 	int ioctl(File_descriptor &, unsigned long request, char *argp);
 
 	/* kernel-specific API without monitor */
-	Open_file_result open_file_from_kernel(const char *, int);
+	Open_file_result open_file_from_kernel(Open_file_attr const &);
 	int stat_from_kernel(char const *, struct stat &);
 	void lseek_from_kernel(File_descriptor &, off_t offset);
 };

@@ -125,17 +125,7 @@ namespace Libc {
 		if (!fd.open_file_ptr)
 			return false;
 
-		Vfs::Vfs_handle &handle = fd.open_file_ptr->handle;
-		handle.notify_read_ready();
-		return handle.read_ready();
-	}
-
-	void notify_read_ready_from_kernel(File_descriptor &fd)
-	{
-		if (fd.open_file_ptr) {
-			Vfs::Vfs_handle &handle = fd.open_file_ptr->handle;
-			handle.notify_read_ready();
-		}
+		return fd.open_file_ptr->handle.read_ready() == Vfs::Read_ready_result::YES;
 	}
 
 	bool write_ready_from_kernel(File_descriptor &fd)
@@ -143,8 +133,7 @@ namespace Libc {
 		if (!fd.open_file_ptr)
 			return false;
 
-		Vfs::Vfs_handle &handle = fd.open_file_ptr->handle;
-		return handle.write_ready();
+		return fd.open_file_ptr->handle.write_ready() == Vfs::Write_ready_result::YES;
 	}
 }
 
@@ -226,101 +215,44 @@ int Libc::Fs::access(char const *path, int amode)
 }
 
 
-Libc::Fs::Open_file_result Libc::Fs::open_file_from_kernel(const char *path, int flags)
+Libc::Fs::Open_file_result Libc::Fs::open_file_from_kernel(Open_file_attr const &attr)
 {
-	if (flags & O_DIRECTORY)
-		return Errno { ENOTDIR };
-
-	Vfs::Vfs_handle *handle_ptr = 0;
-
-	using Result = Vfs::Directory_service::Open_result;
-
-	switch (_vfs.open(path, flags, &handle_ptr, _kernel_heap)) {
-	case Result::OPEN_OK:                break;
-	case Result::OPEN_ERR_UNACCESSIBLE:  return Errno { ENOENT };
-	case Result::OPEN_ERR_NO_PERM:       return Errno { EPERM  };
-	case Result::OPEN_ERR_EXISTS:        return Errno { EEXIST };
-	case Result::OPEN_ERR_NAME_TOO_LONG: return Errno { ENAMETOOLONG };
-	case Result::OPEN_ERR_NO_SPACE:      return Errno { ENOSPC };
-	case Result::OPEN_ERR_OUT_OF_RAM:    return Errno { ENOSPC };
-	case Result::OPEN_ERR_OUT_OF_CAPS:   return Errno { ENOSPC };
-	}
-
-	handle_ptr->handler(&_response_handler);
-
-	return *new (_kernel_heap) Open_file(*handle_ptr);
+	return *new (_kernel_heap) Open_file(_vfs_env, _response_handler, attr);
 }
 
 
-Libc::Fs::Open_file_result Libc::Fs::open_file(char const *path, int flags)
+Libc::Fs::Open_file_result Libc::Fs::open_file(Open_file_attr const &attr)
 {
-	int result_errno = 0;
-	Vfs::Vfs_handle *handle_ptr = nullptr;
+	Open_file *result_of_ptr { };
+	Errno      result_errno  { };
 
 	_monitor.monitor([&] {
 
-		using Result = Vfs::Directory_service::Open_result;
+		if (!result_of_ptr)
+			open_file_from_kernel(attr).with_result(
+				[&] (Open_file &of) { result_of_ptr = &of; },
+				[&] (Errno e)       { result_errno  = e; });
 
-		switch (_vfs.open(path, flags, &handle_ptr, _kernel_heap)) {
-		case Result::OPEN_OK:                break;
-		case Result::OPEN_ERR_UNACCESSIBLE:  result_errno = ENOENT;       return Fn::COMPLETE;
-		case Result::OPEN_ERR_NO_PERM:       result_errno = EPERM;        return Fn::COMPLETE;
-		case Result::OPEN_ERR_EXISTS:        result_errno = EEXIST;       return Fn::COMPLETE;
-		case Result::OPEN_ERR_NAME_TOO_LONG: result_errno = ENAMETOOLONG; return Fn::COMPLETE;
-		case Result::OPEN_ERR_NO_SPACE:      result_errno = ENOSPC;       return Fn::COMPLETE;
-		case Result::OPEN_ERR_OUT_OF_RAM:    result_errno = ENOSPC;       return Fn::COMPLETE;
-		case Result::OPEN_ERR_OUT_OF_CAPS:   result_errno = ENOSPC;       return Fn::COMPLETE;
-		}
-		return Fn::COMPLETE;
+		if (result_of_ptr)
+			return result_of_ptr->handle.attach().convert<Monitor::Function_result>(
+				[&] (Ok) { return Fn::COMPLETE; },
+				[&] (Vfs::File_handle::Attach_error e) {
+					if (e == Vfs::File_handle::Attach_error::RETRY)
+						return Fn::INCOMPLETE;
+
+					Genode::destroy(_kernel_heap, result_of_ptr);
+					result_errno = Errno(EPERM);
+					result_of_ptr = nullptr;
+					return Fn::COMPLETE;
+				});
+
+		assert(false);
 	});
 
-	if (!handle_ptr)
-		return Errno { result_errno };
+	if (result_of_ptr)
+		return *result_of_ptr;
 
-	handle_ptr->handler(&_response_handler);
-
-	return *new (_kernel_heap) Open_file(*handle_ptr);
-}
-
-
-Libc::Fs::Open_file_result Libc::Fs::create_file(char const *path, int flags)
-{
-	int result_errno = 0;
-	Vfs::Vfs_handle *handle_ptr = nullptr;
-
-	_monitor.monitor([&] {
-
-		using Result = Vfs::Directory_service::Open_result;
-
-		switch (_vfs.open(path, flags | O_EXCL | O_CREAT, &handle_ptr, _kernel_heap)) {
-		case Result::OPEN_OK: break;
-		case Result::OPEN_ERR_EXISTS:
-
-			/* file has been created by someone else in the meantime */
-			if (flags & O_NOFOLLOW) {
-				result_errno = ELOOP;
-				return Fn::COMPLETE;
-			}
-			result_errno = EEXIST;
-			return Fn::COMPLETE;
-
-		case Result::OPEN_ERR_NO_PERM:       result_errno = EPERM;        return Fn::COMPLETE;
-		case Result::OPEN_ERR_UNACCESSIBLE:  result_errno = ENOENT;       return Fn::COMPLETE;
-		case Result::OPEN_ERR_NAME_TOO_LONG: result_errno = ENAMETOOLONG; return Fn::COMPLETE;
-		case Result::OPEN_ERR_NO_SPACE:      result_errno = ENOSPC;       return Fn::COMPLETE;
-		case Result::OPEN_ERR_OUT_OF_RAM:    result_errno = ENOSPC;       return Fn::COMPLETE;
-		case Result::OPEN_ERR_OUT_OF_CAPS:   result_errno = ENOSPC;       return Fn::COMPLETE;
-		}
-
-		return Fn::COMPLETE;
-	});
-
-	if (!handle_ptr)
-		return Errno { result_errno };
-
-	handle_ptr->handler(&_response_handler);
-
-	return *new (_kernel_heap) Open_file(*handle_ptr);
+	return result_errno;
 }
 
 
@@ -362,9 +294,12 @@ void Libc::Fs::destroy(Open_file &of)
 	/* cancel and sync with blocking read */
 	_monitor.monitor([&] {
 		of.closing = true;
-		if (of.blocking) return Fn::INCOMPLETE;
+		if (of.blocking)
+			return Fn::INCOMPLETE;
 
-		of.handle.close();
+		if (of.handle.detach() == Vfs::File_handle::Detach_result::RETRY)
+			return Fn::INCOMPLETE;
+
 		return Fn::COMPLETE;
 	});
 	Genode::destroy(_kernel_heap, &of);
@@ -385,15 +320,15 @@ struct Sync
 {
 	enum { INITIAL, TIMESTAMP_UPDATED, SYNCED } state { INITIAL };
 
-	Genode::Vfs::Vfs_handle &vfs_handle;
+	Genode::Vfs::File_handle &handle;
 	Genode::Vfs::Timestamp   mtime { };
 
 	struct Attr { bool update_mtime; };
 
-	Sync(Genode::Vfs::Vfs_handle &vfs_handle, Attr const attr,
+	Sync(Genode::Vfs::File_handle &handle, Attr const attr,
 	     Libc::Current_real_time &current_real_time)
 	:
-		vfs_handle(vfs_handle)
+		handle(handle)
 	{
 		if (!attr.update_mtime || !current_real_time.has_real_time()) {
 			state = TIMESTAMP_UPDATED;
@@ -411,11 +346,11 @@ struct Sync
 	{
 		switch (state) {
 		case INITIAL:
-			if (!vfs_handle.update_modification_timestamp(mtime))
+			if (handle.write_mtime(mtime) == Genode::Vfs::Write_mtime_result::RETRY)
 				return false;
 			state = TIMESTAMP_UPDATED; [[ fallthrough ]];
 		case TIMESTAMP_UPDATED:
-			if (vfs_handle.sync() == Genode::Vfs::Sync_result::RETRY)
+			if (handle.sync() == Genode::Vfs::Sync_result::RETRY)
 				return false;
 			state = SYNCED; [[ fallthrough ]];
 		case SYNCED:
@@ -536,17 +471,17 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 
 	Open_file &of = *fd.open_file_ptr;
 
-	Vfs::Vfs_handle::Vfs_handle::Write_result result = 0;
+	Vfs::Write_result result = 0;
 
 	if (fd.flags & O_NONBLOCK) {
 		_monitor.monitor([&] {
 			Const_byte_range_ptr const src { (char const *)buf, count };
 			result = of.handle.write({ .pos = of.pos }, src);
 			result.with_result([&] (size_t n) { of.pos += n; },
-			                   [&] (Vfs::Vfs_handle::Write_error) { });
+			                   [&] (Vfs::Write_error) { });
 			return Fn::COMPLETE;
 		});
-		if (result == Vfs::Vfs_handle::Write_error::RETRY)
+		if (result == Vfs::Write_error::RETRY)
 			return Errno(EWOULDBLOCK);
 	} else {
 		size_t   total_written_bytes = 0;
@@ -573,9 +508,9 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 				Span const src { (char const *)buf + offset, remaining_bytes };
 				Vfs::At const at { .pos = of.pos };
 
-				Vfs::Vfs_handle::Write_result partial_result = of.handle.write(at, src);
+				Vfs::Write_result partial_result = of.handle.write(at, src);
 
-				if (partial_result == Vfs::Vfs_handle::Write_error::RETRY)
+				if (partial_result == Vfs::Write_error::RETRY)
 					return Fn::INCOMPLETE;
 
 				partial_result.with_result(
@@ -589,7 +524,7 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 
 						result = total_written_bytes;
 					},
-					[&] (Vfs::Vfs_handle::Write_error e) {
+					[&] (Vfs::Write_error e) {
 						result = e;
 					});
 
@@ -611,7 +546,7 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 
 				if (!continuous_file) {
 					warning("partial write on transactional file");
-					result = Vfs::Vfs_handle::Write_error::DENIED;
+					result = Vfs::Write_error::DENIED;
 					return Fn::COMPLETE;
 				}
 				iteration++;
@@ -620,14 +555,14 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 	}
 
 	return result.convert<ssize_t>(
-		[&] (size_t num_bytes)               -> ssize_t { return num_bytes; },
-		[&] (Vfs::Vfs_handle::Write_error e) -> ssize_t { return Errno(EINVAL); });
+		[&] (size_t num_bytes)   -> ssize_t { return num_bytes; },
+		[&] (Vfs::Write_error e) -> ssize_t { return Errno(EINVAL); });
 }
 
 
 ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 {
-	using Result = Vfs::Vfs_handle::Read_result;
+	using Result = Vfs::Read_result;
 
 	if (!fd.open_file_ptr)
 		return Errno { EBADF };
@@ -655,7 +590,7 @@ ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 		Byte_range_ptr const dst { (char *)buf, count };
 
 		Result result = of.handle.read({ .pos = of.pos }, dst);
-		if (result == Vfs::Vfs_handle::Read_error::RETRY) {
+		if (result == Vfs::Read_error::RETRY) {
 			queued = true;
 			return Fn::INCOMPLETE; /* keep blocking */
 		}
@@ -667,7 +602,7 @@ ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 				of.pos += num_bytes;
 				out_count = num_bytes;
 			},
-			[&] (Vfs::Vfs_handle::Read_error) { result_errno = EINVAL; });
+			[&] (Vfs::Read_error) { result_errno = EINVAL; });
 
 		return Fn::COMPLETE; /* success or error out */
 	});
@@ -1722,13 +1657,15 @@ int Libc::Fs::ftruncate(Open_file &of, off_t length)
 			of.modified = false;
 		}
 
-		using Result = Vfs::Vfs_handle::Ftruncate_result;
+		switch (of.handle.resize(length)) {
 
-		switch (of.handle.ftruncate(length)) {
-		case Result::FTRUNCATE_ERR_NO_PERM:   result_errno = EPERM;  break;
-		case Result::FTRUNCATE_ERR_INTERRUPT: result_errno = EINTR;  break;
-		case Result::FTRUNCATE_ERR_NO_SPACE:  result_errno = ENOSPC; break;
-		case Result::FTRUNCATE_OK:               succeeded = true;   break;
+		case Vfs::Resize_result::OK:     succeeded    = true;  break;
+		case Vfs::Resize_result::DENIED: result_errno = EPERM; break;
+
+		case Vfs::Resize_result::OUT_OF_RAM:  /* never occurs, using vfs heap */
+		case Vfs::Resize_result::OUT_OF_CAPS:
+
+		case Vfs::Resize_result::RETRY: return Fn::INCOMPLETE;
 		}
 		return Fn::COMPLETE;
 	});
@@ -1757,7 +1694,6 @@ void Libc::Fs::fsync(Open_file &of)
 int Libc::Fs::symlink(char const *target_path, const char *link_path)
 {
 	Vfs::Vfs_handle *handle_ptr = nullptr;
-	Constructible<Sync> sync;
 
 	size_t const count = ::strlen(target_path) + 1;
 
@@ -1801,32 +1737,43 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 	Vfs::Vfs_handle &handle = *handle_ptr;
 	handle.handler(&_response_handler);
 
-	/* must be done outside the monitor because constructor needs libc I/O */
-	sync.construct(handle, Sync::Attr { .update_mtime = _config.update_mtime }, _now);
+	Vfs::Timestamp mtime { };
+	if (_config.update_mtime && _now.has_real_time()) {
+		timespec const ts = _now.current_real_time();
+		mtime.ms_since_1970 = ts.tv_sec >= 0
+		                    ? ts.tv_sec*1000ull + ts.tv_nsec/1000000ull
+		                    : 0;
+	}
+
 	{
 		Vfs::Vfs_handle::Write_result write_result = Vfs::Vfs_handle::Write_error::DENIED;
 
-		enum class Stage { WRITE, SYNC } stage = Stage::WRITE;
+		enum class Stage { WRITE, MTIME, SYNC } stage = Stage::WRITE;
 
 		_monitor.monitor([&] {
 
 			switch (stage) {
 
 			case Stage::WRITE:
-				{
-					write_result = handle.write({ }, { target_path, count });
-					if (write_result == Vfs::Vfs_handle::Write_error::RETRY)
+				write_result = handle.write({ }, { target_path, count });
+				if (write_result == Vfs::Vfs_handle::Write_error::RETRY)
+					return Fn::INCOMPLETE;
+				stage = Stage::MTIME;
+				[[fallthrough]];
+
+			case Stage::MTIME:
+				if (mtime.ms_since_1970 != 0) {
+					if (!handle.update_modification_timestamp(mtime))
 						return Fn::INCOMPLETE;
 				}
 				stage = Stage::SYNC;
 				[[fallthrough]];
 
 			case Stage::SYNC:
-				{
-					if (!sync->complete())
-						return Fn::INCOMPLETE;
-					handle.close();
-				} break;
+				if (handle.sync() != Vfs::Sync_result::OK)
+					return Fn::INCOMPLETE;
+				handle.close();
+				break;
 			}
 
 			return Fn::COMPLETE;
@@ -2186,16 +2133,14 @@ int Libc::Fs::poll(Monitor &monitor, Pollfd fds[], int nfds)
 			bool fd_ready = false;
 
 			if (fds[pollfd_index].events & (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
-				if (of.handle.read_ready()) {
+				if (of.handle.read_ready() == Vfs::Read_ready_result::YES) {
 					*fds[pollfd_index].revents |= POLLIN;
 					fd_ready = true;
-				} else {
-					of.handle.notify_read_ready();
 				}
 			}
 
 			if (fds[pollfd_index].events & (POLLOUT | POLLWRNORM | POLLWRBAND)) {
-				if (of.handle.write_ready()) {
+				if (of.handle.write_ready() == Vfs::Write_ready_result::YES) {
 					*fds[pollfd_index].revents |= POLLOUT;
 					fd_ready = true;
 				}
@@ -2225,7 +2170,7 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 	using Aio_job    = Libc::File_descriptor::Aio_job;
 	using Aio_handle = Libc::File_descriptor::Aio_handle;
 	using Open_file  = Libc::Open_file;
-	using Result     = Genode::Vfs::Vfs_handle::Read_result;
+	using Result     = Genode::Vfs::Read_result;
 
 	bool progress = false;
 
@@ -2254,7 +2199,7 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 				Genode::Vfs::At const at { .pos = uint64_t(aio_job.iocb->aio_offset) };
 
 				Result const result = of.handle.read(at, dst);
-				if (result == Genode::Vfs::Vfs_handle::Read_error::RETRY)
+				if (result == Genode::Vfs::Read_error::RETRY)
 					break;
 
 				result.with_result(
@@ -2262,7 +2207,7 @@ static bool _handle_aio_read(Libc::File_descriptor          &fd,
 						aio_job.result = num_bytes;
 						aio_job.error  = 0;
 					},
-					[&] (Genode::Vfs::Vfs_handle::Read_error) {
+					[&] (Genode::Vfs::Read_error) {
 						aio_job.result = -1;
 						aio_job.error  = EINVAL;
 					});
@@ -2336,15 +2281,17 @@ static bool _handle_aio_write(Libc::File_descriptor          &fd,
 
 						progress = true;
 					},
-					[&] (Vfs::Vfs_handle::Write_error e) {
+					[&] (Vfs::Write_error e) {
 						switch (e) {
-						case Vfs::Vfs_handle::Write_error::DENIED:
+						case Vfs::Write_error::DENIED:
 							aio_job.result = -1;
 							aio_job.error  = EINVAL;
 							aio_handle.state = Aio_handle::State::COMPLETE;
 							progress = true;
 							break;
-							case Vfs::Vfs_handle::Write_error::RETRY: break;
+						case Vfs::Write_error::RETRY:       break;
+						case Vfs::Write_error::OUT_OF_RAM:  break; /* never */
+						case Vfs::Write_error::OUT_OF_CAPS: break; /* never */
 						}
 					});
 				break;
@@ -2403,7 +2350,10 @@ int Libc::Fs::wait_aio(Libc::File_descriptor &fd, int /*timeout_ms*/)
 
 			if (aio_handle.of_ptr == nullptr) {
 				aio_handle.of_ptr =
-					open_file(fd.path.string(), fd.flags).convert<Open_file *>(
+					open_file({
+						.path      = fd.path.string(),
+						.writeable = (fd.flags & O_ACCMODE) != O_RDONLY
+					}).convert<Open_file *>(
 						[&] (Open_file &of)        { return &of; },
 						[&] (Errno) -> Open_file * { return nullptr; });
 

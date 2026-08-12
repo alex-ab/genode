@@ -357,7 +357,10 @@ static int _dup(File_descriptor &fd, Fds::Bits &bits, Fds::Space &space, int new
 	auto release_new_id = [&] (Errno e) -> int { bits.free(new_id); return e; };
 
 	if (fd.open_file_ptr) {
-		return fs().open_file(fd.path.string(), new_flags).convert<int>(
+		return fs().open_file({
+			.path      = fd.path.string(),
+			.writeable = fd.open_file_ptr->handle.writeable
+		}).convert<int>(
 			[&] (Open_file &dup_of) {
 				dup_of.modified = fd.open_file_ptr->modified;
 				return new_file_descriptor(dup_of);
@@ -760,16 +763,11 @@ static int _open(Libc::Fds::Bits &bits, Libc::Fds::Space &space,
 		return libc_fd;
 	};
 
-	if (flags & O_CREAT) {
-		int const ret = fs().create_file(path.string(), flags).convert<int>(
-			[&] (Open_file &of)  { return create_and_init_file_fd(of); },
-			[&] (Errno e) -> int { return e; });
+	Fs::Open_file_attr const attr {
+		.path      = path.string(),
+		.writeable = (flags & O_CREAT) || ((flags & O_ACCMODE) != O_RDONLY) };
 
-		if (ret == 0 || errno != EEXIST)
-			return ret;
-	}
-
-	return fs().open_file(path.string(), flags).convert<int>(
+	return fs().open_file(attr).convert<int>(
 		[&] (Open_file &of)  { return create_and_init_file_fd(of); },
 		[&] (Errno e) -> int { return e; });
 }

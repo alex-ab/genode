@@ -1881,8 +1881,6 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 		open(char const *path, unsigned mode, Vfs_handle **out_handle,
 		     Allocator &alloc) override
 		{
-			if (mode & OPEN_MODE_CREATE) return OPEN_ERR_NO_PERM;
-
 			try {
 				if (strcmp(path, "/tcp", 4) == 0)
 					return _tcp_dir.open(*this, alloc,

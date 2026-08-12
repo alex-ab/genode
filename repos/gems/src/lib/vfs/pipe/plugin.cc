@@ -379,19 +379,11 @@ class Vfs_pipe::File_system : public Vfs::File_system
 		                 Vfs::Vfs_handle **handle,
 		                 Allocator &alloc) override
 		{
+			/* distinguish reader from writer depending on the access mode */
+			bool const writer = (mode & OPEN_MODE_ACCMODE) != OPEN_MODE_RDONLY;
+
 			if (!_valid_path(cpath))
 				return OPEN_ERR_UNACCESSIBLE;
-
-			if (mode & OPEN_MODE_CREATE) {
-				warning("cannot open fifo pipe with OPEN_MODE_CREATE");
-				return OPEN_ERR_NO_PERM;
-			}
-
-			if (!((mode == Open_mode::OPEN_MODE_RDONLY) ||
-			      (mode == Open_mode::OPEN_MODE_WRONLY))) {
-				error("pipe only supports opening with WO or RO mode");
-				return OPEN_ERR_NO_PERM;
-			}
 
 			Path const path { cpath };
 			if (!path.has_single_element()) {
@@ -402,17 +394,15 @@ class Vfs_pipe::File_system : public Vfs::File_system
 				Path io { cpath };
 				io.keep_only_last_element();
 
-				if (io == "/in" && mode != Open_mode::OPEN_MODE_WRONLY)
-					return OPEN_ERR_NO_PERM;
-				if (io == "/out" && mode != Open_mode::OPEN_MODE_RDONLY)
-					return OPEN_ERR_NO_PERM;
+				if (io == "/in"  && !writer) return OPEN_ERR_NO_PERM;
+				if (io == "/out" &&  writer) return OPEN_ERR_NO_PERM;
 			}
 
 			auto result { OPEN_ERR_UNACCESSIBLE };
 			Pipe_space::Id id { ~0UL };
 			if (_pipe_id(cpath, id)) {
-				_try_apply(id, [&mode, &result, this, &handle, &alloc] (Pipe &pipe) {
-					auto const type { (mode == OPEN_MODE_RDONLY) ? "/out" : "/in" };
+				_try_apply(id, [&] (Pipe &pipe) {
+					auto const type { writer ? "/in" : "/out" };
 					result = pipe.open(*this, type, handle, alloc);
 				});
 			}
@@ -606,8 +596,6 @@ class Vfs_pipe::Pipe_file_system : public Vfs_pipe::File_system
 			Path const path { cpath };
 
 			if (path == "/new") {
-				if ((OPEN_MODE_ACCMODE & mode) == OPEN_MODE_WRONLY)
-					return OPEN_ERR_NO_PERM;
 				*handle = new (alloc)
 					New_pipe_handle(*this, _env.env(), _env.user(), alloc, mode, _pipe_space);
 				return OPEN_OK;

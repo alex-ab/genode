@@ -206,6 +206,7 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 			._config           = _config,
 			._now              = *this,
 			._kernel_heap      = _heap,
+			._vfs_env          = *_vfs_env,
 			._vfs              = _vfs_env->root_dir(),
 			._root_dir         = _root_dir
 		};

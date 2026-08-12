@@ -208,10 +208,15 @@ void Libc::Kernel::_init_file_descriptors()
 			return;
 		}
 
+		bool const writeable = (flags & O_ACCMODE) != O_RDONLY;
+
 		_fds.with_alloc([&] (Fds::Bits &bits, Fds::Space &space) {
 			bits.alloc_addr(libc_fd).with_result(
 				[&] (Ok) {
-					_fs.open_file_from_kernel(path.string(), flags).with_result(
+					_fs.open_file_from_kernel({
+						.path = path.string(),
+						.writeable = writeable
+					}).with_result(
 						[&] (Open_file &of) {
 							File_descriptor &new_fd = *new (_heap)
 								File_descriptor(space, libc_fd, of, path.string());
@@ -222,6 +227,9 @@ void Libc::Kernel::_init_file_descriptors()
 							::off_t const seek = node.attribute_value("seek", 0ULL);
 							if (seek)
 								_fs.lseek_from_kernel(new_fd, seek);
+
+							if (of.handle.attach() == Vfs::File_handle::Attach_error::RETRY)
+								warning("libc init fd for ", path.string(), " not yet attached");
 						},
 						[&] (Errno) {
 							error("could not open fd ", libc_fd, " for ", path);
