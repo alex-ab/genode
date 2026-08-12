@@ -346,11 +346,10 @@ struct Vfs_ip::Ip_vfs_file_handle final : Vfs_handle
 		return file ? file->sync() : Sync_result::OK;
 	}
 
-	bool notify_read_ready() override
+	void notify_read_ready() override
 	{
 		if (!read_ready_elem.enqueued())
 			_read_ready_waiters_ptr->enqueue(read_ready_elem);
-		return true;
 	}
 
 	Ftruncate_result ftruncate(file_size) override

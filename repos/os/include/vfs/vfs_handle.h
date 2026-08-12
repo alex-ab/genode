@@ -172,10 +172,8 @@ class Genode::Vfs::Vfs_handle
 		 *
 		 * For example, the file-system-session plugin can then send READ_READY
 		 * packets to the server.
-		 *
-		 * \return false if notification setup failed
 		 */
-		virtual bool notify_read_ready() { return true; }
+		virtual void notify_read_ready() { }
 
 		virtual Ftruncate_result ftruncate(file_size)
 		{

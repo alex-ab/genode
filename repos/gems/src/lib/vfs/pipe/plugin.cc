@@ -79,7 +79,7 @@ struct Vfs_pipe::Pipe_handle : Vfs_handle, private Pipe_handle_registry_element
 
 	bool read_ready()  const override;
 	bool write_ready() const override;
-	bool notify_read_ready() override;
+	void notify_read_ready() override;
 };
 
 
@@ -93,7 +93,7 @@ struct Vfs_pipe::Dir_handle : Vfs_handle
 
 	bool read_ready()  const override { return false; }
 	bool write_ready() const override { return false; }
-	bool notify_read_ready() override { return false; }
+	void notify_read_ready() override { }
 };
 
 
@@ -296,11 +296,10 @@ bool Vfs_pipe::Pipe_handle::write_ready() const
 }
 
 
-bool Vfs_pipe::Pipe_handle::notify_read_ready()
+void Vfs_pipe::Pipe_handle::notify_read_ready()
 {
 	if (!writer && !read_ready_elem.enqueued())
 		pipe.read_ready_waiters.enqueue(read_ready_elem);
-	return true;
 }
 
 

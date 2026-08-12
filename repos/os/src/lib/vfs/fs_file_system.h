@@ -361,15 +361,15 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				return true;
 			}
 
-			bool notify_read_ready() override
+			void notify_read_ready() override
 			{
 				if (read_ready_state != Handle_state::Read_ready_state::IDLE)
-					return true;
+					return;
 
 				::File_system::Session::Tx::Source &source = *_fs._fs.tx();
 
 				/* if not ready to submit suggest retry */
-				if (!source.ready_to_submit()) return false;
+				if (!source.ready_to_submit()) return;
 
 				using ::File_system::Packet_descriptor;
 
@@ -386,7 +386,6 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				 * When the packet is acknowledged the application is notified via
 				 * Response_handler::handle_response().
 				 */
-				return true;
 			}
 
 			Ftruncate_result ftruncate(file_size len) override

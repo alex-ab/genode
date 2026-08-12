@@ -120,10 +120,7 @@ class Vfs_nic::File_system::Nic_vfs_handle : public Single_vfs_handle
 			_nic.rx_channel()->sigh_packet_avail   (_read_avail_handler);
 		}
 
-		bool notify_read_ready() override {
-			_notifying = true;
-			return true;
-		}
+		void notify_read_ready() override { _notifying = true; }
 
 		void mac_address(Net::Mac_address const &) { }
 

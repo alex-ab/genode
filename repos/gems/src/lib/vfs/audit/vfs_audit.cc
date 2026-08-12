@@ -144,9 +144,9 @@ class Vfs_audit::File_system : public Vfs::File_system
 				return audited.write_ready();
 			}
 
-			bool notify_read_ready() override
+			void notify_read_ready() override
 			{
-				return audited.notify_read_ready();
+				audited.notify_read_ready();
 			}
 
 			Ftruncate_result ftruncate(file_size len) override

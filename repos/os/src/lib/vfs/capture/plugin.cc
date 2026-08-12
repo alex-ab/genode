@@ -78,11 +78,7 @@ class Vfs_capture::Data_file_system : public Single_file_system
 				return len;
 			}
 
-			bool notify_read_ready() override
-			{
-				notifying = true;
-				return true;
-			}
+			void notify_read_ready() override { notifying = true; }
 
 			Ftruncate_result ftruncate(file_size) override { return FTRUNCATE_OK; }
 		};

@@ -137,11 +137,7 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 
 			bool write_ready() const override { return true; }
 
-			bool notify_read_ready() override
-			{
-				notifying = true;
-				return true;
-			}
+			void notify_read_ready() override { notifying = true; }
 
 			Read_result read(At, Byte_range_ptr const &dst) override
 			{

@@ -101,10 +101,9 @@ class Vfs_uplink::File_system::Uplink_vfs_handle : public Single_vfs_handle,
 			_drv_handle_link_state(true);
 		}
 
-		bool notify_read_ready() override
+		void notify_read_ready() override
 		{
 			_notifying = true;
-			return true;
 		}
 
 		void mac_address(Net::Mac_address const &mac)
