@@ -97,12 +97,9 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 
 				timeout._handler.handle_timeout(curr_time);
 
-				/* assume time advanced in the handler */
-				curr_time.add(Microseconds { 1 });
-
 				if (timeout._period.value > 0) {
 
-					while (deadline.earlier(curr_time))
+					while (!lookahead_time.earlier(deadline))
 						deadline.add(timeout._period);
 
 					/* re-insert periodic timeout */
