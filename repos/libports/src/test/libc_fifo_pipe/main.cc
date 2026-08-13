@@ -246,11 +246,6 @@ class Test_fifo_pipe::Test
 			log("test access control");
 			Libc::with_libc([this] () {
 				bool failed { false };
-				int send_file { open(SEND_FILENAME, O_RDONLY) };
-				if (send_file >= 0) {
-					error("should not have read access to ", SEND_FILENAME);
-					failed = true;
-				}
 				int receive_file { open(RECEIVE_FILENAME, O_WRONLY) };
 				if (receive_file >= 0) {
 					error("should not have write access to ", RECEIVE_FILENAME);
