@@ -93,7 +93,10 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 				Timeout &timeout { alarm.timeout };
 				Clock deadline   { alarm.time };
 
-				timeout._alarm.destruct();
+				{
+					Mutex::Guard guard { _schedule_mutex };
+					timeout._alarm.destruct();
+				}
 
 				timeout._handler.handle_timeout(curr_time);
 
@@ -103,7 +106,10 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 						deadline.add(timeout._period);
 
 					/* re-insert periodic timeout */
-					timeout._alarm.construct(_alarms, timeout, deadline);
+					{
+						Mutex::Guard guard { _schedule_mutex };
+						timeout._alarm.construct(_alarms, timeout, deadline);
+					}
 				}
 			});
 	}
