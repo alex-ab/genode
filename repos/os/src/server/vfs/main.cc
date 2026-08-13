@@ -81,9 +81,7 @@ class Vfs_server::Session_component : private Session_resources,
 
 	private:
 
-		Vfs::File_system   &_vfs;
-		Vfs::Watch_handles &_watch_handles;
-		Vfs::Env::Io       &_io;
+		Vfs::Env &_vfs_env;
 
 		Entrypoint &_ep;
 
@@ -374,7 +372,7 @@ class Vfs_server::Session_component : private Session_resources,
 			if (progress == Process_packets_result::PROGRESS)
 				_io_progress_handler.handle_io_progress();
 
-			_io.commit();
+			_vfs_env.io().commit();
 		}
 
 		/**
@@ -438,9 +436,7 @@ class Vfs_server::Session_component : private Session_resources,
 		                  Ram_quota            ram_quota,
 		                  Cap_quota            cap_quota,
 		                  size_t               tx_buf_size,
-		                  Vfs::File_system    &vfs,
-		                  Vfs::Watch_handles  &watch_handles,
-		                  Vfs::Env::Io        &io,
+		                  Vfs::Env            &vfs_env,
 		                  Session_queue       &active_sessions,
 		                  Io_progress_handler &io_progress_handler,
 		                  char          const *root_path,
@@ -448,9 +444,7 @@ class Vfs_server::Session_component : private Session_resources,
 		:
 			Session_resources(env.ram(), env.rm(), ram_quota, cap_quota, tx_buf_size),
 			Session_rpc_object(_packet_ds.cap(), env.rm(), env.ep().rpc_ep()),
-			_vfs(vfs),
-			_watch_handles(watch_handles),
-			_io(io),
+			_vfs_env(vfs_env),
 			_ep(env.ep()),
 			_io_progress_handler(io_progress_handler),
 			_active_sessions(active_sessions),
@@ -502,14 +496,16 @@ class Vfs_server::Session_component : private Session_resources,
 				fullpath.append(path_str);
 			path_str = fullpath.base();
 
-			if (!create && !_vfs.directory(path_str))
+			if (!create && !_vfs_env.root_dir().directory(path_str))
 				throw Lookup_failed();
 
-			using Writeable = Directory::Session_writeable;
+			Directory::Policy const policy { .writeable = _writeable };
 
 			Directory &dir = *new (_alloc)
-				Directory(_node_space, _vfs, _alloc, path_str, create,
-				          _writeable ? Writeable::WRITEABLE : Writeable::READ_ONLY);
+				Directory(_node_space, _vfs_env.root_dir(), _alloc, policy, {
+					.path      = path_str,
+					.writeable = _writeable && create
+				});
 
 			if (create)
 				_io_progress_handler.handle_io_progress();
@@ -520,7 +516,8 @@ class Vfs_server::Session_component : private Session_resources,
 		File_handle file(Dir_handle dir_handle, Name const &name,
 		                 Mode fs_mode, bool create) override
 		{
-			if ((create || (fs_mode & WRITE_ONLY)) && (!_writeable))
+			bool const w = (fs_mode & WRITE_ONLY) || create;
+			if (w && !_writeable)
 				throw Permission_denied();
 
 			return _apply(dir_handle, [&] (Directory &dir) {
@@ -528,7 +525,10 @@ class Vfs_server::Session_component : private Session_resources,
 				_assert_valid_name(name_str);
 
 				return File_handle {
-					dir.file(_node_space, _vfs, _alloc, name_str, fs_mode, create).value
+					dir.file(_node_space, _vfs_env, _alloc, {
+						.path      = name_str,
+						.writeable = w
+					}).value
 				};
 			});
 		}
@@ -542,8 +542,10 @@ class Vfs_server::Session_component : private Session_resources,
 				_assert_valid_name(name_str);
 
 				return Symlink_handle {
-					dir.symlink(_node_space, _vfs, _alloc, name_str,
-					            _writeable ? READ_WRITE : READ_ONLY, create).value
+					dir.symlink(_node_space, _vfs_env.root_dir(), _alloc, create, {
+						.path      = name_str,
+						.writeable = _writeable
+					}).value
 				};
 			});
 		}
@@ -557,7 +559,7 @@ class Vfs_server::Session_component : private Session_resources,
 			/* re-root the path */
 			Path const sub_path(path_str + 1, _root_path.base());
 			path_str = sub_path.base();
-			if (sub_path != "/" && !_vfs.dir_entry_exists(path_str))
+			if (sub_path != "/" && !_vfs_env.root_dir().dir_entry_exists(path_str))
 				throw Lookup_failed();
 
 			Node_base &node = *new (_alloc) Node_base(_node_space, path_str);
@@ -577,7 +579,7 @@ class Vfs_server::Session_component : private Session_resources,
 			path_str = sub_path.base();
 
 			Watch_node &node = *new (_alloc)
-				Watch_node(_node_space, _watch_handles, _vfs, path_str, *this);
+				Watch_node(_node_space, _vfs_env, path_str, *this);
 
 			return node.watch().convert<Watch_handle>(
 				[&] (Ok) {
@@ -629,7 +631,7 @@ class Vfs_server::Session_component : private Session_resources,
 
 				Directory_service::Stat vfs_stat;
 
-				if (_vfs.stat(node.path.string(), vfs_stat) != Directory_service::STAT_OK)
+				if (_vfs_env.root_dir().stat(node.path.string(), vfs_stat) != Directory_service::STAT_OK)
 					throw Invalid_handle();
 
 				auto fs_node_type = [&] (Vfs::Node_type type)
@@ -678,7 +680,7 @@ class Vfs_server::Session_component : private Session_resources,
 		unsigned num_entries(Dir_handle dir_handle) override
 		{
 			return _apply(dir_handle, [&] (Directory &dir) {
-				return _vfs.num_dirent(dir.path.string()); });
+				return _vfs_env.root_dir().num_dirent(dir.path.string()); });
 		}
 
 		void unlink(Dir_handle dir_handle, Name const &name) override
@@ -691,7 +693,7 @@ class Vfs_server::Session_component : private Session_resources,
 
 				Path path(name_str, dir.path.string());
 
-				assert_unlink(_vfs.unlink(path.base()));
+				assert_unlink(_vfs_env.root_dir().unlink(path.base()));
 			});
 
 			/*
@@ -726,7 +728,7 @@ class Vfs_server::Session_component : private Session_resources,
 					Path from_path(from_str, from_dir.path.string());
 					Path   to_path(  to_str,   to_dir.path.string());
 
-					assert_rename(_vfs.rename(from_path.base(), to_path.base()));
+					assert_rename(_vfs_env.root_dir().rename(from_path.base(), to_path.base()));
 				});
 			});
 
@@ -836,9 +838,7 @@ class Vfs_server::Root : public Root_component<Session_component>
 				Session_component(_env, label.string(),
 				                  Ram_quota{ram_quota},
 				                  Cap_quota{cap_quota},
-				                  tx_buf_size, _vfs_env.root_dir(),
-				                  _vfs_env.watch_handles(),
-				                  _vfs_env.io(),
+				                  tx_buf_size, _vfs_env,
 				                  _active_sessions, _io_progress_handler,
 				                  session_root.base(), writeable);
 

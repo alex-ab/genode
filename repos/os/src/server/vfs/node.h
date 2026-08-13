@@ -223,11 +223,9 @@ class Vfs_server::Node_base : Node_space::Element, Node_queue::Element
  */
 class Vfs_server::Io_node : public Vfs_server::Node_base
 {
-	private:
-
-		Mode const _mode;
-
 	protected:
+
+		bool const _writeable;
 
 		/**
 		 * Current job of this node, assigned by 'submit_job'
@@ -278,21 +276,17 @@ class Vfs_server::Io_node : public Vfs_server::Node_base
 			return Submit_result::ACCEPTED;
 		}
 
-		Submit_result _submit_read()
-		{
-			return (_mode & READ_ONLY) ? _accept() : Submit_result::DENIED;
-		}
-
 		Submit_result _submit_write()
 		{
-			return (_mode & WRITE_ONLY) ? _accept() : Submit_result::DENIED;
+			return _writeable ? _accept() : Submit_result::DENIED;
 		}
 
+		Submit_result _submit_read() { return _accept(); }
 		Submit_result _submit_sync() { return _accept(); }
 
 		Submit_result _submit_write_timestamp()
 		{
-			return (_mode & WRITE_ONLY) ? _accept() : Submit_result::DENIED;
+			return _writeable ? _accept() : Submit_result::DENIED;
 		}
 
 		void _execute_mtime(Vfs_handle &vfs_handle)
@@ -306,24 +300,37 @@ class Vfs_server::Io_node : public Vfs_server::Node_base
 			_modified = true;
 		}
 
-		void _execute_sync(Vfs_handle &vfs_handle)
+		void _execute_mtime(Vfs::File_handle &handle)
 		{
-			if (vfs_handle.sync() == Sync_result::OK)
+			_packet.with_timestamp([&] (::File_system::Timestamp const time) {
+				Vfs::Timestamp ts { .ms_since_1970 = time.ms_since_1970 };
+				handle.write_mtime(ts);
+			});
+			_ack_successful_packet(0, _payload_ptr);
+
+			_modified = true;
+		}
+
+		void _execute_sync(auto &handle)
+		{
+			if (handle.sync() == Sync_result::OK) {
 				_ack_successful_packet(0, _payload_ptr);
+				_modified = false;
+			}
 		}
 
 	public:
 
-		Io_node(Node_space &space, char const *path, Mode mode)
+		using Attr = Vfs::File_handle::Attr;
+
+		Io_node(Node_space &space, Attr const &attr)
 		:
-			Node_base(space, path), _mode(mode)
+			Node_base(space, attr.path.string()), _writeable(attr.writeable)
 		{ }
 
 		virtual ~Io_node() { }
 
 		using Node_space::Element::id;
-
-		Mode mode() const { return _mode; }
 
 		/**
 		 * Vfs_server::Node_base interface
@@ -356,14 +363,11 @@ class Vfs_server::Watch_node final : public Vfs_server::Node_base,
 
 	public:
 
-		Watch_node(Node_space                  &space,
-		           Vfs::Watch_handles          &handles,
-		           Vfs::File_system            &root_dir,
-		           char                  const *path,
+		Watch_node(Node_space &space, Vfs::Env &env, char const *path,
 		           Watch_node_response_handler &watch_node_response_handler)
 		:
 			Node_base(space, path),
-			_watch_handle(handles, root_dir, path, *this),
+			_watch_handle(env.watch_handles(), env.root_dir(), path, *this),
 			_watch_node_response_handler(watch_node_response_handler)
 		{ }
 
@@ -482,12 +486,11 @@ struct Vfs_server::Symlink : Io_node
 		Symlink(Node_space       &space,
 		        Vfs::File_system &vfs,
 		        Allocator        &alloc,
-		        char       const *path,
-		        Mode              mode,
-		        bool              create)
+		        bool              create,
+		        Attr       const &attr)
 		:
-			Io_node(space, path, mode),
-			_handle(_open(vfs, alloc, path, create))
+			Io_node(space, attr),
+			_handle(_open(vfs, alloc, attr.path.string(), create))
 		{ }
 
 		~Symlink() { _handle.close(); }
@@ -552,7 +555,7 @@ class Vfs_server::File : public Io_node, public Vfs::Read_ready_response_handler
 {
 	private:
 
-		Vfs::Vfs_handle &_handle;
+		Vfs::File_handle _handle;
 
 		using Stat = Directory_service::Stat;
 
@@ -598,11 +601,22 @@ class Vfs_server::File : public Io_node, public Vfs::Read_ready_response_handler
 							out_count = num_bytes;
 							_modified = true;
 						},
-						[&] (Vfs_handle::Write_error e) {
+						[&] (Write_error e) {
 							switch (e) {
-							case Vfs_handle::Write_error::RETRY:  break;
-							case Vfs_handle::Write_error::DENIED:
-								_ack_failed_packet(_payload_ptr); break;
+							case Write_error::RETRY:
+								break;
+
+							case Write_error::DENIED:
+								_ack_failed_packet(_payload_ptr);
+								break;
+
+							case Write_error::OUT_OF_RAM:
+								warning("OUT_OF_RAM during write");
+								break;
+
+							case Write_error::OUT_OF_CAPS:
+								warning("OUT_OF_CAPS during write");
+								break;
 							}
 						});
 
@@ -637,9 +651,16 @@ class Vfs_server::File : public Io_node, public Vfs::Read_ready_response_handler
 					[&] (size_t num_bytes) {
 						_ack_successful_packet(num_bytes, _payload_ptr);
 					},
-					[&] (Vfs_handle::Read_error e) {
-						if (e != Vfs_handle::Read_error::RETRY)
-							_ack_failed_packet(_payload_ptr);
+					[&] (Read_error e) {
+						switch (e) {
+						case Read_error::RETRY: return;
+						case Read_error::DENIED: break;
+						case Read_error::OUT_OF_RAM:
+							warning("OUT_OF_RAM during read"); break;
+						case Read_error::OUT_OF_CAPS:
+							warning("OUT_OF_CAPS during read"); break;
+						}
+						_ack_failed_packet(_payload_ptr);
 					}); });
 		}
 
@@ -647,59 +668,41 @@ class Vfs_server::File : public Io_node, public Vfs::Read_ready_response_handler
 		{
 			_read_ready_state = Read_ready_state::REQUESTED;
 
-			if (_handle.read_ready()) {
-				/* if the handle is ready, send a packet back immediately */
+			/* if the handle is ready, send a packet back immediately */
+			if (_handle.read_ready() == Read_ready_result::YES)
 				read_ready_response();
-			} else {
-				/* register to send READ_READY acknowledgement later */
-				_handle.notify_read_ready();
-			}
+
 			return Submit_result::ACCEPTED;
-		}
-
-		static Vfs_handle &_open(Vfs::File_system  &vfs, Allocator &alloc,
-		                         char const *path, Mode mode, bool create)
-		{
-			Vfs_handle *h = nullptr;
-			unsigned vfs_mode = (mode-1) |
-				(create ? Vfs::Directory_service::OPEN_MODE_CREATE : 0);
-
-			assert_open(vfs.open(path, vfs_mode, &h, alloc));
-			return *h;
 		}
 
 	public:
 
-		File(Node_space       &space,
-		     Vfs::File_system &vfs,
-		     Allocator        &alloc,
-		     char       const *path,
-		     Mode              mode,
-		     bool              create)
+		File(Node_space &space, Vfs::Env &env, Allocator &alloc, Attr const &attr)
 		:
-			Io_node(space, path, mode),
-			_handle(_open(vfs, alloc, path, mode, create))
+			Io_node(space, attr),
+			_handle(env.file_handles(), env.root_dir(), alloc, attr)
 		{
-			_handle.handler(this); // XXX remove?
+			_handle.response_handler_ptr = this;
 
-			if (mode == Mode::WRITE_ONLY || mode == Mode::READ_WRITE) {
+			if (_writeable) {
+				_modified = true; /* might be closed after created empty */
+
 				using Result = Directory_service::Stat_result;
 				Vfs::Directory_service::Stat stat { };
-				if (vfs.stat(path, stat) == Result::STAT_OK)
+				if (env.root_dir().stat(path.string(), stat) == Result::STAT_OK)
 					_write_type = (stat.type == Vfs::Node_type::CONTINUOUS_FILE)
 					            ? Write_type::CONTINUOUS : Write_type::TRANSACTIONAL;
 			}
 		}
 
-		~File()
-		{
-			_handle.handler(nullptr);
-			_handle.close();
-		}
+		~File() { _handle.response_handler_ptr = nullptr; }
+
+		Vfs::File_handle::Attach_result attach() { return _handle.attach(); }
 
 		void truncate(file_size_t size)
 		{
-			(void)_handle.ftruncate(size);
+			if (_handle.resize(size) != Vfs::Resize_result::OK)
+				warning("truncate of file ", path, " incomplete");
 		}
 
 		Submit_result submit_job(Packet_descriptor packet, Payload_ptr ptr) override
@@ -767,13 +770,13 @@ struct Vfs_server::Directory : Io_node
 {
 	public:
 
-		enum class Session_writeable { READ_ONLY, WRITEABLE };
+		struct Policy { bool writeable; };
 
 	private:
 
-		Vfs::Vfs_handle &_handle;
+		Policy const _policy;
 
-		Session_writeable const _writeable;
+		Vfs::Vfs_handle &_handle;
 
 		using Vfs_dirent = Directory_service::Dirent;
 		using Fs_dirent  = ::File_system::Directory_entry;
@@ -792,7 +795,7 @@ struct Vfs_server::Directory : Io_node
 			return true;
 		}
 
-		static Fs_dirent _convert_dirent(Vfs_dirent from, Session_writeable writeable)
+		static Fs_dirent _convert_dirent(Vfs_dirent from, Policy const policy)
 		{
 			from.sanitize();
 
@@ -821,8 +824,7 @@ struct Vfs_server::Directory : Io_node
 				.type = fs_dirent_type(from.type),
 				.rwx  = {
 					.readable   = from.rwx.readable,
-					.writeable  = (writeable == Session_writeable::WRITEABLE)
-					            ? from.rwx.writeable : false,
+					.writeable  = policy.writeable && from.rwx.writeable,
 					.executable = from.rwx.executable },
 				.name = { from.name.buf }
 			};
@@ -852,7 +854,7 @@ struct Vfs_server::Directory : Io_node
 				if (vfs_dirent.type == Vfs::Directory_service::Dirent_type::END)
 					break;
 
-				fs_dirent = _convert_dirent(vfs_dirent, _writeable);
+				fs_dirent = _convert_dirent(vfs_dirent, _policy);
 
 				converted_length += step;
 			}
@@ -873,12 +875,11 @@ struct Vfs_server::Directory : Io_node
 		Directory(Node_space       &space,
 		          Vfs::File_system &vfs,
 		          Allocator        &alloc,
-		          char const       *path,
-		          bool              create,
-		          Session_writeable writeable)
+		          Policy     const  policy,
+		          Attr       const &attr)
 		:
-			Io_node(space, path, READ_ONLY),
-			_handle(_open(vfs, alloc, path, create)), _writeable(writeable)
+			Io_node(space, attr), _policy(policy),
+			_handle(_open(vfs, alloc, attr.path.string(), attr.writeable))
 		{ }
 
 		~Directory() { _handle.close(); }
@@ -886,16 +887,25 @@ struct Vfs_server::Directory : Io_node
 		/**
 		 * Open a file handle at this directory
 		 */
-		Node_space::Id file(Node_space       &space,
-		                    Vfs::File_system &vfs,
-		                    Allocator        &alloc,
-		                    char const       *path,
-		                    Mode              mode,
-		                    bool              create)
+		Node_space::Id file(Node_space &space, Vfs::Env &env, Allocator &alloc,
+		                    Vfs::File_handle::Attr const &attr)
 		{
-			File &file = *new (alloc)
-				File(space, vfs, alloc,
-				     Path(path, Node_base::path.string()).base(), mode, create);
+			File &file = *new (alloc) File(space, env, alloc, {
+				.path      = Path(attr.path.string(), Node_base::path.string()).string(),
+				.writeable = attr.writeable
+			});
+
+			file.attach().with_error([&] (Vfs::File_handle::Attach_error e) {
+				using Error = Vfs::File_handle::Attach_error;
+				switch (e) {
+				case Error::RETRY:
+					warning("file ", attr.path, " not yet attached when opened");
+					break;
+				case Error::DENIED:      throw Lookup_failed();
+				case Error::OUT_OF_RAM:  throw Out_of_ram();
+				case Error::OUT_OF_CAPS: throw Out_of_caps();
+				}
+			});
 
 			return file.id();
 		}
@@ -903,17 +913,16 @@ struct Vfs_server::Directory : Io_node
 		/**
 		 * Open a symlink handle at this directory
 		 */
-		Node_space::Id symlink(Node_space       &space,
-		                       Vfs::File_system &vfs,
-		                       Allocator        &alloc,
-		                       char       const *path,
-		                       Mode              mode,
-		                       bool              create)
+		Node_space::Id symlink(Node_space          &space,
+		                       Vfs::File_system    &vfs,
+		                       Allocator           &alloc,
+		                       bool                 create,
+		                       Symlink::Attr const &attr)
 		{
-			Symlink &link = *new (alloc)
-				Symlink(space, vfs, alloc,
-				        Path(path, Node_base::path.string()).base(), mode, create);
-
+			Symlink &link = *new (alloc) Symlink(space, vfs, alloc, create, {
+				.path      = Path(attr.path.string(), Node_base::path.string()).string(),
+				.writeable = attr.writeable
+			});
 			return link.id();
 		}
 
