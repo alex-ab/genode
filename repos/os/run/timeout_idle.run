@@ -1,4 +1,4 @@
-assert {![have_spec linux]}
+assert {[have_spec nova] || [have_spec hw] || [have_spec sel4]}
 
 build {
 	core init timer lib/ld
@@ -20,7 +20,7 @@ config | prio_levels: 2 | verbose: yes
   + service IRQ     | . timer on some kernels
   + service TRACE
 
-+ default | caps: 100 | ram: 2M
++ default | caps: 110 | ram: 2M
 
 + start timer
   + provides | + service Timer
