@@ -951,6 +951,20 @@ extern "C" {
 		__attribute__((alias("pthread_mutexattr_destroy")));
 
 
+	int pthread_mutexattr_gettype(pthread_mutexattr_t const *attr, int *type)
+	{
+		if (!attr || !*attr || !type)
+			return EINVAL;
+
+		*type = (*attr)->type;
+
+		return 0;
+	}
+
+	typeof(pthread_mutexattr_gettype) _pthread_mutexattr_gettype
+		__attribute__((alias("pthread_mutexattr_gettype")));
+
+
 	int pthread_mutexattr_settype(pthread_mutexattr_t *attr, int type)
 	{
 		if (!attr || !*attr)

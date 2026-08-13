@@ -593,6 +593,7 @@ pthread_mutex_timedlock T
 pthread_mutex_trylock T
 pthread_mutex_unlock T
 pthread_mutexattr_destroy T
+pthread_mutexattr_gettype T
 pthread_mutexattr_init T
 pthread_mutexattr_settype T
 pthread_once T
