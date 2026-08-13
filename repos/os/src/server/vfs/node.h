@@ -48,11 +48,21 @@ namespace Vfs_server {
 	using Path = Genode::Path<MAX_PATH_LEN>;
 	using Packet_descriptor = File_system::Packet_descriptor;
 
-	using Out_of_memory = Allocator::Out_of_memory;
 	using Watch_handle = File_system::Watch_handle;
 	using File_handle  = File_system::File_handle;
 
-	struct Payload_ptr { char *ptr; };
+	struct Payload_ptr
+	{
+		char *_ptr;
+
+		void with_bytes(Packet_descriptor const &packet, auto const &fn)
+		{
+			if (_ptr || packet.length() == 0)
+				fn(Byte_range_ptr(_ptr, packet.length()));
+			else
+				warning("payload ptr unexpectedly not defined");
+		}
+	};
 
 	/**
 	 * Type trait for determining the node type for a given handle type
@@ -73,28 +83,14 @@ namespace Vfs_server {
 	template<> struct Handle_type<File>      { using Type = File_handle; };
 	template<> struct Handle_type<Symlink>   { using Type = Symlink_handle; };
 	template<> struct Handle_type<Watch>     { using Type = Watch_handle; };
-
-	/*
-	 * Note that the file objects are created at the
-	 * VFS in the local node constructors, this is to
-	 * ensure that in the case of file creation, the
-	 * Out_of_ram exception is thrown before the VFS is
-	 * modified.
-	 */
 }
 
 
 class Vfs_server::Node_base : Node_space::Element, Node_queue::Element
 {
-	private:
+	public:
 
-		/*
-		 * Noncopyable
-		 */
-		Node_base(Node_base const &);
-		Node_base &operator = (Node_base const &);
-
-		Path const _path;
+		Path const path;
 
 	protected:
 
@@ -107,11 +103,11 @@ class Vfs_server::Node_base : Node_space::Element, Node_queue::Element
 		 */
 		Packet_descriptor _acked_packet { };
 
-		bool _submit_accepted = false;
-
 		bool _acked_packet_valid = false;
 
 		bool _packet_in_progress = false;
+
+		bool _modified = false;
 
 		enum class Read_ready_state { DONT_CARE, REQUESTED, READY };
 
@@ -124,14 +120,12 @@ class Vfs_server::Node_base : Node_space::Element, Node_queue::Element
 
 		Node_base(Node_space &space, char const *node_path)
 		:
-			Node_space::Element(*this, space), _path(node_path)
+			Node_space::Element(*this, space), path(node_path)
 		{ }
 
 		virtual ~Node_base() { }
 
 		using Node_space::Element::id;
-
-		char const *path() const { return _path.base(); }
 
 		enum class Submit_result { DENIED, ACCEPTED, STALLED };
 
@@ -212,14 +206,14 @@ class Vfs_server::Node_base : Node_space::Element, Node_queue::Element
 		/**
 		 * Return true if node was written to
 		 */
-		virtual bool modified() const { return false; }
+		bool modified() const { return _modified; }
 
 		/**
 		 * Print for debugging
 		 */
 		void print(Output &out) const
 		{
-			Genode::print(out, _path.string(), " (id=", id(), ")");
+			Genode::print(out, path.string(), " (id=", id(), ")");
 		}
 };
 
@@ -227,241 +221,114 @@ class Vfs_server::Node_base : Node_space::Element, Node_queue::Element
 /**
  * Super-class for nodes that process read/write packets
  */
-class Vfs_server::Io_node : public Vfs_server::Node_base,
-                            public Vfs::Read_ready_response_handler
+class Vfs_server::Io_node : public Vfs_server::Node_base
 {
 	private:
-
-		/*
-		 * Noncopyable
-		 */
-		Io_node(Io_node const &);
-		Io_node &operator = (Io_node const &);
 
 		Mode const _mode;
 
 	protected:
-
-		Payload_ptr _payload_ptr { };
-
-		bool _modified = false;
-
-		Vfs::Vfs_handle &_handle;
-
-		void _import_job(Packet_descriptor packet, Payload_ptr payload_ptr)
-		{
-			/*
-			 * Accept a READ_READY request without occupying '_packet'.
-			 * This way, another request can follow a READ_READY request
-			 * without blocking on the completion of READ_READY.
-			 */
-			if (packet.operation() == Packet_descriptor::READ_READY) {
-				_read_ready_state = Read_ready_state::REQUESTED;
-				return;
-			}
-
-			if (job_in_progress())
-				error("job unexpectedly submitted to busy node");
-
-			_packet             = packet;
-			_payload_ptr        = payload_ptr;
-			_acked_packet_valid = false;
-			_acked_packet       = Packet_descriptor { };
-		}
-
-		void _acknowledge_as_success(size_t count)
-		{
-			/*
-			 * Keep '_packet' and '_payload_ptr' intact to allow for the
-			 * conversion of directory entries in 'Directory::execute_job'.
-			 */
-
-			_packet_in_progress = false;
-			_acked_packet_valid = true;
-			_acked_packet       = _packet;
-
-			_acked_packet.length(count);
-			_acked_packet.succeeded(true);
-		}
-
-		void _acknowledge_as_failure()
-		{
-			_packet_in_progress = false;
-			_acked_packet_valid = true;
-			_acked_packet       = _packet;
-
-			_acked_packet.succeeded(false);
-
-			_packet             = Packet_descriptor();
-			_payload_ptr        = Payload_ptr { nullptr };
-		}
 
 		/**
 		 * Current job of this node, assigned by 'submit_job'
 		 */
 		Packet_descriptor _packet { };
 
+		Payload_ptr _payload_ptr { }; /* pointer into current packet buffer */
+
+		void _import_packet(Packet_descriptor const &packet)
+		{
+			if (job_in_progress())
+				error("job unexpectedly submitted to busy node");
+
+			_packet             = packet;
+			_acked_packet_valid = false;
+			_acked_packet       = Packet_descriptor { };
+		}
+
+		void _ack_and_reset_packet(Payload_ptr &ptr)
+		{
+			_packet_in_progress = false;
+			_acked_packet_valid = true;
+			_acked_packet       = _packet;
+
+			_packet = { };
+			ptr     = { };
+		}
+
+		void _ack_successful_packet(size_t count, Payload_ptr &ptr)
+		{
+			_ack_and_reset_packet(ptr);
+			_acked_packet.length(count);
+			_acked_packet.succeeded(true);
+
+		}
+
+		void _ack_failed_packet(Payload_ptr &ptr)
+		{
+			_ack_and_reset_packet(ptr);
+			_acked_packet.succeeded(false);
+		}
+
 	protected:
+
+		Submit_result _accept()
+		{
+			_packet_in_progress = true;
+			return Submit_result::ACCEPTED;
+		}
 
 		Submit_result _submit_read()
 		{
-			if (!(_mode & READ_ONLY))
-				return Submit_result::DENIED;
-
-			_packet_in_progress = true;
-			return Submit_result::ACCEPTED;
+			return (_mode & READ_ONLY) ? _accept() : Submit_result::DENIED;
 		}
 
 		Submit_result _submit_write()
 		{
-			if (!(_mode & WRITE_ONLY))
-				return Submit_result::DENIED;
-
-			_packet_in_progress = true;
-			return Submit_result::ACCEPTED;
+			return (_mode & WRITE_ONLY) ? _accept() : Submit_result::DENIED;
 		}
 
-		Submit_result _submit_sync()
-		{
-			_packet_in_progress = true;
-			return Submit_result::ACCEPTED;
-		}
-
-		Submit_result _submit_read_ready()
-		{
-			_read_ready_state = Read_ready_state::REQUESTED;
-
-			if (_handle.read_ready()) {
-				/* if the handle is ready, send a packet back immediately */
-				read_ready_response();
-			} else {
-				/* register to send READ_READY acknowledgement later */
-				_handle.notify_read_ready();
-			}
-			return Submit_result::ACCEPTED;
-		}
-
-		Submit_result _submit_content_changed()
-		{
-			warning("client unexpectedly submitted CONTENT_CHANGED packet");
-			return Submit_result::DENIED;
-		}
+		Submit_result _submit_sync() { return _accept(); }
 
 		Submit_result _submit_write_timestamp()
 		{
-			if (!(_mode & WRITE_ONLY))
-				return Submit_result::DENIED;
-
-			_packet_in_progress = true;
-			return Submit_result::ACCEPTED;
+			return (_mode & WRITE_ONLY) ? _accept() : Submit_result::DENIED;
 		}
 
-		void _execute_read(At at)
-		{
-			Byte_range_ptr dst { _payload_ptr.ptr, _packet.length() };
-
-			_handle.read(at, dst).with_result(
-				[&] (size_t num_bytes) {
-					_acknowledge_as_success(num_bytes);
-				},
-				[&] (Vfs_handle::Read_error e) {
-					if (e != Vfs_handle::Read_error::RETRY)
-						_acknowledge_as_failure();
-				});
-		}
-
-		/**
-		 * Try to execute write operation at the VFS
-		 *
-		 * \return number of consumed bytes
-		 */
-		size_t _execute_write(At const at, Const_byte_range_ptr const &src)
-		{
-			size_t out_count = 0;
-			_handle.write(at, src).with_result(
-				[&] (size_t num_bytes) {
-					out_count = num_bytes;
-				},
-				[&] (Vfs_handle::Write_error e) {
-					switch (e) {
-					case Vfs_handle::Write_error::RETRY:  break;
-					case Vfs_handle::Write_error::DENIED: _acknowledge_as_failure(); break;
-					}
-				});
-
-			_modified = true;
-
-			return out_count;
-		}
-
-		void _execute_sync()
-		{
-			switch (_handle.sync()) {
-
-			case Sync_result::OK:
-				_acknowledge_as_success(0);
-				break;
-
-			case Sync_result::RETRY:
-				break;
-			}
-		}
-
-		void _execute_write_timestamp()
+		void _execute_mtime(Vfs_handle &vfs_handle)
 		{
 			_packet.with_timestamp([&] (::File_system::Timestamp const time) {
 				Vfs::Timestamp ts { .ms_since_1970 = time.ms_since_1970 };
-				_handle.update_modification_timestamp(ts);
+				vfs_handle.update_modification_timestamp(ts);
 			});
-			_acknowledge_as_success(0);
+			_ack_successful_packet(0, _payload_ptr);
 
 			_modified = true;
+		}
+
+		void _execute_sync(Vfs_handle &vfs_handle)
+		{
+			if (vfs_handle.sync() == Sync_result::OK)
+				_ack_successful_packet(0, _payload_ptr);
 		}
 
 	public:
 
-		Io_node(Node_space &space,
-		        char const *path,
-		        Mode        mode,
-		        Vfs_handle &handle)
+		Io_node(Node_space &space, char const *path, Mode mode)
 		:
-			Node_base(space, path), _mode(mode), _handle(handle)
-		{
-			_handle.handler(this); // XXX remove?
-		}
+			Node_base(space, path), _mode(mode)
+		{ }
 
-		virtual ~Io_node()
-		{
-			_handle.handler(nullptr);
-			_handle.close();
-		}
+		virtual ~Io_node() { }
 
 		using Node_space::Element::id;
 
 		Mode mode() const { return _mode; }
 
-
-		/*************************************
-		 ** Vfs_server::Node_base interface **
-		 *************************************/
-
-		void execute_job() override { }
-
-		bool modified() const override { return _modified; }
-
-
-		/****************************************
-		 ** Vfs::Io_response_handler interface **
-		 ****************************************/
-
 		/**
-		 * Called by the VFS plugin of this handle
+		 * Vfs_server::Node_base interface
 		 */
-		void read_ready_response() override
-		{
-			if (_read_ready_state == Read_ready_state::REQUESTED)
-				_read_ready_state =  Read_ready_state::READY;
-		}
+		void execute_job() override { }
 };
 
 
@@ -502,11 +369,9 @@ class Vfs_server::Watch_node final : public Vfs_server::Node_base,
 
 		Watch_result watch() { return _watch_handle.watch(); }
 
-
-		/******************************************
-		 ** Vfs::Watch_handle::Handler interface **
-		 ******************************************/
-
+		/**
+		 * Vfs::Watch_handle::Handler interface
+		 */
 		void io_handle_watch() override
 		{
 			_acked_packet = Packet_descriptor(Packet_descriptor(),
@@ -518,11 +383,9 @@ class Vfs_server::Watch_node final : public Vfs_server::Node_base,
 			_watch_node_response_handler.handle_watch_node_response(*this);
 		}
 
-
-		/*************************************
-		 ** Vfs_server::Node_base interface **
-		 *************************************/
-
+		/**
+		 * Vfs_server::Node_base interface
+		 */
 		Submit_result submit_job(Packet_descriptor, Payload_ptr) override
 		{
 			/*
@@ -541,6 +404,8 @@ class Vfs_server::Watch_node final : public Vfs_server::Node_base,
 struct Vfs_server::Symlink : Io_node
 {
 	private:
+
+		Vfs::Vfs_handle &_handle;
 
 		using Write_buffer = String<MAX_PATH_LEN + 1>;
 
@@ -569,6 +434,49 @@ struct Vfs_server::Symlink : Io_node
 			return *h;
 		}
 
+		void _execute_read()
+		{
+			_payload_ptr.with_bytes(_packet, [&] (Byte_range_ptr const &dst) {
+				_handle.read({ }, dst).with_result(
+					[&] (size_t num_bytes) {
+						_ack_successful_packet(num_bytes, _payload_ptr);
+					},
+					[&] (Vfs_handle::Read_error e) {
+						if (e != Vfs_handle::Read_error::RETRY)
+							_ack_failed_packet(_payload_ptr);
+					}); });
+		}
+
+		void _execute_write()
+		{
+			/*
+			 * Write symlink content from '_write_buffer' instead of the
+			 * '_payload_ptr'. In contrast to '_payload_ptr', which points
+			 * to shared memory, the null-termination of the content of
+			 * '_write_buffer' does not depend on the goodwill of the client.
+			 */
+			Const_byte_range_ptr const src { _write_buffer.string(),
+			                                 _write_buffer.length() };
+			size_t out_count = 0;
+			_handle.write({ }, src).with_result(
+				[&] (size_t num_bytes) {
+					out_count = num_bytes;
+					_modified = true;
+				},
+				[&] (Vfs_handle::Write_error e) {
+					switch (e) {
+					case Vfs_handle::Write_error::RETRY:  break;
+					case Vfs_handle::Write_error::DENIED:
+						_ack_failed_packet(_payload_ptr); break;
+					}
+				});
+
+			if (out_count == src.num_bytes)
+				_ack_successful_packet(src.num_bytes, _payload_ptr);
+			else
+				_ack_failed_packet(_payload_ptr);
+		}
+
 	public:
 
 		Symlink(Node_space       &space,
@@ -578,12 +486,16 @@ struct Vfs_server::Symlink : Io_node
 		        Mode              mode,
 		        bool              create)
 		:
-			Io_node(space, path, mode, _open(vfs, alloc, path, create))
+			Io_node(space, path, mode),
+			_handle(_open(vfs, alloc, path, create))
 		{ }
 
-		Submit_result submit_job(Packet_descriptor packet, Payload_ptr payload_ptr) override
+		~Symlink() { _handle.close(); }
+
+		Submit_result submit_job(Packet_descriptor packet, Payload_ptr ptr) override
 		{
-			_import_job(packet, payload_ptr);
+			_import_packet(packet);
+			_payload_ptr = ptr;
 
 			switch (packet.operation()) {
 
@@ -600,14 +512,15 @@ struct Vfs_server::Symlink : Io_node
 						return Submit_result::DENIED;
 
 					/* accessed by 'execute_job' */
-					_write_buffer = Write_buffer(Cstring(_payload_ptr.ptr,
-					                                     packet.length()));
+					_payload_ptr.with_bytes(packet, [&] (Byte_range_ptr const &bytes) {
+						_write_buffer = { Cstring(bytes.start, bytes.num_bytes) };
+					});
 					return _submit_write();
 				}
 
 			case Packet_descriptor::SYNC:            return _submit_sync();
-			case Packet_descriptor::READ_READY:      return _submit_read_ready();
-			case Packet_descriptor::CONTENT_CHANGED: return _submit_content_changed();
+			case Packet_descriptor::READ_READY:      return Submit_result::DENIED;
+			case Packet_descriptor::CONTENT_CHANGED: return Submit_result::DENIED;
 			case Packet_descriptor::WRITE_TIMESTAMP: return _submit_write_timestamp();
 			}
 
@@ -621,28 +534,10 @@ struct Vfs_server::Symlink : Io_node
 		{
 			switch (_packet.operation()) {
 
-			/*
-			 * Write symlink content from '_write_buffer' instead of the
-			 * '_payload_ptr'. In contrast to '_payload_ptr', which points
-			 * to shared memory, the null-termination of the content of
-			 * '_write_buffer' does not depend on the goodwill of the client.
-			 */
-			case Packet_descriptor::WRITE:
-				{
-					Const_byte_range_ptr const src { _write_buffer.string(),
-					                                 _write_buffer.length() };
-
-					if (_execute_write({ }, src) == src.num_bytes)
-						_acknowledge_as_success(src.num_bytes);
-					else
-						_acknowledge_as_failure();
-					break;
-				}
-
-			/* generic */
-			case Packet_descriptor::READ:            _execute_read({ }); break;
-			case Packet_descriptor::SYNC:            _execute_sync();    break;
-			case Packet_descriptor::WRITE_TIMESTAMP: _execute_write_timestamp(); break;
+			case Packet_descriptor::WRITE:           _execute_write(); break;
+			case Packet_descriptor::READ:            _execute_read();  break;
+			case Packet_descriptor::SYNC:            _execute_sync (_handle); break;
+			case Packet_descriptor::WRITE_TIMESTAMP: _execute_mtime(_handle); break;
 
 			/* never executed */
 			case Packet_descriptor::READ_READY:
@@ -653,15 +548,11 @@ struct Vfs_server::Symlink : Io_node
 };
 
 
-class Vfs_server::File : public Io_node
+class Vfs_server::File : public Io_node, public Vfs::Read_ready_response_handler
 {
 	private:
 
-		/*
-		 * Noncopyable
-		 */
-		File(File const &);
-		File &operator = (File const &);
+		Vfs::Vfs_handle &_handle;
 
 		using Stat = Directory_service::Stat;
 
@@ -693,7 +584,78 @@ class Vfs_server::File : public Io_node
 
 		bool _watch_read_ready = false;
 
-	protected:
+		void _execute_write()
+		{
+			_payload_ptr.with_bytes(_packet, [&] (Byte_range_ptr src) {
+				src.with_skipped_bytes(_write_pos, [&] (Byte_range_ptr const &src) {
+
+					At const at { _seek_pos() + _write_pos };
+
+					size_t out_count = 0;
+
+					_handle.write(at, Span(src.start, src.num_bytes)).with_result(
+						[&] (size_t num_bytes) {
+							out_count = num_bytes;
+							_modified = true;
+						},
+						[&] (Vfs_handle::Write_error e) {
+							switch (e) {
+							case Vfs_handle::Write_error::RETRY:  break;
+							case Vfs_handle::Write_error::DENIED:
+								_ack_failed_packet(_payload_ptr); break;
+							}
+						});
+
+					if (out_count == src.num_bytes) {
+						_ack_successful_packet(src.num_bytes, _payload_ptr);
+						return;
+					}
+
+					/*
+					 * The write request was only partially successful.
+					 * Continue writing if the file is continuous.
+					 * Return an error if the file is transactional.
+					 */
+					if (_write_type == Write_type::TRANSACTIONAL) {
+						_ack_failed_packet(_payload_ptr);
+						return;
+					}
+
+					/*
+					 * Keep executing the write operation for the remaining
+					 * bytes.
+					 */
+					_write_pos += out_count;
+				});
+			});
+		}
+
+		void _execute_read()
+		{
+			_payload_ptr.with_bytes(_packet, [&] (Byte_range_ptr const &dst) {
+				_handle.read(At { _seek_pos() }, dst).with_result(
+					[&] (size_t num_bytes) {
+						_ack_successful_packet(num_bytes, _payload_ptr);
+					},
+					[&] (Vfs_handle::Read_error e) {
+						if (e != Vfs_handle::Read_error::RETRY)
+							_ack_failed_packet(_payload_ptr);
+					}); });
+		}
+
+		Submit_result _submit_read_ready()
+		{
+			_read_ready_state = Read_ready_state::REQUESTED;
+
+			if (_handle.read_ready()) {
+				/* if the handle is ready, send a packet back immediately */
+				read_ready_response();
+			} else {
+				/* register to send READ_READY acknowledgement later */
+				_handle.notify_read_ready();
+			}
+			return Submit_result::ACCEPTED;
+		}
 
 		static Vfs_handle &_open(Vfs::File_system  &vfs, Allocator &alloc,
 		                         char const *path, Mode mode, bool create)
@@ -715,15 +677,24 @@ class Vfs_server::File : public Io_node
 		     Mode              mode,
 		     bool              create)
 		:
-			Io_node(space, path, mode, _open(vfs, alloc, path, mode, create))
+			Io_node(space, path, mode),
+			_handle(_open(vfs, alloc, path, mode, create))
 		{
+			_handle.handler(this); // XXX remove?
+
 			if (mode == Mode::WRITE_ONLY || mode == Mode::READ_WRITE) {
 				using Result = Directory_service::Stat_result;
 				Vfs::Directory_service::Stat stat { };
-				if (vfs.stat(Node_base::path(), stat) == Result::STAT_OK)
+				if (vfs.stat(path, stat) == Result::STAT_OK)
 					_write_type = (stat.type == Vfs::Node_type::CONTINUOUS_FILE)
 					            ? Write_type::CONTINUOUS : Write_type::TRANSACTIONAL;
 			}
+		}
+
+		~File()
+		{
+			_handle.handler(nullptr);
+			_handle.close();
 		}
 
 		void truncate(file_size_t size)
@@ -731,20 +702,29 @@ class Vfs_server::File : public Io_node
 			(void)_handle.ftruncate(size);
 		}
 
-		Submit_result submit_job(Packet_descriptor packet, Payload_ptr payload_ptr) override
+		Submit_result submit_job(Packet_descriptor packet, Payload_ptr ptr) override
 		{
-			_import_job(packet, payload_ptr);
+			/*
+			 * Accept a READ_READY request without occupying '_packet'.
+			 * This way, another request can follow a READ_READY request
+			 * without blocking on the completion of READ_READY.
+			 */
+			if (packet.operation() == Packet_descriptor::READ_READY) {
+				_read_ready_state = Read_ready_state::REQUESTED;
+			} else {
+				_import_packet(packet);
+				_payload_ptr = ptr;
+			}
 
 			_write_type = Write_type::UNKNOWN;
 			_write_pos  = 0;
 
 			switch (packet.operation()) {
-
 			case Packet_descriptor::READ:            return _submit_read();
 			case Packet_descriptor::WRITE:           return _submit_write();
 			case Packet_descriptor::SYNC:            return _submit_sync();
 			case Packet_descriptor::READ_READY:      return _submit_read_ready();
-			case Packet_descriptor::CONTENT_CHANGED: return _submit_content_changed();
+			case Packet_descriptor::CONTENT_CHANGED: return Submit_result::DENIED;
 			case Packet_descriptor::WRITE_TIMESTAMP: return _submit_write_timestamp();
 			}
 
@@ -758,46 +738,27 @@ class Vfs_server::File : public Io_node
 		{
 			switch (_packet.operation()) {
 
-			case Packet_descriptor::WRITE:
-				{
-					Const_byte_range_ptr const src { _payload_ptr.ptr + _write_pos,
-					                                 _packet.length() - _write_pos };
-					At const at { _seek_pos() + _write_pos };
-
-					size_t const consumed = _execute_write(at, src);
-
-					if (consumed == src.num_bytes) {
-						_acknowledge_as_success(src.num_bytes);
-						break;
-					}
-
-					/*
-					 * The write request was only partially successful.
-					 * Continue writing if the file is continuous.
-					 * Return an error if the file is transactional.
-					 */
-					if (_write_type == Write_type::TRANSACTIONAL) {
-						_acknowledge_as_failure();
-						break;
-					}
-
-					/*
-					 * Keep executing the write operation for the remaining bytes.
-					 */
-					_write_pos += consumed;
-					break;
-				}
-
-			/* generic */
-			case Packet_descriptor::READ:            _execute_read({ _seek_pos() }); break;
-			case Packet_descriptor::SYNC:            _execute_sync(); break;
-			case Packet_descriptor::WRITE_TIMESTAMP: _execute_write_timestamp(); break;
+			case Packet_descriptor::WRITE:           _execute_write(); break;
+			case Packet_descriptor::READ:            _execute_read();  break;
+			case Packet_descriptor::SYNC:            _execute_sync (_handle); break;
+			case Packet_descriptor::WRITE_TIMESTAMP: _execute_mtime(_handle); break;
 
 			/* never executed */
 			case Packet_descriptor::READ_READY:
 			case Packet_descriptor::CONTENT_CHANGED:
 				break;
 			}
+		}
+
+		/**
+		 * Vfs::Io_response_handler interface
+		 *
+		 * Called by the VFS plugin of this handle
+		 */
+		void read_ready_response() override
+		{
+			if (_read_ready_state == Read_ready_state::REQUESTED)
+				_read_ready_state =  Read_ready_state::READY;
 		}
 };
 
@@ -809,6 +770,8 @@ struct Vfs_server::Directory : Io_node
 		enum class Session_writeable { READ_ONLY, WRITEABLE };
 
 	private:
+
+		Vfs::Vfs_handle &_handle;
 
 		Session_writeable const _writeable;
 
@@ -871,18 +834,17 @@ struct Vfs_server::Directory : Io_node
 		 *
 		 * \return  size of converted data in bytes
 		 */
-		size_t _convert_vfs_dirents_to_fs_dirents()
+		size_t _convert_vfs_dirents_to_fs_dirents(Byte_range_ptr const &buf)
 		{
 			static_assert(sizeof(Vfs_dirent) == sizeof(Fs_dirent));
 
-			size_t const step   = sizeof(Fs_dirent);
-			size_t const length = _packet.length();
+			size_t const step = sizeof(Fs_dirent);
 
 			size_t converted_length = 0;
 
-			for (file_size offset = 0; offset + step <= length; offset += step) {
+			for (file_size offset = 0; offset + step <= buf.num_bytes; offset += step) {
 
-				char * const ptr = _payload_ptr.ptr + offset;
+				char * const ptr = buf.start + offset;
 
 				Vfs_dirent &vfs_dirent = *(Vfs_dirent *)(ptr);
 				Fs_dirent  &fs_dirent  = *(Fs_dirent  *)(ptr);
@@ -915,9 +877,11 @@ struct Vfs_server::Directory : Io_node
 		          bool              create,
 		          Session_writeable writeable)
 		:
-			Io_node(space, path, READ_ONLY, _open(vfs, alloc, path, create)),
-			_writeable(writeable)
+			Io_node(space, path, READ_ONLY),
+			_handle(_open(vfs, alloc, path, create)), _writeable(writeable)
 		{ }
+
+		~Directory() { _handle.close(); }
 
 		/**
 		 * Open a file handle at this directory
@@ -931,7 +895,7 @@ struct Vfs_server::Directory : Io_node
 		{
 			File &file = *new (alloc)
 				File(space, vfs, alloc,
-				     Path(path, Node_base::path()).base(), mode, create);
+				     Path(path, Node_base::path.string()).base(), mode, create);
 
 			return file.id();
 		}
@@ -948,19 +912,15 @@ struct Vfs_server::Directory : Io_node
 		{
 			Symlink &link = *new (alloc)
 				Symlink(space, vfs, alloc,
-				        Path(path, Node_base::path()).base(), mode, create);
+				        Path(path, Node_base::path.string()).base(), mode, create);
 
 			return link.id();
 		}
 
-
-		/*************************************
-		 ** Vfs_server::Node_base interface **
-		 *************************************/
-
-		Submit_result submit_job(Packet_descriptor packet, Payload_ptr payload_ptr) override
+		Submit_result submit_job(Packet_descriptor packet, Payload_ptr ptr) override
 		{
-			_import_job(packet, payload_ptr);
+			_import_packet(packet);
+			_payload_ptr = ptr;
 
 			switch (packet.operation()) {
 
@@ -971,12 +931,10 @@ struct Vfs_server::Directory : Io_node
 
 				return _submit_read();
 
-			case Packet_descriptor::WRITE:
-				return Submit_result::DENIED;
-
+			case Packet_descriptor::WRITE:           return Submit_result::DENIED;
 			case Packet_descriptor::SYNC:            return _submit_sync();
-			case Packet_descriptor::READ_READY:      return _submit_read_ready();
-			case Packet_descriptor::CONTENT_CHANGED: return _submit_content_changed();
+			case Packet_descriptor::READ_READY:      return Submit_result::DENIED;
+			case Packet_descriptor::CONTENT_CHANGED: return Submit_result::DENIED;
 			case Packet_descriptor::WRITE_TIMESTAMP: return _submit_write_timestamp();
 			}
 
@@ -990,26 +948,24 @@ struct Vfs_server::Directory : Io_node
 			switch (_packet.operation()) {
 
 			case Packet_descriptor::READ:
-				_execute_read(At { _packet.position() });
-
-				if (_acked_packet_valid) {
-					size_t const length = _convert_vfs_dirents_to_fs_dirents();
-
-					/*
-					 * Overwrite the acknowledgement assigned by
-					 * '_execute_read' with an acknowledgement featuring the
-					 * converted length. This way, the client reads only the
-					 * number of bytes until the end of the directory.
-					 */
-					_acknowledge_as_success(length);
-				}
+				_payload_ptr.with_bytes(_packet, [&] (Byte_range_ptr const &dst) {
+					_handle.read(At { _packet.position() }, dst).with_result(
+						[&] (size_t num_bytes) {
+							Byte_range_ptr bytes { dst.start, num_bytes };
+							size_t n = _convert_vfs_dirents_to_fs_dirents(bytes);
+							_ack_successful_packet(n, _payload_ptr);
+						},
+						[&] (Vfs_handle::Read_error e) {
+							if (e != Vfs_handle::Read_error::RETRY)
+								_ack_failed_packet(_payload_ptr);
+						});
+				});
 				break;
 
-			/* generic */
-			case Packet_descriptor::SYNC:            _execute_sync(); break;
-			case Packet_descriptor::WRITE_TIMESTAMP: _execute_write_timestamp(); break;
+			case Packet_descriptor::WRITE_TIMESTAMP: _execute_mtime(_handle); break;
 
 			/* never executed */
+			case Packet_descriptor::SYNC:
 			case Packet_descriptor::WRITE:
 			case Packet_descriptor::READ_READY:
 			case Packet_descriptor::CONTENT_CHANGED:

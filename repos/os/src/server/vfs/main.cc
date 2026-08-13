@@ -629,7 +629,7 @@ class Vfs_server::Session_component : private Session_resources,
 
 				Directory_service::Stat vfs_stat;
 
-				if (_vfs.stat(node.path(), vfs_stat) != Directory_service::STAT_OK)
+				if (_vfs.stat(node.path.string(), vfs_stat) != Directory_service::STAT_OK)
 					throw Invalid_handle();
 
 				auto fs_node_type = [&] (Vfs::Node_type type)
@@ -678,7 +678,7 @@ class Vfs_server::Session_component : private Session_resources,
 		unsigned num_entries(Dir_handle dir_handle) override
 		{
 			return _apply(dir_handle, [&] (Directory &dir) {
-				return _vfs.num_dirent(dir.path()); });
+				return _vfs.num_dirent(dir.path.string()); });
 		}
 
 		void unlink(Dir_handle dir_handle, Name const &name) override
@@ -689,7 +689,7 @@ class Vfs_server::Session_component : private Session_resources,
 				char const *name_str = name.string();
 				_assert_valid_name(name_str);
 
-				Path path(name_str, dir.path());
+				Path path(name_str, dir.path.string());
 
 				assert_unlink(_vfs.unlink(path.base()));
 			});
@@ -723,8 +723,8 @@ class Vfs_server::Session_component : private Session_resources,
 
 			_apply(from_dir_handle, [&] (Directory &from_dir) {
 				_apply(to_dir_handle, [&] (Directory &to_dir) {
-					Path from_path(from_str, from_dir.path());
-					Path   to_path(  to_str,   to_dir.path());
+					Path from_path(from_str, from_dir.path.string());
+					Path   to_path(  to_str,   to_dir.path.string());
 
 					assert_rename(_vfs.rename(from_path.base(), to_path.base()));
 				});
