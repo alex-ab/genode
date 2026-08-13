@@ -143,6 +143,7 @@ dprintf T
 drand48 T
 dup T
 dup2 T
+dup3 W
 encrypt T
 endfsent T
 endgrent T
@@ -247,6 +248,7 @@ fts_set_clientptr T
 ftw T
 funlockfile W
 funopen T
+futimens W
 fwide T
 fwprintf T
 fwrite T
@@ -350,6 +352,7 @@ hcreate T
 hdestroy T
 heapsort T
 hsearch T
+if_nametoindex T
 imaxabs T
 imaxdiv T
 in6addr_any R 16
@@ -432,6 +435,7 @@ ksem_init T
 l64a T
 l64a_r T
 labs T
+lchown T
 lcong48 T
 ldexp T
 ldiv T
@@ -580,6 +584,9 @@ pthread_create W
 pthread_detach T
 pthread_equal T
 pthread_exit T
+pthread_get_name_np T
+pthread_getaffinity_np T
+pthread_getschedparam T
 pthread_getspecific T
 pthread_join T
 pthread_key_create T
@@ -608,8 +615,10 @@ pthread_rwlockattr_destroy T
 pthread_rwlockattr_init T
 pthread_self T
 pthread_set_name_np T
+pthread_setaffinity_np T
 pthread_setcancelstate T
 pthread_setcanceltype T
+pthread_setschedparam T
 pthread_setspecific T
 pthread_sigmask T
 pthread_testcancel T
@@ -662,6 +671,8 @@ rpmatch T
 sbrk W
 scandir T
 scanf T
+sched_get_priority_max T
+sched_get_priority_min T
 sched_setparam W
 sched_setscheduler W
 sched_yield W
@@ -682,6 +693,7 @@ semctl T
 semget W
 semop W
 send T
+sendfile T
 sendmsg W
 sendmmsg T
 sendto T
@@ -712,6 +724,7 @@ setpassent W
 setpgid W
 setpgrp T
 setpriority W
+setproctitle T
 setprogname T
 setpwent W
 setregid W
@@ -894,6 +907,7 @@ uselocale T
 user_from_uid T
 usleep W
 utime W
+utimensat W
 utimes W
 utmpxname T
 vasprintf T
