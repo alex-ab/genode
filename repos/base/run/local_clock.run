@@ -4,6 +4,21 @@ if {[have_cmd_switch --autopilot]} {
 	}
 }
 
+# return expected ratio of remote_clock_fn calls
+proc expected_ratio { } {
+	if {[have_spec arm] || [have_spec arm_64]} {
+		# since half of the calls are unsync()-ed, it cannot be lower than 0.5
+		return 0.7
+	}
+
+	if {[have_spec foc]} {
+		# coarse timer granularity on foc leads to higher variance
+		return 0.6
+	}
+
+	return 0.3
+}
+
 build { core init timer lib/ld test/local_clock }
 
 create_boot_directory
@@ -32,7 +47,7 @@ config | prio_levels: 2
 
 + start test | priority: -1 | ram: 10M
   + binary test-local_clock
-  + config | ld_verbose: yes
+  + config | ld_verbose: yes | expected_ratio: } [expected_ratio] {
 -
 }
 

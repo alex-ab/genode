@@ -16,6 +16,7 @@
 #include <util/reconstructible.h>
 #include <timer/local_clock.h>
 #include <timer_session/connection.h>
+#include <base/attached_rom_dataspace.h>
 
 /* local includes */
 #include "histogram.h"
@@ -365,7 +366,8 @@ class Test_dynamic
 		{ }
 
 		template <typename T>
-		bool run(T &sleep_pattern, Local_clock &local_clock, Duration max_time)
+		bool run(T &sleep_pattern, Local_clock &local_clock, Duration max_time,
+		         double const expected_ratio)
 		{
 			log("\nStart dynamic test with ", sleep_pattern," sleep pattern");
 
@@ -435,7 +437,7 @@ class Test_dynamic
 			}
 
 			double const ratio    = double(num_remote_clock_calls)/double(iteration+1);
-			bool const good_ratio = ratio <= EXPECTED_RATIO;
+			bool const good_ratio = ratio <= expected_ratio;
 			bool const good_drift = max_drift_rel < 1.0f;
 			log("  total calls:         ", iteration+1);
 			log("  remote clock calls:  ", num_remote_clock_calls);
@@ -496,10 +498,11 @@ class Main
 {
 	private:
 
-		Env               &_env;
-		Timer::Connection  _timer         { _env };
-		Test_static        _test_static   { };
-		Test_dynamic       _test_dynamic  { _timer };
+		Env                    &_env;
+		Attached_rom_dataspace  _config        { _env, "config" };
+		Timer::Connection       _timer         { _env };
+		Test_static             _test_static   { };
+		Test_dynamic            _test_dynamic  { _timer };
 
 		Constructible<Local_clock> _local_clock { };
 
@@ -512,16 +515,21 @@ class Main
 			bool result { true };
 			result &= _test_static.run();
 
+			double const expected_ratio =
+				_config.node().attribute_value("expected_ratio", 0.3);
+
 			_local_clock.construct();
 			Constant_sleep constant_sleep { Duration{Milliseconds{ 10 }} };
 			result &= _test_dynamic.run(constant_sleep, *_local_clock,
-			                            Duration { Milliseconds { 5000 }});
+			                            Duration { Milliseconds { 5000 }},
+			                            expected_ratio);
 
 			_local_clock.construct();
 			Random_sleep random_sleep { (uint32_t)_timer.elapsed_us(),
 			                            Duration{Milliseconds{ 1000 }} };
 			result &= _test_dynamic.run(random_sleep, *_local_clock,
-			                            Duration { Milliseconds { 15000 }});
+			                            Duration { Milliseconds { 15000 }},
+			                            expected_ratio);
 
 			if (result)
 				env.parent().exit(0);
