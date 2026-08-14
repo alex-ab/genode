@@ -149,8 +149,8 @@ void Local_clock::_update_interpolated_clock(Tsc current_tsc)
 }
 
 
-void Local_clock::_add_data_point(Remote_clock remote_clock,
-                                  Tsc tsc_start, Tsc tsc_end)
+void Local_clock::add_data_point(Remote_clock remote_clock,
+                                 Tsc tsc_start, Tsc tsc_end)
 {
 	Tsc const error { (tsc_end.ticks - tsc_start.ticks) / 2 };
 	Data_point const data_point { .remote_clock = remote_clock,

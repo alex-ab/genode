@@ -20,7 +20,7 @@
 #include <util/reconstructible.h>
 #include <base/entrypoint.h>
 #include <timer/timeout.h>
-#include <trace/timestamp.h>
+#include <util/local_clock.h>
 
 namespace Timer
 {
@@ -267,7 +267,8 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		using Timeout           = Genode::Timeout;
 		using Timeout_handler   = Genode::Timeout_handler;
 		using Timeout_scheduler = Genode::Timeout_scheduler;
-		using Timestamp         = Genode::Trace::Timestamp;
+		using Local_clock       = Genode::Local_clock;
+		using Remote_clock      = Genode::Remote_clock;
 		using Duration          = Genode::Duration;
 		using Mutex             = Genode::Mutex;
 		using Microseconds      = Genode::Microseconds;
@@ -299,25 +300,13 @@ class Timer::Connection : public  Genode::Connection<Session>,
 		 ** Members for interaction with Timeout framework **
 		 ****************************************************/
 
-		enum { REAL_TIME_UPDATE_PERIOD_US = 500000 };
-		enum { MAX_INTERPOLATION_QUALITY  = 3 };
-		enum { MAX_REMOTE_TIME_LATENCY_US = 500 };
-		enum { MAX_REMOTE_TIME_TRIALS     = 5 };
-		enum { NR_OF_INITIAL_CALIBRATIONS = 3 * MAX_INTERPOLATION_QUALITY };
-		enum { MIN_FACTOR_LOG2            = 8 };
-		enum { MAX_DRIFT_US               = 1000 };
 		enum { TIMEOUT_ACCURACY_US        = 250 };
 
 		Entrypoint               &_ep;
 		Io_signal_handler         _signal_handler        { _ep, *this, &Connection::_handle_timeout };
-		Mutex                     _real_time_mutex       { };
-		uint64_t                  _us                    { elapsed_us() };
-		Timestamp                 _ts                    { _timestamp() };
-		Duration                  _real_time             { Microseconds { _us } };
-		Duration                  _interpolated_time     { _real_time };
-		unsigned                  _interpolation_quality { 0 };
-		uint64_t                  _us_to_ts_factor       { 1 };
-		unsigned                  _us_to_ts_factor_shift { 0 };
+		Mutex                     _local_clock_mutex     { };
+		Local_clock               _local_clock           { };
+		Remote_clock              _last_clock_value      { 0 };
 
 		Genode::Constructible<Timeout_scheduler> _timeout_scheduler { };
 
@@ -349,22 +338,9 @@ class Timer::Connection : public  Genode::Connection<Session>,
 
 		Timeout_scheduler &_switch_to_timeout_framework_mode();
 
-		Timestamp _timestamp();
-
-		void _update_interpolation_quality(uint64_t min_factor,
-		                                   uint64_t max_factor);
-
-		uint64_t _ts_to_us_ratio(Timestamp ts,
-		                         uint64_t  us,
-		                         unsigned  shift);
-
-		void _update_real_time();
-
-		Duration _update_interpolated_time(Duration &interpolated_time);
-
 		void _handle_timeout();
 
-		Duration _last_time() const;
+		void _set_alarm(Duration deadline);
 
 
 		/*****************

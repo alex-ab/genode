@@ -17,23 +17,17 @@
 
 /* Genode includes */
 #include <timer_session/connection.h>
-#include <base/internal/globals.h>
 
 using namespace Genode;
-using namespace Genode::Trace;
 
-Timestamp Timer::Connection::_timestamp() { return 0ULL; }
-
-void Timer::Connection::_update_real_time() { }
-
-Duration Timer::Connection::_last_time() const
+void Timer::Connection::_set_alarm(Duration deadline)
 {
-  return _real_time;
+	_last_clock_value  = Remote_clock { trigger_at(deadline.trunc_to_plain_us().value) };
 }
+
 
 Duration Timer::Connection::curr_time()
 {
-  Mutex::Guard guard(_real_time_mutex);
-  _real_time = Duration(Microseconds(elapsed_us()));
-  return _real_time;
+  _last_clock_value = Remote_clock { elapsed_us() };
+  return Duration { Microseconds { _last_clock_value.us }};
 }

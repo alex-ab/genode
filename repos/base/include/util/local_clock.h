@@ -120,9 +120,9 @@ class Genode::Local_clock
 		 */
 		void _update_interpolated_clock(Tsc current_tsc);
 
-		void _add_data_point(Remote_clock remote_clock, Tsc tsc_start, Tsc tsc_end);
-
 	public:
+
+		void add_data_point(Remote_clock remote_clock, Tsc tsc_start, Tsc tsc_end);
 
 		/*
 		 * Discard the last data point. This is necessary, e.g., after the CPU
@@ -166,7 +166,7 @@ class Genode::Local_clock
 			Tsc          const tsc_start    = tsc_fn();
 			Remote_clock const remote_clock = remote_clock_fn();
 			Tsc          const tsc_end      = tsc_fn();
-			_add_data_point(remote_clock, tsc_start, tsc_end);
+			add_data_point(remote_clock, tsc_start, tsc_end);
 
 			/* make sure that returned clock is monotonically increasing */
 			_interpolated_clock.us = max(remote_clock.us, _interpolated_clock.us);
