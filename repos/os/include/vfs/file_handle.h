@@ -50,7 +50,7 @@ class Genode::Vfs::File_handle : Noncopyable
 
 		File_handles::Element _elem { _handles, *this };
 
-		bool _need_sync = false;
+		bool _need_sync = writeable; /* might be a new file */
 
 		struct { Channel *_channel_ptr = nullptr; };
 
