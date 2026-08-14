@@ -168,7 +168,9 @@ class Genode::Local_clock
 			Tsc          const tsc_end      = tsc_fn();
 			_add_data_point(remote_clock, tsc_start, tsc_end);
 
-			return remote_clock;
+			/* make sure that returned clock is monotonically increasing */
+			_interpolated_clock.us = max(remote_clock.us, _interpolated_clock.us);
+			return _interpolated_clock;
 		}
 };
 
