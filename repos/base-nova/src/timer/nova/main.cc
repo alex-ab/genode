@@ -14,11 +14,8 @@
 /* Genode includes */
 #include <base/component.h>
 #include <base/heap.h>
-#include <base/session_object.h>
 #include <base/attached_rom_dataspace.h>
-#include <root/component.h>
-#include <timer_session/timer_session.h>
-#include <util/alarm_registry.h>
+#include <timer/component.h>
 
 /* NOVA includes */
 #include <nova/native_thread.h>
@@ -29,27 +26,9 @@ namespace Timer {
 
 	struct Tsc { uint64_t tsc; };
 	struct Tsc_rate;
-	struct Clock;
-	struct Device;
-	struct Alarm;
-	struct Root;
-	struct Session_component;
+	struct Nova_device;
 	struct Main;
-
-	using Alarms = Alarm_registry<Alarm, Clock>;
 }
-
-
-struct Timer::Clock
-{
-	uint64_t us;
-
-	static constexpr uint64_t MASK = uint64_t(-1);
-
-	uint64_t value() const { return us; }
-
-	void print(Output &out) const { Genode::print(out, us); }
-};
 
 
 struct Timer::Tsc_rate
@@ -77,7 +56,7 @@ struct Timer::Tsc_rate
 };
 
 
-class Timer::Device
+class Timer::Nova_device : public Timer::Device
 {
 	public:
 
@@ -85,10 +64,6 @@ class Timer::Device
 		{
 			virtual void dispatch_device_wakeup() = 0;
 		};
-
-		struct Deadline : Clock { };
-
-		static constexpr Deadline infinite_deadline { uint64_t(-1) };
 
 	private:
 
@@ -176,217 +151,23 @@ class Timer::Device
 
 	public:
 
-		Device(Env &env, Tsc_rate tsc_rate, Wakeup_dispatcher &dispatcher)
+		Nova_device(Env &env, Tsc_rate tsc_rate, Wakeup_dispatcher &dispatcher)
 		: _tsc_rate(tsc_rate), _waiter(env, dispatcher) { }
 
-		Clock now() const
+		Clock now() override
 		{
 			return _tsc_rate.clock_from_tsc( Tsc { Trace::timestamp() });
 		}
 
-		void update_deadline(Deadline deadline)
+		bool update_deadline(Deadline deadline) override
 		{
 			_waiter.update_deadline(_tsc_rate.tsc_from_clock(deadline));
+			return true;
 		}
 };
 
 
-struct Timer::Alarm : Alarms::Element
-{
-	Session_component &session;
-
-	Alarm(Alarms &alarms, Session_component &session, Clock time)
-	:
-		Alarms::Element(alarms, *this, time), session(session)
-	{ }
-
-	void print(Output &out) const;
-};
-
-
-static Timer::Device::Deadline next_deadline(Timer::Alarms &alarms)
-{
-	using namespace Timer;
-
-	return alarms.soonest(Clock { 0 }).convert<Device::Deadline>(
-		[&] (Clock soonest) -> Device::Deadline {
-
-			/* scan alarms for a cluster nearby the soonest */
-			uint64_t const MAX_DELAY_US = 250;
-			Device::Deadline result { soonest.us };
-			alarms.for_each_in_range(soonest, Clock { soonest.us + MAX_DELAY_US },
-			[&] (Alarm const &alarm) {
-				result.us = max(result.us, alarm.time.us); });
-
-			return result;
-		},
-		[&] (Alarms::None) { return Device::infinite_deadline; });
-}
-
-
-struct Timer::Session_component : Session_object<Timer::Session, Session_component>
-{
-	Alarms &_alarms;
-	Mutex  &_alarms_mutex;
-	Device &_device;
-
-	Signal_context_capability _sigh { };
-
-	Clock const _creation_time = _device.now();
-
-	uint64_t _local_now_us() const { return _device.now().us - _creation_time.us; }
-
-	struct Period { uint64_t us; };
-
-	Constructible<Period> _period { };
-	Constructible<Alarm>  _alarm  { };
-
-	Session_component(Env             &env,
-	                  Resources const &resources,
-	                  Label     const &label,
-	                  Alarms          &alarms,
-	                  Mutex           &alarms_mutex,
-	                  Device          &device)
-	:
-		Session_object(env.ep(), resources, label),
-		_alarms(alarms), _alarms_mutex(alarms_mutex), _device(device)
-	{ }
-
-	~Session_component()
-	{
-		Mutex::Guard guard(_alarms_mutex);
-
-		_alarm.destruct();
-	}
-
-	/**
-	 * Called by Device::Wakeup_dispatcher with '_alarms_mutex' taken
-	 */
-	void handle_wakeup()
-	{
-		if (_sigh.valid())
-			Signal_transmitter(_sigh).submit();
-
-		if (_period.constructed()) {
-			Clock const next = _alarm.constructed()
-			                 ? Clock { _alarm->time.us  + _period->us }
-			                 : Clock { _device.now().us + _period->us };
-
-			_alarm.construct(_alarms, *this, next);
-
-		} else /* response of 'trigger_once' */ {
-			_alarm.destruct();
-		}
-	}
-
-	/******************************
-	 ** Timer::Session interface **
-	 ******************************/
-
-	void trigger_once(uint64_t rel_us) override
-	{
-		Mutex::Guard guard(_alarms_mutex);
-
-		_period.destruct();
-		_alarm.destruct();
-
-		Clock const now = _device.now();
-
-		rel_us = max(rel_us, 250u);
-		_alarm.construct(_alarms, *this, Clock { now.us + rel_us });
-
-		_device.update_deadline(next_deadline(_alarms));
-	}
-
-	void trigger_periodic(uint64_t period_us) override
-	{
-		Mutex::Guard guard(_alarms_mutex);
-
-		_period.destruct();
-		_alarm.destruct();
-
-		if (period_us) {
-			period_us = max(period_us, 1000u);
-			_period.construct(period_us);
-			handle_wakeup();
-		}
-
-		_device.update_deadline(next_deadline(_alarms));
-	}
-
-	uint64_t trigger_at(uint64_t abs_us) override
-	{
-		Mutex::Guard guard(_alarms_mutex);
-
-		_period.destruct();
-		_alarm.destruct();
-
-		Clock const now = _device.now();
-
-		abs_us = max(abs_us + _creation_time.us, now.us + 250u);
-		_alarm.construct(_alarms, *this, Clock { abs_us });
-
-		_device.update_deadline(next_deadline(_alarms));
-
-		return now.us;
-	}
-
-	void sigh(Signal_context_capability sigh) override { _sigh = sigh; }
-
-	uint64_t elapsed_ms() const override { return _local_now_us()/1000; }
-	uint64_t elapsed_us() const override { return _local_now_us(); }
-
-	void msleep(uint64_t) override { }
-	void usleep(uint64_t) override { }
-};
-
-
-struct Timer::Root : public Root_component<Session_component>
-{
-	private:
-
-		Env    &_env;
-		Alarms &_alarms;
-		Mutex  &_alarms_mutex;
-		Device &_device;
-
-	protected:
-
-		Create_result _create_session(const char *args) override
-		{
-			return *new (md_alloc())
-				Session_component(_env,
-				                  session_resources_from_args(args),
-				                  session_label_from_args(args),
-				                  _alarms, _alarms_mutex, _device);
-		}
-
-		void _upgrade_session(Session_component &s, const char *args) override
-		{
-			s.upgrade(ram_quota_from_args(args));
-			s.upgrade(cap_quota_from_args(args));
-		}
-
-		void _destroy_session(Session_component &s) override
-		{
-			Genode::destroy(md_alloc(), &s);
-		}
-
-	public:
-
-		Root(Env &env, Allocator &md_alloc,
-		     Alarms &alarms, Mutex &alarms_mutex, Device &device)
-		:
-			Root_component<Session_component>(&env.ep().rpc_ep(), &md_alloc),
-			_env(env), _alarms(alarms), _alarms_mutex(alarms_mutex), _device(device)
-		{ }
-};
-
-
-void Timer::Alarm::print(Output &out) const { Genode::print(out, session.label()); }
-
-
-struct Timer::Main : Device::Wakeup_dispatcher
+struct Timer::Main : Nova_device::Wakeup_dispatcher
 {
 	Env &_env;
 
@@ -394,7 +175,7 @@ struct Timer::Main : Device::Wakeup_dispatcher
 
 	Tsc_rate const _tsc_rate = Tsc_rate::from_node(_platform_info.node());
 
-	Device _device { _env, _tsc_rate, *this };
+	Nova_device _device { _env, _tsc_rate, *this };
 
 	Mutex  _alarms_mutex { };
 	Alarms _alarms { };
