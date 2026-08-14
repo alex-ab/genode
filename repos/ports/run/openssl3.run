@@ -79,7 +79,7 @@ config | verbose: yes | prio_levels: 2
       + dhcp-server | ip_first: 100.64.0.2 | ip_last: 100.64.0.3 | ip_lease_time_sec: 600
         + dns-server | ip: 9.9.9.9
 
-+ start vfs | caps: 120 | ram: 10M
++ start vfs | caps: 150 | ram: 10M
   + provides | + service File_system
   + config
     + vfs
