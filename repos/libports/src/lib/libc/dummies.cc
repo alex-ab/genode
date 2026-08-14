@@ -189,10 +189,10 @@ DUMMY_SILENT(int, -1, fchown, (int, uid_t, gid_t))
 DUMMY(int, -1, flock, (int, int))
 DUMMY(int, -1, mkfifo, (const char *, mode_t))
 DUMMY(void,  , sync, (void))
-__SYS_DUMMY(int, -11, utimensat, (int, const char *, const struct timespec[2], int));
-__SYS_DUMMY(int, -1, futimens, (int, const struct timespec[2]));
+__SYS_DUMMY(int,  0, futimens, (int, const struct timespec[2]));
 __SYS_DUMMY(int, -1, statfs, (const char *, struct statfs *))
 __SYS_DUMMY(int, -1, truncate, (const char *, off_t))
+__SYS_DUMMY(int,  0, utimensat, (int, const char *, const struct timespec[2], int));
 
 
 /***********
