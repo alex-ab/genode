@@ -1,3 +1,9 @@
+if {[have_cmd_switch --autopilot]} {
+	assert {![have_include power_on/qemu]} {
+		Autopilot mode is not supported on this platform.
+	}
+}
+
 build { core init timer lib/ld test/local_clock }
 
 create_boot_directory
