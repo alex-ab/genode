@@ -720,7 +720,7 @@ class Vfs_server::File : public Io_node
 			if (mode == Mode::WRITE_ONLY || mode == Mode::READ_WRITE) {
 				using Result = Directory_service::Stat_result;
 				Vfs::Directory_service::Stat stat { };
-				if (_handle.ds().stat(Node_base::path(), stat) == Result::STAT_OK)
+				if (vfs.stat(Node_base::path(), stat) == Result::STAT_OK)
 					_write_type = (stat.type == Vfs::Node_type::CONTINUOUS_FILE)
 					            ? Write_type::CONTINUOUS : Write_type::TRANSACTIONAL;
 			}
