@@ -115,15 +115,18 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 	}
 
 	/* schedule soonest alarm at time source */
-	_alarms.soonest(Clock { 0 }).with_result(
-		[&] (Clock soonest) {
-			_schedule_alarm(soonest);
-		},
-		[&] (Alarms::None) {
-			/* FIXME only needed for periodic real-time update */
-			_schedule_alarm(Clock { Clock::MASK });
-		}
-	);
+	{
+		Mutex::Guard guard { _schedule_mutex };
+		_alarms.soonest(Clock { 0 }).with_result(
+			[&] (Clock soonest) {
+				_schedule_alarm(soonest);
+			},
+			[&] (Alarms::None) {
+				/* FIXME only needed for periodic real-time update */
+				_schedule_alarm(Clock { Clock::MASK });
+			}
+		);
+	}
 }
 
 
