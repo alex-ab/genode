@@ -14,7 +14,7 @@
 /* Genode includes */
 #include <base/component.h>
 #include <util/reconstructible.h>
-#include <timer/local_clock.h>
+#include <util/local_clock.h>
 #include <timer_session/connection.h>
 #include <base/attached_rom_dataspace.h>
 
