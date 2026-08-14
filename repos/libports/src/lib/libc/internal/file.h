@@ -88,8 +88,7 @@ namespace Libc {
 				[&] (Fds::Bits::Error) {       return true; }); });
 	}
 
-	bool read_ready_from_kernel(File_descriptor &);
-	void notify_read_ready_from_kernel(File_descriptor &);
+	bool read_ready_from_kernel (File_descriptor &);
 	bool write_ready_from_kernel(File_descriptor &);
 }
 

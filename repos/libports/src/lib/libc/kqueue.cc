@@ -409,8 +409,6 @@ struct Libc::Kqueue
 							eventlist[num_events] = ele;
 							eventlist[num_events].flags = 0;
 							num_events++;
-						} else {
-							Libc::notify_read_ready_from_kernel(fd);
 						}
 						break;
 					case EVFILT_WRITE:
