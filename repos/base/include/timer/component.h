@@ -194,7 +194,7 @@ struct Timer::Session_component : Session_object<Timer::Session, Session_compone
 		if (!_device.update_deadline(next_deadline(_alarms)))
 			_device.notify();
 
-		return now.us;
+		return now.us - _creation_time.us;
 	}
 
 	void sigh(Signal_context_capability sigh) override { _sigh = sigh; }
