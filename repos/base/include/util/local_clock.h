@@ -11,8 +11,8 @@
  * under the terms of the GNU Affero General Public License version 3.
  */
 
-#ifndef _TIMER__LOCAL_CLOCK_H_
-#define _TIMER__LOCAL_CLOCK_H_
+#ifndef _UTIL__LOCAL_CLOCK_H_
+#define _UTIL__LOCAL_CLOCK_H_
 
 /* Genode includes */
 #include <base/fixed_stdint.h>
@@ -175,4 +175,4 @@ class Genode::Local_clock
 		}
 };
 
-#endif /* _TIMER__LOCAL_CLOCK_H_ */
+#endif /* _UTIL__LOCAL_CLOCK_H_ */

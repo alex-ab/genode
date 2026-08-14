@@ -12,7 +12,7 @@
  */
 
 /* Genode includes */
-#include <timer/local_clock.h>
+#include <util/local_clock.h>
 
 using namespace Genode;
 
