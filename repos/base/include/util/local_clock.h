@@ -100,7 +100,6 @@ class Genode::Local_clock
 			void add(Interval i);
 		};
 
-		Mutex                     _mutex { };
 		Constructible<Data_point> _last_sync { };
 		Remote_clock              _interpolated_clock { 0 };
 		Stats                     _stats { };
@@ -139,8 +138,6 @@ class Genode::Local_clock
 		 */
 		Remote_clock predicted(auto const &remote_clock_fn, auto const &tsc_fn)
 		{
-			Mutex::Guard guard(_mutex);
-
 			_num_predicted++;
 
 			/* interpolate if last sync is not too far away (depending on variance) */
