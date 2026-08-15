@@ -224,7 +224,7 @@ Libc::Fs::Open_file_result Libc::Fs::open_file_from_kernel(Open_file_attr const 
 Libc::Fs::Open_file_result Libc::Fs::open_file(Open_file_attr const &attr)
 {
 	Open_file *result_of_ptr { };
-	Errno      result_errno  { };
+	int        result_errno  { };
 
 	_monitor.monitor([&] {
 
@@ -252,38 +252,24 @@ Libc::Fs::Open_file_result Libc::Fs::open_file(Open_file_attr const &attr)
 	if (result_of_ptr)
 		return *result_of_ptr;
 
-	return result_errno;
+	return Errno(result_errno);
 }
 
 
 Libc::Fs::Open_dir_result Libc::Fs::open_dir(char const *path, int flags)
 {
-	int result_errno = 0;
-	Vfs::Vfs_handle *handle_ptr = nullptr;
+	if (!_vfs.dir_entry_exists(path)) return Errno { ENOENT };
+	if (!_vfs.directory(path))        return Errno { ENOTDIR };
 
+	Open_dir *result_od_ptr { };
 	_monitor.monitor([&] {
-
-		using Result = Vfs::Directory_service::Opendir_result;
-
-		switch (_vfs.opendir(path, false, &handle_ptr, _kernel_heap)) {
-		case Result::OPENDIR_OK:                      break;
-		case Result::OPENDIR_ERR_LOOKUP_FAILED:       result_errno = ENOENT;       return Fn::COMPLETE;
-		case Result::OPENDIR_ERR_NAME_TOO_LONG:       result_errno = ENAMETOOLONG; return Fn::COMPLETE;
-		case Result::OPENDIR_ERR_NODE_ALREADY_EXISTS: result_errno = EEXIST;       return Fn::COMPLETE;
-		case Result::OPENDIR_ERR_NO_SPACE:            result_errno = ENOSPC;       return Fn::COMPLETE;
-		case Result::OPENDIR_ERR_OUT_OF_RAM:
-		case Result::OPENDIR_ERR_OUT_OF_CAPS:
-		case Result::OPENDIR_ERR_PERMISSION_DENIED:   result_errno = EPERM;        return Fn::COMPLETE;
-		}
-
-		/* the directory was successfully opened */
+		result_od_ptr = new (_kernel_heap) Open_dir(_vfs_env, path);
 		return Fn::COMPLETE;
 	});
+	if (result_od_ptr)
+		return *result_od_ptr;
 
-	if (!handle_ptr)
-		return Errno { result_errno };
-
-	return *new (_kernel_heap) Open_dir { *handle_ptr, path };
+	assert(false);
 }
 
 
@@ -308,10 +294,6 @@ void Libc::Fs::destroy(Open_file &of)
 
 void Libc::Fs::destroy(Open_dir &od)
 {
-	_monitor.monitor([&] {
-		od.handle.close();
-		return Fn::COMPLETE;
-	});
 	Genode::destroy(_kernel_heap, &od);
 }
 
@@ -621,23 +603,23 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 		return -1;
 	}
 
-	using Result = Vfs::Vfs_handle::Read_result;
+	using Result = Vfs::Read_result;
 	using Dirent = Vfs::Directory_service::Dirent;
 
 	Dirent dirent_out;
-	Result result = Vfs::Vfs_handle::Read_error::DENIED;
+	Result result = Vfs::Read_error::DENIED;
 
 	_monitor.monitor([&] {
 
 		Byte_range_ptr const dst { (char *)&dirent_out, sizeof(Dirent) };
 		result = od.handle.read({ .pos = od.pos }, dst);
 
-		return result == Vfs::Vfs_handle::Read_error::RETRY ? Fn::INCOMPLETE : Fn::COMPLETE;
+		return result == Vfs::Read_error::RETRY ? Fn::INCOMPLETE : Fn::COMPLETE;
 	});
 
 	bool const ok = result.convert<bool>(
 		[&] (size_t num_bytes) { return num_bytes >= sizeof(Dirent); },
-		[&] (Vfs::Vfs_handle::Read_error) { return false; });
+		[&] (Vfs::Read_error)  { return false; });
 
 	using Dirent_type = Vfs::Directory_service::Dirent_type;
 
@@ -665,7 +647,7 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 
 	Genode::copy_cstring(dirent.d_name, dirent_out.name.buf, sizeof(dirent.d_name));
 
-	Open_dir::Path const entry_path { od.path, "/", Cstring(dirent.d_name) };
+	Open_dir::Path const entry_path { od.handle.path, "/", Cstring(dirent.d_name) };
 
 	dirent.d_type   = dirent_type(dirent_out.type);
 	dirent.d_fileno = pseudo_inode_from_path(entry_path.string());

@@ -57,16 +57,16 @@ namespace Libc {
 
 	struct Open_dir : Noncopyable
 	{
-		using Path = String<Vfs::MAX_PATH_LEN>;
+		using Path = Vfs::Dir_handle::Path;
 
-		Vfs::Vfs_handle &handle;
-
-		Path const path;  /* for computing 'fileno' values in getdirentries */
+		Vfs::Dir_handle handle;
 
 		uint64_t pos = 0; /* read position */
 
-		Open_dir(Vfs::Vfs_handle &handle, Path const &path)
-		: handle(handle), path(path) { }
+		Open_dir(Vfs::Env &env, Path const &path)
+		:
+			handle(env.dir_handles(), env.root_dir(), env.alloc(), path)
+		{ }
 	};
 
 	struct Fs;
