@@ -1,18 +1,19 @@
 /*
  * \brief  Report server that writes reports to file-systems
  * \author Emery Hemingway
+ * \author Norman Feske
  * \date   2017-05-19
  */
 
 /*
- * Copyright (C) 2017 Genode Labs GmbH
+ * Copyright (C) 2017-2026 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
  */
 
-#include <vfs/simple_env.h>
 #include <os/path.h>
+#include <os/vfs.h>
 #include <report_session/report_session.h>
 #include <root/component.h>
 #include <base/attached_rom_dataspace.h>
@@ -26,7 +27,6 @@ namespace Fs_report {
 
 	using namespace Genode;
 	using namespace Report;
-	using namespace Vfs;
 
 	class  Session_component;
 	class  Root;
@@ -34,178 +34,79 @@ namespace Fs_report {
 
 	using Path = Genode::Path<Session_label::capacity()>;
 
-	static bool create_parent_dir(Vfs::Directory_service &vfs, Path const &child,
-	                              Genode::Allocator &alloc)
+	static void create_parent_dir(Directory &dir, Path const &child)
 	{
-		using Opendir_result = Vfs::Directory_service::Opendir_result;
-
 		Path parent = child;
 		parent.strip_last_element();
 		if (parent == "/")
-			return true;
+			return;
 
-		Vfs_handle *dir_handle;
-		Opendir_result res = vfs.opendir(parent.base(), true, &dir_handle, alloc);
-		if (res == Opendir_result::OPENDIR_ERR_LOOKUP_FAILED) {
-			if (!create_parent_dir(vfs, parent, alloc))
-				return false;
-			res = vfs.opendir(parent.base(), true, &dir_handle, alloc);
-		}
-
-		switch (res) {
-		case Opendir_result::OPENDIR_OK:
-			vfs.close(dir_handle);
-			return true;
-		case Opendir_result::OPENDIR_ERR_NODE_ALREADY_EXISTS:
-			 return true;
-		default:
-			return false;
-		}
+		dir.create_sub_directory(parent.string());
 	}
-
 }
 
 
-class Fs_report::Session_component : public Genode::Rpc_object<Report::Session>
+struct Fs_report::Session_component : Rpc_object<Report::Session>
 {
-	private:
+	Directory &_root_dir;
 
-		Genode::Allocator &_alloc;
-		Vfs::Env::Io      &_io;
-		Vfs::File_system  &_vfs;
+	Attached_ram_dataspace _ds;
 
-		Attached_ram_dataspace _ds;
-		Path                   _path { };
+	Path _path { };
 
-		file_size _file_size = 0;
-		bool      _success   = true;
+	Session_component(Env &env, Directory &root_dir,
+	                  Session_label const &label, size_t buffer_size)
+	:
+		_root_dir(root_dir),
+		_ds(env.ram(), env.rm(), buffer_size),
+		_path(path_from_label<Path>(label.string()))
+	{
+		create_parent_dir(_root_dir, _path);
+	}
 
-		struct Open_failed { };
+	~Session_component() { }
 
-		template <typename FN> void _file_op(FN const &fn)
-		{
-			using Open_result = Vfs::Directory_service::Open_result;
+	Dataspace_capability dataspace() override { return _ds.cap(); }
 
-			Vfs_handle *handle;
-			Open_result res = _vfs.open(_path.base(),
-			                            Directory_service::OPEN_MODE_WRONLY,
-			                            &handle, _alloc);
+	void submit(size_t const length) override
+	{
+		Span const bytes { _ds.local_addr<char>(), min(length, _ds.size()) };
 
-			/* try to create file if not accessible */
-			if (res == Open_result::OPEN_ERR_UNACCESSIBLE) {
-				res = _vfs.open(_path.base(),
-				                Directory_service::OPEN_MODE_WRONLY |
-				                Directory_service::OPEN_MODE_CREATE,
-				                &handle, _alloc);
-			}
+		try {
+			New_file dst { _root_dir, _path.string() };
 
-			if (res != Open_result::OPEN_OK) {
-				error("failed to open '", _path, "' res=", (int)res);
-				throw Open_failed();
-			}
+			if (dst.append(bytes) != New_file::Append_result::OK)
+				error("failed to write '", _path,"'");
 
-			fn(handle);
-
-			/* sync file operations before close */
-			while (handle->sync() == Vfs::Sync_result::RETRY)
-				_io.commit_and_wait();
-
-			handle->close();
+		} catch (New_file::Create_failed) {
+			error("failed to create '", _path,"'");
 		}
+	}
 
-		/*
-		 * Noncopyable
-		 */
-		Session_component(Session_component const &);
-		Session_component &operator = (Session_component const &);
+	void response_sigh(Signal_context_capability) override { }
 
-	public:
-
-		Session_component(Genode::Env                 &env,
-		                  Genode::Allocator           &alloc,
-		                  Vfs::Env::Io                &io,
-		                  Vfs::File_system            &vfs,
-		                  Genode::Session_label const &label,
-		                  size_t                       buffer_size)
-		:
-			_alloc(alloc), _io(io), _vfs(vfs),
-			_ds(env.ram(), env.rm(), buffer_size),
-			_path(path_from_label<Path>(label.string()))
-		{
-			create_parent_dir(_vfs, _path, _alloc);
-		}
-
-		~Session_component() { }
-
-		Dataspace_capability dataspace() override { return _ds.cap(); }
-
-		void submit(size_t const length) override
-		{
-			auto fn = [&] (Vfs_handle *handle) {
-
-				if (_file_size != length)
-					handle->ftruncate(length);
-
-				size_t offset = 0;
-				while (offset < length) {
-
-					Span const src(_ds.local_addr<char>() + offset, length - offset);
-					At   const at { .pos = offset };
-
-					_success = handle->write(at, src).convert<bool>(
-						[&] (size_t num_bytes) {
-							offset += num_bytes;
-							return true;
-						},
-						[&] (Vfs::Vfs_handle::Write_error e)
-						{
-							if (e == Vfs::Vfs_handle::Write_error::RETRY) {
-								_io.commit_and_wait();
-								return true;
-							}
-
-							/* do not spam the log */
-							if (_success)
-								error("failed to write report to '", _path, "'");
-							_file_size = 0;
-							return false;
-						}
-					);
-
-					if (!_success)
-						return;
-				}
-
-				_file_size = length;
-				_success = true;
-			};
-
-			try { _file_op(fn); } catch (...) { }
-		}
-
-		void response_sigh(Genode::Signal_context_capability) override { }
-
-		size_t obtain_response() override { return 0; }
+	size_t obtain_response() override { return 0; }
 };
 
 
-class Fs_report::Root : public Genode::Root_component<Session_component>
+class Fs_report::Root : public Root_component<Session_component>
 {
 	private:
 
-		Genode::Env  &_env;
-		Genode::Heap  _heap { &_env.ram(), &_env.rm() };
+		Env &_env;
 
-		Genode::Attached_rom_dataspace _config_rom { _env, "config" };
+		Heap _heap { &_env.ram(), &_env.rm() };
 
-		Vfs::Simple_env _vfs_env = _config_rom.node().with_sub_node("vfs",
-			[&] (Node const &config) -> Vfs::Simple_env {
+		Attached_rom_dataspace _config_rom { _env, "config" };
+
+		Root_directory _root_dir = _config_rom.node().with_sub_node("vfs",
+			[&] (Node const &config) -> Root_directory {
 				return { _env, _heap, config }; },
-			[&] () -> Vfs::Simple_env {
+			[&] () -> Root_directory {
 				error("VFS not configured");
 				return { _env, _heap, Node() }; });
 
-		Genode::Signal_handler<Root> _config_dispatcher {
+		Signal_handler<Root> _config_dispatcher {
 			_env.ep(), *this, &Root::_config_update };
 
 		void _config_update()
@@ -213,7 +114,7 @@ class Fs_report::Root : public Genode::Root_component<Session_component>
 			_config_rom.update();
 
 			_config_rom.node().with_optional_sub_node("vfs", [&] (Node const &node) {
-				_vfs_env.apply_config(node); });
+				_root_dir.apply_config(node); });
 		}
 
 	protected:
@@ -239,15 +140,14 @@ class Fs_report::Root : public Genode::Root_component<Session_component>
 			}
 
 			return *new (md_alloc())
-				Session_component(_env, _heap, _vfs_env.io(), _vfs_env.root_dir(),
-				                  label, buffer_size);
+				Session_component(_env, _root_dir, label, buffer_size);
 		}
 
 	public:
 
-		Root(Genode::Env &env, Genode::Allocator &md_alloc)
+		Root(Env &env, Allocator &md_alloc)
 		:
-			Genode::Root_component<Session_component>(env.ep(), md_alloc),
+			Root_component<Session_component>(env.ep(), md_alloc),
 			_env(env)
 		{ }
 };
@@ -255,15 +155,15 @@ class Fs_report::Root : public Genode::Root_component<Session_component>
 
 struct Fs_report::Main
 {
-	Genode::Env &env;
+	Env &_env;
 
-	Sliced_heap sliced_heap { env.ram(), env.rm() };
+	Sliced_heap _sliced_heap { _env.ram(), _env.rm() };
 
-	Root root { env, sliced_heap };
+	Root _root { _env, _sliced_heap };
 
-	Main(Genode::Env &env) : env(env)
+	Main(Env &env) : _env(env)
 	{
-		env.parent().announce(env.ep().manage(root));
+		env.parent().announce(env.ep().manage(_root));
 	}
 };
 
