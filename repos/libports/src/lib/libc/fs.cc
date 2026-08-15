@@ -1932,13 +1932,12 @@ struct Libc::Mmap_entry : Registry<Mmap_entry>::Element
 {
 	void * const start;
 
-	Vfs::Vfs_handle &reference_handle;
+	Open_file &reference_of;
 
-	Mmap_entry(Registry<Mmap_entry> &registry,
-	           void *start, Vfs::Vfs_handle &reference_handle)
+	Mmap_entry(Registry<Mmap_entry> &registry, void *start, Open_file &reference_of)
 	:
 		Registry<Mmap_entry>::Element(registry, *this), start(start),
-		reference_handle(reference_handle)
+		reference_of(reference_of)
 	{ }
 };
 
@@ -2010,34 +2009,36 @@ void *Libc::Fs::mmap(File_descriptor &fd, void *addr_in, ::size_t length,
 			return MAP_FAILED;
 		}
 
-		Vfs::Vfs_handle *reference_handle_ptr = nullptr;
-		using Result = Vfs::Directory_service::Open_result;
-		Result vfs_open_result;
-		_monitor.monitor([&] {
-			vfs_open_result = _vfs.open(fd.path.string(), fd.flags,
-			                            &reference_handle_ptr, _kernel_heap);
-			return Fn::COMPLETE;
-		});
+		Open_file *reference_of_ptr = open_file({
+			.path      = fd.path,
+			.writeable = (fd.flags & O_ACCMODE) != O_RDONLY
+		}).convert<Open_file *>(
+			[&] (Open_file &of) { return &of; },
+			[&] (Errno) { return nullptr; });
 
-		if (vfs_open_result != Result::OPEN_OK) {
-			error("mmap could not create reference VFS handle");
+		if (!reference_of_ptr) {
+			error("mmap could not create reference file handle");
 			errno = ENFILE;
 			return MAP_FAILED;
 		}
 
-		Genode::Dataspace_capability ds_cap;
+		Dataspace_capability ds_cap;
 
 		_monitor.monitor([&] {
 			ds_cap = _vfs.dataspace(fd.path.string());
 			return Fn::COMPLETE;
 		});
 
+		auto drop_reference_handle = [&]
+		{
+			if (reference_of_ptr)
+				destroy(*reference_of_ptr);
+			reference_of_ptr = nullptr;
+		};
+
 		if (!ds_cap.valid()) {
-			Genode::error("mmap got invalid dataspace capability");
-			_monitor.monitor([&] {
-				reference_handle_ptr->close();
-				return Fn::COMPLETE;
-			});
+			error("mmap got invalid dataspace capability");
+			drop_reference_handle();
 			errno = ENODEV;
 			return MAP_FAILED;
 		}
@@ -2055,15 +2056,12 @@ void *Libc::Fs::mmap(File_descriptor &fd, void *addr_in, ::size_t length,
 		);
 
 		if (!addr) {
-			_monitor.monitor([&] {
-				reference_handle_ptr->close();
-				return Fn::COMPLETE;
-			});
+			drop_reference_handle();
 			errno = ENOMEM;
 			return MAP_FAILED;
 		}
 
-		new (_kernel_heap) Mmap_entry(mmap_registry(), addr, *reference_handle_ptr);
+		new (_kernel_heap) Mmap_entry(mmap_registry(), addr, *reference_of_ptr);
 	}
 
 	return addr;
@@ -2091,24 +2089,20 @@ int Libc::Fs::munmap(void *addr, ::size_t)
 
 	/* shared mapping */
 
-	Vfs::Vfs_handle *reference_handle_ptr = nullptr;
+	Open_file *reference_of_ptr = nullptr;
 
 	mmap_registry().for_each([&] (Mmap_entry &entry) {
 		if (entry.start == addr) {
-			reference_handle_ptr = &entry.reference_handle;
+			reference_of_ptr = &entry.reference_of;
 			Genode::destroy(_kernel_heap, &entry);
 			_local_rm.detach(addr_t(addr));
 		}
 	});
 
-	if (!reference_handle_ptr)
+	if (!reference_of_ptr)
 		return Errno(EINVAL);
 
-	_monitor.monitor([&] {
-		reference_handle_ptr->close();
-		return Fn::COMPLETE;
-	});
-
+	destroy(*reference_of_ptr);
 	return 0;
 }
 
