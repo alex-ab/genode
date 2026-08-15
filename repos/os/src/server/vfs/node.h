@@ -777,7 +777,7 @@ struct Vfs_server::Directory : Io_node
 
 		Policy const _policy;
 
-		Vfs::Vfs_handle &_handle;
+		Vfs::Dir_handle _handle;
 
 		using Vfs_dirent = Directory_service::Dirent;
 		using Fs_dirent  = ::File_system::Directory_entry;
@@ -863,27 +863,21 @@ struct Vfs_server::Directory : Io_node
 			return converted_length;
 		}
 
-		static Vfs_handle &_open(Vfs::File_system &vfs, Allocator &alloc,
-		                         char const *path, bool create)
-		{
-			Vfs_handle *h = nullptr;
-			assert_opendir(vfs.opendir(path, create, &h, alloc));
-			return *h;
-		}
-
 	public:
 
-		Directory(Node_space       &space,
-		          Vfs::File_system &vfs,
-		          Allocator        &alloc,
-		          Policy     const  policy,
-		          Attr       const &attr)
+		Directory(Node_space &space, Vfs::Env &env, Allocator &alloc,
+		          Policy const policy, Path const &path)
 		:
-			Io_node(space, attr), _policy(policy),
-			_handle(_open(vfs, alloc, attr.path.string(), attr.writeable))
-		{ }
-
-		~Directory() { _handle.close(); }
+			Io_node(space, { .path = path, .writeable = false }),
+			_policy(policy),
+			_handle(env.dir_handles(), env.root_dir(), alloc, path)
+		{
+			/* trigger channel allocation to avoid out of ram/caps during read */
+			_handle.read(At { }, { nullptr, 0 }).with_error([&] (Read_error e) {
+				if (e == Read_error::OUT_OF_RAM)  throw Out_of_ram();
+				if (e == Read_error::OUT_OF_CAPS) throw Out_of_caps();
+			});
+		}
 
 		/**
 		 * Open a file handle at this directory
@@ -932,32 +926,18 @@ struct Vfs_server::Directory : Io_node
 			_import_packet(packet);
 			_payload_ptr = ptr;
 
-			switch (packet.operation()) {
-
-			case Packet_descriptor::READ:
-
+			if (packet.operation() == Packet_descriptor::READ) {
 				if (!_position_and_length_aligned_with_dirent_size())
 					return Submit_result::DENIED;
-
 				return _submit_read();
-
-			case Packet_descriptor::WRITE:           return Submit_result::DENIED;
-			case Packet_descriptor::SYNC:            return _submit_sync();
-			case Packet_descriptor::READ_READY:      return Submit_result::DENIED;
-			case Packet_descriptor::CONTENT_CHANGED: return Submit_result::DENIED;
-			case Packet_descriptor::WRITE_TIMESTAMP: return _submit_write_timestamp();
 			}
 
-			warning("invalid operation ", (int)_packet.operation(), " "
-			        "requested from directory node");
 			return Submit_result::DENIED;
 		}
 
 		void execute_job() override
 		{
-			switch (_packet.operation()) {
-
-			case Packet_descriptor::READ:
+			if (_packet.operation() == Packet_descriptor::READ)
 				_payload_ptr.with_bytes(_packet, [&] (Byte_range_ptr const &dst) {
 					_handle.read(At { _packet.position() }, dst).with_result(
 						[&] (size_t num_bytes) {
@@ -965,22 +945,11 @@ struct Vfs_server::Directory : Io_node
 							size_t n = _convert_vfs_dirents_to_fs_dirents(bytes);
 							_ack_successful_packet(n, _payload_ptr);
 						},
-						[&] (Vfs_handle::Read_error e) {
-							if (e != Vfs_handle::Read_error::RETRY)
+						[&] (Read_error e) {
+							if (e != Read_error::RETRY)
 								_ack_failed_packet(_payload_ptr);
 						});
 				});
-				break;
-
-			case Packet_descriptor::WRITE_TIMESTAMP: _execute_mtime(_handle); break;
-
-			/* never executed */
-			case Packet_descriptor::SYNC:
-			case Packet_descriptor::WRITE:
-			case Packet_descriptor::READ_READY:
-			case Packet_descriptor::CONTENT_CHANGED:
-				break;
-			}
 		}
 };
 

@@ -496,18 +496,23 @@ class Vfs_server::Session_component : private Session_resources,
 				fullpath.append(path_str);
 			path_str = fullpath.base();
 
-			if (!create && !_vfs_env.root_dir().directory(path_str))
+			bool const exists = _vfs_env.root_dir().directory(path_str);
+
+			if (!create && !exists)
 				throw Lookup_failed();
+
+			if (create && !exists) {
+				Vfs_handle *h = nullptr;
+				assert_opendir(_vfs_env.root_dir().opendir(path_str, true, &h, _alloc));
+				if (h) h->close();
+			}
 
 			Directory::Policy const policy { .writeable = _writeable };
 
 			Directory &dir = *new (_alloc)
-				Directory(_node_space, _vfs_env.root_dir(), _alloc, policy, {
-					.path      = path_str,
-					.writeable = _writeable && create
-				});
+				Directory(_node_space, _vfs_env, _alloc, policy, path_str);
 
-			if (create)
+			if (create && !exists)
 				_io_progress_handler.handle_io_progress();
 
 			return Dir_handle(dir.id().value);
