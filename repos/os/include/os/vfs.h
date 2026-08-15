@@ -123,7 +123,7 @@ struct Genode::Directory : Noncopyable, Interface
 		Vfs::Env::Io     &_io    = _vfs_env.io();
 		Allocator        &_alloc = _vfs_env.alloc();
 
-		Vfs::Vfs_handle *_handle = nullptr;
+		Vfs::Dir_handle _handle;
 
 		friend class Readonly_file;
 		friend class Root_directory;
@@ -146,6 +146,8 @@ struct Genode::Directory : Noncopyable, Interface
 		Vfs::Directory_service::Stat_result _stat(Path const &rel_path,
 		                                          Vfs::Directory_service::Stat &out) const
 		{
+			if (rel_path == "")
+				return _nonconst_fs().stat(_path.string(), out);
 			return _nonconst_fs().stat(join(_path, rel_path).string(), out);
 		}
 
@@ -155,14 +157,14 @@ struct Genode::Directory : Noncopyable, Interface
 		{
 			Entry entry;
 
-			Vfs::Vfs_handle::Read_result read_result = 0;
+			Vfs::Read_result read_result = 0;
 			for (;;) {
 				Byte_range_ptr const dst { (char*)&entry._dirent,
 				                            sizeof(entry._dirent) };
 				Vfs::At const at { .pos = i*sizeof(entry._dirent) };
 
-				read_result = _handle->read(at, dst);
-				if (read_result != Vfs::Vfs_handle::Read_error::RETRY)
+				read_result = _handle.read(at, dst);
+				if (read_result != Vfs::Read_error::RETRY)
 					break;
 
 				_io.commit_and_wait();
@@ -176,7 +178,7 @@ struct Genode::Directory : Noncopyable, Interface
 					return (num_bytes == sizeof(entry._dirent))
 					    && (entry._dirent.type != Vfs::Directory_service::Dirent_type::END);
 				},
-				[&] (Vfs::Vfs_handle::Read_error) { return false; });
+				[&] (Vfs::Read_error) { return false; });
 
 			if (ok)
 				return fn(static_cast<Entry const &>(entry));
@@ -186,36 +188,27 @@ struct Genode::Directory : Noncopyable, Interface
 
 	public:
 
-		struct Nonexistent_file      : Exception { };
-		struct Nonexistent_directory : Exception { };
+		struct Nonexistent_file : Exception { };
 
 		/**
 		 * Constructor used by 'Root_directory'
-		 *
-		 * \throw Open_failed
 		 */
-		Directory(Vfs::Env &vfs_env) : _path(""), _vfs_env(vfs_env)
-		{
-			if (_fs.opendir("/", false, &_handle, _alloc) !=
-			    Vfs::Directory_service::OPENDIR_OK)
-				throw Nonexistent_directory();
-		}
+		Directory(Vfs::Env &vfs_env)
+		:
+			_path(""), _vfs_env(vfs_env),
+			_handle(_vfs_env.dir_handles(), _vfs_env.root_dir(), _alloc, "/")
+		{ }
 
 		/**
 		 * Open sub directory
-		 *
-		 * \throw Nonexistent_directory
 		 */
 		Directory(Directory const &other, Path const &rel_path)
 		:
-			_path(join(other._path, rel_path)), _vfs_env(other._vfs_env)
-		{
-			if (_fs.opendir(_path.string(), false, &_handle, _alloc) !=
-			    Vfs::Directory_service::OPENDIR_OK)
-				throw Nonexistent_directory();
-		}
+			_path(join(other._path, rel_path)), _vfs_env(other._vfs_env),
+			_handle(_vfs_env.dir_handles(), _vfs_env.root_dir(), _alloc, _path)
+		{ }
 
-		~Directory() { if (_handle) _handle->ds().close(_handle); }
+		bool exists() const { return directory_exists(""); }
 
 		void for_each_entry(auto const &fn)
 		{

@@ -198,6 +198,9 @@ struct Fs_query::Watched_directory
 
 	void gen_query_response(Generator &g, Node const &query) const
 	{
+		if (!_dir.exists())
+			return;
+
 		bool const count_enabled = query.attribute_value("count", false);
 
 		g.node("dir", [&] () {
@@ -276,12 +279,8 @@ struct Fs_query::Main : Watched_file::Action
 
 		config.for_each_sub_node("query", [&] (Node const &query) {
 			Directory::Path const path = query.attribute_value("path", Directory::Path());
-			try {
-				new (_heap)
-					Registered<Watched_directory>(
-						_dirs, _heap, _root_dir, path, *this);
-			}
-			catch (Genode::Directory::Nonexistent_directory) { }
+			new (_heap)
+				Registered<Watched_directory>(_dirs, _heap, _root_dir, path, *this);
 		});
 
 		_reporter.generate([&] (Generator &g) {

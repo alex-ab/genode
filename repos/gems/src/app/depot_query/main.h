@@ -88,13 +88,8 @@ struct Depot_query::Directory_cache : Noncopyable
 		:
 			Listings::Element(listings, path), _alloc(alloc)
 		{
-			try {
-				Directory(dir, path).for_each_entry([&] (Directory::Entry const &entry) {
-					new (_alloc) File(_files, entry.name()); });
-			}
-			catch (Directory::Nonexistent_directory) {
-				warning("directory '", path, "' does not exist");
-			}
+			Directory(dir, path).for_each_entry([&] (Directory::Entry const &entry) {
+				new (_alloc) File(_files, entry.name()); });
 		}
 
 		~Listing()
@@ -346,9 +341,8 @@ struct Depot_query::Main
 			                           name, File_content::Limit{16*1024});
 			fn(content);
 		}
-		catch (File_content::Nonexistent_file)   { }
-		catch (Directory::Nonexistent_directory) { }
-		catch (File::Truncated_during_read)      { }
+		catch (File_content::Nonexistent_file) { }
+		catch (File::Truncated_during_read)    { }
 	}
 
 	/**
