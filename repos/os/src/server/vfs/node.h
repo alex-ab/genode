@@ -50,6 +50,7 @@ namespace Vfs_server {
 
 	using Watch_handle = File_system::Watch_handle;
 	using File_handle  = File_system::File_handle;
+	using Dir_handle   = File_system::Dir_handle;
 
 	struct Payload_ptr
 	{

@@ -19,6 +19,7 @@
 #include <vfs/remote_io.h>
 #include <vfs/watch_handle.h>
 #include <vfs/file_handle.h>
+#include <vfs/dir_handle.h>
 #include <base/allocator.h>
 #include <base/env.h>
 
@@ -42,6 +43,11 @@ struct Genode::Vfs::Env : Interface
 	 * Registry of existing file handles
 	 */
 	virtual File_handles &file_handles() = 0;
+
+	/**
+	 * Registry of existing directory handles
+	 */
+	virtual Dir_handles &dir_handles() = 0;
 
 	/**
 	 * Registry of existing watch handles
