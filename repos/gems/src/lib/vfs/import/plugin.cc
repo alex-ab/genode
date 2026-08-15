@@ -1,18 +1,18 @@
 /*
  * \brief  VFS content initialization/import plugin
  * \author Emery Hemingway
+ * \author Norman Feske
  * \date   2018-07-05
  */
 
 /*
- * Copyright (C) 2018 Genode Labs GmbH
+ * Copyright (C) 2018-2026 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
  */
 
 #include <os/vfs.h>
-#include <vfs/print.h>
 #include <base/heap.h>
 
 namespace Vfs_import {
@@ -20,255 +20,128 @@ namespace Vfs_import {
 	using namespace Genode;
 	using namespace Genode::Vfs;
 
-	class Flush_guard;
 	class File_system;
 }
 
 
-/**
- * Utility to flush or sync a handle upon
- * leaving scope. Use with caution, syncing
- * may block for I/O signals.
- */
-class Vfs_import::Flush_guard
+struct Vfs_import::File_system : Vfs::File_system
 {
-	private:
+	/*
+	 * XXX: would be a temporary heap but destructing a VFS is not supported
+	 */
+	Heap _heap;
 
-		Vfs::Env::Io &_io;
-		Vfs_handle   &_handle;
+	static void _copy_file(Directory const &src, Directory &dst,
+	                       Directory::Path const &path)
+	{
+		Readonly_file src_file(src, path);
 
-	public:
+		bool write_error = false;
+		try {
+			New_file dst_file(dst, path);
 
-		Flush_guard(Vfs::Env::Io &io, Vfs_handle &handle)
-		: _io(io), _handle(handle) { }
-
-		~Flush_guard()
-		{
-			while (_handle.sync() == Vfs::Sync_result::RETRY)
-				_io.commit_and_wait();
-		}
-};
-
-
-class Vfs_import::File_system : public Vfs::File_system
-{
-	private:
-
-		/**
-		 * XXX: A would-be temporary heap, but
-		 * deconstructing a VFS is not supported.
-		 */
-		Heap _heap;
-
-		enum { CREATE_IT = true };
-
-		static void copy_symlink(Vfs::Env &env,
-		                         Root_directory &src,
-		                         Directory::Path const &path,
-		                         Allocator &alloc,
-		                         bool overwrite)
-		{
-			Directory::Path target = src.read_symlink(path);
-
-			Vfs_handle *dst_handle = nullptr;
-			auto res = env.root_dir().openlink(
-				path.string(), true, &dst_handle, alloc);
-			if (res == OPENLINK_ERR_NODE_ALREADY_EXISTS && overwrite) {
-				res = env.root_dir().openlink(
-					path.string(), false, &dst_handle, alloc);
-			}
-			if (res != OPENLINK_OK) {
-				if (res != OPENLINK_ERR_NODE_ALREADY_EXISTS)
-					warning("skipping copy of symlink ", path, ", ", res);
-				return;
-			}
-
-			Vfs_handle::Guard guard(dst_handle);
-			{
-				Flush_guard flush(env.io(), *dst_handle);
-
-				Const_byte_range_ptr const src { target.string(), target.length() };
-
-				Vfs_handle::Write_result write_result = Vfs_handle::Write_error::DENIED;
-				for (;;) {
-					write_result = dst_handle->write({ }, src);
-					if (write_result != Vfs_handle::Write_error::RETRY)
-						break;
-					env.io().commit_and_wait();
-				}
-
-				write_result.with_result(
-					[&] (size_t num_bytes) {
-						if (num_bytes != src.num_bytes) {
-							error("failed to import symlink ", path, " (too long)");
-							env.root_dir().unlink(path.string());
-						}
-					},
-					[&] (Vfs_handle::Write_error) {
-						error("failed to import symlink ", path, " (denied)");
-					});
-			}
-		}
-
-		static void copy_file(Vfs::Env &env,
-		                      Root_directory &src,
-		                      Directory::Path const &path,
-		                      Allocator &alloc,
-		                      bool overwrite)
-		{
-			Readonly_file src_file(src, path);
-			Vfs_handle *dst_handle = nullptr;
-
-			enum {
-				WRITE  = OPEN_MODE_WRONLY,
-				CREATE = OPEN_MODE_WRONLY | OPEN_MODE_CREATE
-			};
-
-			auto res = env.root_dir().open(
-				path.string(), CREATE , &dst_handle, alloc);
-			if (res == OPEN_ERR_EXISTS && overwrite) {
-				res = env.root_dir().open(
-					path.string(), WRITE, &dst_handle, alloc);
-			}
-			if (res != OPEN_OK) {
-				warning("skipping copy of file ", path, ", ", res);
-				return;
-			}
-
-			dst_handle->ftruncate(0);
-
-			char              buf[4096];
-			Vfs_handle::Guard guard { dst_handle };
-			Flush_guard       flush { env.io(), *dst_handle };
-			At                at    { };
+			char buf[4096];
+			At at { };
 
 			while (true) {
 
-				size_t const bytes_from_source =
+				size_t const num_bytes =
 					src_file.read(at, Byte_range_ptr(buf, sizeof(buf)));
 
-				if (!bytes_from_source)
+				if (!num_bytes) /* EOF */
 					break;
 
-				bool write_error = false;
-
-				size_t remaining_bytes = bytes_from_source;
-
-				char const *src_ptr = buf;
-
-				while (remaining_bytes > 0 && !write_error) {
-
-					Const_byte_range_ptr const src { src_ptr, remaining_bytes };
-
-					dst_handle->write(at, src).with_result(
-						[&] (size_t num_bytes) {
-							num_bytes = min(remaining_bytes, num_bytes);
-							remaining_bytes -= num_bytes;
-							src_ptr         += num_bytes;
-							at.pos          += num_bytes;
-						},
-						[&] (Vfs_handle::Write_error e) {
-							switch (e) {
-							case Vfs_handle::Write_error::RETRY:
-								env.io().commit_and_wait();
-								break;
-
-							case Vfs_handle::Write_error::DENIED:
-								env.root_dir().unlink(path.string());
-								write_error = true;
-								break;
-							}
-						});
-				}
+				write_error = dst_file.append(buf, num_bytes) != New_file::Append_result::OK;
 				if (write_error)
 					break;
+
+				at.pos  += num_bytes;
 			}
+		} catch (New_file::Create_failed) {
+			warning("skipping import of file ", path, " (create failed)");
 		}
+		if (write_error) {
+			warning("skipping import of file ", path, " (write failed)");
+			dst.unlink(path);
+		}
+	}
 
-		static void copy_dir(Vfs::Env &env,
-		                     Root_directory &src,
-		                     Directory::Path const &path,
-		                     Allocator &alloc,
-		                     bool overwrite)
-		{
-			{
-				Vfs_handle *dir_handle = nullptr;
-				env.root_dir().opendir(
-					path.string(), CREATE_IT, &dir_handle, alloc);
-				if (dir_handle)
-					dir_handle->close();
-			}
+	static void _copy_dir(Root_directory &src, Directory &dst,
+	                      Directory::Path const &path, bool overwrite)
+	{
+		dst.create_sub_directory(path);
 
-			{
-				Directory dir(src, path);
-				dir.for_each_entry([&] (Directory::Entry const &e) {
-					auto entry_path = Directory::join(path, e.name());
-					switch (e.type()) {
-					case Dirent_type::TRANSACTIONAL_FILE:
-					case Dirent_type::CONTINUOUS_FILE:
-						copy_file(env, src, entry_path, alloc, overwrite);
-						return;
-					case Dirent_type::DIRECTORY:
-						copy_dir(env, src, entry_path, alloc, overwrite);
-						return;
-					case Dirent_type::SYMLINK:
-						copy_symlink(env, src, entry_path, alloc, overwrite);
-						return;
-					case Dirent_type::END:
-						return;
+		Directory(src,path).for_each_entry([&] (Directory::Entry const &e) {
+			auto entry_path = Directory::join(path, e.name());
+			switch (e.type()) {
+			case Dirent_type::TRANSACTIONAL_FILE:
+			case Dirent_type::CONTINUOUS_FILE:
+				if (dst.entry_exists(entry_path) && !overwrite)
+					log("retaining ", entry_path, " instead of importing file");
+				else
+					_copy_file(src, dst, entry_path);
+				return;
+			case Dirent_type::DIRECTORY:
+				_copy_dir(src, dst, entry_path, overwrite);
+				return;
+			case Dirent_type::SYMLINK:
+				if (dst.entry_exists(entry_path) && !overwrite)
+					log("retaining ", entry_path, " instead of importing symlink");
+				else {
+					try {
+						dst.create_symlink(entry_path, src.read_symlink(entry_path));
+					} catch (...) {
+						warning("failed to import symlink ", entry_path);
 					}
-					warning("skipping copy of ", e);
-				});
+				}
+				return;
+			case Dirent_type::END:
+				return;
 			}
-		}
+			warning("skipping import of ", e);
+		});
+	}
 
-	public:
+	File_system(Vfs::Env &env, Node const &config)
+	:
+		_heap(env.env().ram(), env.env().rm())
+	{
+		bool overwrite = config.attribute_value("overwrite", false);
 
-		File_system(Vfs::Env &env, Node const &config)
-		: _heap(env.env().ram(), env.env().rm())
-		{
-			bool overwrite = config.attribute_value("overwrite", false);
+		Root_directory src(env.env(), _heap, config);
+		Directory      dst(env);
 
-			Root_directory content(env.env(), _heap, config);
-			copy_dir(env, content, Directory::Path(""), _heap, overwrite);
-		}
+		_copy_dir(src, dst, Directory::Path(""), overwrite);
+	}
 
-		const char* type() override { return "import"; }
+	const char* type() override { return "import"; }
 
-		/***********************
-		 ** Directory service **
-		 ***********************/
+	Dataspace_capability dataspace(char const*) override { return { }; }
 
-		Dataspace_capability dataspace(char const*) override {
-			return Dataspace_capability(); }
+	void release(char const*, Dataspace_capability) override { }
 
-		void release(char const*, Dataspace_capability) override { }
+	Open_result open(const char*, unsigned, Vfs::Vfs_handle**, Allocator&) override {
+		return Open_result::OPEN_ERR_UNACCESSIBLE; }
 
-		Open_result open(const char*, unsigned, Vfs::Vfs_handle**, Allocator&) override {
-			return Open_result::OPEN_ERR_UNACCESSIBLE; }
+	Opendir_result opendir(char const*, bool,
+	                       Vfs_handle**, Allocator&) override {
+		return OPENDIR_ERR_LOOKUP_FAILED; }
 
-		Opendir_result opendir(char const*, bool,
-	                           Vfs_handle**, Allocator&) override {
-			return OPENDIR_ERR_LOOKUP_FAILED; }
+	void close(Vfs_handle*) override { }
 
-		void close(Vfs_handle*) override { }
+	Stat_result stat(const char*, Directory_service::Stat&) override {
+		return STAT_ERR_NO_ENTRY; }
 
-		Stat_result stat(const char*, Directory_service::Stat&) override {
-			return STAT_ERR_NO_ENTRY; }
+	Unlink_result unlink(const char*) override { return UNLINK_ERR_NO_ENTRY; }
 
-		Unlink_result unlink(const char*) override { return UNLINK_ERR_NO_ENTRY; }
+	Rename_result rename(const char*, const char*) override {
+		return RENAME_ERR_NO_ENTRY; }
 
-		Rename_result rename(const char*, const char*) override {
-			return RENAME_ERR_NO_ENTRY; }
+	unsigned num_dirent(const char*) override { return 0; }
 
-		unsigned num_dirent(const char*) override {
-			return 0; }
+	bool directory(char const*) override { return false; }
 
-		bool directory(char const*) override {
-			return false; }
-
-		bool dir_entry_exists(const char *) override {
-			return false; }
+	bool dir_entry_exists(const char *) override { return false; }
 };
 
 
