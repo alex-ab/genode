@@ -466,21 +466,8 @@ class Genode::Readonly_file : public File
 		Readonly_file(Readonly_file const &);
 		Readonly_file &operator = (Readonly_file const &);
 
-		Vfs::Vfs_handle mutable *_handle = nullptr;
-
+		Vfs::File_handle _handle;
 		Vfs::Env::Io &_io;
-
-		void _open(Vfs::File_system &fs, Allocator &alloc, Path const path)
-		{
-			Vfs::Directory_service::Open_result res =
-				fs.open(path.string(), Vfs::Directory_service::OPEN_MODE_RDONLY,
-				        &_handle, alloc);
-
-			if (res != Vfs::Directory_service::OPEN_OK) {
-				error("failed to open file '", path, "'");
-				throw Open_failed();
-			}
-		}
 
 		/**
 		 * Strip off constness of 'Directory const &'
@@ -512,13 +499,12 @@ class Genode::Readonly_file : public File
 		 */
 		Readonly_file(Directory const &dir, Path const &rel_path)
 		:
+			_handle(_mutable(dir)._vfs_env.file_handles(),
+			        _mutable(dir)._fs, _mutable(dir)._alloc,
+			        { .path      = Directory::join(dir._path, rel_path),
+			          .writeable = false }),
 			_io(_mutable(dir)._io)
-		{
-			_open(_mutable(dir)._fs, _mutable(dir)._alloc,
-			      Directory::join(dir._path, rel_path));
-		}
-
-		~Readonly_file() { _handle->ds().close(_handle); }
+		{ }
 
 		using At = Vfs::At;
 
@@ -527,18 +513,20 @@ class Genode::Readonly_file : public File
 		 */
 		size_t read(At const at, Byte_range_ptr const &range) const
 		{
+			Vfs::File_handle &handle = const_cast<Vfs::File_handle &>(_handle);
+
 			size_t total = 0;
 			for (;;) {
 
-				Vfs::Vfs_handle::Read_result result = Vfs::Vfs_handle::Read_error::DENIED;
+				Vfs::Read_result result = Vfs::Read_error::DENIED;
 				for (;;) {
 
 					Byte_range_ptr const partial_range { range.start     + total,
 					                                     range.num_bytes - total };
 					Vfs::At const partial_at { .pos = at.pos + total };
 
-					result = _handle->read(partial_at, partial_range);
-					if (result != Vfs::Vfs_handle::Read_error::RETRY)
+					result = handle.read(partial_at, partial_range);
+					if (result != Vfs::Read_error::RETRY)
 						break;
 
 					_io.commit_and_wait();
@@ -546,8 +534,8 @@ class Genode::Readonly_file : public File
 
 				/* byte count for this iteration */
 				size_t const read_bytes = result.convert<size_t>(
-					[&] (size_t n)                    { return n; },
-					[&] (Vfs::Vfs_handle::Read_error) { return 0ul; });
+					[&] (size_t n)        { return n; },
+					[&] (Vfs::Read_error) { return 0ul; });
 
 				if (read_bytes > range.num_bytes - total) {
 					error("read beyond buffer size");
@@ -782,45 +770,26 @@ class Genode::Writeable_file : Noncopyable
 
 		enum class Append_result { OK, WRITE_ERROR };
 
+	private:
+
+		bool const _compound_dir_created;
+
+		static bool _create_compound_dir(Directory             &dir,
+		                                 Directory::Path const &rel_path)
+		{
+			Genode::Path<Vfs::MAX_PATH_LEN> dir_path { rel_path };
+			dir_path.strip_last_element();
+			dir.create_sub_directory(dir_path.string());
+			return true;
+		}
+
 	protected:
 
-		static Vfs::Vfs_handle &_init_handle(Directory             &dir,
-		                                     Directory::Path const &rel_path)
-		{
-			/* create compound directory */
-			{
-				Genode::Path<Vfs::MAX_PATH_LEN> dir_path { rel_path };
-				dir_path.strip_last_element();
-				dir.create_sub_directory(dir_path.string());
-			}
+		Vfs::Env::Io &_io;
 
-			unsigned mode = Vfs::Directory_service::OPEN_MODE_WRONLY;
+		Vfs::File_handle _handle;
 
-			Directory::Path const path = Directory::join(dir._path, rel_path);
-
-			if (!dir.file_exists(path))
-				mode |= Vfs::Directory_service::OPEN_MODE_CREATE;
-
-			Vfs::Vfs_handle *handle_ptr = nullptr;
-			Vfs::Directory_service::Open_result const res =
-				dir._fs.open(path.string(), mode, &handle_ptr, dir._alloc);
-
-			if (res != Vfs::Directory_service::OPEN_OK || (handle_ptr == nullptr)) {
-				error("failed to create/open file '", path, "' for writing, res=", (int)res);
-				throw Create_failed();
-			}
-
-			return *handle_ptr;
-		}
-
-		static void _sync(Vfs::Vfs_handle &handle, Vfs::Env::Io &io)
-		{
-			while (handle.sync() == Vfs::Sync_result::RETRY)
-				io.commit_and_wait();
-		}
-
-		static Append_result _append(Vfs::Vfs_handle &handle, Vfs::Env::Io &io,
-		                             Vfs::At &at, Const_byte_range_ptr const &src)
+		Append_result _append(Vfs::At &at, Const_byte_range_ptr const &src)
 		{
 			bool write_error = false;
 
@@ -832,12 +801,12 @@ class Genode::Writeable_file : Noncopyable
 
 				Const_byte_range_ptr const partial_src { src_ptr, remaining_bytes };
 
-				Vfs::Vfs_handle::Write_result result = Vfs::Vfs_handle::Write_error::DENIED;
+				Vfs::Write_result result = Vfs::Write_error::DENIED;
 				for (;;) {
-					result = handle.write(at, partial_src);
-					if (result != Vfs::Vfs_handle::Write_error::RETRY)
+					result = _handle.write(at, partial_src);
+					if (result != Vfs::Write_error::RETRY)
 						break;
-					io.commit_and_wait();
+					_io.commit_and_wait();
 				}
 
 				result.with_result(
@@ -847,12 +816,38 @@ class Genode::Writeable_file : Noncopyable
 						src_ptr         += num_bytes;
 						at.pos          += num_bytes;
 					},
-					[&] (Vfs::Vfs_handle::Write_error) {
+					[&] (Vfs::Write_error) {
 						write_error = true;
 					});
 			}
 			return write_error ? Append_result::WRITE_ERROR
 			                   : Append_result::OK;
+		}
+
+		Writeable_file(Directory &dir, Directory::Path const &path)
+		:
+			_compound_dir_created(_create_compound_dir(dir, path)),
+			_io(dir._io),
+			_handle(dir._vfs_env.file_handles(), dir._fs, dir._alloc,
+			        { .path      = Directory::join(dir._path, path),
+			          .writeable = true })
+		{
+			for (;;) {
+				Vfs::File_handle::Attach_result const result = _handle.attach();
+				if (result == Vfs::File_handle::Attach_error::RETRY) {
+					_io.commit_and_wait();
+					continue;
+				}
+				if (result.ok())
+					break;
+				throw Create_failed();
+			}
+		}
+
+		~Writeable_file()
+		{
+			while (_handle.detach() == Vfs::File_handle::Detach_result::RETRY)
+				_io.commit_and_wait();
 		}
 };
 
@@ -864,9 +859,7 @@ class Genode::Append_file : public Writeable_file
 {
 	private:
 
-		Vfs::Env::Io     &_io;
-		Vfs::Vfs_handle  &_handle;
-		Vfs::At           _at { };
+		Vfs::At _at { };
 
 	public:
 
@@ -877,25 +870,18 @@ class Genode::Append_file : public Writeable_file
 		 */
 		Append_file(Directory &dir, Directory::Path const &path)
 		:
-			_io(dir._io),
-			_handle(_init_handle(dir, path))
+			Writeable_file(dir, path)
 		{
 			Vfs::Directory_service::Stat stat { };
-			if (_handle.ds().stat(path.string(), stat) == Vfs::Directory_service::STAT_OK)
+			if (dir._stat(path, stat) == Vfs::Directory_service::STAT_OK)
 				_at.pos = stat.size;
 		}
 
-		~Append_file()
-		{
-			_sync(_handle, _io);
-			_handle.ds().close(&_handle);
-		}
-
 		Append_result append(Const_byte_range_ptr const &src) {
-			return _append(_handle, _io, _at, src); }
+			return _append(_at, src); }
 
 		Append_result append(char const *src, size_t size) {
-			return _append(_handle, _io, _at, Const_byte_range_ptr(src, size)); }
+			return _append(_at, Const_byte_range_ptr(src, size)); }
 };
 
 
@@ -906,9 +892,20 @@ class Genode::New_file : public Writeable_file
 {
 	private:
 
-		Vfs::Env::Io    &_io;
-		Vfs::Vfs_handle &_handle;
-		Vfs::At          _at { };
+		Vfs::At _at { };
+
+		void _reset_size()
+		{
+			for (;;) {
+				switch (_handle.resize(0)) {
+				case Vfs::Resize_result::OK: return;
+				case Vfs::Resize_result::RETRY: _io.commit_and_wait(); break;
+				case Vfs::Resize_result::OUT_OF_RAM:  /* not with VFS alloc */
+				case Vfs::Resize_result::OUT_OF_CAPS: /* not with VFS alloc */
+				case Vfs::Resize_result::DENIED: throw Create_failed();
+				}
+			}
+		}
 
 	public:
 
@@ -922,23 +919,16 @@ class Genode::New_file : public Writeable_file
 		 */
 		New_file(Directory &dir, Directory::Path const &path)
 		:
-			_io(dir._io),
-			_handle(_init_handle(dir, path))
+			Writeable_file(dir, path)
 		{
-			_handle.ftruncate(0);
-		}
-
-		~New_file()
-		{
-			_sync(_handle, _io);
-			_handle.ds().close(&_handle);
+			_reset_size();
 		}
 
 		Append_result append(Const_byte_range_ptr const &src) {
-			return _append(_handle, _io, _at, src); }
+			return _append(_at, src); }
 
 		Append_result append(char const *src, size_t size) {
-			return _append(_handle, _io, _at, Const_byte_range_ptr(src, size)); }
+			return _append(_at, Const_byte_range_ptr(src, size)); }
 };
 
 
