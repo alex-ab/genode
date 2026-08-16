@@ -1,13 +1,11 @@
 /*
  * \brief  Directory file system
  * \author Norman Feske
- * \author Emery Hemingway
- * \author Christian Helmuth
- * \date   2012-04-23
+ * \date   2026-08-16
  */
 
 /*
- * Copyright (C) 2011-2019 Genode Labs GmbH
+ * Copyright (C) 2026 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
@@ -18,8 +16,8 @@
 
 #include <base/registry.h>
 #include <vfs/file_system_factory.h>
+#include <vfs/union_file_system.h>
 #include <vfs/vfs_handle.h>
-
 
 namespace Genode::Vfs { class Dir_file_system; }
 
@@ -28,268 +26,39 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 {
 	public:
 
+		/**
+		 * Directory name
+		 */
 		enum { MAX_NAME_LEN = 128 };
+		using Name = String<MAX_NAME_LEN>;
 
 	private:
-
-		/*
-		 * Noncopyable
-		 */
-		Dir_file_system(Dir_file_system const &);
-		Dir_file_system &operator = (Dir_file_system const &);
 
 		Vfs::Env &_env;
 
 		Parent_fs &_parent_fs;
 
-		/**
-		 * This instance is the root of VFS
-		 *
-		 * Additionally, the root has an empty _name.
-		 */
-		bool const _vfs_root;
-
-		struct Dir_vfs_handle : Vfs_handle
-		{
-			struct Subdir_handle_element;
-
-			using Subdir_handle_registry = Registry<Subdir_handle_element>;
-
-			struct Subdir_handle_element : Subdir_handle_registry::Element
-			{
-				Vfs_handle &vfs_handle;
-				Subdir_handle_element(Subdir_handle_registry &registry,
-				                      Vfs_handle &vfs_handle)
-				:
-					Subdir_handle_registry::Element(registry, *this),
-					vfs_handle(vfs_handle)
-				{ }
-			};
-
-			Dir_file_system       &_fs;
-			Absolute_path          path;
-			Subdir_handle_registry subdir_handle_registry { };
-
-			Read_result _read_of_file_systems(At const at, Byte_range_ptr const &dst)
-			{
-				size_t index = size_t(at.pos / sizeof(Dirent));
-
-				char const *sub_path = _fs._sub_path(path.base());
-
-				if (strlen(sub_path) == 0)
-					sub_path = "/";
-
-				/* base of composite directory index */
-				size_t base = 0;
-
-				bool done = false;
-
-				Read_result result = 0ul; /* EOF if no fs matches 'index' */
-
-				subdir_handle_registry.for_each([&] (Subdir_handle_element const &handle_element) {
-
-					if (done) return; /* skip through */
-
-					Vfs_handle &vfs_handle = handle_element.vfs_handle;
-
-					/*
-					 * Determine number of matching directory entries within
-					 * the current file system.
-					 */
-					unsigned const fs_num_dirent = vfs_handle.ds().num_dirent(sub_path);
-
-					/*
-					 * Query directory entry if index lies with the file
-					 * system.
-					 */
-					if (index - base < fs_num_dirent) {
-
-						/* seek to file-system local index */
-						index = index - base;
-
-						/* forward the response handler */
-						apply_handler([&] (Read_ready_response_handler &h) {
-							vfs_handle.handler(&h); });
-
-						result = vfs_handle.read(At { index*sizeof(Dirent) }, dst);
-						done = true;
-					}
-
-					/* adjust base index for next file system */
-					base += fs_num_dirent;
-				});
-				return result;
-			}
-
-			Dir_vfs_handle(Dir_file_system &fs, Allocator &alloc, char const *path)
-			:
-				Vfs_handle(fs, alloc, 0), _fs(fs), path(path)
-			{ }
-
-			~Dir_vfs_handle()
-			{
-				/* close all sub-handles */
-				auto f = [&] (Subdir_handle_element &e) {
-					e.vfs_handle.close();
-					destroy(alloc(), &e);
-				};
-				subdir_handle_registry.for_each(f);
-			}
-
-			Read_result read(At const at, Byte_range_ptr const &dst) override
-			{
-				if (dst.num_bytes < sizeof(Dirent))
-					return Read_error::DENIED;
-
-				if (_fs._vfs_root)
-					return _read_of_file_systems(at, dst);
-
-				if (_fs._top_dir(path.base())) {
-
-					Dirent &dirent = *(Dirent*)dst.start;
-
-					file_size const index = at.pos / sizeof(Dirent);
-
-					if (index == 0) {
-
-						dirent = {
-							.type = Dirent_type::DIRECTORY,
-							.rwx  = Node_rwx::rwx(),
-							.name = { _fs._name.string() }
-						};
-
-					} else {
-
-						dirent = {
-							.type = Dirent_type::END,
-							.rwx  = { },
-							.name = { }
-						};
-					}
-
-					return sizeof(Dirent);
-				}
-
-				return _read_of_file_systems(at, dst);
-			}
-
-			bool read_ready()  const override { return true; }
-			bool write_ready() const override { return false; }
-		};
-
-		/* pointer to first child file system */
-		File_system *_first_file_system = nullptr;
-
-		/* add new file system to the list of children */
-		void _append_file_system(File_system *fs)
-		{
-			if (!_first_file_system) {
-				_first_file_system = fs;
-				return;
-			}
-
-			File_system *curr = _first_file_system;
-			while (curr->next)
-				curr = curr->next;
-
-			curr->next = fs;
-		}
-
-		/**
-		 * Directory name
-		 */
-		using Name = String<MAX_NAME_LEN>;
 		Name const _name;
 
-		/**
-		 * Returns if path corresponds to top directory of file system
-		 */
-		bool _top_dir(char const *path) const {	return strcmp(path, "/") == 0; }
+		Union_file_system _union;
+
+		bool _slash(char const *path) const { return strcmp(path, "/") == 0; }
 
 		/**
-		 * Perform operation on a file system
-		 *
-		 * \param fn  functor that takes a file-system reference and
-		 *            the path as arguments
+		 * Call 'fn' with the portion of the path following the dir name,
+		 * or 'mismatch_fn' if the path is unrelated to this directory.
 		 */
-		template <typename RES>
-		RES _dir_op(RES const no_entry, RES const no_perm, RES const ok,
-		            char const *path, auto const &fn)
+		auto _with_sub_path(char const *path, auto const &fn, auto const &mismatch_fn)
+		-> decltype(mismatch_fn())
 		{
-			path = _sub_path(path);
-
-			/* path does not match directory name */
-			if (!path)
-				return no_entry;
-
-			/*
-			 * Prevent operation if path equals directory name defined
-			 * via the static VFS configuration.
-			 */
-			if (strlen(path) == 0)
-				return no_perm;
-
-			/*
-			 * If any of the sub file systems returns a permission error and
-			 * there exists no sub file system that takes the request, we
-			 * return the permission error.
-			 */
-			bool permission_denied = false;
-
-			/*
-			 * Keep the most meaningful error code. When using stacked file
-			 * systems, most child file systems will eventually return no
-			 * entry (or leave the error code unchanged). If any of those
-			 * file systems has anything more interesting to tell, return
-			 * this information after all file systems have been tried and
-			 * none could handle the request.
-			 */
-			RES error = ok;
-
-			/*
-			 * The given path refers to at least one of our sub directories.
-			 * Propagate the request into all of our file systems. If at least
-			 * one operation succeeds, we return success.
-			 */
-			for (File_system *fs = _first_file_system; fs; fs = fs->next) {
-
-				RES const err = fn(*fs, path);
-
-				if (err == ok)
-					return err;
-
-				if (err != no_entry && err != no_perm) {
-					error = err;
-				}
-
-				if (err == no_perm)
-					permission_denied = true;
-			}
-
-			/* none of our file systems could successfully operate on the path */
-			return error != ok ? error : permission_denied ? no_perm : no_entry;
-		}
-
-		/**
-		 * Return portion of the path after the element corresponding to
-		 * the current directory.
-		 */
-		char const *_sub_path(char const *path) const
-		{
-			/* do not strip anything from the path when we are root */
-			if (_vfs_root)
-				return path;
-
-			if (_top_dir(path))
-				return path;
-
 			/* skip heading slash in path if present */
 			if (path[0] == '/')
 				path++;
 
 			size_t const name_len = strlen(_name.string());
 			if (strcmp(path, _name.string(), name_len) != 0)
-				return 0;
+				return mismatch_fn();
+
 			path += name_len;
 
 			/*
@@ -298,95 +67,102 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 			 * first path element matches the name length.
 			 */
 			if (*path != 0 && *path != '/')
-				return 0;
+				return mismatch_fn();
 
-			return path;
+			return fn(path);
 		}
 
-		/*
-		 * Accumulate number of directory entries that match in any of
-		 * our sub file systems.
-		 */
-		unsigned _sum_dirents_of_file_systems(char const *path)
+		auto _with_sub_dir_path(char const *path, auto const &fn, auto const &mismatch_fn)
+		-> decltype(mismatch_fn())
 		{
-			unsigned cnt = 0;
-			for (File_system *fs = _first_file_system; fs; fs = fs->next)
-				cnt += fs->num_dirent(path);
-			return cnt;
+			return _with_sub_path(path,
+				[&] (char const *path) {
+					if (strlen(path) == 0)
+						path = "/"; /* ensure invariant of leading slash */
+					return fn(path);
+				}, mismatch_fn);
 		}
+
+		struct Dir_vfs_handle : Vfs_handle
+		{
+			Dir_file_system &_fs;
+
+			Dir_vfs_handle(Dir_file_system &fs, Allocator &alloc)
+			:
+				Vfs_handle(fs, alloc, 0), _fs(fs)
+			{ }
+
+			Read_result read(At const at, Byte_range_ptr const &dst) override
+			{
+				if (dst.num_bytes < sizeof(Dirent))
+					return Read_error::DENIED;
+
+				file_size const index = at.pos / sizeof(Dirent);
+
+				Dirent &dirent = *(Dirent*)dst.start;
+
+				if (index == 0) {
+					dirent = {
+						.type = Dirent_type::DIRECTORY,
+						.rwx  = Node_rwx::rwx(),
+						.name = { _fs._name.string() }
+					};
+				} else {
+					dirent = {
+						.type = Dirent_type::END,
+						.rwx  = { },
+						.name = { }
+					};
+				}
+				return sizeof(Dirent);
+			}
+
+			bool read_ready()  const override { return true; }
+			bool write_ready() const override { return false; }
+		};
 
 	protected:
 
 		/**
-		 * Parent_fs role for the children of this directory file system
+		 * Parent_fs role for '_union' child of this dir file system
 		 */
 		void notify_watchers(Span const &rel_path) override
 		{
 			using Path = String<MAX_PATH_LEN>;
-			if (_vfs_root)
-				_parent_fs.notify_watchers(rel_path);
-			else
-				Path { "/", _name, Cstring(rel_path.start, rel_path.num_bytes) }
-					.with_span([&] (Span const &s) {
-						_parent_fs.notify_watchers(s); });
+			Path { "/", _name, Cstring(rel_path.start, rel_path.num_bytes) }
+				.with_span([&] (Span const &s) {
+					_parent_fs.notify_watchers(s); });
 		}
 
 	public:
 
-		Dir_file_system(Env &env, Parent_fs &parent_fs, Node const &node)
+		Dir_file_system(Env &env, Parent_fs &parent_fs, Name const &name)
 		:
-			_env(env), _parent_fs(parent_fs),
-			_vfs_root(!node.has_type("dir")),
-			_name(_vfs_root ? Name() : node.attribute_value("name", Name()))
+			_env(env), _parent_fs(parent_fs), _name(name), _union(env, *this)
 		{ }
 
-		/*********************************
-		 ** Directory-service interface **
-		 *********************************/
+		Dir_file_system(Env &env, Parent_fs &parent_fs, Node const &node)
+		:
+			Dir_file_system(env, parent_fs, node.attribute_value("name", Name()))
+		{ }
 
 		Dataspace_capability dataspace(char const *path) override
 		{
-			path = _sub_path(path);
-			if (!path)
-				return Dataspace_capability();
-
-			/*
-			 * Query sub file systems for dataspace using the path local to
-			 * the respective file system
-			 */
-			File_system *fs = _first_file_system;
-			for (; fs; fs = fs->next) {
-				Dataspace_capability ds = fs->dataspace(path);
-				if (ds.valid())
-					return ds;
-			}
-
-			return Dataspace_capability();
+			return _with_sub_path(path,
+				[&] (auto const &path) { return _union.dataspace(path); },
+				[&]                    { return Dataspace_capability(); });
 		}
 
 		void release(char const *path, Dataspace_capability ds_cap) override
 		{
-			path = _sub_path(path);
-			if (!path)
-				return;
-
-			for (File_system *fs = _first_file_system; fs; fs = fs->next)
-				fs->release(path, ds_cap);
+			_with_sub_path(path,
+				[&] (auto const &path) { _union.release(path, ds_cap); },
+				[&]                    { });
 		}
 
 		Stat_result stat(char const *path, Stat &out) override
 		{
-			path = _sub_path(path);
-
-			/* path does not match directory name */
-			if (!path)
-				return STAT_ERR_NO_ENTRY;
-
-			/*
-			 * If path equals directory name, return information about the
-			 * current directory.
-			 */
-			if (strlen(path) == 0 || _top_dir(path)) {
+			if (_slash(path)) {
 				out = {
 					.size              = 0,
 					.type              = Node_type::DIRECTORY,
@@ -396,314 +172,85 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				};
 				return STAT_OK;
 			}
-
-			/*
-			 * The given path refers to one of our sub directories.
-			 * Propagate the request into our file systems.
-			 */
-			for (File_system *fs = _first_file_system; fs; fs = fs->next) {
-
-				Stat_result const err = fs->stat(path, out);
-
-				if (err == STAT_OK)
-					return err;
-
-				if (err != STAT_ERR_NO_ENTRY)
-					return err;
-			}
-
-			/* none of our file systems felt responsible for the path */
-			return STAT_ERR_NO_ENTRY;
+			return _with_sub_path(path,
+				[&] (auto const &path) { return _union.stat(path, out); },
+				[&] () -> Stat_result  { return STAT_ERR_NO_ENTRY; });
 		}
 
 		unsigned num_dirent(char const *path) override
 		{
-			if (_vfs_root) {
-				return _sum_dirents_of_file_systems(path);
+			if (_slash(path))
+				return 1;
 
-			} else {
-
-				if (_top_dir(path))
-					return 1;
-
-				/*
-				 * The path contains at least one element. Remove current
-				 * element from path.
-				 */
-				path = _sub_path(path);
-
-				/*
-				 * If the resulting 'path' is non-null, the path lies
-				 * within our tree. In this case, determine the sum of
-				 * matching dirents of all our file systems. Otherwise,
-				 * the specified path lies outside our directory node.
-				 */
-				return path ? _sum_dirents_of_file_systems(*path ? path : "/") : 0;
-			}
+			return _with_sub_dir_path(path,
+				[&] (auto const &path) { return _union.num_dirent(path); },
+				[&] () -> unsigned     { return 0; });
 		}
 
-		/**
-		 * Return true if specified path is a directory
-		 */
 		bool directory(char const *path) override
 		{
-			if (_top_dir(path))
+			if (_slash(path))
 				return true;
 
-			path = _sub_path(path);
-
-			if (!path)
-				return false;
-
-			if (strlen(path) == 0)
-				return true;
-
-			for (File_system *fs = _first_file_system; fs; fs = fs->next)
-				if (fs->directory(path))
-					return true;
-
-			return false;
+			return _with_sub_path(path,
+				[&] (auto const &path) { return _union.directory(path); },
+				[&] () -> bool         { return false; });
 		}
 
 		bool dir_entry_exists(char const *path) override
 		{
-			path = _sub_path(path);
-			if (!path)
-				return false;
-
-			if (strlen(path) == 0)
+			if (_slash(path))
 				return true;
 
-			for (File_system *fs = _first_file_system; fs; fs = fs->next)
-				if (fs->dir_entry_exists(path))
-					return true;
-
-			return false;
+			return _with_sub_path(path,
+				[&] (auto const &path) { return _union.dir_entry_exists(path); },
+				[&] () -> bool         { return false; });
 		}
 
-		Open_result open(char const  *path,
-		                 unsigned     mode,
-		                 Vfs_handle **out_handle,
-		                 Allocator   &alloc) override
+		Open_result open(char const *path, unsigned mode,
+		                 Vfs_handle **out, Allocator &alloc) override
 		{
-			/*
-			 * If 'path' is a directory, we create a 'Vfs_handle'
-			 * for the root directory so that subsequent 'dirent' calls
-			 * are subjected to the stacked file-system layout.
-			 */
-			if (directory(path)) {
-				try {
-					*out_handle = new (alloc) Dir_vfs_handle(*this, alloc, path);
-					return OPEN_OK;
-				}
-				catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
-				catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-			}
+			if (_slash(path))
+				return OPEN_ERR_NO_PERM; /* cannot open dir as file */
 
-			/*
-			 * If 'path' refers to a non-directory node, create a
-			 * 'Vfs_handle' local to the file system that provides the
-			 * file.
-			 */
-
-			path = _sub_path(path);
-
-			/* check if path does not match directory name */
-			if (!path)
-				return OPEN_ERR_UNACCESSIBLE;
-
-			/* path equals directory name */
-			if (strlen(path) == 0) {
-				try {
-					*out_handle = new (alloc) Dir_vfs_handle(*this, alloc, nullptr);
-					return OPEN_OK;
-				}
-				catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
-				catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
-			}
-
-			/* path refers to any of our sub file systems */
-			for (File_system *fs = _first_file_system; fs; fs = fs->next) {
-
-				Open_result const err = fs->open(path, mode, out_handle, alloc);
-				switch (err) {
-				case OPEN_ERR_UNACCESSIBLE:
-					continue;
-				default:
-					return err;
-				}
-			}
-
-			/* path does not match any existing file or directory */
-			return OPEN_ERR_UNACCESSIBLE;
-		}
-
-		/**
-		 * Call 'opendir()' on each file system and store handles in
-		 * a registry.
-		 */
-		Opendir_result open_composite_dirs(char const *sub_path,
-		                                   Dir_vfs_handle &dir_vfs_handle)
-		{
-			Opendir_result res;
-			if (strcmp(sub_path, "/")) {
-
-				/*
-				 * If there are still directory names in the sub-path, we have
-				 * not reached the leaf node of the original path so far.
-				 * Therefore, if the current directory is empty, this means
-				 * that the original path refers to a directory that doesn't
-				 * exist. Consequently, the result defaults to a
-				 * "lookup failed" error.
-				 */
-				res = OPENDIR_ERR_LOOKUP_FAILED;
-
-			} else {
-
-				/*
-				 * We have reached the leaf node of the original path.
-				 * Therefore the directory referenced by the original path is
-				 * the one that we are at. Consequently, we can let the result
-				 * default to "success" regardless of whether the directory is
-				 * empty. However, if there are any sub-file-systems, we will
-				 * go on and store handles for them in the registry.
-				 */
-				res = OPENDIR_OK;
-			}
-			try {
-				for (File_system *fs = _first_file_system; fs; fs = fs->next) {
-					Vfs_handle *sub_dir_handle = nullptr;
-
-					Opendir_result r = fs->opendir(
-						sub_path, false, &sub_dir_handle, dir_vfs_handle.alloc());
-
-					switch (r) {
-					case OPENDIR_OK:
-						break;
-					case OPENDIR_ERR_OUT_OF_RAM:
-					case OPENDIR_ERR_OUT_OF_CAPS:
-						return r;
-					default:
-						continue;
-					}
-
-					try {
-						new (dir_vfs_handle.alloc())
-							Dir_vfs_handle::Subdir_handle_element(
-								dir_vfs_handle.subdir_handle_registry, *sub_dir_handle);
-					}
-					catch (...) {
-						sub_dir_handle->close();
-						throw;
-					}
-					/* return OK because at least one directory has been opened */
-					res = OPENDIR_OK;
-				}
-			}
-			catch (Out_of_ram)  { res = OPENDIR_ERR_OUT_OF_RAM; }
-			catch (Out_of_caps) { res = OPENDIR_ERR_OUT_OF_CAPS; }
-
-			return res;
+			return _with_sub_path(path,
+				[&] (auto const &path) {
+					return _union.open(path, mode, out, alloc);
+				},
+				[&] () -> Open_result { return OPEN_ERR_UNACCESSIBLE; });
 		}
 
 		Opendir_result opendir(char const *path, bool create,
-		                       Vfs_handle **out_handle, Allocator &alloc) override
+		                       Vfs_handle **out, Allocator &alloc) override
 		{
-			Opendir_result result = OPENDIR_OK;
-
-			if (_top_dir(path)) {
+			if (_slash(path)) {
 				if (create)
 					return OPENDIR_ERR_PERMISSION_DENIED;
 
-				/*
-				 * opendir with '/' (called from 'open_composite_dirs' returns handle
-				 * only, VFS root additionally calls 'open_composite_dirs' in order to
-				 * open its file systems
-				 */
-				Dir_vfs_handle *root_handle;
-				try {
-					root_handle = new (alloc) Dir_vfs_handle(*this, alloc, path);
-				}
+				try { *out = new (alloc) Dir_vfs_handle(*this, alloc); }
 				catch (Out_of_ram)  { return OPENDIR_ERR_OUT_OF_RAM; }
 				catch (Out_of_caps) { return OPENDIR_ERR_OUT_OF_CAPS; }
-
-				/* the VFS root may contain more file systems */
-				if (_vfs_root)
-					result = open_composite_dirs("/", *root_handle);
-
-				if (result == OPENDIR_OK) {
-					*out_handle = root_handle;
-				} else {
-					/* close the root handle and the rest will follow */
-					close(root_handle);
-				}
-				return result;
+				return OPENDIR_OK;
 			}
 
-			char const *sub_path = _sub_path(path);
-
-			if (!sub_path)
-				return OPENDIR_ERR_LOOKUP_FAILED;
-
-			if (create) {
-				if (dir_entry_exists(path))
-					return OPENDIR_ERR_NODE_ALREADY_EXISTS;
-
-				auto opendir_fn = [&] (File_system &fs, char const *path)
-				{
-					Vfs_handle *tmp_handle;
-					Opendir_result opendir_result =
-						fs.opendir(path, true, &tmp_handle, alloc);
-					if (opendir_result == OPENDIR_OK) {
-						tmp_handle->close();
-					}
-					return opendir_result; /* return from lambda */
-				};
-
-				Opendir_result opendir_result =
-					_dir_op(OPENDIR_ERR_LOOKUP_FAILED,
-				            OPENDIR_ERR_PERMISSION_DENIED,
-				            OPENDIR_OK,
-				            path, opendir_fn);
-
-				if (opendir_result != OPENDIR_OK)
-					return opendir_result;
-			}
-
-			Dir_vfs_handle *dir_vfs_handle;
-			try {
-				dir_vfs_handle = new (alloc) Dir_vfs_handle(*this, alloc, path);
-			}
-			catch (Out_of_ram)  { return OPENDIR_ERR_OUT_OF_RAM; }
-			catch (Out_of_caps) { return OPENDIR_ERR_OUT_OF_CAPS; }
-
-			/* path equals "/" (for reading the name of this directory) */
-			if (strlen(sub_path) == 0)
-				sub_path = "/";
-
-			result = open_composite_dirs(sub_path, *dir_vfs_handle);
-			if (result == OPENDIR_OK) {
-				*out_handle = dir_vfs_handle;
-			} else {
-				/* close the master handle and the rest will follow */
-				close(dir_vfs_handle);
-			}
-			return result;
+			return _with_sub_dir_path(path,
+				[&] (char const *path) {
+					return _union.opendir(path, create, out, alloc);
+				},
+				[&] () -> Opendir_result { return OPENDIR_ERR_LOOKUP_FAILED; });
 		}
 
 		Openlink_result openlink(char const *path, bool create,
-		                         Vfs_handle **out_handle,
-		                         Allocator &alloc) override
+		                         Vfs_handle **out, Allocator &alloc) override
 		{
-			auto openlink_fn = [&] (File_system &fs, char const *path)
-			{
-				return fs.openlink(path, create, out_handle, alloc);
-			};
+			if (_slash(path))
+				return OPENLINK_ERR_PERMISSION_DENIED; /* cannot open dir as link */
 
-			return _dir_op(OPENLINK_ERR_LOOKUP_FAILED,
-			               OPENLINK_ERR_PERMISSION_DENIED,
-			               OPENLINK_OK,
-			               path, openlink_fn);
+			return _with_sub_path(path,
+				[&] (auto const &path) {
+					return _union.openlink(path, create, out, alloc);
+				},
+				[&] () -> Openlink_result { return OPENLINK_ERR_LOOKUP_FAILED; });
 		}
 
 		void close(Vfs_handle *handle) override
@@ -714,130 +261,54 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 
 		Watch_result watch(char const *path) override
 		{
-			Watch_result result = Ok();
-
-			char const *sub_path = _sub_path(path);
-			if (sub_path)
-				for (File_system *fs = _first_file_system; fs; fs = fs->next) {
-					result = fs->watch(sub_path);
-					if (result.failed())
-						break;
-				}
-
-			if (result.failed())
-				unwatch(path);
-
-			return result;
+			return _with_sub_path(path,
+				[&] (auto const &path) { return _union.watch(path); },
+				[&] () -> Watch_result { return Ok(); });
 		}
 
 		void unwatch(char const *path) override
 		{
-			char const *sub_path = _sub_path(path);
-			if (sub_path)
-				for (File_system *fs = _first_file_system; fs; fs = fs->next)
-					fs->unwatch(sub_path);
+			_with_sub_path(path,
+				[&] (auto const &path) { _union.unwatch(path); },
+				[&]                    { });
 		}
 
 		Unlink_result unlink(char const *path) override
 		{
-			auto unlink_fn = [] (File_system &fs, char const *path)
-			{
-				return fs.unlink(path);
-			};
+			if (_slash(path))
+				return UNLINK_ERR_NO_PERM;
 
-			return _dir_op(UNLINK_ERR_NO_ENTRY, UNLINK_ERR_NO_PERM, UNLINK_OK,
-			               path, unlink_fn);
+			return _with_sub_path(path,
+				[&] (auto const &path)  { return _union.unlink(path); },
+				[&] () -> Unlink_result { return UNLINK_ERR_NO_ENTRY; });
 		}
 
 		Rename_result rename(char const *from_path, char const *to_path) override
 		{
-			from_path = _sub_path(from_path);
-			to_path = _sub_path(to_path);
-
-			/* path does not match directory name */
-			if (!from_path)
-				return RENAME_ERR_NO_ENTRY;
-
-			/*
-			 * Cannot rename a path in the static VFS configuration.
-			 */
-			if (strlen(from_path) == 0)
+			/* deny renaming a path in the static VFS configuration */
+			if (_slash(from_path))
 				return RENAME_ERR_NO_PERM;
 
-			/*
-			 * Check if destination path resides within the same file
-			 * system instance as the source path.
-			 */
-			if (!to_path)
-				return RENAME_ERR_CROSS_FS;
-
-			Rename_result final = RENAME_ERR_NO_ENTRY;
-			for (File_system *fs = _first_file_system; fs; fs = fs->next) {
-				switch (fs->rename(from_path, to_path)) {
-				case RENAME_OK:           return RENAME_OK;
-				case RENAME_ERR_NO_ENTRY: continue;
-				case RENAME_ERR_NO_PERM:  return RENAME_ERR_NO_PERM;
-				case RENAME_ERR_CROSS_FS: final = RENAME_ERR_CROSS_FS;
-				}
-			}
-			return final;
+			return _with_sub_path(from_path,
+				[&] (auto const &from_path) {
+					return _with_sub_path(to_path,
+						[&] (auto const &to_path) {
+							return _union.rename(from_path, to_path);
+						},
+						[&] () -> Rename_result {
+							/* both paths must reside within the same file system */
+							return RENAME_ERR_CROSS_FS;
+						});
+				},
+				[&] () -> Rename_result { return RENAME_ERR_NO_ENTRY; });
 		}
 
-		/***************************
-		 ** File_system interface **
-		 ***************************/
-
-		char const *name() const    { return "dir"; }
+		static char const *name()   { return "dir"; }
 		char const *type() override { return "dir"; }
 
 		void update(Node const &node, File_system_factory &factory) override
 		{
-			using namespace Genode;
-
-			/* construct child file systems only once */
-			if (!_first_file_system) {
-				node.for_each_sub_node([&] (Node const &sub_node) {
-
-					/* traverse into <dir> nodes */
-					if (sub_node.has_type("dir")) {
-						Dir_file_system &dir = *new (_env.alloc())
-							Dir_file_system(_env, *this, sub_node);
-						dir.update(sub_node, factory);
-						_append_file_system(&dir);
-						return;
-					}
-
-					File_system * const fs = factory.create(_env, *this, sub_node);
-					if (fs) {
-						fs->update(sub_node, factory);
-						_append_file_system(fs);
-						return;
-					}
-
-					error("failed to create VFS node: ", sub_node);
-				});
-			} else {
-
-				/* propagate config parameter updates to child file systems */
-				File_system *curr = _first_file_system;
-				node.for_each_sub_node([&] (Node const &sub_node) {
-
-					if (!curr) {
-						error("VFS config update missed file system for ", sub_node);
-						return;
-					}
-
-					/* check if type of node matches current file-system type */
-					if (!curr || sub_node.has_type(curr->type()) == false) {
-						error("VFS config update failed (node type '",
-						      sub_node.type(), "' != fs type '", curr->type(),"')");
-						return;
-					}
-
-					curr->update(sub_node, factory);
-				 	curr = curr->next;
-				});
-			}
+			_union.update(node, factory);
 		}
 };
 

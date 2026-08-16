@@ -149,7 +149,7 @@ class Vfs_capture::Data_file_system : public Single_file_system
 };
 
 
-struct Vfs_capture::File_system : Dir_file_system, File_system_factory
+struct Vfs_capture::File_system : Union_file_system, File_system_factory
 {
 	using Name  = Vfs_capture::Name;
 	using Label = Genode::String<64>;
@@ -159,6 +159,7 @@ struct Vfs_capture::File_system : Dir_file_system, File_system_factory
 
 	Genode::Env &_env;
 
+	Dir_file_system  _dot_dir_fs;
 	Data_file_system _data_fs { *this, _name, _label, _env };
 
 	static Name name(Node const &config)
@@ -168,7 +169,10 @@ struct Vfs_capture::File_system : Dir_file_system, File_system_factory
 
 	Vfs::File_system *create(Vfs::Env&, Parent_fs &, Node const &node) override
 	{
-		return node.has_type("data") ? &_data_fs : nullptr;
+		if (node.has_type("dir"))  return &_dot_dir_fs;
+		if (node.has_type("data")) return &_data_fs;
+
+		return nullptr;
 	}
 
 	using Config = String<200>;
@@ -176,11 +180,6 @@ struct Vfs_capture::File_system : Dir_file_system, File_system_factory
 	{
 		char buf[Config::capacity()] { };
 
-		/*
-		 * By not using the node type "dir", we operate the
-		 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
-		 * to be present at the mount point.
-		 */
 		Genode::Generator::generate({ buf, sizeof(buf) }, "compound",
 			[&] (Genode::Generator &g) {
 				g.node("data", [&] { g.attribute("name", name); });
@@ -194,12 +193,13 @@ struct Vfs_capture::File_system : Dir_file_system, File_system_factory
 
 	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system(vfs_env, parent_fs, Node(_config(name(node)))),
+		Union_file_system(vfs_env, parent_fs),
 		_label(node.attribute_value("label", Label(""))),
 		_name(name(node)),
-		_env(vfs_env.env())
+		_env(vfs_env.env()),
+		_dot_dir_fs(vfs_env, *this, Dir_file_system::Name(".", _name))
 	{
-		Dir_file_system::update(Node(_config(name(node))), *this);
+		Union_file_system::update(Node(_config(name(node))), *this);
 	}
 
 	static const char *name() { return "capture"; }

@@ -56,7 +56,7 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 
 		} _root_parent_fs { _watch_handles };
 
-		Dir_file_system _root_dir;
+		Union_file_system _root_dir;
 
 	public:
 
@@ -66,7 +66,7 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 		           Env::User   &user)
 		:
 			_env(env), _alloc(alloc), _user(user),
-			_root_dir(*this, _root_parent_fs, config)
+			_root_dir(*this, _root_parent_fs)
 		{
 			_root_dir.update(config, _fs_factory);
 		}

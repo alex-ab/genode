@@ -752,7 +752,7 @@ class Vfs_oss::Data_file_system : public Single_file_system
 };
 
 
-struct Vfs_oss::File_system : Dir_file_system, File_system_factory
+struct Vfs_oss::File_system : Union_file_system, File_system_factory
 {
 	using Name  = Vfs_oss::Name;
 	using Label = Genode::String<64>;
@@ -809,7 +809,7 @@ struct Vfs_oss::File_system : Dir_file_system, File_system_factory
 		if (rel_path.equals(Span::from_cstring("/ofrag_size")))     _ofrag_size_changed();
 		if (rel_path.equals(Span::from_cstring("/play_underruns"))) _play_underruns_changed();
 
-		Dir_file_system::notify_watchers(rel_path);
+		Union_file_system::notify_watchers(rel_path);
 	}
 
 	static constexpr size_t _ifrag_total_min { 2 };
@@ -937,9 +937,14 @@ struct Vfs_oss::File_system : Dir_file_system, File_system_factory
 	}
 
 	Data_file_system _data_fs;
+	Dir_file_system  _dot_dir_fs;
 
 	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
+		if (node.has_type("dir")) {
+			return &_dot_dir_fs;
+		}
+
 		if (node.has_type("data")) {
 			return &_data_fs;
 		}
@@ -1034,11 +1039,6 @@ struct Vfs_oss::File_system : Dir_file_system, File_system_factory
 	{
 		char buf[Config::capacity()] { };
 
-		/*
-		 * By not using the node type "dir", we operate the
-		 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
-		 * to be present at the mount point.
-		 */
 		(void)Genode::Generator::generate({ buf, sizeof(buf) }, "compound",
 		                                  [&] (Genode::Generator &g) {
 
@@ -1128,13 +1128,14 @@ struct Vfs_oss::File_system : Dir_file_system, File_system_factory
 
 	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system { vfs_env, parent_fs, Node(_config(name(node))) },
+		Union_file_system { vfs_env, parent_fs },
 		_label   { node.attribute_value("label", Label("")) },
 		_name    { name(node) },
 		_env     { vfs_env },
-		_data_fs { *this, vfs_env.env().ep(), vfs_env.user(), _audio, name(node) }
+		_data_fs { *this, vfs_env.env().ep(), vfs_env.user(), _audio, name(node) },
+		_dot_dir_fs { vfs_env, *this, Dir_file_system::Name(".", name(node)) }
 	{
-		Dir_file_system::update(Node(_config(name(node))), *this);
+		Union_file_system::update(Node(_config(name(node))), *this);
 	}
 
 	static const char *name() { return "legacy_oss"; }

@@ -29,6 +29,7 @@
 #include <tar_file_system.h>
 #include <terminal_file_system.h>
 #include <zero_file_system.h>
+#include <vfs/dir_file_system.h>
 
 
 namespace Genode::Vfs {
@@ -229,4 +230,5 @@ Genode::Vfs::Global_file_system_factory::Global_file_system_factory(Genode::Allo
 	_add_builtin_fs<Vfs_rtc     ::File_system>();
 	_add_builtin_fs<Vfs_ram     ::File_system>();
 	_add_builtin_fs<Vfs_symlink ::File_system>();
+	_add_builtin_fs<Dir_file_system>();
 }

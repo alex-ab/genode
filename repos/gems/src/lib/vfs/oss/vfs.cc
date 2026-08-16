@@ -1158,13 +1158,16 @@ class Vfs_oss::Data_file_system : public Single_file_system
 };
 
 
-struct Vfs_oss::File_system : public Dir_file_system, private File_system_factory
+struct Vfs_oss::File_system : public Union_file_system, private File_system_factory
 {
 	using Label = String<64>;
 	using Name  = Vfs_oss::Name;
 	using This  = File_system;
 
 	Vfs::Env &_env;
+
+	Data_file_system _data_fs;
+	Dir_file_system  _dot_dir_fs;
 
 	/* RO/RW files */
 	Readonly_value_file_system<unsigned>  _channels_fs          { *this, "channels", 0U };
@@ -1218,7 +1221,7 @@ struct Vfs_oss::File_system : public Dir_file_system, private File_system_factor
 		if (rel_path.equals(Span::from_cstring("/play_underruns"))) _play_underruns_changed();
 		if (rel_path.equals(Span::from_cstring("/sample_rate")))    _sample_rate_changed();
 
-		Dir_file_system::notify_watchers(rel_path);
+		Union_file_system::notify_watchers(rel_path);
 	}
 
 	void _enable_input_changed()
@@ -1357,13 +1360,12 @@ struct Vfs_oss::File_system : public Dir_file_system, private File_system_factor
 		return config.attribute_value("name", Name("oss"));
 	}
 
-	Data_file_system _data_fs;
-
 	/**
 	 * File_system_factory interface
 	 */
 	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
+		if (node.has_type("dir"))  return &_dot_dir_fs;
 		if (node.has_type("data")) return &_data_fs;
 		if (node.has_type("info")) return &_info_fs;
 
@@ -1401,11 +1403,6 @@ struct Vfs_oss::File_system : public Dir_file_system, private File_system_factor
 	{
 		char buf[Config::capacity()] { };
 
-		/*
-		 * By not using the node type "dir", we operate the
-		 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
-		 * to be present at the mount point.
-		 */
 		Generator::generate({ buf, sizeof(buf) }, "compound", [&] (Generator &g) {
 
 			g.node("data", [&] () {
@@ -1496,12 +1493,13 @@ struct Vfs_oss::File_system : public Dir_file_system, private File_system_factor
 
 	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system { vfs_env, parent_fs, Node(_config(name(node))) },
-		_env     { vfs_env },
-		_audio   { _env, _info, _info_fs, node },
-		_data_fs { *this, _env.env().ep(), _env.user(), _audio, name(node) }
+		Union_file_system { vfs_env, parent_fs },
+		_env        { vfs_env },
+		_data_fs    { *this, _env.env().ep(), _env.user(), _audio, name(node) },
+		_dot_dir_fs { vfs_env, *this, Dir_file_system::Name(".", name(node)) },
+		_audio      { _env, _info, _info_fs, node }
 	{
-		Dir_file_system::update(Node(_config(name(node))), *this);
+		Union_file_system::update(Node(_config(name(node))), *this);
 	}
 
 	static const char *name() { return "oss_next"; }

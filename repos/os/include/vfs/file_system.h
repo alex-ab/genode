@@ -33,7 +33,7 @@ class Genode::Vfs::File_system : public Directory_service
 	public:
 
 		/**
-		 * Our next sibling within the same 'Dir_file_system'
+		 * Our next sibling within the same 'Union_file_system'
 		 */
 		struct File_system *next;
 

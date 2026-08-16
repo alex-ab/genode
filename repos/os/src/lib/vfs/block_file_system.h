@@ -597,7 +597,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 };
 
 
-struct Vfs_block::File_system : Dir_file_system, File_system_factory
+struct Vfs_block::File_system : Union_file_system, File_system_factory
 {
 	using Label = String<64>;
 	using Name  = Vfs_block::Name;
@@ -639,6 +639,8 @@ struct Vfs_block::File_system : Dir_file_system, File_system_factory
 		}
 	};
 
+	Dir_file_system _dot_dir_fs;
+
 	Readonly_value_file_system<Info>     _info_fs        { *this, "info",        Info { } };
 	Readonly_value_file_system<uint64_t> _block_count_fs { *this, "block_count", 0 };
 	Readonly_value_file_system<size_t>   _block_size_fs  { *this, "block_size",  0 };
@@ -654,6 +656,7 @@ struct Vfs_block::File_system : Dir_file_system, File_system_factory
 
 	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
+		if (node.has_type("dir"))         return &_dot_dir_fs;
 		if (node.has_type("data"))        return &_data_fs;
 		if (node.has_type("info"))        return &_info_fs;
 		if (node.has_type("block_count")) return &_block_count_fs;
@@ -667,11 +670,6 @@ struct Vfs_block::File_system : Dir_file_system, File_system_factory
 	{
 		char buf[Config::capacity()] { };
 
-		/*
-		 * By not using the node type "dir", we operate the
-		 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
-		 * to be present at the mount point.
-		 */
 		Generator::generate({ buf, sizeof(buf) }, "compound",
 			[&] (Generator &g) {
 
@@ -693,13 +691,14 @@ struct Vfs_block::File_system : Dir_file_system, File_system_factory
 
 	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system { vfs_env, parent_fs, Node(_config(name(node))) },
+		Union_file_system { vfs_env, parent_fs },
 		_label     { node.attribute_value("label", Label("")) },
 		_name      { name(node) },
 		_env       { vfs_env },
 		_block     { _env.env(), &_tx_block_alloc, io_buffer(node) + (64u << 10),
 		             _label.string() },
-		_data_fs   { _env, *this, _block, name(node) }
+		_data_fs   { _env, *this, _block, name(node) },
+		_dot_dir_fs{ vfs_env, *this, Dir_file_system::Name(".", _name) }
 	{
 		if (node.has_attribute("block_buffer_count"))
 			warning("'block_buffer_count' attribute is superseded by 'io_buffer'");
@@ -709,7 +708,7 @@ struct Vfs_block::File_system : Dir_file_system, File_system_factory
 		_block_count_fs.value(_block.info().block_count);
 		_block_size_fs .value(_block.info().block_size);
 
-		Dir_file_system::update(Node(_config(name(node))), *this);
+		Union_file_system::update(Node(_config(name(node))), *this);
 	}
 
 	static const char *name() { return "block"; }

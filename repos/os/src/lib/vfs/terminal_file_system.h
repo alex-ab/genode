@@ -246,7 +246,7 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 };
 
 
-struct Vfs_terminal::File_system : Dir_file_system, File_system_factory,
+struct Vfs_terminal::File_system : Union_file_system, File_system_factory,
                                    Data_file_system::Interrupt_handler
 {
 	using Label = String<64>;
@@ -289,6 +289,8 @@ struct Vfs_terminal::File_system : Dir_file_system, File_system_factory,
 	 */
 	unsigned _interrupts = 0;
 
+	Dir_file_system _dot_dir_fs;
+
 	Readonly_value_file_system<Info>     _info_fs       { *this, "info",       Info{} };
 	Readonly_value_file_system<unsigned> _rows_fs       { *this, "rows",       0 };
 	Readonly_value_file_system<unsigned> _columns_fs    { *this, "columns",    0 };
@@ -322,6 +324,7 @@ struct Vfs_terminal::File_system : Dir_file_system, File_system_factory,
 
 	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
+		if (node.has_type("dir"))        return &_dot_dir_fs;
 		if (node.has_type("data"))       return &_data_fs;
 		if (node.has_type("info"))       return &_info_fs;
 		if (node.has_type("rows"))       return &_rows_fs;
@@ -336,11 +339,6 @@ struct Vfs_terminal::File_system : Dir_file_system, File_system_factory,
 	{
 		char buf[Config::capacity()] { };
 
-		/*
-		 * By not using the node type "dir", we operate the
-		 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
-		 * to be present at the mount point.
-		 */
 		Generator::generate({ buf, sizeof(buf) }, "compound",
 			[&] (Generator &g) {
 
@@ -348,7 +346,7 @@ struct Vfs_terminal::File_system : Dir_file_system, File_system_factory,
 					g.attribute("name", name); });
 
 				g.node("dir", [&] {
-					g.attribute("name", Vfs_terminal::Name(".", name));
+					g.attribute("name", Dir_file_system::Name(".", name));
 					g.node("info");
 					g.node("rows");
 					g.node("columns");
@@ -364,16 +362,17 @@ struct Vfs_terminal::File_system : Dir_file_system, File_system_factory,
 
 	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system(vfs_env, parent_fs, Node(_config(name(node)))),
+		Union_file_system(vfs_env, parent_fs),
 		_label(node.attribute_value("label", Label(""))),
 		_name(name(node)),
 		_env(vfs_env.env()),
 		_vfs_user(vfs_env.user()),
-		_raw(node.attribute_value("raw", false))
+		_raw(node.attribute_value("raw", false)),
+		_dot_dir_fs(vfs_env, *this, Dir_file_system::Name(".", _name))
 	{
 		_terminal.size_changed_sigh(_size_changed_handler);
 		_handle_size_changed();
-		Dir_file_system::update(Node(_config(name(node))), *this);
+		Union_file_system::update(Node(_config(name(node))), *this);
 	}
 
 	static const char *name() { return "terminal"; }

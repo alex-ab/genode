@@ -186,7 +186,7 @@ class Vfs_tap::Data_file_system : public FS
 
 
 template <typename FS>
-struct Vfs_tap::Compound_file_system : Dir_file_system,
+struct Vfs_tap::Compound_file_system : Union_file_system,
                                        private File_system_factory,
                                        private Device_update_handler
 {
@@ -200,6 +200,8 @@ struct Vfs_tap::Compound_file_system : Dir_file_system,
 	Uplink_mode      const _mode;
 	Net::Mac_address const _default_mac;
 	Vfs::Env              &_env;
+
+	Dir_file_system _dot_dir_fs { _env, *this, Dir_file_system::Name(".", _name) };
 
 	Data_file_system<FS>   _data_fs { _env.env(), *this, _env.user(),
 	                                  _name, _label, _default_mac, *this };
@@ -248,7 +250,7 @@ struct Vfs_tap::Compound_file_system : Dir_file_system,
 		if (rel_path.equals(Span::from_cstring("/mac_addr")))
 			_mac_addr_changed();
 
-		Dir_file_system::notify_watchers(rel_path);
+		Union_file_system::notify_watchers(rel_path);
 	}
 
 	void _mac_addr_changed()
@@ -285,6 +287,7 @@ struct Vfs_tap::Compound_file_system : Dir_file_system,
 
 	Vfs::File_system *create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
+		if (node.has_type("dir"))       return &_dot_dir_fs;
 		if (node.has_type("data"))      return &_data_fs;
 		if (node.has_type("info"))      return &_info_fs;
 		if (node.has_type("mac_addr"))  return &_mac_addr_fs;
@@ -307,11 +310,6 @@ struct Vfs_tap::Compound_file_system : Dir_file_system,
 	{
 		char buf[Config::capacity()] { };
 
-		/*
-		 * By not using the node type "dir", we operate the
-		 * 'Dir_file_system' in root mode, allowing multiple sibling nodes
-		 * to be present at the mount point.
-		 */
 		Generator::generate({ buf, sizeof(buf) }, "compound",
 			[&] (Generator &g) {
 
@@ -333,14 +331,14 @@ struct Vfs_tap::Compound_file_system : Dir_file_system,
 
 	Compound_file_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system(vfs_env, parent_fs, Node(_config(name(node)))),
+		Union_file_system(vfs_env, parent_fs),
 		_name       (name(node)),
 		_label      (node.attribute_value("label", Label(""))),
 		_mode       (node.attribute_value("mode",  Uplink_mode::NIC_CLIENT)),
 		_default_mac(node.attribute_value("mac",   Net::Mac_address { 0x02 })),
 		_env(vfs_env)
 	{
-		Dir_file_system::update(Node(_config(name(node))), *this);
+		Union_file_system::update(Node(_config(name(node))), *this);
 	}
 
 	static const char *name() { return "tap"; }
