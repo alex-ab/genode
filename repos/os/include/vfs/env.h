@@ -37,7 +37,7 @@ struct Genode::Vfs::Env : Interface
 	/**
 	 * VFS root file system
 	 */
-	virtual File_system &root_dir() = 0;
+	virtual File_system &fs() = 0;
 
 	/**
 	 * Registry of existing file handles

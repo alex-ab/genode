@@ -496,14 +496,14 @@ class Vfs_server::Session_component : private Session_resources,
 				fullpath.append(path_str);
 			path_str = fullpath.base();
 
-			bool const exists = _vfs_env.root_dir().directory(path_str);
+			bool const exists = _vfs_env.fs().directory(path_str);
 
 			if (!create && !exists)
 				throw Lookup_failed();
 
 			if (create && !exists) {
 				Vfs_handle *h = nullptr;
-				assert_opendir(_vfs_env.root_dir().opendir(path_str, true, &h, _alloc));
+				assert_opendir(_vfs_env.fs().opendir(path_str, true, &h, _alloc));
 				if (h) h->close();
 			}
 
@@ -547,7 +547,7 @@ class Vfs_server::Session_component : private Session_resources,
 				_assert_valid_name(name_str);
 
 				return Symlink_handle {
-					dir.symlink(_node_space, _vfs_env.root_dir(), _alloc, create, {
+					dir.symlink(_node_space, _vfs_env.fs(), _alloc, create, {
 						.path      = name_str,
 						.writeable = _writeable
 					}).value
@@ -564,7 +564,7 @@ class Vfs_server::Session_component : private Session_resources,
 			/* re-root the path */
 			Path const sub_path(path_str + 1, _root_path.base());
 			path_str = sub_path.base();
-			if (sub_path != "/" && !_vfs_env.root_dir().dir_entry_exists(path_str))
+			if (sub_path != "/" && !_vfs_env.fs().dir_entry_exists(path_str))
 				throw Lookup_failed();
 
 			Node_base &node = *new (_alloc) Node_base(_node_space, path_str);
@@ -636,7 +636,7 @@ class Vfs_server::Session_component : private Session_resources,
 
 				Directory_service::Stat vfs_stat;
 
-				if (_vfs_env.root_dir().stat(node.path.string(), vfs_stat) != Directory_service::STAT_OK)
+				if (_vfs_env.fs().stat(node.path.string(), vfs_stat) != Directory_service::STAT_OK)
 					throw Invalid_handle();
 
 				auto fs_node_type = [&] (Vfs::Node_type type)
@@ -685,7 +685,7 @@ class Vfs_server::Session_component : private Session_resources,
 		unsigned num_entries(Dir_handle dir_handle) override
 		{
 			return _apply(dir_handle, [&] (Directory &dir) {
-				return _vfs_env.root_dir().num_dirent(dir.path.string()); });
+				return _vfs_env.fs().num_dirent(dir.path.string()); });
 		}
 
 		void unlink(Dir_handle dir_handle, Name const &name) override
@@ -698,7 +698,7 @@ class Vfs_server::Session_component : private Session_resources,
 
 				Path path(name_str, dir.path.string());
 
-				assert_unlink(_vfs_env.root_dir().unlink(path.base()));
+				assert_unlink(_vfs_env.fs().unlink(path.base()));
 			});
 
 			/*
@@ -733,7 +733,7 @@ class Vfs_server::Session_component : private Session_resources,
 					Path from_path(from_str, from_dir.path.string());
 					Path   to_path(  to_str,   to_dir.path.string());
 
-					assert_rename(_vfs_env.root_dir().rename(from_path.base(), to_path.base()));
+					assert_rename(_vfs_env.fs().rename(from_path.base(), to_path.base()));
 				});
 			});
 
@@ -834,7 +834,7 @@ class Vfs_server::Root : public Root_component<Session_component>
 
 			/* check if the session root exists */
 			if (!((session_root == "/")
-			 || _vfs_env.root_dir().directory(session_root.base()))) {
+			 || _vfs_env.fs().directory(session_root.base()))) {
 				error("session root '", session_root, "' not found for '", label, "'");
 				throw Service_denied();
 			}

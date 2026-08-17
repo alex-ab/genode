@@ -26,7 +26,7 @@ struct Main
 	Root_directory vfs = config.node().with_sub_node("vfs",
 		[&] (Node const &config) -> Root_directory { return { env, heap, config }; },
 		[&] ()                   -> Root_directory { return { env, heap, Node() }; });
-	Vfs::File_system &fs { vfs.root_dir() };
+	Vfs::File_system &fs { vfs.fs() };
 	Directory::Path path { config.node().attribute_value("path", Directory::Path { }) };
 	Number_of_bytes size { config.node().attribute_value("size", Number_of_bytes { }) };
 

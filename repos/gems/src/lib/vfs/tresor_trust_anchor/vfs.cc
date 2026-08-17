@@ -597,7 +597,7 @@ class Vfs_tresor_trust_anchor::Trust_anchor
 
 			Vfs::Directory_service::Stat out_stat { };
 			Stat_result const stat_res =
-				_vfs_env.root_dir().stat(file_path.string(), out_stat);
+				_vfs_env.fs().stat(file_path.string(), out_stat);
 
 			if (stat_res == Stat_result::STAT_OK) {
 
@@ -614,10 +614,10 @@ class Vfs_tresor_trust_anchor::Trust_anchor
 			using Result = Vfs::Directory_service::Open_result;
 
 			Result const res =
-				_vfs_env.root_dir().open(file_path.string(),
-				                         Vfs::Directory_service::OPEN_MODE_RDONLY,
-				                         (Vfs::Vfs_handle **)&_private_key_handle,
-				                         _vfs_env.alloc());
+				_vfs_env.fs().open(file_path.string(),
+				                   Vfs::Directory_service::OPEN_MODE_RDONLY,
+				                   (Vfs::Vfs_handle **)&_private_key_handle,
+				                   _vfs_env.alloc());
 			if (res != Result::OPEN_OK) {
 				error("could not open '", file_path.string(), "'");
 				return false;
@@ -642,10 +642,10 @@ class Vfs_tresor_trust_anchor::Trust_anchor
 			using Result = Vfs::Directory_service::Open_result;
 
 			Result const res =
-				_vfs_env.root_dir().open(file_path.string(),
-				                         Vfs::Directory_service::OPEN_MODE_RDONLY,
-				                         (Vfs::Vfs_handle **)&_jitterentropy_handle,
-				                         _vfs_env.alloc());
+				_vfs_env.fs().open(file_path.string(),
+				                   Vfs::Directory_service::OPEN_MODE_RDONLY,
+				                   (Vfs::Vfs_handle **)&_jitterentropy_handle,
+				                   _vfs_env.alloc());
 			if (res != Result::OPEN_OK) {
 				error("could not open '", file_path.string(), "'");
 				return false;
@@ -672,10 +672,10 @@ class Vfs_tresor_trust_anchor::Trust_anchor
 			using Result = Vfs::Directory_service::Open_result;
 
 			Result const res =
-				_vfs_env.root_dir().open(file_path.string(),
-				                         Vfs::Directory_service::OPEN_MODE_RDONLY,
-				                         (Vfs::Vfs_handle **)&_key_handle,
-				                         _vfs_env.alloc());
+				_vfs_env.fs().open(file_path.string(),
+				                   Vfs::Directory_service::OPEN_MODE_RDONLY,
+				                   (Vfs::Vfs_handle **)&_key_handle,
+				                   _vfs_env.alloc());
 			if (res != Result::OPEN_OK) {
 				error("could not open '", file_path.string(), "'");
 				return false;
@@ -761,9 +761,9 @@ class Vfs_tresor_trust_anchor::Trust_anchor
 				Vfs::Directory_service::OPEN_MODE_WRONLY | Vfs::Directory_service::OPEN_MODE_CREATE;
 
 			Result const res =
-				_vfs_env.root_dir().open(file_path.string(), mode,
-				                         (Vfs::Vfs_handle **)&_key_handle,
-				                         _vfs_env.alloc());
+				_vfs_env.fs().open(file_path.string(), mode,
+				                   (Vfs::Vfs_handle **)&_key_handle,
+				                   _vfs_env.alloc());
 			if (res != Result::OPEN_OK) {
 				return false;
 			}
@@ -804,10 +804,10 @@ class Vfs_tresor_trust_anchor::Trust_anchor
 			file_path.append_element(hash_file_name.string());
 
 			Result const res =
-				_vfs_env.root_dir().open(file_path.string(),
-				                         Vfs::Directory_service::OPEN_MODE_RDONLY,
-				                         (Vfs::Vfs_handle **)&_hash_handle,
-				                         _vfs_env.alloc());
+				_vfs_env.fs().open(file_path.string(),
+				                   Vfs::Directory_service::OPEN_MODE_RDONLY,
+				                   (Vfs::Vfs_handle **)&_hash_handle,
+				                   _vfs_env.alloc());
 			if (res != Result::OPEN_OK) {
 				return false;
 			}
@@ -861,7 +861,7 @@ class Vfs_tresor_trust_anchor::Trust_anchor
 
 			Vfs::Directory_service::Stat out_stat { };
 			Stat_result const stat_res =
-				_vfs_env.root_dir().stat(file_path.string(), out_stat);
+				_vfs_env.fs().stat(file_path.string(), out_stat);
 
 			bool const file_exists = stat_res == Stat_result::STAT_OK;
 
@@ -870,9 +870,9 @@ class Vfs_tresor_trust_anchor::Trust_anchor
 				(file_exists ? 0 : Vfs::Directory_service::OPEN_MODE_CREATE);
 
 			Result const res =
-				_vfs_env.root_dir().open(file_path.string(), mode,
-				                         (Vfs::Vfs_handle **)&_hash_handle,
-				                         _vfs_env.alloc());
+				_vfs_env.fs().open(file_path.string(), mode,
+				                   (Vfs::Vfs_handle **)&_hash_handle,
+				                   _vfs_env.alloc());
 			if (res != Result::OPEN_OK) {
 				error("could not open '", file_path.string(), "'");
 				return false;

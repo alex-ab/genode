@@ -38,7 +38,7 @@ namespace Tresor {
 	{
 		using Open_result = Vfs::Directory_service::Open_result;
 		Vfs::Vfs_handle *handle { nullptr };
-		ASSERT(env.root_dir().open(path.string(), mode, &handle, env.alloc()) == Open_result::OPEN_OK);
+		ASSERT(env.fs().open(path.string(), mode, &handle, env.alloc()) == Open_result::OPEN_OK);
 		return *handle;
 	}
 }
@@ -75,7 +75,7 @@ class Tresor::File
 		{
 			ASSERT(_state == IDLE);
 			if (_env)
-				_env->root_dir().close(&_handle);
+				_env->fs().close(&_handle);
 		}
 
 		void read(HOST_STATE succeeded, HOST_STATE failed, Vfs::file_size off, Byte_range_ptr dst, bool &progress)

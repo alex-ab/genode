@@ -139,7 +139,7 @@ struct Test::Main
 	void _handle_timer_3(Duration)
 	{
 		log("(10) remove focus file");
-		_vfs_env.root_dir().unlink("focus");
+		_vfs_env.fs().unlink("focus");
 	}
 
 	void _handle_focus_removal()

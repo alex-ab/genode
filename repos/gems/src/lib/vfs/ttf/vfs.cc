@@ -187,7 +187,7 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_handle
 		_env(vfs_env),
 		_font_config(Font_config::from_node(node)),
 		_font(vfs_env, _font_config),
-		_watch_handle(vfs_env.watch_handles(), vfs_env.root_dir(), _font_config.path, *this)
+		_watch_handle(vfs_env.watch_handles(), vfs_env.fs(), _font_config.path, *this)
 	{
 		Dir_file_system::update(Node(_config(node)), *this);
 	}

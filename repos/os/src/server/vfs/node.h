@@ -368,7 +368,7 @@ class Vfs_server::Watch_node final : public Vfs_server::Node_base,
 		           Watch_node_response_handler &watch_node_response_handler)
 		:
 			Node_base(space, path),
-			_watch_handle(env.watch_handles(), env.root_dir(), path, *this),
+			_watch_handle(env.watch_handles(), env.fs(), path, *this),
 			_watch_node_response_handler(watch_node_response_handler)
 		{ }
 
@@ -681,7 +681,7 @@ class Vfs_server::File : public Io_node, public Vfs::Read_ready_response_handler
 		File(Node_space &space, Vfs::Env &env, Allocator &alloc, Attr const &attr)
 		:
 			Io_node(space, attr),
-			_handle(env.file_handles(), env.root_dir(), alloc, attr)
+			_handle(env.file_handles(), env.fs(), alloc, attr)
 		{
 			_handle.response_handler_ptr = this;
 
@@ -690,7 +690,7 @@ class Vfs_server::File : public Io_node, public Vfs::Read_ready_response_handler
 
 				using Result = Directory_service::Stat_result;
 				Vfs::Directory_service::Stat stat { };
-				if (env.root_dir().stat(path.string(), stat) == Result::STAT_OK)
+				if (env.fs().stat(path.string(), stat) == Result::STAT_OK)
 					_write_type = (stat.type == Vfs::Node_type::CONTINUOUS_FILE)
 					            ? Write_type::CONTINUOUS : Write_type::TRANSACTIONAL;
 			}
@@ -870,7 +870,7 @@ struct Vfs_server::Directory : Io_node
 		:
 			Io_node(space, { .path = path, .writeable = false }),
 			_policy(policy),
-			_handle(env.dir_handles(), env.root_dir(), alloc, path)
+			_handle(env.dir_handles(), env.fs(), alloc, path)
 		{
 			/* trigger channel allocation to avoid out of ram/caps during read */
 			_handle.read(At { }, { nullptr, 0 }).with_error([&] (Read_error e) {

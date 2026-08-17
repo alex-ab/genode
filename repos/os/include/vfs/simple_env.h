@@ -56,7 +56,7 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 
 		} _root_parent_fs { _watch_handles };
 
-		Union_file_system _root_dir;
+		Union_file_system _fs;
 
 	public:
 
@@ -65,10 +65,9 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 		           Node  const &config,
 		           Env::User   &user)
 		:
-			_env(env), _alloc(alloc), _user(user),
-			_root_dir(*this, _root_parent_fs)
+			_env(env), _alloc(alloc), _user(user), _fs(*this, _root_parent_fs)
 		{
-			_root_dir.update(config, _fs_factory);
+			_fs.update(config, _fs_factory);
 		}
 
 		Simple_env(Genode::Env &env, Allocator &alloc, Node const &config)
@@ -78,12 +77,12 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 
 		void apply_config(Node const &config)
 		{
-			_root_dir.update(config, _fs_factory);
+			_fs.update(config, _fs_factory);
 		}
 
 		Genode::Env      &env()              override { return _env; }
 		Allocator        &alloc()            override { return _alloc; }
-		File_system      &root_dir()         override { return _root_dir; }
+		File_system      &fs()               override { return _fs; }
 		File_handles     &file_handles()     override { return _file_handles; }
 		Dir_handles      &dir_handles()      override { return _dir_handles; }
 		Watch_handles    &watch_handles()    override { return _watch_handles; }

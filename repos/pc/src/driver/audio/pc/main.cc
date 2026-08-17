@@ -78,7 +78,7 @@ struct Vfs_request_handler : Lx_kit::Firmware_request_handler
 		size_t length = 0;
 
 		DS::Stat stat { };
-		if (vfs_env.root_dir().stat(file_path, stat) == SR::STAT_OK) {
+		if (vfs_env.fs().stat(file_path, stat) == SR::STAT_OK) {
 			length = (size_t)stat.size;
 		}
 

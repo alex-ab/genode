@@ -44,7 +44,7 @@ class Libc::Env_implementation : public Libc::Env
 			_env(env), _vfs_env(vfs_env), _config_rom(config_rom)
 		{ }
 
-		Vfs::File_system &vfs() { return _vfs_env.root_dir(); }
+		Vfs::File_system &vfs() { return _vfs_env.fs(); }
 
 
 		/*************************

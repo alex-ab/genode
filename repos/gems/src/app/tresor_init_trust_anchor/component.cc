@@ -50,7 +50,7 @@ class Main : Vfs::Env::User
 				error("VFS not configured");
 				return { _env, _heap, Node() }; });
 
-		Vfs::File_system &_vfs { _vfs_env.root_dir() };
+		Vfs::File_system &_vfs { _vfs_env.fs() };
 
 		using String_path = Genode::String<256>;
 

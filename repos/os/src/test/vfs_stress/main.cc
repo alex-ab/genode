@@ -538,7 +538,7 @@ void Component::construct(Genode::Env &env)
 			error("VFS not configured");
 			return { env, heap, Node() }; });
 
-	Vfs::File_system &vfs_root = vfs_env.root_dir();
+	Vfs::File_system &vfs_root = vfs_env.fs();
 
 	String<Vfs::MAX_PATH_LEN> path { };
 

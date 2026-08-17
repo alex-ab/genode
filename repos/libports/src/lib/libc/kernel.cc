@@ -242,8 +242,8 @@ void Libc::Kernel::_init_file_descriptors()
 		});
 	};
 
-	bool const root_dir_has_dirents = _vfs_env->root_dir().num_dirent("/") > 0;
-	if (root_dir_has_dirents) {
+	bool const fs_has_dirents = _vfs_env->fs().num_dirent("/") > 0;
+	if (fs_has_dirents) {
 
 		_config_rom.node().with_optional_sub_node("libc", [&] (Node const &node) {
 

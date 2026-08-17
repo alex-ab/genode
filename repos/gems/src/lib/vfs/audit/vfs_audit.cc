@@ -68,7 +68,7 @@ class Vfs_audit::File_system : public Vfs::File_system
 
 		void _log(auto &&... args) { _audit_log.log(args...); }
 
-		Vfs::File_system &_root_dir;
+		Vfs::File_system &_fs;
 
 		Absolute_path const _audit_path;
 
@@ -171,7 +171,7 @@ class Vfs_audit::File_system : public Vfs::File_system
 		File_system(Vfs::Env &env, Node const &config)
 		:
 			_audit_log(env.env(), config.attribute_value("label", String<64>("audit")).string()),
-			_root_dir(env.root_dir()),
+			_fs(env.fs()),
 			_audit_path(config.attribute_value(
 				"path", String<Absolute_path::capacity()>()))
 		{ }
@@ -185,13 +185,13 @@ class Vfs_audit::File_system : public Vfs::File_system
 		Dataspace_capability dataspace(const char *path) override
 		{
 			_log(__func__, " ", path);
-			return _root_dir.dataspace(_expand(path).string());
+			return _fs.dataspace(_expand(path).string());
 		}
 
 		void release(char const *path, Dataspace_capability ds) override
 		{
 			_log(__func__, " ", path);
-			return _root_dir.release(_expand(path).string(), ds);
+			return _fs.release(_expand(path).string(), ds);
 		}
 
 		Open_result open(const char *path, unsigned int mode, Vfs::Vfs_handle **out, Allocator &alloc) override
@@ -199,7 +199,7 @@ class Vfs_audit::File_system : public Vfs::File_system
 			_log(__func__, " ", path, " ", Hex(mode, Hex::OMIT_PREFIX, Hex::PAD));
 
 			Vfs_handle *audited = nullptr;
-			Open_result r = _root_dir.open(_expand(path).string(), mode, &audited, alloc);
+			Open_result r = _fs.open(_expand(path).string(), mode, &audited, alloc);
 
 			if (!audited || r != OPEN_OK)
 				return r;
@@ -216,7 +216,7 @@ class Vfs_audit::File_system : public Vfs::File_system
 			_log(__func__, " ", path, create ? " create " : "");
 
 			Vfs_handle *audited = nullptr;
-			Opendir_result r = _root_dir.opendir(_expand(path).string(), create, &audited, alloc);
+			Opendir_result r = _fs.opendir(_expand(path).string(), create, &audited, alloc);
 
 			if (!audited || r != OPENDIR_OK)
 				return r;
@@ -240,35 +240,35 @@ class Vfs_audit::File_system : public Vfs::File_system
 		Stat_result stat(const char *path, Vfs::Directory_service::Stat &buf) override
 		{
 			_log(__func__, " ", path);
-			return _root_dir.stat(_expand(path).string(), buf);
+			return _fs.stat(_expand(path).string(), buf);
 		}
 
 		Unlink_result unlink(const char *path) override
 		{
 			_log(__func__, " ", path);
-			return _root_dir.unlink(_expand(path).string());
+			return _fs.unlink(_expand(path).string());
 		}
 
 		Rename_result rename(const char *from , const char *to) override
 		{
 			_log(__func__, " ", from, " ", to);
-			return _root_dir.rename(_expand(from).string(), _expand(to).string());
+			return _fs.rename(_expand(from).string(), _expand(to).string());
 		}
 
 		unsigned num_dirent(const char *path) override
 		{
-			return _root_dir.num_dirent(_expand(path).string());
+			return _fs.num_dirent(_expand(path).string());
 		}
 
 		bool directory(char const *path) override
 		{
-			return _root_dir.directory(_expand(path).string());
+			return _fs.directory(_expand(path).string());
 		}
 
 		bool dir_entry_exists(const char *path) override
 		{
 			_expanded_path = _expand(path);
-			return _root_dir.dir_entry_exists(_expanded_path.string());
+			return _fs.dir_entry_exists(_expanded_path.string());
 		}
 };
 

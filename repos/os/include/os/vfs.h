@@ -119,7 +119,7 @@ struct Genode::Directory : Noncopyable, Interface
 		Path const _path;
 
 		Vfs::Env         &_vfs_env;
-		Vfs::File_system &_fs    = _vfs_env.root_dir();
+		Vfs::File_system &_fs    = _vfs_env.fs();
 		Vfs::Env::Io     &_io    = _vfs_env.io();
 		Allocator        &_alloc = _vfs_env.alloc();
 
@@ -196,7 +196,7 @@ struct Genode::Directory : Noncopyable, Interface
 		Directory(Vfs::Env &vfs_env)
 		:
 			_path(""), _vfs_env(vfs_env),
-			_handle(_vfs_env.dir_handles(), _vfs_env.root_dir(), _alloc, "/")
+			_handle(_vfs_env.dir_handles(), _vfs_env.fs(), _alloc, "/")
 		{ }
 
 		/**
@@ -205,7 +205,7 @@ struct Genode::Directory : Noncopyable, Interface
 		Directory(Directory const &other, Path const &rel_path)
 		:
 			_path(join(other._path, rel_path)), _vfs_env(other._vfs_env),
-			_handle(_vfs_env.dir_handles(), _vfs_env.root_dir(), _alloc, _path)
+			_handle(_vfs_env.dir_handles(), _vfs_env.fs(), _alloc, _path)
 		{ }
 
 		bool exists() const { return directory_exists(""); }
@@ -934,7 +934,7 @@ struct Genode::Io::Watch_handler_base : Vfs::Watch_handle::Handler
 	Watch_handler_base(Directory const &dir, Directory::Path const &rel_path)
 	:
 		_handle(_mutable(dir)._vfs_env.watch_handles(),
-		        _mutable(dir)._vfs_env.root_dir(),
+		        _mutable(dir)._vfs_env.fs(),
 		        Directory::join(dir._path, rel_path),
 		        *this)
 	{ }

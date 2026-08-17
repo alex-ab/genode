@@ -49,7 +49,7 @@ namespace Libc {
 		          Vfs::Read_ready_response_handler &response_handler,
 		          Vfs::File_handle::Attr const &attr)
 		:
-			handle(env.file_handles(), env.root_dir(), env.alloc(), attr)
+			handle(env.file_handles(), env.fs(), env.alloc(), attr)
 		{
 			handle.response_handler_ptr = &response_handler;
 		}
@@ -65,7 +65,7 @@ namespace Libc {
 
 		Open_dir(Vfs::Env &env, Path const &path)
 		:
-			handle(env.dir_handles(), env.root_dir(), env.alloc(), path)
+			handle(env.dir_handles(), env.fs(), env.alloc(), path)
 		{ }
 	};
 

@@ -120,8 +120,8 @@ class Tresor_init::Main : private Vfs::Env::User, private Crypto_key_files_inter
 		void remove_crypto_key(Key_id key_id) override
 		{
 			Constructible<Crypto_key> &crypto_key = _crypto_key(key_id);
-			_vfs_env.root_dir().close(&crypto_key->encrypt_file);
-			_vfs_env.root_dir().close(&crypto_key->decrypt_file);
+			_vfs_env.fs().close(&crypto_key->encrypt_file);
+			_vfs_env.fs().close(&crypto_key->decrypt_file);
 			crypto_key.destruct();
 		}
 

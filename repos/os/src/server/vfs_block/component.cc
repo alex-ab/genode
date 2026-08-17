@@ -386,7 +386,7 @@ struct Main : Rpc_object<Typed_root<Block::Session>>,
 
 			_bulk_dataspace    { vfs_env.env().ram(), vfs_env.env().rm(),
 			                     tx_buf_size },
-			_file              { vfs_env.alloc(), vfs_env.root_dir(),
+			_file              { vfs_env.alloc(), vfs_env.fs(),
 			                     file_info, view },
 			_session_component { vfs_env.env().rm(), vfs_env.env().ep(),
 			                     _bulk_dataspace.cap(), request_handler,
