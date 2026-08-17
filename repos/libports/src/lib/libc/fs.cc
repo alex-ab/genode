@@ -262,14 +262,30 @@ Libc::Fs::Open_dir_result Libc::Fs::open_dir(char const *path, int flags)
 	if (!_vfs.directory(path))        return Errno { ENOTDIR };
 
 	Open_dir *result_od_ptr { };
+	int       result_errno  { };
+
 	_monitor.monitor([&] {
 		result_od_ptr = new (_kernel_heap) Open_dir(_vfs_env, path);
-		return Fn::COMPLETE;
+
+		if (result_od_ptr)
+			return result_od_ptr->handle.attach().convert<Monitor::Function_result>(
+				[&] (Ok) { return Fn::COMPLETE; },
+				[&] (Vfs::Dir_handle::Attach_error e) {
+					if (e == Vfs::Dir_handle::Attach_error::RETRY)
+						return Fn::INCOMPLETE;
+
+					Genode::destroy(_kernel_heap, result_od_ptr);
+					result_errno = Errno(EPERM);
+					result_od_ptr = nullptr;
+					return Fn::COMPLETE;
+				});
+
+		assert(false);
 	});
 	if (result_od_ptr)
 		return *result_od_ptr;
 
-	assert(false);
+	return Errno(result_errno);
 }
 
 
