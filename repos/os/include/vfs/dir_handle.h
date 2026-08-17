@@ -37,10 +37,6 @@ class Genode::Vfs::Dir_handle : Noncopyable
 
 		using Channel = Vfs_handle;
 
-		enum class Attach_error { RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
-
-		using Attach_result = Attempt<Ok, Attach_error>;
-
 	private:
 
 		Dir_handles &_handles;
@@ -51,63 +47,15 @@ class Genode::Vfs::Dir_handle : Noncopyable
 
 		struct { Channel *_channel_ptr = nullptr; };
 
-		template <typename ERR>
-		static ERR _converted(Attach_error e)
-		{
-			switch (e) {
-			case Attach_error::RETRY:       return ERR::RETRY;
-			case Attach_error::DENIED:      return ERR::DENIED;
-			case Attach_error::OUT_OF_RAM:  return ERR::OUT_OF_RAM;
-			case Attach_error::OUT_OF_CAPS: return ERR::OUT_OF_CAPS;
-			}
-			return ERR::DENIED;
-		}
-
-		template <typename ERR_FN>
-		auto _with_channel(auto const &fn, ERR_FN const &err_fn)
-		-> typename Trait::Functor<decltype(&ERR_FN::operator())>::Return_type
-		{
-			if (!_channel_ptr) {
-				Directory_service::Opendir_result const result =
-					_root_dir.opendir(path.string(), { }, &_channel_ptr, _alloc);
-
-				switch (result) {
-				case Directory_service::OPENDIR_ERR_PERMISSION_DENIED:
-				case Directory_service::OPENDIR_ERR_LOOKUP_FAILED:
-				case Directory_service::OPENDIR_ERR_NODE_ALREADY_EXISTS:
-				case Directory_service::OPENDIR_ERR_NAME_TOO_LONG:
-				case Directory_service::OPENDIR_ERR_NO_SPACE:    return err_fn(Attach_error::DENIED);
-				case Directory_service::OPENDIR_ERR_OUT_OF_RAM:  return err_fn(Attach_error::OUT_OF_RAM);
-				case Directory_service::OPENDIR_ERR_OUT_OF_CAPS: return err_fn(Attach_error::OUT_OF_CAPS);
-				case Directory_service::OPENDIR_OK: break;
-				}
-			}
-
-			if (_channel_ptr)
-				return fn(*_channel_ptr);
-
-			error("VFS dir channel opened but inaccessible");
-			return err_fn(Attach_error::DENIED);
-		}
-
 	public:
 
 		Dir_handle(Dir_handles &handles, File_system &root_dir, Allocator &alloc,
 		           Path path)
 		:
 			path(path), _handles(handles), _root_dir(root_dir), _alloc(alloc)
-		{
-
-		}
+		{ }
 
 		~Dir_handle() { detach(); }
-
-		Attach_result attach()
-		{
-			return _with_channel(
-				[&] (Channel &) { return Ok(); },
-				[&] (Attach_error e) -> Attach_result { return _converted<Attach_error>(e); });
-		}
 
 		void detach()
 		{
@@ -131,23 +79,36 @@ class Genode::Vfs::Dir_handle : Noncopyable
 };
 
 
+
 Genode::Vfs::Read_result
 Genode::Vfs::Dir_handle::read(At at, Byte_range_ptr const &dst)
 {
-	return _with_channel(
-		[&] (Channel &channel) {
-			return channel.read(at, dst).convert<Read_result>(
-				[&] (size_t num_bytes) { return num_bytes; },
-				[&] (Channel::Read_error e) {
-					switch (e) {
-					case Channel::Read_error::RETRY: return Read_error::RETRY;
-					case Channel::Read_error::DENIED: break;
-					}
-					return Read_error::DENIED;
-				});
-		},
-		[&] (Attach_error e) -> Read_result {
-			return _converted<Read_error>(e);
+	if (!_channel_ptr) {
+		Directory_service::Opendir_result const result =
+			_root_dir.opendir(path.string(), { }, &_channel_ptr, _alloc);
+
+		switch (result) {
+		case Directory_service::OPENDIR_ERR_PERMISSION_DENIED:
+		case Directory_service::OPENDIR_ERR_LOOKUP_FAILED:
+		case Directory_service::OPENDIR_ERR_NODE_ALREADY_EXISTS:
+		case Directory_service::OPENDIR_ERR_NAME_TOO_LONG:
+		case Directory_service::OPENDIR_ERR_NO_SPACE:    return 0; /* EOF */
+		case Directory_service::OPENDIR_ERR_OUT_OF_RAM:  return Read_error::OUT_OF_RAM;
+		case Directory_service::OPENDIR_ERR_OUT_OF_CAPS: return Read_error::OUT_OF_CAPS;
+		case Directory_service::OPENDIR_OK: break;
+		}
+	}
+	if (!_channel_ptr)
+		return 0; /* EOF */
+
+	return _channel_ptr->read(at, dst).convert<Read_result>(
+		[&] (size_t num_bytes) { return num_bytes; },
+		[&] (Channel::Read_error e) {
+			switch (e) {
+			case Channel::Read_error::RETRY: return Read_error::RETRY;
+			case Channel::Read_error::DENIED: break;
+			}
+			return Read_error::DENIED;
 		});
 }
 
