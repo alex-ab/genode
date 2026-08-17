@@ -92,14 +92,14 @@ Genode::Vfs::Dir_handle::read(At at, Byte_range_ptr const &dst)
 		case Directory_service::OPENDIR_ERR_LOOKUP_FAILED:
 		case Directory_service::OPENDIR_ERR_NODE_ALREADY_EXISTS:
 		case Directory_service::OPENDIR_ERR_NAME_TOO_LONG:
-		case Directory_service::OPENDIR_ERR_NO_SPACE:    return 0; /* EOF */
+		case Directory_service::OPENDIR_ERR_NO_SPACE:    return Read_eof();
 		case Directory_service::OPENDIR_ERR_OUT_OF_RAM:  return Read_error::OUT_OF_RAM;
 		case Directory_service::OPENDIR_ERR_OUT_OF_CAPS: return Read_error::OUT_OF_CAPS;
 		case Directory_service::OPENDIR_OK: break;
 		}
 	}
 	if (!_channel_ptr)
-		return 0; /* EOF */
+		return Read_eof();
 
 	return _channel_ptr->read(at, dst).convert<Read_result>(
 		[&] (size_t num_bytes) { return num_bytes; },

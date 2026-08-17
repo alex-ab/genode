@@ -95,7 +95,7 @@ class Vfs_rom::File_system : public Single_file_system
 
 					/* check if end of file is reached */
 					if (read_pos >= end_pos)
-						return 0; /* EOF */
+						return Read_eof();
 
 					/* source address within the dataspace */
 					char const *src = _rom.local_addr<char>() + read_pos;

@@ -218,7 +218,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 
 			if (!node_ptr) {
 				dirent = Dirent { };
-				return 0; /* EOF */
+				return Read_eof();
 			}
 
 			Node const &node = *node_ptr;

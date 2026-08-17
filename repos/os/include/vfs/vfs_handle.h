@@ -155,6 +155,8 @@ class Genode::Vfs::Vfs_handle
 
 		using Read_result = Attempt<size_t, Read_error>;
 
+		struct Read_eof : Read_result { Read_eof() : Read_result(0) { }; };
+
 		enum class Write_mtime_result { OK, RETRY, DENIED };
 
 		enum Ftruncate_result { FTRUNCATE_ERR_NO_PERM,  FTRUNCATE_ERR_INTERRUPT,

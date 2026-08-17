@@ -116,6 +116,8 @@ namespace Genode::Vfs {
 
 	using Read_result = Attempt<size_t, Read_error>;
 
+	struct Read_eof : Read_result { Read_eof() : Read_result(0) { }; };
+
 	enum class Resize_result { OK, RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
 
 	enum class Sync_result { OK, RETRY };

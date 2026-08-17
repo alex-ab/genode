@@ -184,7 +184,7 @@ class Vfs_inline::File_system : public Single_file_system
 Genode::Vfs::Vfs_handle::Read_result
 Vfs_inline::File_system::Handle::read(At const at, Byte_range_ptr const &dst)
 {
-	Read_result result = 0ul; /* EOF */
+	Read_result result = Read_eof();
 
 	/* file read limit is the size of the node content */
 	_fs._data.with_bytes([&] (char const *data_start, size_t const data_num_bytes) {

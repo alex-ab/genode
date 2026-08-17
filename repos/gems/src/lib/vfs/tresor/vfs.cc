@@ -1016,7 +1016,7 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 				Read_result read(At const at, Byte_range_ptr const &dst) override
 				{
 					if (at.pos == 4096)
-						return 0; /* EOF */
+						return Read_eof();
 
 					if (at.pos || dst.num_bytes < Content_string::capacity()) {
 						if (_plugin.verbose())
@@ -1152,7 +1152,7 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 				Read_result read(At const at, Byte_range_ptr const &dst) override
 				{
 					if (at.pos == 4096)
-						return 0; /* EOF */
+						return Read_eof();
 
 					if (at.pos || dst.num_bytes < Content_string::capacity()) {
 						if (_plugin.verbose())
@@ -1268,7 +1268,7 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 				Read_result read(At const at, Byte_range_ptr const &dst) override
 				{
 					if (at.pos == 4096)
-						return 0; /* EOF */
+						return Read_eof();
 
 					if (at.pos || dst.num_bytes < Content_string::capacity()) {
 						if (_plugin.verbose())

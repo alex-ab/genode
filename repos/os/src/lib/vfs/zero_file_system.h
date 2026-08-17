@@ -59,7 +59,7 @@ struct Vfs_zero::File_system : Single_file_system
 
 				file_size const end_pos = min(dst.num_bytes + at.pos, _size);
 				if (at.pos >= end_pos)
-					return 0; /* EOF */
+					return Read_eof();
 
 				count = size_t(end_pos - at.pos);
 			}

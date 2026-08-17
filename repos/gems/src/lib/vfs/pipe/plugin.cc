@@ -246,7 +246,7 @@ struct Vfs_pipe::Pipe
 
 			/* Send only EOF when at least one writer opened the pipe */
 			if ((num_writers == 0) && !waiting_for_writers)
-				return 0; /* EOF */
+				return Vfs_handle::Read_eof();
 
 			return Vfs_handle::Read_error::RETRY;
 		}

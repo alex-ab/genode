@@ -67,7 +67,7 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 
 				bool done = false;
 
-				Read_result result = 0ul; /* EOF if no fs matches 'index' */
+				Read_result result = Read_eof(); /* if no fs matches 'index' */
 
 				_child_handles.for_each([&] (Child_handle_element const &e) {
 

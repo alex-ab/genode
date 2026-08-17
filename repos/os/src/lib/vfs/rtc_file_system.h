@@ -60,7 +60,7 @@ class Vfs_rtc::File_system : public Single_file_system
 				Read_result read(At const at, Byte_range_ptr const &dst) override
 				{
 					if (at.pos >= TIMESTAMP_LEN)
-						return 0; /* EOF */
+						return Read_eof();
 
 					Rtc::Timestamp ts = _rtc.current_time();
 
