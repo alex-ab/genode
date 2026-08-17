@@ -385,7 +385,7 @@ struct Libc::Socket : Noncopyable
 		{
 			char buf[64];
 
-			ssize_t bytes = read(_fd[ERROR].num, buf, sizeof(buf));
+			ssize_t bytes = pread(_fd[ERROR].num, buf, sizeof(buf), 0);
 
 			Node node { Const_byte_range_ptr { buf, size_t(bytes) } };
 			int genode_errno = node.attribute_value("value", -1);
