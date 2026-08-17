@@ -512,18 +512,6 @@ class Vfs_server::Session_component : private Session_resources,
 			Directory &dir = *new (_alloc)
 				Directory(_node_space, _vfs_env, _alloc, policy, path_str);
 
-			dir.attach().with_error([&] (Vfs::Dir_handle::Attach_error e) {
-				using Error = Vfs::Dir_handle::Attach_error;
-				switch (e) {
-				case Error::RETRY:
-					warning("dir ", path_str, " not yet attached when opened");
-					break;
-				case Error::DENIED:      throw Lookup_failed();
-				case Error::OUT_OF_RAM:  throw Out_of_ram();
-				case Error::OUT_OF_CAPS: throw Out_of_caps();
-				}
-			});
-
 			if (create && !exists)
 				_io_progress_handler.handle_io_progress();
 

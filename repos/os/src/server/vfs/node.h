@@ -871,9 +871,13 @@ struct Vfs_server::Directory : Io_node
 			Io_node(space, { .path = path, .writeable = false }),
 			_policy(policy),
 			_handle(env.dir_handles(), env.root_dir(), alloc, path)
-		{ }
-
-		Vfs::Dir_handle::Attach_result attach() { return _handle.attach(); }
+		{
+			/* trigger channel allocation to avoid out of ram/caps during read */
+			_handle.read(At { }, { nullptr, 0 }).with_error([&] (Read_error e) {
+				if (e == Read_error::OUT_OF_RAM)  throw Out_of_ram();
+				if (e == Read_error::OUT_OF_CAPS) throw Out_of_caps();
+			});
+		}
 
 		/**
 		 * Open a file handle at this directory
