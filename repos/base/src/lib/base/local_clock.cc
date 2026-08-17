@@ -109,10 +109,10 @@ void Local_clock::Stats::add(Local_clock::Interval i)
 
 bool Local_clock::_clock_increasing(Remote_clock first, Remote_clock second)
 {
-	if (first.us <= second.us)
+	if (first.us < second.us)
 		return true;
 
-	if (_errors_logged < MAX_ERRORS)
+	if (first.us > second.us && _errors_logged < MAX_ERRORS)
 		error("Local_clock: remote clock not monotonically increasing");
 
 	return false;
