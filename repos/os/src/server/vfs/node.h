@@ -704,6 +704,8 @@ class Vfs_server::File : public Io_node, public Vfs::Read_ready_response_handler
 		{
 			if (_handle.resize(size) != Vfs::Resize_result::OK)
 				warning("truncate of file ", path, " incomplete");
+
+			_modified = true;
 		}
 
 		Submit_result submit_job(Packet_descriptor packet, Payload_ptr ptr) override
