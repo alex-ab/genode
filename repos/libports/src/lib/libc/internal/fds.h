@@ -107,6 +107,8 @@ struct Libc::File_descriptor
 
 	unsigned _ref_count = 0;
 
+	bool _reacquire_warning_shown_once = false;
+
 	struct Aio_handle
 	{
 		enum class State { INVALID, QUEUED, COMPLETE };

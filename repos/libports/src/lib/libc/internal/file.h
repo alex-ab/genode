@@ -47,9 +47,9 @@ namespace Libc {
 		File_descriptor *fd_ptr = fds().with_space([&] (Fds::Space &space) {
 			return space.apply<File_descriptor>({ unsigned(libc_fd) },
 				[&] (File_descriptor &fd) {
-					if (fd._ref_count) {
-						error("attempt to re-acquire file descriptor for ", fd.path, " (", caller_name, ")");
-						return (File_descriptor *)nullptr;
+					if (fd._ref_count && !fd._reacquire_warning_shown_once) {
+						warning("attempt to re-acquire file descriptor for ", fd.path, " (", caller_name, ")");
+						fd._reacquire_warning_shown_once = true;
 					}
 					fd._ref_count++;
 					return &fd;
