@@ -81,7 +81,7 @@ exec mkdir -p [run_dir]/genode/test-existing-directory
 
 append qemu_args " -nographic "
 
-run_genode_until "Warning: skipping copy of file /test-existing-file/a_file, OPEN_ERR_EXISTS" 20
+run_genode_until "retaining /test-existing-file/a_file instead of importing file" 20
 
 set created_file { [run_dir]/genode/test-file/foo }
 
