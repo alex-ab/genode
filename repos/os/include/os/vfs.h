@@ -887,19 +887,6 @@ class Genode::New_file : public Writeable_file
 
 		Vfs::At _at { };
 
-		void _reset_size()
-		{
-			for (;;) {
-				switch (_handle.resize(0)) {
-				case Vfs::Resize_result::OK: return;
-				case Vfs::Resize_result::RETRY: _io.commit_and_wait(); break;
-				case Vfs::Resize_result::OUT_OF_RAM:  /* not with VFS alloc */
-				case Vfs::Resize_result::OUT_OF_CAPS: /* not with VFS alloc */
-				case Vfs::Resize_result::DENIED: throw Create_failed();
-				}
-			}
-		}
-
 	public:
 
 		using Writeable_file::Append_result;
@@ -913,8 +900,13 @@ class Genode::New_file : public Writeable_file
 		New_file(Directory &dir, Directory::Path const &path)
 		:
 			Writeable_file(dir, path)
+		{ }
+
+		~New_file()
 		{
-			_reset_size();
+			/* the new file may be smaller than the previous version */
+			while (_handle.resize(_at.pos) == Vfs::Resize_result::RETRY)
+				_io.commit_and_wait();
 		}
 
 		Append_result append(Const_byte_range_ptr const &src) {
