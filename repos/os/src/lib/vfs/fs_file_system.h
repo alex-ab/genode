@@ -546,17 +546,21 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 					}
 				};
 
-				try {
-					if (packet.operation() == Packet_descriptor::CONTENT_CHANGED) {
-						_watch_handle_space.apply<Fs_watch_handle>(id, [&] (Fs_watch_handle &handle) {
+				if (packet.operation() == Packet_descriptor::CONTENT_CHANGED)
+					_watch_handle_space.apply<Fs_watch_handle>(id,
+						[&] (Fs_watch_handle &handle) {
 							handle.path.with_span([&] (Span const &s) {
-								_parent_fs.notify_watchers(s); }); });
-					} else {
-						_handle_space.apply<Fs_vfs_handle>(id, handle_fn);
-					}
-				}
-				catch (Handle_space::Unknown_id) {
-					warning("ack for unknown File_system handle ", id); }
+								_parent_fs.notify_watchers(s); });
+						},
+						[&] {
+							warning("ack for unknown watch handle ", id);
+						});
+				else
+					_handle_space.apply<Fs_vfs_handle>(id, handle_fn,
+						[&] {
+							warning("ack for unknown File_system handle ", id,
+							        " op=", (int)packet.operation());
+						});
 
 				if (packet.succeeded())
 					any_ack_handled = true;
