@@ -33,7 +33,7 @@
  */
 
 /* Genode includes */
-#include <vfs/simple_env.h>
+#include <vfs/root.h>
 #include <timer_session/connection.h>
 #include <base/heap.h>
 #include <base/attached_rom_dataspace.h>
@@ -531,14 +531,12 @@ void Component::construct(Genode::Env &env)
 
 	Attached_rom_dataspace config_rom(env, "config");
 
-	Vfs::Simple_env vfs_env = config_rom.node().with_sub_node("vfs",
-		[&] (Node const &config) -> Vfs::Simple_env {
+	Vfs::Root vfs_root = config_rom.node().with_sub_node("vfs",
+		[&] (Node const &config) -> Vfs::Root {
 			return { env, heap, config }; },
-		[&] () -> Vfs::Simple_env {
+		[&] () -> Vfs::Root {
 			error("VFS not configured");
 			return { env, heap, Node() }; });
-
-	Vfs::File_system &vfs_root = vfs_env.fs();
 
 	String<Vfs::MAX_PATH_LEN> path { };
 
@@ -548,7 +546,7 @@ void Component::construct(Genode::Env &env)
 	Timer::Connection timer(env);
 
 	/* populate the directory file system at / */
-	vfs_root.num_dirent("/");
+	vfs_root.fs().num_dirent("/");
 
 	auto used_ram_bytes = [&] { return env.pd().stats().ram.used.value; };
 
@@ -565,9 +563,9 @@ void Component::construct(Genode::Env &env)
 		for (int i = 0; i < ROOT_TREE_COUNT; ++i) {
 			path = { "/", i };
 			Vfs::Vfs_handle *dir_handle;
-			vfs_root.opendir(path.string(), true, &dir_handle, heap);
+			vfs_root.fs().opendir(path.string(), true, &dir_handle, heap);
 			dir_handle->close();
-			Mkdir_test test(vfs_root, heap, path.string());
+			Mkdir_test test(vfs_root.fs(), heap, path.string());
 			count += test.wait();
 		}
 		elapsed_ms = timer.elapsed_ms() - elapsed_ms;
@@ -589,7 +587,7 @@ void Component::construct(Genode::Env &env)
 
 		for (int i = 0; i < ROOT_TREE_COUNT; ++i) {
 			path = { "/", i };
-			Populate_test test(vfs_root, heap, path.string());
+			Populate_test test(vfs_root.fs(), heap, path.string());
 			count += test.wait();
 		}
 
@@ -618,7 +616,7 @@ void Component::construct(Genode::Env &env)
 
 		for (int i = 0; i < ROOT_TREE_COUNT; ++i) {
 			path = { "/", i };
-			Write_test test(vfs_root, heap, path.string(), vfs_env.io());
+			Write_test test(vfs_root.fs(), heap, path.string(), vfs_root.io());
 			count += test.wait();
 
 		}
@@ -652,7 +650,7 @@ void Component::construct(Genode::Env &env)
 
 		for (int i = 0; i < ROOT_TREE_COUNT; ++i) {
 			path = { "/", i };
-			Read_test test(vfs_root, heap, path.string(), vfs_env.io());
+			Read_test test(vfs_root.fs(), heap, path.string(), vfs_root.io());
 			count += test.wait();
 		}
 
@@ -686,7 +684,7 @@ void Component::construct(Genode::Env &env)
 
 		for (int i = 0; i < ROOT_TREE_COUNT; ++i) {
 			path = { "/", i };
-			Unlink_test test(vfs_root, heap, path.string(), vfs_env.io());
+			Unlink_test test(vfs_root.fs(), heap, path.string(), vfs_root.io());
 			count += test.wait();
 
 		}

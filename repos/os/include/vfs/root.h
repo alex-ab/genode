@@ -1,27 +1,26 @@
 /*
- * \brief  VFS environment
- * \author Emery Hemingway
+ * \brief  VFS instance
  * \author Norman Feske
- * \date   2018-04-04
+ * \date   2026-08-18
  */
 
 /*
- * Copyright (C) 2018 Genode Labs GmbH
+ * Copyright (C) 2026 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
  */
 
-#ifndef _INCLUDE__VFS__SIMPLE_ENV_H_
-#define _INCLUDE__VFS__SIMPLE_ENV_H_
+#ifndef _INCLUDE__VFS__ROOT_H_
+#define _INCLUDE__VFS__ROOT_H_
 
 #include <vfs/dir_file_system.h>
 #include <vfs/env.h>
 
-namespace Genode::Vfs { struct Simple_env; }
+namespace Genode::Vfs { struct Root; }
 
 
-class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
+class Genode::Vfs::Root : public Env, private Env::Io, private Env::User
 {
 	private:
 
@@ -88,19 +87,16 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 
 	public:
 
-		Simple_env(Genode::Env &env,
-		           Allocator   &alloc,
-		           Node  const &config,
-		           Env::User   &user)
+		Root(Genode::Env &env, Allocator &alloc, Node const &config, Env::User &user)
 		:
 			_env(env), _alloc(alloc), _user(user), _fs(*this, _root_parent_fs)
 		{
 			_fs.update(config, _fs_factory);
 		}
 
-		Simple_env(Genode::Env &env, Allocator &alloc, Node const &config)
+		Root(Genode::Env &env, Allocator &alloc, Node const &config)
 		:
-			Simple_env(env, alloc, config, *this)
+			Root(env, alloc, config, *this)
 		{ }
 
 		void apply_config(Node const &config)
@@ -141,4 +137,4 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 		void wakeup_vfs_user() override { };
 };
 
-#endif /* _INCLUDE__VFS__SIMPLE_ENV_H_ */
+#endif /* _INCLUDE__VFS__ROOT_H_ */

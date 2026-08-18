@@ -11,7 +11,7 @@
  * under the terms of the GNU Affero General Public License version 3.
  */
 
-#include <vfs/simple_env.h>
+#include <vfs/root.h>
 #include <base/heap.h>
 #include <base/log.h>
 #include <base/component.h>
@@ -36,10 +36,10 @@ struct Test::Main
 
 	Genode::Attached_rom_dataspace _config_rom { _env, "config" };
 
-	Vfs::Simple_env _vfs_env = _config_rom.node().with_sub_node("vfs",
-		[&] (Node const &config) -> Vfs::Simple_env {
+	Vfs::Root _vfs_root = _config_rom.node().with_sub_node("vfs",
+		[&] (Node const &config) -> Vfs::Root {
 			return { _env, _heap, config }; },
-		[&] () -> Vfs::Simple_env {
+		[&] () -> Vfs::Root {
 			error("VFS not configured");
 			return { _env, _heap, Node() }; });
 
@@ -139,7 +139,7 @@ struct Test::Main
 	void _handle_timer_3(Duration)
 	{
 		log("(10) remove focus file");
-		_vfs_env.fs().unlink("focus");
+		_vfs_root.fs().unlink("focus");
 	}
 
 	void _handle_focus_removal()

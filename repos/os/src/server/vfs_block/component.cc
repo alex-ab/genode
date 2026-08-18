@@ -20,7 +20,7 @@
 #include <root/root.h>
 #include <os/session_policy.h>
 #include <util/string.h>
-#include <vfs/simple_env.h>
+#include <vfs/root.h>
 #include <vfs/dir_file_system.h>
 
 /* local includes */
@@ -361,10 +361,10 @@ struct Main : Rpc_object<Typed_root<Block::Session>>,
 	Heap                    _heap       { _env.ram(), _env.rm() };
 	Attached_rom_dataspace  _config_rom { _env, "config" };
 
-	Vfs::Simple_env _vfs_env = _config_rom.node().with_sub_node("vfs",
-		[&] (Node const &config) -> Vfs::Simple_env {
+	Vfs::Root _vfs_root = _config_rom.node().with_sub_node("vfs",
+		[&] (Node const &config) -> Vfs::Root {
 			return { _env, _heap, config, *this }; },
-		[&] () -> Vfs::Simple_env {
+		[&] () -> Vfs::Root {
 			error("VFS not configured");
 			return { _env, _heap, Node() }; });
 
@@ -375,7 +375,7 @@ struct Main : Rpc_object<Typed_root<Block::Session>>,
 		Block_session_component _session_component;
 
 		Block_session(Registry<Block_session>       &registry,
-		              Vfs::Simple_env               &vfs_env,
+		              Vfs::Env                      &vfs_env,
 		              Block::Constrained_view const &view,
 		              size_t                         tx_buf_size,
 		              Vfs_block::File_info           file_info,
@@ -458,7 +458,7 @@ struct Main : Rpc_object<Typed_root<Block::Session>>,
 				try {
 					Block_session const &session =
 						*new (_heap) Block_session(_sessions,
-						                           _vfs_env, view, tx_buf_size,
+						                           _vfs_root, view, tx_buf_size,
 						                           file_info, _request_handler);
 					return { session.cap() };
 

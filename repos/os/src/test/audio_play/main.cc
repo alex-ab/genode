@@ -34,14 +34,14 @@ struct Audio_play::Main
 
 	Attached_rom_dataspace _config { _env, "config" };
 
-	Vfs::Simple_env _vfs_env = _config.node().with_sub_node("vfs",
-		[&] (Node const &config) -> Vfs::Simple_env {
+	Vfs::Root _vfs_root = _config.node().with_sub_node("vfs",
+		[&] (Node const &config) -> Vfs::Root {
 			return { _env, _heap, config }; },
-		[&] () -> Vfs::Simple_env {
+		[&] () -> Vfs::Root {
 			error("VFS not configured");
 			return { _env, _heap, Node() }; });
 
-	Directory _root_dir { _vfs_env };
+	Directory _root_dir { _vfs_root };
 
 	Directory::Path const _sample_path =
 		_config.node().attribute_value("sample_path", Directory::Path());

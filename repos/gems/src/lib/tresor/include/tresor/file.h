@@ -19,7 +19,7 @@
 
 /* os includes */
 #include <vfs/vfs_handle.h>
-#include <vfs/simple_env.h>
+#include <vfs/root.h>
 
 /* tresor includes */
 #include <tresor/assertion.h>

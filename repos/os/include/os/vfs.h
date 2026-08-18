@@ -17,7 +17,7 @@
 /* Genode includes */
 #include <base/env.h>
 #include <base/allocator.h>
-#include <vfs/simple_env.h>
+#include <vfs/root.h>
 #include <vfs/dir_file_system.h>
 #include <vfs/file_handle.h>
 
@@ -428,12 +428,11 @@ struct Genode::Directory : Noncopyable, Interface
 };
 
 
-struct Genode::Root_directory : public Vfs::Simple_env,
-                                public Directory
+struct Genode::Root_directory : Vfs::Root, Directory
 {
 	Root_directory(Genode::Env &env, Allocator &alloc, Node const &config)
 	:
-		Vfs::Simple_env(env, alloc, config), Directory((Vfs::Simple_env&)*this)
+		Vfs::Root(env, alloc, config), Directory((Vfs::Root &)*this)
 	{ }
 };
 

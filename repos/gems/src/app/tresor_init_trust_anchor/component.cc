@@ -19,7 +19,7 @@
 #include <block_session/connection.h>
 #include <os/path.h>
 #include <vfs/dir_file_system.h>
-#include <vfs/simple_env.h>
+#include <vfs/root.h>
 
 /* tresor includes */
 #include <tresor/types.h>
@@ -42,14 +42,14 @@ class Main : Vfs::Env::User
 
 		Attached_rom_dataspace _config_rom { _env, "config" };
 
-		Vfs::Simple_env _vfs_env = _config_rom.node().with_sub_node("vfs",
-			[&] (Node const &config) -> Vfs::Simple_env {
+		Vfs::Root _vfs_root = _config_rom.node().with_sub_node("vfs",
+			[&] (Node const &config) -> Vfs::Root {
 				return { _env, _heap, config, *this }; },
-			[&] () -> Vfs::Simple_env {
+			[&] () -> Vfs::Root {
 				error("VFS not configured");
 				return { _env, _heap, Node() }; });
 
-		Vfs::File_system &_vfs { _vfs_env.fs() };
+		Vfs::File_system &_vfs { _vfs_root.fs() };
 
 		using String_path = Genode::String<256>;
 
@@ -200,7 +200,7 @@ class Main : Vfs::Env::User
 				break;
 			}
 
-			_vfs_env.io().commit();
+			_vfs_root.io().commit();
 		}
 
 		/**
@@ -225,7 +225,7 @@ class Main : Vfs::Env::User
 			String_path ta_dir = _config_ta_dir(_config_rom.node());
 
 			_init_file.construct(ta_dir.string(), "initialize",
-			                     _vfs, _vfs_env.alloc());
+			                     _vfs, _vfs_root.alloc());
 
 			/* kick-off writing */
 			_init_file->write_passphrase(passphrase.string());

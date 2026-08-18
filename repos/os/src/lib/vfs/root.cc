@@ -13,7 +13,7 @@
 
 
 /* Genode includes */
-#include <vfs/simple_env.h>
+#include <vfs/root.h>
 #include <base/shared_object.h>
 
 /* supported builtin file systems */
@@ -38,8 +38,8 @@
 static char const *_factory_symbol() { return "vfs_file_system_factory"; }
 
 
-struct Genode::Vfs::Simple_env::Factory::Entry_base : File_system::Factory,
-                                                      private List<Entry_base>::Element
+struct Genode::Vfs::Root::Factory::Entry_base : File_system::Factory,
+                                                private List<Entry_base>::Element
 {
 	friend class Genode::List<Entry_base>;
 
@@ -56,7 +56,7 @@ struct Genode::Vfs::Simple_env::Factory::Entry_base : File_system::Factory,
 
 
 template <typename FILE_SYSTEM>
-struct Genode::Vfs::Simple_env::Factory::Builtin_entry : Entry_base
+struct Genode::Vfs::Root::Factory::Builtin_entry : Entry_base
 {
 	Builtin_entry() : Entry_base(FILE_SYSTEM::name()) { }
 
@@ -65,7 +65,7 @@ struct Genode::Vfs::Simple_env::Factory::Builtin_entry : Entry_base
 };
 
 
-struct Genode::Vfs::Simple_env::Factory::External_entry : Entry_base
+struct Genode::Vfs::Root::Factory::External_entry : Entry_base
 {
 	File_system::Factory &_fs_factory;
 
@@ -85,7 +85,7 @@ struct Genode::Vfs::Simple_env::Factory::External_entry : Entry_base
  * Add builtin File_system type
  */
 template <typename FILE_SYSTEM>
-void Genode::Vfs::Simple_env::Factory::_add_builtin_fs()
+void Genode::Vfs::Root::Factory::_add_builtin_fs()
 {
 	_list.insert(new (&_md_alloc) Builtin_entry<FILE_SYSTEM>());
 }
@@ -127,8 +127,8 @@ static Genode::Vfs::File_system::Factory *load_factory(Genode::Vfs::Env &env,
 /**
  * Try to load external File_system::Factory provider
  */
-bool Genode::Vfs::Simple_env::Factory::_probe_external_factory(Vfs::Env &env,
-                                                               Node const &node)
+bool Genode::Vfs::Root::Factory::_probe_external_factory(Vfs::Env &env,
+                                                         Node const &node)
 {
 	String<128> const lib_name { "vfs_", node.type(), ".lib.so" };
 
@@ -145,9 +145,9 @@ bool Genode::Vfs::Simple_env::Factory::_probe_external_factory(Vfs::Env &env,
  * Create and return a new file-system
  */
 Genode::Vfs::File_system *
-Genode::Vfs::Simple_env::Factory::create(Vfs::Env   &env,
-                                         Parent_fs  &parent_fs,
-                                         Node const &node)
+Genode::Vfs::Root::Factory::create(Vfs::Env   &env,
+                                   Parent_fs  &parent_fs,
+                                   Node const &node)
 {
 	auto try_create = [&] () -> Vfs::File_system *
 	{
@@ -178,16 +178,13 @@ Genode::Vfs::Simple_env::Factory::create(Vfs::Env   &env,
 /**
  * Register an additional factory for new file-system type
  */
-void Genode::Vfs::Simple_env::Factory::extend(char const *name, File_system::Factory &factory)
+void Genode::Vfs::Root::Factory::extend(char const *name, File_system::Factory &factory)
 {
 	_list.insert(new (&_md_alloc) External_entry(name, factory));
 }
 
 
-/**
- * Constructor
- */
-Genode::Vfs::Simple_env::Factory::Factory(Allocator &alloc)
+Genode::Vfs::Root::Factory::Factory(Allocator &alloc)
 :
 	_md_alloc(alloc)
 {

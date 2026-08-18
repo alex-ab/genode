@@ -23,10 +23,10 @@ struct Main : Vfs::Env::User
 	Env &env;
 	Heap heap { env.ram(), env.rm() };
 	Attached_rom_dataspace config_rom { env, "config" };
-	Vfs::Simple_env vfs_env = config_rom.node().with_sub_node("vfs",
-		[&] (Node const &config) -> Vfs::Simple_env {
+	Vfs::Root vfs_env = config_rom.node().with_sub_node("vfs",
+		[&] (Node const &config) -> Vfs::Root {
 			return { env, heap, config, *this }; },
-		[&] () -> Vfs::Simple_env {
+		[&] () -> Vfs::Root {
 			error("VFS not configured");
 			return { env, heap, Node() }; });
 	Directory root { vfs_env };

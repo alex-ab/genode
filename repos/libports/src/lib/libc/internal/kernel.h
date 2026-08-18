@@ -189,15 +189,15 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 
 		Vfs_user _vfs_user { _io_progressed };
 
-		Constructible<Vfs::Simple_env> _vfs_env { };
+		Constructible<Vfs::Root> _vfs_root { };
 
-		bool const _vfs_env_initialized = (
+		bool const _vfs_root_initialized = (
 			with_vfs_config(_config_rom.node(), [&] (Node const &vfs_config) {
-				_vfs_env.construct(_env, _heap, vfs_config, _vfs_user); }), true );
+				_vfs_root.construct(_env, _heap, vfs_config, _vfs_user); }), true );
 
-		Env_implementation _libc_env { _env, *_vfs_env, _config_rom };
+		Env_implementation _libc_env { _env, *_vfs_root, _config_rom };
 
-		Directory _root_dir { *_vfs_env };
+		Directory _root_dir { *_vfs_root };
 
 		Fs _fs {
 			._monitor          = *this,
@@ -206,8 +206,8 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 			._config           = _config,
 			._now              = *this,
 			._kernel_heap      = _heap,
-			._vfs_env          = *_vfs_env,
-			._vfs              = _vfs_env->fs(),
+			._vfs_env          = *_vfs_root,
+			._vfs              = _vfs_root->fs(),
 			._root_dir         = _root_dir
 		};
 

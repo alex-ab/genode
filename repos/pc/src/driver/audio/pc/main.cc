@@ -63,14 +63,14 @@ struct Vfs_request_handler : Lx_kit::Firmware_request_handler
 
 	Attached_rom_dataspace _config_rom { _env, "config" };
 
-	Vfs::Simple_env _vfs_env = _config_rom.node().with_sub_node("vfs",
-		[&] (Node const &config) -> Vfs::Simple_env {
+	Vfs::Root _vfs_root = _config_rom.node().with_sub_node("vfs",
+		[&] (Node const &config) -> Vfs::Root {
 			return { _env, _heap, config }; },
-		[&] () -> Vfs::Simple_env {
+		[&] () -> Vfs::Root {
 			warning("VFS not configured, firmware loading non-functional");
 			return { _env, _heap, Node() }; } );
 
-	static size_t query_file_length(Vfs::Simple_env &vfs_env, char const *file_path)
+	static size_t query_file_length(Vfs::Root &root, char const *file_path)
 	{
 		using DS = Vfs::Directory_service;
 		using SR = DS::Stat_result;
@@ -78,19 +78,19 @@ struct Vfs_request_handler : Lx_kit::Firmware_request_handler
 		size_t length = 0;
 
 		DS::Stat stat { };
-		if (vfs_env.fs().stat(file_path, stat) == SR::STAT_OK) {
+		if (root.fs().stat(file_path, stat) == SR::STAT_OK) {
 			length = (size_t)stat.size;
 		}
 
 		return length;
 	}
 
-	static size_t read_file(Vfs::Simple_env       &vfs_env,
+	static size_t read_file(Vfs::Root              &root,
 	                        char             const *file_path,
 	                        Byte_range_ptr   const &dst)
 	{
 		try {
-			Readonly_file ro_file(Directory(vfs_env), file_path);
+			Readonly_file ro_file(Directory(root), file_path);
 			return ro_file.read(dst);
 		} catch (...) { }
 
@@ -117,7 +117,7 @@ struct Vfs_request_handler : Lx_kit::Firmware_request_handler
 		{
 			Fw_path const path { "/firmware/", request.name };
 
-			size_t const length = query_file_length(_vfs_env, path.string());
+			size_t const length = query_file_length(_vfs_root, path.string());
 
 			request.fw_len  = length;
 			request.success = length != 0;
@@ -129,7 +129,7 @@ struct Vfs_request_handler : Lx_kit::Firmware_request_handler
 		{
 			Fw_path const path { "/firmware/", request.name };
 
-			size_t const bytes = read_file(_vfs_env, path.string(),
+			size_t const bytes = read_file(_vfs_root, path.string(),
 			                               Byte_range_ptr { request.dst,
 			                                                request.dst_len });
 

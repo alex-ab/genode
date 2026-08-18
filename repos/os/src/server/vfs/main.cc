@@ -22,7 +22,7 @@
 #include <file_system_session/rpc_object.h>
 #include <root/component.h>
 #include <os/session_policy.h>
-#include <vfs/simple_env.h>
+#include <vfs/root.h>
 
 /* local includes */
 #include "node.h"
@@ -751,7 +751,7 @@ class Vfs_server::Root : public Root_component<Session_component>
 
 		Env &_env;
 
-		Vfs::Simple_env &_vfs_env;
+		Vfs::Env &_vfs_env;
 
 		Attached_rom_dataspace const &_config;
 
@@ -881,7 +881,7 @@ class Vfs_server::Root : public Root_component<Session_component>
 
 	public:
 
-		Root(Env &env, Vfs::Simple_env &vfs_env,
+		Root(Env &env, Vfs::Env &vfs_env,
 		     Attached_rom_dataspace const &config, Allocator &md_alloc,
 		     Io_progress_handler &io_progress_handler)
 		:
@@ -963,20 +963,20 @@ struct Vfs_server::Main : Entrypoint::Io_progress_handler
 
 	Heap _vfs_heap { &_env.ram(), &_env.rm() };
 
-	Vfs::Simple_env _vfs_env = _config.node().with_sub_node("vfs",
-		[&] (Node const &config) -> Vfs::Simple_env {
+	Vfs::Root _vfs_root = _config.node().with_sub_node("vfs",
+		[&] (Node const &config) -> Vfs::Root {
 			return { _env, _vfs_heap, config }; },
-		[&] () -> Vfs::Simple_env {
+		[&] () -> Vfs::Root {
 			error("VFS not configured");
 			return { _env, _vfs_heap, Node() }; });
 
-	Vfs_server::Root _root { _env, _vfs_env, _config, _sliced_heap, *this };
+	Vfs_server::Root _root { _env, _vfs_root, _config, _sliced_heap, *this };
 
 	void _handle_config()
 	{
 		_config.update();
 		_config.node().with_optional_sub_node("vfs",
-			[&] (Node const &config) { _vfs_env.apply_config(config); });
+			[&] (Node const &config) { _vfs_root.apply_config(config); });
 
 		/*
 		 * The VFS configuration change may result in watch notifications

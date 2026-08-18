@@ -37,9 +37,9 @@ struct Sculpt::Vfs
 		"+ dir model  | + fs | label: model -> /\n"
 		"-";
 
-	Genode::Vfs::Simple_env _vfs_env { _env, _alloc, Node(Span(_config, strlen(_config))) };
+	Genode::Vfs::Root _vfs_root { _env, _alloc, Node(Span(_config, strlen(_config))) };
 
-	Directory _root { _vfs_env };
+	Directory _root { _vfs_root };
 
 	Vfs(Env &env, Allocator &alloc) : _env(env), _alloc(alloc) { }
 

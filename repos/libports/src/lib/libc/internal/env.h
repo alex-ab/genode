@@ -18,7 +18,7 @@
 
 /* Genode includes */
 #include <base/attached_rom_dataspace.h>
-#include <vfs/simple_env.h>
+#include <vfs/root.h>
 
 /* libc includes */
 #include <libc/component.h>  /* 'Libc::Env' */
@@ -32,19 +32,19 @@ class Libc::Env_implementation : public Libc::Env
 
 		Genode::Env &_env;
 
-		Vfs::Simple_env &_vfs_env;
+		Vfs::Root &_vfs_root;
 
 		Attached_rom_dataspace const &_config_rom;
 
 	public:
 
-		Env_implementation(Genode::Env &env, Vfs::Simple_env &vfs_env,
+		Env_implementation(Genode::Env &env, Vfs::Root &root,
 		                   Attached_rom_dataspace const &config_rom)
 		:
-			_env(env), _vfs_env(vfs_env), _config_rom(config_rom)
+			_env(env), _vfs_root(root), _config_rom(config_rom)
 		{ }
 
-		Vfs::File_system &vfs() { return _vfs_env.fs(); }
+		Vfs::File_system &vfs() { return _vfs_root.fs(); }
 
 
 		/*************************
@@ -56,9 +56,9 @@ class Libc::Env_implementation : public Libc::Env
 			fn(_config_rom.node());
 		}
 
-		Vfs::Env &vfs_env() override { return _vfs_env; }
+		Vfs::Env &vfs_env() override { return _vfs_root; }
 
-		void apply_config(Node const &n) override { _vfs_env.apply_config(n); }
+		void apply_config(Node const &n) override { _vfs_root.apply_config(n); }
 
 
 		/***************************

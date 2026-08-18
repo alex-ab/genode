@@ -16,7 +16,7 @@
 #include <base/attached_rom_dataspace.h>
 #include <base/component.h>
 #include <base/heap.h>
-#include <vfs/simple_env.h>
+#include <vfs/root.h>
 
 /* tresor includes */
 #include <tresor/block_io.h>
@@ -40,10 +40,10 @@ class Tresor_check::Main : private Vfs::Env::User
 		Env  &_env;
 		Heap  _heap { _env.ram(), _env.rm() };
 		Attached_rom_dataspace _config_rom { _env, "config" };
-		Vfs::Simple_env _vfs_env = _config_rom.node().with_sub_node("vfs",
-			[&] (Node const &config) -> Vfs::Simple_env {
+		Vfs::Root _vfs_env = _config_rom.node().with_sub_node("vfs",
+			[&] (Node const &config) -> Vfs::Root {
 				return { _env, _heap, config, *this }; },
-			[&] () -> Vfs::Simple_env {
+			[&] () -> Vfs::Root {
 				error("VFS not configured");
 				return { _env, _heap, Node() }; });
 		Signal_handler<Main> _sigh { _env.ep(), *this, &Main::_handle_signal };

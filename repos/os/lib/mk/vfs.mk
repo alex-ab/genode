@@ -1,4 +1,4 @@
-SRC_CC  += simple_env.cc
+SRC_CC  += root.cc
 INC_DIR += $(REP_DIR)/src/lib/vfs
 
 LIBS = base

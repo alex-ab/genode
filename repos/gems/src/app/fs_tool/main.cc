@@ -45,14 +45,14 @@ struct Fs_tool::Main
 
 	Attached_rom_dataspace _config { _env, "config" };
 
-	Vfs::Simple_env _vfs_env = _config.node().with_sub_node("vfs",
-		[&] (Node const &config) -> Vfs::Simple_env {
+	Vfs::Root _vfs_root = _config.node().with_sub_node("vfs",
+		[&] (Node const &config) -> Vfs::Root {
 			return { _env, _heap, config }; },
-		[&] () -> Vfs::Simple_env {
+		[&] () -> Vfs::Root {
 			error("VFS not configured");
 			return { _env, _heap, Node() }; });
 
-	Directory _root_dir { _vfs_env };
+	Directory _root_dir { _vfs_root };
 
 	Signal_handler<Main> _config_handler {
 		_env.ep(), *this, &Main::_handle_config };
@@ -79,7 +79,7 @@ struct Fs_tool::Main
 		_verbose = config.attribute_value("verbose", false);
 
 		_config.node().with_optional_sub_node("vfs", [&] (Node const &node) {
-			_vfs_env.apply_config(node); });
+			_vfs_root.apply_config(node); });
 
 		config.for_each_sub_node([&] (Node const &operation) {
 

@@ -242,7 +242,7 @@ void Libc::Kernel::_init_file_descriptors()
 		});
 	};
 
-	bool const fs_has_dirents = _vfs_env->fs().num_dirent("/") > 0;
+	bool const fs_has_dirents = _vfs_root->fs().num_dirent("/") > 0;
 	if (fs_has_dirents) {
 
 		_config_rom.node().with_optional_sub_node("libc", [&] (Node const &node) {
