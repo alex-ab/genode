@@ -34,8 +34,6 @@ struct Audio_play::Main
 
 	Attached_rom_dataspace _config { _env, "config" };
 
-	Vfs::Global_file_system_factory _fs_factory { _heap };
-
 	Vfs::Simple_env _vfs_env = _config.node().with_sub_node("vfs",
 		[&] (Node const &config) -> Vfs::Simple_env {
 			return { _env, _heap, config }; },
