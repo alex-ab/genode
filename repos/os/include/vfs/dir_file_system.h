@@ -15,7 +15,6 @@
 #define _INCLUDE__VFS__DIR_FILE_SYSTEM_H_
 
 #include <base/registry.h>
-#include <vfs/file_system_factory.h>
 #include <vfs/union_file_system.h>
 #include <vfs/vfs_handle.h>
 
@@ -306,7 +305,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 		static char const *name()   { return "dir"; }
 		char const *type() override { return "dir"; }
 
-		void update(Node const &node, File_system_factory &factory) override
+		void update(Node const &node, Factory &factory) override
 		{
 			_union.update(node, factory);
 		}

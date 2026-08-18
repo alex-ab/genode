@@ -24,7 +24,6 @@
 #include <net/ipv4.h>
 #include <util/string.h>
 #include <vfs/directory_service.h>
-#include <vfs/file_system_factory.h>
 #include <vfs/vfs_handle.h>
 #include <timer_session/connection.h>
 
@@ -1707,7 +1706,7 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 		 ** File_system interface **
 		 ***************************/
 
-		void update(Genode::Node const &config, File_system_factory &) override
+		void update(Genode::Node const &config, File_system::Factory &) override
 		{
 			using Addr = String<16>;
 
@@ -1952,7 +1951,7 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 };
 
 
-extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
+extern "C" Genode::Vfs::File_system::Factory *vfs_file_system_factory(void)
 {
 	static Vfs_ip::Ip_vfs_file_handle::Fifo read_ready_waiters;
 
@@ -1960,7 +1959,7 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 	using namespace Genode;
 
-	struct Factory : Vfs::File_system_factory
+	struct Factory : Vfs::File_system::Factory
 	{
 		/* wakup user task */
 		static void socket_progress(void *data)

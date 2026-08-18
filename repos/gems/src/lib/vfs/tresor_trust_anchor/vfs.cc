@@ -15,6 +15,7 @@
 /* Genode includes */
 #include <vfs/dir_file_system.h>
 #include <vfs/single_file_system.h>
+#include <vfs/env.h>
 #include <util/arg_string.h>
 
 /* OpenSSL includes */
@@ -1749,7 +1750,7 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 };
 
 
-struct Vfs_tresor_trust_anchor::File_system : Dir_file_system, File_system_factory
+struct Vfs_tresor_trust_anchor::File_system : Dir_file_system, Vfs::File_system::Factory
 {
 	Trust_anchor _trust_anchor;
 
@@ -1832,11 +1833,11 @@ struct Vfs_tresor_trust_anchor::File_system : Dir_file_system, File_system_facto
  ** VFS plugin interface **
  **************************/
 
-extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
+extern "C" Genode::Vfs::File_system::Factory *vfs_file_system_factory(void)
 {
 	using namespace Genode;
 
-	struct Factory : Vfs::File_system_factory
+	struct Factory : Vfs::File_system::Factory
 	{
 		Vfs::File_system *create(Vfs::Env &vfs_env, Vfs::Parent_fs &parent_fs,
 		                         Node const &node) override

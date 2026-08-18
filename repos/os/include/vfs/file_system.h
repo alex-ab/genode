@@ -22,6 +22,16 @@ namespace Genode::Vfs { class File_system; }
 
 class Genode::Vfs::File_system : public Directory_service
 {
+	public:
+
+		struct Factory : Interface
+		{
+			/**
+			 * Create and return a new file-system
+			 */
+			virtual File_system *create(Vfs::Env &env, Parent_fs &, Node const &) = 0;
+		};
+
 	private:
 
 		/*
@@ -42,7 +52,7 @@ class Genode::Vfs::File_system : public Directory_service
 		/**
 		 * Adjust to configuration changes
 		 */
-		virtual void update(Node const &, File_system_factory &) { }
+		virtual void update(Node const &, Factory &) { }
 
 		/**
 		 * Return the file-system type

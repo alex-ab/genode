@@ -17,6 +17,7 @@
 /* Genode includes */
 #include <vfs/single_file_system.h>
 #include <vfs/dir_file_system.h>
+#include <vfs/env.h>
 
 namespace Vfs_ip {
 
@@ -173,7 +174,7 @@ class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 };
 
 
-struct Vfs_ip::Sockopt_file_system : Dir_file_system, File_system_factory
+struct Vfs_ip::Sockopt_file_system : Dir_file_system, File_system::Factory
 {
 	template<Sock_opt OPTNAME, bool READONLY = false>
 	using Sockopt = Sockopt_value_file_system<GENODE_SOL_SOCKET, OPTNAME, READONLY>;

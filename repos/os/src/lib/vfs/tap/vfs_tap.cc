@@ -187,7 +187,7 @@ class Vfs_tap::Data_file_system : public FS
 
 template <typename FS>
 struct Vfs_tap::Compound_file_system : Union_file_system,
-                                       private File_system_factory,
+                                       private Vfs::File_system::Factory,
                                        private Device_update_handler
 {
 	using Name        = Vfs_tap::Name;
@@ -347,11 +347,11 @@ struct Vfs_tap::Compound_file_system : Union_file_system,
 };
 
 
-extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
+extern "C" Genode::Vfs::File_system::Factory *vfs_file_system_factory(void)
 {
 	using namespace Genode;
 
-	struct Factory : Vfs::File_system_factory
+	struct Factory : Vfs::File_system::Factory
 	{
 		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &parent_fs,
 		                         Node const &config) override

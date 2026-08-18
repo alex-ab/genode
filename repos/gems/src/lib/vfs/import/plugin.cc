@@ -145,11 +145,11 @@ struct Vfs_import::File_system : Vfs::File_system
 };
 
 
-extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
+extern "C" Genode::Vfs::File_system::Factory *vfs_file_system_factory(void)
 {
 	using namespace Genode;
 
-	struct Factory : Vfs::File_system_factory
+	struct Factory : Vfs::File_system::Factory
 	{
 		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &, Node const &config) override
 		{

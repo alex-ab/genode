@@ -227,9 +227,6 @@ struct Fs_query::Main : Watched_file::Action
 
 	Attached_rom_dataspace _config { _env, "config" };
 
-	Vfs::Global_file_system_factory _fs_factory { _heap };
-
-
 	/**
 	 * Watched_file::Action interface
 	 */

@@ -245,7 +245,7 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 };
 
 
-struct Vfs_trace::Subject : Dir_file_system, private File_system_factory
+struct Vfs_trace::Subject : Dir_file_system, private Vfs::File_system::Factory
 {
 	Vfs::Env &_env;
 
@@ -332,7 +332,7 @@ struct Vfs_trace::Subject : Dir_file_system, private File_system_factory
 };
 
 
-struct Vfs_trace::File_system : Dir_file_system, private File_system_factory
+struct Vfs_trace::File_system : Dir_file_system, private Vfs::File_system::Factory
 {
 	using Policy_id = Trace::Connection::Alloc_policy_result;
 
@@ -438,11 +438,11 @@ struct Vfs_trace::File_system : Dir_file_system, private File_system_factory
  ** VFS plugin interface **
  **************************/
 
-extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
+extern "C" Genode::Vfs::File_system::Factory *vfs_file_system_factory(void)
 {
 	using namespace Genode;
 
-	struct Factory : Vfs::File_system_factory
+	struct Factory : Vfs::File_system::Factory
 	{
 		Vfs::File_system *create(Vfs::Env &vfs_env, Vfs::Parent_fs &parent_fs, Node const &node) override
 		{

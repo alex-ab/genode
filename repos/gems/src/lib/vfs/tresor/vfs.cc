@@ -1355,7 +1355,7 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 };
 
 
-struct Vfs_tresor::Current_file_system : Dir_file_system, private File_system_factory
+struct Vfs_tresor::Current_file_system : Dir_file_system, private Vfs::File_system::Factory
 {
 	Data_file_system _data_fs;
 
@@ -1396,7 +1396,7 @@ struct Vfs_tresor::Current_file_system : Dir_file_system, private File_system_fa
 };
 
 
-struct Vfs_tresor::Control_file_system : Dir_file_system, private File_system_factory
+struct Vfs_tresor::Control_file_system : Dir_file_system, private Vfs::File_system::Factory
 {
 	Plugin &_plugin;
 
@@ -1454,7 +1454,7 @@ struct Vfs_tresor::Control_file_system : Dir_file_system, private File_system_fa
 };
 
 
-struct Vfs_tresor::File_system : Dir_file_system, private File_system_factory
+struct Vfs_tresor::File_system : Dir_file_system, private Vfs::File_system::Factory
 {
 	Plugin  &_plugin;
 	Current_file_system _current_fs;
@@ -1696,11 +1696,11 @@ bool Vfs_tresor::Deinitialize_operation::execute(Execute_attr const &attr)
 }
 
 
-extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
+extern "C" Genode::Vfs::File_system::Factory *vfs_file_system_factory(void)
 {
 	using namespace Genode;
 
-	class Factory : public Vfs::File_system_factory
+	class Factory : public Vfs::File_system::Factory
 	{
 		private:
 

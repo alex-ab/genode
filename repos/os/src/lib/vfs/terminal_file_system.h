@@ -246,8 +246,9 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 };
 
 
-struct Vfs_terminal::File_system : Union_file_system, File_system_factory,
-                                   Data_file_system::Interrupt_handler
+struct Vfs_terminal::File_system : Union_file_system,
+                                   Data_file_system::Interrupt_handler,
+                                   private Vfs::File_system::Factory
 {
 	using Label = String<64>;
 	using Name  = Vfs_terminal::Name;

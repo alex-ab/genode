@@ -597,7 +597,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 };
 
 
-struct Vfs_block::File_system : Union_file_system, File_system_factory
+struct Vfs_block::File_system : Union_file_system, private Vfs::File_system::Factory
 {
 	using Label = String<64>;
 	using Name  = Vfs_block::Name;

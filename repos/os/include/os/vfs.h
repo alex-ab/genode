@@ -19,7 +19,6 @@
 #include <base/allocator.h>
 #include <vfs/simple_env.h>
 #include <vfs/dir_file_system.h>
-#include <vfs/file_system_factory.h>
 #include <vfs/file_handle.h>
 
 namespace Genode {

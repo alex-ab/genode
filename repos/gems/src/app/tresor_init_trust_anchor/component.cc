@@ -19,7 +19,6 @@
 #include <block_session/connection.h>
 #include <os/path.h>
 #include <vfs/dir_file_system.h>
-#include <vfs/file_system_factory.h>
 #include <vfs/simple_env.h>
 
 /* tresor includes */

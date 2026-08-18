@@ -16,8 +16,8 @@
 /* Genode includes */
 #include <rump/env.h>
 #include <rump_fs/fs.h>
-#include <vfs/file_system_factory.h>
 #include <vfs/vfs_handle.h>
+#include <vfs/env.h>
 #include <os/path.h>
 
 extern "C" {
@@ -759,14 +759,14 @@ class Vfs_rump::File_system : public Vfs::File_system
 };
 
 
-extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
+extern "C" Genode::Vfs::File_system::Factory *vfs_file_system_factory(void)
 {
 	using namespace Genode;
 
 	/*
 	 * Constructed on the first call of 'create'.
 	 */
-	struct Factory : Vfs::File_system_factory
+	struct _Factory : Vfs::File_system::Factory
 	{
 		struct Rump_fs_user : Rump_fs_user_wakeup
 		{
@@ -778,7 +778,7 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 
 		} _rump_fs_user;
 
-		Factory(Env &env, Allocator &alloc, Vfs::Env::User &vfs_user, Node const &config)
+		_Factory(Env &env, Allocator &alloc, Vfs::Env::User &vfs_user, Node const &config)
 		:
 			_rump_fs_user(vfs_user)
 		{
@@ -822,11 +822,11 @@ extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
 		}
 	};
 
-	struct Extern_factory : Vfs::File_system_factory
+	struct Extern_factory : Vfs::File_system::Factory
 	{
 		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &parent_fs, Node const &node) override
 		{
-			static Factory factory(env.env(), env.alloc(), env.user(), node);
+			static _Factory factory(env.env(), env.alloc(), env.user(), node);
 			return factory.create(env, parent_fs, node);
 		}
 	};

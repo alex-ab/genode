@@ -1158,7 +1158,8 @@ class Vfs_oss::Data_file_system : public Single_file_system
 };
 
 
-struct Vfs_oss::File_system : public Union_file_system, private File_system_factory
+struct Vfs_oss::File_system : public Union_file_system,
+                              private Vfs::File_system::Factory
 {
 	using Label = String<64>;
 	using Name  = Vfs_oss::Name;
@@ -1508,11 +1509,11 @@ struct Vfs_oss::File_system : public Union_file_system, private File_system_fact
 };
 
 
-extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
+extern "C" Genode::Vfs::File_system::Factory *vfs_file_system_factory(void)
 {
 	using namespace Genode;
 
-	struct Factory : Vfs::File_system_factory
+	struct Factory : Vfs::File_system::Factory
 	{
 		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &parent_fs,
 		                         Node const &config) override

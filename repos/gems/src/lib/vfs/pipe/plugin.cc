@@ -13,8 +13,8 @@
  * under the terms of the GNU Affero General Public License version 3.
  */
 
-#include <vfs/file_system_factory.h>
 #include <vfs/vfs_handle.h>
+#include <vfs/env.h>
 #include <os/path.h>
 #include <os/ring_buffer.h>
 #include <base/registry.h>
@@ -777,11 +777,11 @@ class Vfs_pipe::Fifo_file_system : public Vfs_pipe::File_system
 };
 
 
-extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
+extern "C" Genode::Vfs::File_system::Factory *vfs_file_system_factory(void)
 {
 	using namespace Genode;
 
-	struct Factory : Vfs::File_system_factory
+	struct Factory : Vfs::File_system::Factory
 	{
 		Vfs::File_system *create(Vfs::Env &env, Vfs::Parent_fs &, Node const &node) override
 		{

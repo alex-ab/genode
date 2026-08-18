@@ -17,6 +17,7 @@
 #include <util/list.h>
 #include <util/misc_math.h>
 #include <util/string.h>
+#include <util/progress.h>
 #include <base/node.h>
 #include <base/env.h>
 #include <base/signal.h>
@@ -106,8 +107,6 @@ namespace Genode::Vfs {
 
 	using Watch_result = Attempt<Ok, Alloc_error>;
 
-	struct File_system_factory;
-
 	enum class Write_error { RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
 
 	using Write_result = Attempt<size_t, Write_error>;
@@ -127,6 +126,8 @@ namespace Genode::Vfs {
 	enum class Read_ready_result  { YES, RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
 
 	enum class Write_ready_result { YES, RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
+
+	struct Env;
 }
 
 #endif /* _INCLUDE__VFS__TYPES_H_ */

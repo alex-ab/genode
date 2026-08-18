@@ -21,7 +21,6 @@
 #include <os/session_policy.h>
 #include <util/string.h>
 #include <vfs/simple_env.h>
-#include <vfs/file_system_factory.h>
 #include <vfs/dir_file_system.h>
 
 /* local includes */

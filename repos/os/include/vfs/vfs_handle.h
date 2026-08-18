@@ -14,7 +14,7 @@
 #ifndef _INCLUDE__VFS__VFS_HANDLE_H_
 #define _INCLUDE__VFS__VFS_HANDLE_H_
 
-#include <vfs/directory_service.h>
+#include <vfs/file_system.h>
 
 namespace Genode::Vfs {
 	struct Env;

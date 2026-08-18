@@ -63,7 +63,8 @@ struct Vfs_ttf::Font_from_file
 };
 
 
-struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_handle::Handler
+struct Vfs_ttf::File_system : Dir_file_system, Vfs::File_system::Factory,
+                              Watch_handle::Handler
 {
 	Vfs::Env &_env;
 
@@ -139,7 +140,7 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_handle
 		return nullptr;
 	}
 
-	void update(Node const &config, File_system_factory &) override
+	void update(Node const &config, Vfs::File_system::Factory &) override
 	{
 		Font_config const orig = _font_config;
 		_font_config = Font_config::from_node(config);
@@ -200,11 +201,11 @@ struct Vfs_ttf::File_system : Dir_file_system, File_system_factory, Watch_handle
  ** VFS plugin interface **
  **************************/
 
-extern "C" Genode::Vfs::File_system_factory *vfs_file_system_factory(void)
+extern "C" Genode::Vfs::File_system::Factory *vfs_file_system_factory(void)
 {
 	using namespace Genode;
 
-	struct Factory : Vfs::File_system_factory
+	struct Factory : Vfs::File_system::Factory
 	{
 		Vfs::File_system *create(Vfs::Env &vfs_env, Vfs::Parent_fs &parent_fs,
 		                         Node const &node) override

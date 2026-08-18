@@ -15,7 +15,6 @@
 #ifndef _INCLUDE__VFS__SIMPLE_ENV_H_
 #define _INCLUDE__VFS__SIMPLE_ENV_H_
 
-#include <vfs/file_system_factory.h>
 #include <vfs/dir_file_system.h>
 #include <vfs/env.h>
 
@@ -25,6 +24,35 @@ namespace Genode::Vfs { struct Simple_env; }
 class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 {
 	private:
+
+		struct Factory : File_system::Factory
+		{
+			Allocator &_md_alloc;
+
+			struct Entry_base;
+			struct External_entry;
+			template <typename> struct Builtin_entry;
+
+			List<Entry_base> _list { };
+
+			template <typename> void _add_builtin_fs();
+			bool _probe_external_factory(Env &, Node const &);
+
+			Factory(Allocator &alloc);
+
+			/**
+			 * File_system::Factory interface
+			 */
+			File_system *create(Env &, Parent_fs &, Node const &) override;
+
+			/**
+			 * Register an additional factory for new file-system type
+			 *
+			 * \name     name of file-system type
+			 * \factory  factory to create instances of this file-system type
+			 */
+			void extend(char const *name, File_system::Factory &factory);
+		};
 
 		Genode::Env &_env;
 		Allocator   &_alloc;
@@ -38,7 +66,7 @@ class Genode::Vfs::Simple_env : public Env, private Env::Io, private Env::User
 		Dir_handles   _dir_handles   { };
 		Watch_handles _watch_handles { };
 
-		Global_file_system_factory _fs_factory { _alloc };
+		Factory _fs_factory { _alloc };
 
 		struct Root_parent_fs : Parent_fs
 		{
