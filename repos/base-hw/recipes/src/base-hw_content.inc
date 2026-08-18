@@ -116,11 +116,10 @@ SRC_LIB_BASE += $(notdir $(wildcard $(BASE_HW_DIR)/src/lib/base/*.cc)) \
                 ${call selected_content,SRC_LIB_BASE_SPECS}
 
 SRC_LIB_TIMEOUT += duration.cc \
-                   hw/timer_connection_timestamp.cc \
+                   hw/timer_connection_time.cc \
                    timeout.cc \
                    timer_connection.cc \
                    timer_connection_time.cc \
-                   timer_connection_timestamp.cc
 
 SRC_LIB_STARTUP += _main.cc \
                    $(addprefix spec/,${call selected_content,SRC_LIB_STARTUP_SPECS})
