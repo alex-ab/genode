@@ -133,6 +133,8 @@ static void test(Genode::Node const &node)
 
 		/* open the file with O_CREAT again (should have no effect on the file) */
 		CALL_AND_CHECK(fd, open(file_name, O_CREAT | O_WRONLY), fd >= 0, "file_name=%s", file_name);
+		/* test 'write()' with count = 0 */
+		CALL_AND_CHECK(count, write(fd, pattern, 0), (size_t)count == 0, "");
 		CALL_AND_CHECK(ret, close(fd), ret == 0, "");
 
 		/* query file status of new file */
