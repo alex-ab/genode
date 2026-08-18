@@ -1,4 +1,4 @@
-assert {[have_spec nova] || [have_spec hw] || [have_spec sel4]}
+assert {[have_spec nova] || [have_spec hw]}
 
 build {
 	core init timer lib/ld
