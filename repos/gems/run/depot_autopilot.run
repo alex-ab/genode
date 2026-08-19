@@ -335,7 +335,7 @@ proc prepare_to_run_genode { } {
 		    + policy | label: depot_query -> query         | report: depot_deploy -> query
 		    + policy | label: dynamic -> config            | report: depot_deploy -> runtime
 
-		+ start vfs | priority: -1 | ram: 16M
+		+ start vfs | priority: -1 | caps: 300 | ram: 16M
 		  + provides | + service File_system
 		  + config
 		    + vfs
