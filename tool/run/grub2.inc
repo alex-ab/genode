@@ -46,5 +46,10 @@ proc create_header_grub2_config { } {
 	# puts $fh "terminal_input console"
 	# puts $fh "terminal_output console"
 
+	# serial configuration example
+	# puts $fh "serial --port=0x3000 --speed=115200"
+	# puts $fh "terminal_input console serial"
+	# puts $fh "terminal_output gfxterm serial"
+
 	return $fh
 }
