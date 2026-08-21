@@ -46,5 +46,11 @@ proc create_header_grub2_config { } {
 	# puts $fh "terminal_input console"
 	# puts $fh "terminal_output console"
 
+	# serial configuration and debug example
+	# puts $fh "set debug=all,multiboot_loader,relocator"
+	# puts $fh "serial --port=<find-out-i/o-port> --speed=115200"
+	# puts $fh "terminal_input console serial"
+	# puts $fh "terminal_output gfxterm serial"
+
 	return $fh
 }
