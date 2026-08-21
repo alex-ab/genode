@@ -27,6 +27,7 @@ proc create_header_grub2_config { } {
 	set fh [open "[run_dir]/boot/grub/grub.cfg" "WRONLY CREAT TRUNC"]
 
 	# If timeout != 0 is used a font is required in graphic mode
+	puts $fh "insmod font"
 	puts $fh "loadfont /boot/font.pf2"
 	puts $fh "set timeout=0"
 
@@ -45,6 +46,12 @@ proc create_header_grub2_config { } {
 	# set this to get text console instead of graphical console
 	# puts $fh "terminal_input console"
 	# puts $fh "terminal_output console"
+
+	# serial configuration and debug example
+	# puts $fh "set debug=all,multiboot_loader,relocator"
+	# puts $fh "serial --port=<find-out-i/o-port> --speed=115200"
+	# puts $fh "terminal_input console serial"
+	# puts $fh "terminal_output gfxterm serial"
 
 	return $fh
 }
