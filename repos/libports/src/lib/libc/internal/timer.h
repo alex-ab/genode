@@ -70,22 +70,14 @@ struct Libc::Timeout_handler
 };
 
 
-/*
- * TODO curr_time wrapping
- */
 struct Libc::Timeout
 {
 	Timer_accessor                        &_timer_accessor;
 	Timeout_handler                       &_handler;
 	::Timer::One_shot_io_timeout<Timeout>  _timeout;
 
-	bool     _expired             = true;
-	uint64_t _absolute_timeout_ms = 0;
-
-	void _handle(Duration now)
+	void _handle(Duration)
 	{
-		_expired             = true;
-		_absolute_timeout_ms = 0;
 		_handler.handle_timeout();
 	}
 
@@ -98,22 +90,18 @@ struct Libc::Timeout
 
 	void start(uint64_t timeout_ms)
 	{
-		Milliseconds const now = _timer_accessor.timer().curr_time().trunc_to_plain_ms();
-
-		_expired             = false;
-		_absolute_timeout_ms = now.value + timeout_ms;
-
 		_timeout.schedule(_timer_accessor.timer().microseconds(timeout_ms));
 	}
 
 	uint64_t duration_left() const
 	{
 		Milliseconds const now = _timer_accessor.timer().curr_time().trunc_to_plain_ms();
+		Milliseconds const deadline = Duration { _timeout.deadline() }.trunc_to_plain_ms();
 
-		if (_expired || _absolute_timeout_ms < now.value)
+		if (deadline.value < now.value)
 			return 0;
 
-		return _absolute_timeout_ms - now.value;
+		return deadline.value - now.value;
 	}
 };
 
