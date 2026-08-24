@@ -39,7 +39,7 @@
 /* local includes */
 #include <list.h>
 #include <l3_protocol.h>
-#include <lazy_one_shot_timeout.h>
+#include <cached_timer.h>
 
 namespace Net {
 
@@ -177,10 +177,12 @@ class Net::Link : public Link_list::Element
 {
 	protected:
 
+		using One_shot_io_timeout = Timer::One_shot_io_timeout<Link>;
+
 		Configuration                 *_config_ptr;
 		Interface                     &_client_interface;
 		Port_allocator_guard          *_server_port_alloc_ptr;
-		Lazy_one_shot_timeout<Link>    _dissolve_timeout;
+		One_shot_io_timeout            _dissolve_timeout;
 		Genode::Microseconds           _dissolve_timeout_us;
 		L3_protocol             const  _protocol;
 		Link_side                      _client;

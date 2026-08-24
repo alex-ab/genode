@@ -16,8 +16,8 @@
 
 /* local includes */
 #include <list.h>
-#include <lazy_one_shot_timeout.h>
 #include <assertion.h>
+#include <cached_timer.h>
 
 /* Genode includes */
 #include <net/ipv4.h>
@@ -50,13 +50,15 @@ class Net::Arp_waiter
 {
 	private:
 
+		using One_shot_io_timeout = Timer::One_shot_io_timeout<Arp_waiter>;
+
 		Arp_waiter_list_element           _src_le;
 		Interface                        &_src;
 		Arp_waiter_list_element           _dst_le;
 		Domain                           *_dst_ptr;
 		Ipv4_address               const  _ip;
 		Packet_list                       _packets { };
-		Lazy_one_shot_timeout<Arp_waiter> _timeout;
+		One_shot_io_timeout               _timeout;
 
 		/*
 		 * Noncopyable

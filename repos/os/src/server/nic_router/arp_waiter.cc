@@ -28,7 +28,7 @@ Arp_waiter::Arp_waiter(Interface                 &src,
                        Cached_timer              &timer)
 :
 	_src_le(this), _src(src), _dst_le(this), _dst_ptr(&dst), _ip(ip),
-	_timeout(timer, *this, &Arp_waiter::_handle_timeout, timeout)
+	_timeout(timer, *this, &Arp_waiter::_handle_timeout)
 {
 	_src.arp_stats().alive++;
 	_src.own_arp_waiters().insert(&_src_le);
