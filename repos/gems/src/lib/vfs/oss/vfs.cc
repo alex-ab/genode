@@ -1166,9 +1166,6 @@ struct Vfs_oss::File_system : public Union_file_system,
 
 	Vfs::Env &_env;
 
-	Data_file_system _data_fs;
-	Dir_file_system  _dot_dir_fs;
-
 	/* RO/RW files */
 	Readonly_value_file_system<unsigned>  _channels_fs          { *this, "channels", 0U };
 	Readonly_value_file_system<unsigned>  _format_fs            { *this, "format", 0U };
@@ -1202,6 +1199,9 @@ struct Vfs_oss::File_system : public Union_file_system,
 	Readonly_value_file_system<Audio::Info, 512> _info_fs { *this, "info", _info };
 
 	Audio _audio;
+
+	Data_file_system _data_fs;
+	Dir_file_system  _dot_dir_fs;
 
 
 	/********************
@@ -1431,9 +1431,9 @@ struct Vfs_oss::File_system : public Union_file_system,
 	:
 		Union_file_system { vfs_env, parent_fs, Ident::from_node(node) },
 		_env        { vfs_env },
+		_audio      { _env, _info, _info_fs, node },
 		_data_fs    { *this, _env.env().ep(), _env.user(), _audio, name(node) },
-		_dot_dir_fs { vfs_env, *this, Dir_file_system::Name(".", name(node)) },
-		_audio      { _env, _info, _info_fs, node }
+		_dot_dir_fs { vfs_env, *this, Dir_file_system::Name(".", name(node)) }
 	{ }
 
 	Progress update(Node const &node, Vfs::File_system::Factory &) override
