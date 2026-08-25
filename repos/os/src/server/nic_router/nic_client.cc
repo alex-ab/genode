@@ -39,7 +39,8 @@ Net::Nic_client::Nic_client(Session_label const &label_arg,
 { }
 
 
-bool Nic_client::finish_construction(Env &env, Cached_timer &timer, Interface_list &interfaces,
+bool Nic_client::finish_construction(Env &env, Timer::Connection &timer,
+                                     Interface_list  &interfaces,
                                      Nic_client_dict &old_nic_clients)
 {
 	char const *error = "";
@@ -123,7 +124,7 @@ bool Net::Nic_client_interface_base::interface_link_state() const
  **************************/
 
 Net::Nic_client_interface::Nic_client_interface(Env                 &env,
-                                                Cached_timer        &timer,
+                                                Timer::Connection   &timer,
                                                 Genode::Allocator   &alloc,
                                                 Interface_list      &interfaces,
                                                 Configuration       &config,

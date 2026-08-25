@@ -84,7 +84,7 @@ Net::Uplink_session_component::Interface_policy::determine_domain_name() const
 Net::Uplink_session_component::Uplink_session_component(Session_env                    &session_env,
                                                         size_t                   const  tx_buf_size,
                                                         size_t                   const  rx_buf_size,
-                                                        Cached_timer                   &timer,
+                                                        Timer::Connection              &timer,
                                                         Mac_address              const  mac,
                                                         Session_label            const &label,
                                                         Interface_list                 &interfaces,
@@ -119,7 +119,7 @@ Net::Uplink_session_component::Uplink_session_component(Session_env             
  *************************/
 
 Net::Uplink_session_root::Uplink_session_root(Env               &env,
-                                              Cached_timer      &timer,
+                                              Timer::Connection &timer,
                                               Allocator         &alloc,
                                               Configuration     &config,
                                               Quota             &shared_quota,

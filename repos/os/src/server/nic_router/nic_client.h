@@ -64,7 +64,7 @@ class Net::Nic_client : private Nic_client_dict::Element
 
 		~Nic_client();
 
-		[[nodiscard]] bool finish_construction(Genode::Env &, Cached_timer &, Interface_list &, Nic_client_dict &);
+		[[nodiscard]] bool finish_construction(Genode::Env &, Timer::Connection &, Interface_list &, Nic_client_dict &);
 
 
 		/**************
@@ -143,7 +143,7 @@ class Net::Nic_client_interface : public Nic_client_interface_base,
 	public:
 
 		Nic_client_interface(Genode::Env                 &env,
-		                     Cached_timer                &timer,
+		                     Timer::Connection           &timer,
 		                     Genode::Allocator           &alloc,
 		                     Interface_list              &interfaces,
 		                     Configuration               &config,

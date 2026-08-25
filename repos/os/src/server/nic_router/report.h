@@ -14,11 +14,9 @@
 #ifndef _REPORT_H_
 #define _REPORT_H_
 
-/* local includes */
-#include <cached_timer.h>
-
 /* Genode */
 #include <os/reporter.h>
+#include <timer_session/connection.h>
 
 namespace Genode {
 
@@ -67,7 +65,7 @@ class Net::Report
 
 		Report(bool                              const &verbose,
 		       Genode::Node                      const &node,
-		       Cached_timer                            &timer,
+		       Timer::Connection                       &timer,
 		       Domain_dict                             &domains,
 		       Quota                             const &shared_quota,
 		       Genode::Pd_session                      &pd,

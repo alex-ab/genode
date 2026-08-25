@@ -35,11 +35,11 @@
 #include <util/list.h>
 #include <net/ipv4.h>
 #include <net/port.h>
+#include <timer_session/connection.h>
 
 /* local includes */
 #include <list.h>
 #include <l3_protocol.h>
-#include <cached_timer.h>
 
 namespace Net {
 
@@ -211,7 +211,7 @@ class Net::Link : public Link_list::Element
 		     Port_allocator_guard       *srv_port_alloc_ptr,
 		     Domain                     &srv_domain,
 		     Link_side_id         const &srv_id,
-		     Cached_timer               &timer,
+		     Timer::Connection          &timer,
 		     Configuration              &config,
 		     L3_protocol          const  protocol,
 		     Genode::Microseconds const  dissolve_timeout,
@@ -285,7 +285,7 @@ class Net::Tcp_link : public Link
 		         Port_allocator_guard      *srv_port_alloc_ptr,
 		         Domain                    &srv_domain,
 		         Link_side_id        const &srv_id,
-		         Cached_timer              &timer,
+		         Timer::Connection         &timer,
 		         Configuration             &config,
 		         L3_protocol         const  protocol,
 		         Interface_link_stats      &stats,
@@ -307,7 +307,7 @@ struct Net::Udp_link : Link
 	         Port_allocator_guard          *srv_port_alloc_ptr,
 	         Domain                        &srv_domain,
 	         Link_side_id            const &srv_id,
-	         Cached_timer                  &timer,
+	         Timer::Connection             &timer,
 	         Configuration                 &config,
 	         L3_protocol             const  protocol,
 	         Interface_link_stats          &stats);
@@ -328,7 +328,7 @@ struct Net::Icmp_link : Link
 	          Port_allocator_guard       *srv_port_alloc_ptr,
 	          Domain                     &srv_domain,
 	          Link_side_id         const &srv_id,
-	          Cached_timer               &timer,
+	          Timer::Connection          &timer,
 	          Configuration              &config,
 	          L3_protocol          const  protocol,
 	          Interface_link_stats       &stats);

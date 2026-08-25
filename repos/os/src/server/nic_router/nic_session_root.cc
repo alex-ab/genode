@@ -235,7 +235,7 @@ Nic_session_component::
 Nic_session_component(Session_env                    &session_env,
                       size_t                   const  tx_buf_size,
                       size_t                   const  rx_buf_size,
-                      Cached_timer                   &timer,
+                      Timer::Connection              &timer,
                       Mac_address              const  mac,
                       Mac_address              const &router_mac,
                       Session_label            const &label,
@@ -284,7 +284,7 @@ Nic_session_component::link_state_sigh(Signal_context_capability sigh)
  **********************/
 
 Net::Nic_session_root::Nic_session_root(Env               &env,
-                                        Cached_timer      &timer,
+                                        Timer::Connection &timer,
                                         Allocator         &alloc,
                                         Configuration     &config,
                                         Quota             &shared_quota,

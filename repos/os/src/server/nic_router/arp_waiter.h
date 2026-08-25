@@ -17,12 +17,12 @@
 /* local includes */
 #include <list.h>
 #include <assertion.h>
-#include <cached_timer.h>
 
 /* Genode includes */
 #include <net/ipv4.h>
 #include <util/list.h>
 #include <nic_session/nic_session.h>
+#include <timer_session/connection.h>
 
 namespace Net {
 
@@ -77,7 +77,7 @@ class Net::Arp_waiter
 		           Ipv4_address        const &ip,
 		           Packet_list_element       &packet_le,
 		           Genode::Microseconds       dissolve_timeout,
-		           Cached_timer              &timer);
+		           Timer::Connection         &timer);
 
 		~Arp_waiter();
 

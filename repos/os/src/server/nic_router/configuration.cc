@@ -84,7 +84,7 @@ Configuration::Configuration(Env                             &env,
                              Node                      const &node,
                              Allocator                       &alloc,
                              Signal_context_capability const &report_signal_cap,
-                             Cached_timer                    &timer,
+                             Timer::Connection               &timer,
                              Configuration                   &old_config,
                              Quota                     const &shared_quota,
                              Interface_list                  &interfaces)

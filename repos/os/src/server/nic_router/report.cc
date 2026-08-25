@@ -22,7 +22,7 @@ using namespace Genode;
 
 Net::Report::Report(bool                      const &verbose,
                     Node                      const &node,
-                    Cached_timer                    &timer,
+                    Timer::Connection               &timer,
                     Domain_dict                     &domains,
                     Quota                     const &shared_quota,
                     Pd_session                      &pd,

@@ -19,7 +19,6 @@
 #include <list.h>
 #include <dns.h>
 #include <ipv4_config.h>
-#include <cached_timer.h>
 
 /* Genode includes */
 #include <net/mac_address.h>
@@ -184,7 +183,7 @@ class Net::Dhcp_allocation : public  Genode::Avl_node<Dhcp_allocation>,
 		Dhcp_allocation(Interface            &interface,
 		                Ipv4_address   const &ip,
 		                Mac_address    const &mac,
-		                Cached_timer         &timer,
+		                Timer::Connection    &timer,
 		                Genode::Microseconds  lifetime);
 
 		~Dhcp_allocation();

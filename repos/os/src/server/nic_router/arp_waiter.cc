@@ -25,7 +25,7 @@ Arp_waiter::Arp_waiter(Interface                 &src,
                        Ipv4_address        const &ip,
                        Packet_list_element       &packet_le,
                        Microseconds               timeout,
-                       Cached_timer              &timer)
+                       Timer::Connection         &timer)
 :
 	_src_le(this), _src(src), _dst_le(this), _dst_ptr(&dst), _ip(ip),
 	_timeout(timer, *this, &Arp_waiter::_handle_timeout)

@@ -214,7 +214,7 @@ bool Dhcp_server::has_invalid_remote_dns_cfg() const
 Dhcp_allocation::Dhcp_allocation(Interface      &interface,
                              Ipv4_address const &ip,
                              Mac_address  const &mac,
-                             Cached_timer       &timer,
+                             Timer::Connection  &timer,
                              Microseconds        lifetime)
 :
 	_interface(interface), _ip(ip), _mac(mac),

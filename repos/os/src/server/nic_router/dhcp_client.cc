@@ -45,7 +45,7 @@ void append_param_req_list(Dhcp_options &dhcp_opts)
  ** Dhcp_client **
  *****************/
 
-Dhcp_client::Dhcp_client(Cached_timer      &timer,
+Dhcp_client::Dhcp_client(Timer::Connection &timer,
                          Interface         &interface)
 :
 	_interface(interface),

@@ -142,7 +142,7 @@ class Net::Nic_session_component : private Nic_session_component_base,
 		Nic_session_component(Genode::Session_env                    &session_env,
 		                      Genode::size_t                   const  tx_buf_size,
 		                      Genode::size_t                   const  rx_buf_size,
-		                      Cached_timer                           &timer,
+		                      Timer::Connection                      &timer,
 		                      Mac_address                      const  mac,
 		                      Mac_address                      const &router_mac,
 		                      Genode::Session_label            const &label,
@@ -179,7 +179,7 @@ class Net::Nic_session_root
 		enum { MAC_ALLOC_BASE = 0x02 };
 
 		Genode::Env                       &_env;
-		Cached_timer                      &_timer;
+		Timer::Connection                 &_timer;
 		Mac_allocator                      _mac_alloc;
 		Genode::Constructible<Mac_address> _router_mac { };
 		Configuration                     *_config_ptr;
@@ -205,7 +205,7 @@ class Net::Nic_session_root
 	public:
 
 		Nic_session_root(Genode::Env       &env,
-		                 Cached_timer      &timer,
+		                 Timer::Connection &timer,
 		                 Genode::Allocator &alloc,
 		                 Configuration     &config,
 		                 Quota             &shared_quota,
