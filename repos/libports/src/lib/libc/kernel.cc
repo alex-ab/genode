@@ -313,14 +313,18 @@ void Libc::Kernel::_init_file_descriptors()
 	 */
 	with_ioctl_path(STDOUT_FILENO, "info", [&] (Directory &root_dir, char const *path) {
 		_terminal_resize_handler.construct(root_dir, path, *this,
-		                                   &Kernel::_handle_terminal_resize); });
+		                                   &Kernel::_handle_terminal_resize);
+		(void)_terminal_resize_handler->watch();
+	});
 
 	/*
 	 * Watch stdin's 'interrupts' pseudo file to detect control-c events
 	 */
 	with_ioctl_path(STDIN_FILENO, "interrupts", [&] (Directory &root_dir, char const *path) {
 		_user_interrupt_handler.construct(root_dir, path,
-		                                  *this, &Kernel::_handle_user_interrupt); });
+		                                  *this, &Kernel::_handle_user_interrupt);
+		(void)_user_interrupt_handler->watch();
+	});
 }
 
 

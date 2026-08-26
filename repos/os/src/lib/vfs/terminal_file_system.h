@@ -292,10 +292,10 @@ struct Vfs_terminal::File_system : Union_file_system,
 
 	Dir_file_system _dot_dir_fs;
 
-	Readonly_value_file_system<Info>     _info_fs       { *this, "info",       Info{} };
-	Readonly_value_file_system<unsigned> _rows_fs       { *this, "rows",       0 };
-	Readonly_value_file_system<unsigned> _columns_fs    { *this, "columns",    0 };
-	Readonly_value_file_system<unsigned> _interrupts_fs { *this, "interrupts", _interrupts };
+	Readonly_value_file_system<Info>     _info_fs       { _dot_dir_fs, "info",       Info{} };
+	Readonly_value_file_system<unsigned> _rows_fs       { _dot_dir_fs, "rows",       0 };
+	Readonly_value_file_system<unsigned> _columns_fs    { _dot_dir_fs, "columns",    0 };
+	Readonly_value_file_system<unsigned> _interrupts_fs { _dot_dir_fs, "interrupts", _interrupts };
 
 	Io_signal_handler<File_system> _size_changed_handler {
 		_env.ep(), *this, &File_system::_handle_size_changed };
