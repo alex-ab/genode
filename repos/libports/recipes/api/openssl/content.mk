@@ -1,7 +1,7 @@
 MIRROR_FROM_REP_DIR := \
 	lib/import/import-libcrypto1.mk \
 	lib/import/import-libssl1.mk \
-	lib/import/import-openssl1.mk \
+	lib/import/import-openssl.mk \
 	lib/symbols/libcrypto1 \
 	lib/symbols/libssl1
 
