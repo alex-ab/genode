@@ -32,7 +32,7 @@ build {
 	lib/libc
 	lib/libm
 	lib/posix
-	lib/libcrypto
+	lib/libcrypto1
 	test/vfs_stress
 	test/libc
 	server/log_terminal

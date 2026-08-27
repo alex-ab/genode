@@ -1,10 +1,10 @@
 MIRROR_FROM_REP_DIR := \
-	lib/mk/libcrypto.inc \
-	lib/mk/spec/arm/libcrypto.mk \
-	lib/mk/spec/arm_64/libcrypto.mk \
-	lib/mk/spec/x86_32/libcrypto.mk \
-	lib/mk/spec/x86_64/libcrypto.mk \
-	lib/mk/libssl.mk
+	lib/mk/libcrypto1.inc \
+	lib/mk/spec/arm/libcrypto1.mk \
+	lib/mk/spec/arm_64/libcrypto1.mk \
+	lib/mk/spec/x86_32/libcrypto1.mk \
+	lib/mk/spec/x86_64/libcrypto1.mk \
+	lib/mk/libssl1.mk
 
 content: $(MIRROR_FROM_REP_DIR)
 

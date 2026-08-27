@@ -19,5 +19,5 @@ vpath % $(TRESOR_DIR)
 
 INC_DIR += $(TRESOR_DIR)/include
 
-LIBS += libcrypto
+LIBS += libcrypto1
 LIBS += vfs

@@ -3,7 +3,7 @@ LIB_SRC_DIR      := $(OPENSSL_PORT_DIR)/src/lib/openssl
 
 SHARED_LIB = yes
 
-LIBS += libc libcrypto
+LIBS += libc libcrypto1
 
 SRC_C += \
 	bio_ssl.c \

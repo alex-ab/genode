@@ -1,5 +1,5 @@
-TARGET = test-libcrypto
-LIBS   = libc libcrypto
+TARGET = test-libcrypto1
+LIBS   = libc libcrypto1
 SRC_CC = main.cc
 
 vpath main.cc $(PRG_DIR)/..

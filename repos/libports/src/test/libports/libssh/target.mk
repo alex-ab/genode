@@ -1,5 +1,5 @@
 TARGET = test-libssh
-LIBS   = libcrypto libssh
+LIBS   = libcrypto1 libssh
 SRC_CC = main.cc
 
 vpath main.cc $(PRG_DIR)/..

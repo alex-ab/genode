@@ -31,7 +31,7 @@ proc jent_avail { } {
 
 append build_components {
 	core lib/ld init timer
-	server/vfs lib/vfs lib/libc lib/libcrypto
+	server/vfs lib/vfs lib/libc lib/libcrypto1
 	app/tresor_tester
 	server/log_terminal
 	server/report_rom

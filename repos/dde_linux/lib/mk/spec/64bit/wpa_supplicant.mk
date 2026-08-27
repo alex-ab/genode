@@ -1,7 +1,7 @@
 WS_CONTRIB_DIR := $(call select_from_ports,wpa_supplicant)/src/app/wpa_supplicant
 WS_DIR         := $(REP_DIR)/src/lib/wpa_supplicant
 
-LIBS += libc libcrypto libssl wpa_driver_nl80211
+LIBS += libc libcrypto1 libssl1 wpa_driver_nl80211
 
 SHARED_LIB = yes
 LD_OPT += --version-script=$(WS_DIR)/symbol.map

@@ -49,8 +49,8 @@ void Sculpt::gen_update_child_content(Generator &g)
 		connect_parent_rom(g, "vfs_pipe.lib.so");
 		connect_parent_rom(g, "posix.lib.so");
 		connect_parent_rom(g, "libssh.lib.so");
-		connect_parent_rom(g, "libssl.lib.so");
-		connect_parent_rom(g, "libcrypto.lib.so");
+		connect_parent_rom(g, "libssl1.lib.so");
+		connect_parent_rom(g, "libcrypto1.lib.so");
 		connect_parent_rom(g, "zlib.lib.so");
 		connect_parent_rom(g, "libarchive.lib.so");
 		connect_parent_rom(g, "liblzma.lib.so");

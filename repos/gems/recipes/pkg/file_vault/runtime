@@ -26,7 +26,7 @@ runtime | ram: 120M | caps: 2000 | binary: init
   + rom | label: vfs_tresor_trust_anchor.lib.so
   + rom | label: tresor_init
   + rom | label: tresor_init_trust_anchor
-  + rom | label: libcrypto.lib.so
+  + rom | label: libcrypto1.lib.so
   + rom | label: rump.lib.so
   + rom | label: vfs_rump.lib.so
   + rom | label: rump_fs.lib.so

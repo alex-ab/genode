@@ -8,7 +8,7 @@ if {[have_cmd_switch --autopilot]} {
 		"Autopilot mode is not supported on this platform."
 }
 
-build { core lib/ld init lib/libc lib/vfs lib/libcrypto test/aes_cbc_4k }
+build { core lib/ld init lib/libc lib/vfs lib/libcrypto1 test/aes_cbc_4k }
 
 create_boot_directory
 

@@ -41,6 +41,6 @@ else
 	vpath armcap_genode.c $(REP_DIR)/src/lib/openssl/crypto/spec/arm
 endif
 
-include $(REP_DIR)/lib/mk/libcrypto.inc
+include $(REP_DIR)/lib/mk/libcrypto1.inc
 
 CC_CXX_WARN_STRICT =

@@ -75,4 +75,4 @@ INC_DIR += $(LIGHTTPD_DIR)/src
 
 LIBS += posix
 LIBS += zlib
-LIBS += libssl
+LIBS += libssl1

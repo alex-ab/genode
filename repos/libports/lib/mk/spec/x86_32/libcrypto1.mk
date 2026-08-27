@@ -38,6 +38,6 @@ OPENSSL_DIR := $(call select_from_ports,openssl)
 
 vpath %.s $(OPENSSL_DIR)/src/lib/openssl/crypto
 
-include $(REP_DIR)/lib/mk/libcrypto.inc
+include $(REP_DIR)/lib/mk/libcrypto1.inc
 
 CC_CXX_WARN_STRICT =

@@ -152,7 +152,7 @@ SRC_C = \
 
 CC_OPT += -DHAVE_CONFIG_H -DBUILDING_LIBCURL=1
 
-LIBS += libc zlib libssl libssh
+LIBS += libc zlib libssl1 libssh
 
 include $(call select_from_repositories,lib/import/import-curl.mk)
 

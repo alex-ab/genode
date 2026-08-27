@@ -109,8 +109,8 @@ void Depot_download_manager::gen_fetchurl_start_content(Generator &g,
 		gen_parent_rom_route(g, "libm.lib.so");
 		gen_parent_rom_route(g, "curl.lib.so");
 		gen_parent_rom_route(g, "libssh.lib.so");
-		gen_parent_rom_route(g, "libssl.lib.so");
-		gen_parent_rom_route(g, "libcrypto.lib.so");
+		gen_parent_rom_route(g, "libssl1.lib.so");
+		gen_parent_rom_route(g, "libcrypto1.lib.so");
 		gen_parent_rom_route(g, "vfs.lib.so");
 		gen_parent_rom_route(g, "vfs_pipe.lib.so");
 		gen_parent_rom_route(g, "zlib.lib.so");

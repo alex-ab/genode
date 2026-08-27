@@ -8,7 +8,7 @@ INC_DIR += $(REP_DIR)/src/lib/vfs/tresor_trust_anchor
 INC_DIR += $(REP_DIR)/src/lib/tresor/include
 INC_DIR += $(OPENSSL_DIR)/include
 
-LIBS += libcrypto
+LIBS += libcrypto1
 
 vpath % $(REP_DIR)/src/lib/vfs/tresor_trust_anchor
 

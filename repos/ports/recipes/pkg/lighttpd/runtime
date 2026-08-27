@@ -43,9 +43,9 @@ runtime | ram: 8M | caps: 200 | binary: lighttpd
 + content
   + rom | label: ld.lib.so
   + rom | label: libc.lib.so
-  + rom | label: libcrypto.lib.so
+  + rom | label: libcrypto1.lib.so
   + rom | label: libm.lib.so
-  + rom | label: libssl.lib.so
+  + rom | label: libssl1.lib.so
   + rom | label: lighttpd
   + rom | label: pcre.lib.so
   + rom | label: posix.lib.so

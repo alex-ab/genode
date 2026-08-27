@@ -74,7 +74,7 @@ INC_DIR += $(REP_DIR)/src/lib/libssh
 
 CC_OPT += -DHAVE_CONFIG_H
 
-LIBS += libc zlib libcrypto
+LIBS += libc zlib libcrypto1
 
 SHARED_LIB = yes
 

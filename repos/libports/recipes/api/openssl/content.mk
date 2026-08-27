@@ -1,9 +1,9 @@
 MIRROR_FROM_REP_DIR := \
-	lib/import/import-libcrypto.mk \
-	lib/import/import-libssl.mk \
-	lib/import/import-openssl.mk \
-	lib/symbols/libcrypto \
-	lib/symbols/libssl
+	lib/import/import-libcrypto1.mk \
+	lib/import/import-libssl1.mk \
+	lib/import/import-openssl1.mk \
+	lib/symbols/libcrypto1 \
+	lib/symbols/libssl1
 
 content: $(MIRROR_FROM_REP_DIR)
 
@@ -42,14 +42,14 @@ libcrypto.pc:
 	echo "Name: OpenSSL-libcrypto" > $@
 	echo "Description: OpenSSL cryptography library" >> $@
 	echo "Version: $(VERSION)" >> $@
-	echo "Libs: -l:libcrypto.lib.so" >> $@
+	echo "Libs: -l:libcrypto1.lib.so" >> $@
 
 libssl.pc:
 	echo "Name: OpenSSL-libssl" > $@
 	echo "Description: Secure Sockets Layer and cryptography libraries" >> $@
 	echo "Version: $(VERSION)" >> $@
 	echo "Requires.private: libcrypto" >> $@
-	echo "Libs: -l:libssl.lib.so" >> $@
+	echo "Libs: -l:libssl1.lib.so" >> $@
 
 openssl.pc:
 	echo "Name: OpenSSL" > $@

@@ -26,9 +26,9 @@ runtime | ram: 128M | caps: 3000 | binary: init | config: depot_download.config
   + rom | label: curl.lib.so
   + rom | label: libc.lib.so
   + rom | label: libssh.lib.so
-  + rom | label: libcrypto.lib.so
+  + rom | label: libcrypto1.lib.so
   + rom | label: zlib.lib.so
-  + rom | label: libssl.lib.so
+  + rom | label: libssl1.lib.so
   + rom | label: verify
   + rom | label: extract
   + rom | label: libarchive.lib.so
