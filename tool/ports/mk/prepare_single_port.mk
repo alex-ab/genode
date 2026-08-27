@@ -4,7 +4,7 @@
 # \date   2014-05-07
 #
 
-export GENODE_CONTRIB_CACHE ?= $(CONTRIB_DIR)/contrib/cache
+export GENODE_CONTRIB_CACHE ?= $(CONTRIB_DIR)/cache
 
 include $(GENODE_DIR)/tool/ports/mk/front_end.inc
 include $(GENODE_DIR)/tool/ports/mk/check_port_arg.inc
