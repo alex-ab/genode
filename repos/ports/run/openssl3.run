@@ -110,10 +110,11 @@ config | verbose: yes | prio_levels: 2
 + start /bin/openssl | caps: 110 | ram: 8M
   + exit | propagate: yes
   + config | ld_verbose: yes
-    + libc | stdin:  /dev/null | stdout: /dev/log  | stderr: /dev/null
-           | rtc:    /dev/rtc  | pipe:   /dev/pipe | socket: /socket
-           | rng:    /dev/random
+    + libc | stdin:  /empty    | stdout: /dev/log  | stderr: /dev/log
+             rtc:    /dev/rtc  | pipe:   /dev/pipe | socket: /socket
+             rng:    /dev/random
     + vfs
+      + inline empty | :
       + fs
       + dir dev | + log
     + arg | : openssl
@@ -138,4 +139,4 @@ build_boot_image [build_artifacts]
 # qemu config
 append qemu_args " -nographic "
 
-run_genode_until {.*closed.*} 60
+run_genode_until {.*DONE.*} 60
