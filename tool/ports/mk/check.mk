@@ -61,7 +61,7 @@ check: $(DOWNLOADS)
 # sites time to reconsider their response and helps, for example, to check the
 # qemu-usb port.
 #
-CURL_CMD = curl -s -f -L -k --max-filesize 200000 \
+CURL_CMD = curl -i -s -f -L -k --max-filesize 200000 \
            --max-time 15 --retry 1 $(URL($*)) > /dev/null || [ $$? -eq 63 ]
 %.file:
 	$(VERBOSE)$(CURL_CMD) || (sleep 1; $(CURL_CMD))
