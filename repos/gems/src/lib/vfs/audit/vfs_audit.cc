@@ -179,8 +179,6 @@ class Vfs_audit::File_system : public Vfs::File_system
 				"path", String<Absolute_path::capacity()>()))
 		{ }
 
-		const char* type() override { return "audit"; }
-
 		void destruct() override { destroy(_alloc, this); }
 
 

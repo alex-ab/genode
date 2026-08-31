@@ -83,7 +83,7 @@ class Genode::Vfs::Readonly_value_file_system : public Single_file_system
 		                           T const &initial_value)
 		:
 			Single_file_system(parent_fs,
-			                   Node_type::TRANSACTIONAL_FILE, type(),
+			                   Node_type::TRANSACTIONAL_FILE, type_name(),
 			                   Node_rwx::ro(), Node(_config(name))),
 			_file_name(name)
 		{
@@ -91,8 +91,6 @@ class Genode::Vfs::Readonly_value_file_system : public Single_file_system
 		}
 
 		static char const *type_name() { return "readonly_value"; }
-
-		char const *type() override { return type_name(); }
 
 		void value(T const &value)
 		{

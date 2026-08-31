@@ -76,11 +76,6 @@ struct Genode::Vfs::File_system : public Directory_service
 	virtual void resume_after_update() { }
 
 	/**
-	 * Return the file-system type
-	 */
-	virtual char const *type() = 0;
-
-	/**
 	 * Hook for implementing 'Factory::_free' for VFS plugins
 	 */
 	virtual void destruct() { };

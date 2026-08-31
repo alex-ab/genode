@@ -109,15 +109,13 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 		                  Buffer const &initial_value)
 		:
 			Single_file_system(parent_fs,
-			                   Node_type::TRANSACTIONAL_FILE, type(),
+			                   Node_type::TRANSACTIONAL_FILE, type_name(),
 			                   Node_rwx::rw(), Node(_config(name)))
 		{
 			value(initial_value);
 		}
 
 		static char const *type_name() { return "value"; }
-
-		char const *type() override { return type_name(); }
 
 		void value(Buffer const &value)
 		{

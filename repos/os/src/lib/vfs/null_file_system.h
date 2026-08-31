@@ -35,8 +35,7 @@ struct Vfs_null::File_system : Single_file_system
 		                   Node_rwx::rw(), config)
 	{ }
 
-	static char const *name()   { return "null"; }
-	char const *type() override { return "null"; }
+	static char const *name() { return "null"; }
 
 	struct Null_vfs_handle : Single_vfs_handle
 	{

@@ -92,7 +92,7 @@ class Vfs_ip::Error_file_system : public Single_file_system
 		Error_file_system(Parent_fs &parent_fs)
 		:
 			Single_file_system(parent_fs,
-			                   Node_type::TRANSACTIONAL_FILE, type(),
+			                   Node_type::TRANSACTIONAL_FILE, type_name(),
 			                   Node_rwx::rw(), Node(_config()))
 		{ }
 
@@ -115,8 +115,6 @@ class Vfs_ip::Error_file_system : public Single_file_system
 		}
 
 		static char const *type_name() { return "error"; }
-
-		char const *type() override { return type_name(); }
 
 
 		/*********************************

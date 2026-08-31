@@ -1308,8 +1308,6 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 
 		static char const *type_name() { return "hash"; }
 
-		char const *type() override { return type_name(); }
-
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
 		                 Allocator &alloc) override
@@ -1386,8 +1384,6 @@ class Vfs_tresor_trust_anchor::Generate_key_file_system : public Single_file_sys
 		{ }
 
 		static char const *type_name() { return "generate_key"; }
-
-		char const *type() override { return type_name(); }
 
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
@@ -1482,8 +1478,6 @@ class Vfs_tresor_trust_anchor::Encrypt_file_system : public Single_file_system
 
 		static char const *type_name() { return "encrypt"; }
 
-		char const *type() override { return type_name(); }
-
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
 		                 Allocator &alloc) override
@@ -1574,8 +1568,6 @@ class Vfs_tresor_trust_anchor::Decrypt_file_system : public Single_file_system
 		{ }
 
 		static char const *type_name() { return "decrypt"; }
-
-		char const *type() override { return type_name(); }
 
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
@@ -1687,8 +1679,6 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 		{ }
 
 		static char const *type_name() { return "initialize"; }
-
-		char const *type() override { return type_name(); }
 
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,

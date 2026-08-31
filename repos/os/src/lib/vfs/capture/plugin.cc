@@ -102,8 +102,7 @@ class Vfs_capture::Data_file_system : public Single_file_system
 			_name(name), _label(label), _env(env)
 		{ }
 
-		static const char *name()   { return "data"; }
-		char const *type() override { return "data"; }
+		static const char *name() { return "data"; }
 
 		Open_result open(char const  *path, unsigned flags,
 		                 Vfs_handle **out_handle,
@@ -209,8 +208,6 @@ struct Vfs_capture::File_system : Union_file_system, Vfs::File_system::Factory
 	}
 
 	static const char *name() { return "capture"; }
-
-	char const *type() override { return name(); }
 
 	void destruct() override { destroy(_env.alloc(), this); }
 };

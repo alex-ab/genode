@@ -988,8 +988,6 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 			*out_handle = new (alloc) Vfs_handle(*this, alloc, _plugin);
 			return OPEN_OK;
 		}
-
-		char const *type() override { return type_name(); }
 };
 
 
@@ -1102,8 +1100,6 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 		static char const *type_name() { return "extend"; }
 
 		void notify_watchers() { Single_file_system::_notify_watchers(); }
-
-		char const *type() override { return type_name(); }
 
 		Open_result open(char const *path, unsigned, Vfs::Vfs_handle **out_handle, Allocator &alloc) override
 		{
@@ -1219,8 +1215,6 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 
 		void notify_watchers() { Single_file_system::_notify_watchers(); }
 
-		char const *type() override { return type_name(); }
-
 		Open_result open(char const *path, unsigned, Vfs::Vfs_handle **out_handle, Allocator &alloc) override
 		{
 			if (!_single_file(path))
@@ -1334,8 +1328,6 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 
 		static char const *type_name() { return "deinitialize"; }
 
-		char const *type() override { return type_name(); }
-
 		void notify_watchers() { Single_file_system::_notify_watchers(); }
 
 		Open_result open(char const  *path, unsigned, Vfs::Vfs_handle **out_handle, Allocator &alloc) override
@@ -1403,8 +1395,6 @@ struct Vfs_tresor::Current_file_system : Dir_file_system, private Vfs::File_syst
 	}
 
 	static char const *type_name() { return "current"; }
-
-	char const *type() override { return type_name(); }
 };
 
 
@@ -1467,8 +1457,6 @@ struct Vfs_tresor::Control_file_system : Dir_file_system, private Vfs::File_syst
 	}
 
 	static char const *type_name() { return "control"; }
-
-	char const *type() override { return type_name(); }
 };
 
 

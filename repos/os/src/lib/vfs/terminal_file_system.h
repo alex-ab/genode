@@ -223,8 +223,7 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 			_terminal.read_avail_sigh(_read_avail_handler);
 		}
 
-		static const char *name()   { return "data"; }
-		char const *type() override { return "data"; }
+		static const char *name() { return "data"; }
 
 		Open_result open(char const  *path, unsigned flags,
 		                 Vfs_handle **out_handle,
@@ -383,8 +382,6 @@ struct Vfs_terminal::File_system : Union_file_system,
 	}
 
 	static const char *name() { return "terminal"; }
-
-	char const *type() override { return name(); }
 };
 
 #endif /* _INCLUDE__VFS__TERMINAL_FILE_SYSTEM_H_ */

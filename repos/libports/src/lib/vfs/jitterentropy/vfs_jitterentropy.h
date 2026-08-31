@@ -115,8 +115,7 @@ class Vfs_jitterentropy::File_system : public Single_file_system
 				jent_entropy_collector_free(_ec_stir);
 		}
 
-		static char const *name()   { return "jitterentropy"; }
-		char const *type() override { return "jitterentropy"; }
+		static char const *name() { return "jitterentropy"; }
 
 		void destruct() override { destroy(_alloc, this); }
 

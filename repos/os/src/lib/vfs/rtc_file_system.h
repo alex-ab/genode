@@ -121,8 +121,8 @@ class Vfs_rtc::File_system : public Single_file_system
 			_rtc.set_sigh(_set_signal_handler);
 		}
 
-		static char const *name()   { return "rtc"; }
-		char const *type() override { return "rtc"; }
+		static char const *name() { return "rtc"; }
+
 
 		/*********************************
 		 ** Directory-service interface **

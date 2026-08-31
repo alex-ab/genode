@@ -68,8 +68,7 @@ class Vfs_symlink::File_system : public Single_file_system
 			_target(config.attribute_value("target", Target()))
 		{ }
 
-		static char const *name()   { return "symlink"; }
-		char const *type() override { return "symlink"; }
+		static char const *name() { return "symlink"; }
 
 		Open_result open(char const *, unsigned, Vfs_handle **, Allocator&) override {
 			return OPEN_ERR_UNACCESSIBLE; }

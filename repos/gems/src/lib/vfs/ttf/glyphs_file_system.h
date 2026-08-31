@@ -123,14 +123,12 @@ class Vfs_glyphs::File_system : public Single_file_system
 		File_system(Parent_fs &parent_fs, Accessor &accessor)
 		:
 			Single_file_system(parent_fs,
-			                   Node_type::TRANSACTIONAL_FILE, type(),
+			                   Node_type::TRANSACTIONAL_FILE, type_name(),
 			                   Node_rwx::ro(), Node()),
 			_accessor(accessor)
 		{ }
 
 		static char const *type_name() { return "glyphs"; }
-
-		char const *type() override { return type_name(); }
 
 		void notify_watchers() { Single_file_system::_notify_watchers(); }
 

@@ -129,13 +129,11 @@ class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 		                          genode_socket_handle &sock)
 		:
 			Single_file_system(parent_fs,
-			                   Node_type::TRANSACTIONAL_FILE, type(),
+			                   Node_type::TRANSACTIONAL_FILE, type_name(),
 			                   Node_rwx::rw(), Node(_config(name))),
 			_file_name(name), _sock(sock) { }
 
 		static char const *type_name() { return "sockopt"; }
-
-		char const *type() override { return type_name(); }
 
 
 		/*********************************

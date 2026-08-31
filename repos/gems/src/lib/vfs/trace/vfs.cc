@@ -167,7 +167,6 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 		{ }
 
 		static char const *type_name() { return "trace_buffer"; }
-		char const *type() override { return type_name(); }
 
 
 		/***************************
@@ -331,8 +330,6 @@ struct Vfs_trace::Subject : Dir_file_system, private Vfs::File_system::Factory
 	}
 
 	static char const *type_name() { return "trace_node"; }
-
-	char const *type() override { return type_name(); }
 };
 
 
@@ -436,8 +433,6 @@ struct Vfs_trace::File_system : Dir_file_system, private Vfs::File_system::Facto
 
 		_install_null_policy();
 	}
-
-	char const *type() override { return "trace"; }
 
 	void destruct() override { destroy(_env.alloc(), this); }
 };

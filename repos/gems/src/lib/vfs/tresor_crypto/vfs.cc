@@ -121,8 +121,6 @@ class Vfs_tresor_crypto::Encrypt_file_system : public Vfs::Single_file_system
 
 		static char const *type_name() { return "encrypt"; }
 
-		char const *type() override { return type_name(); }
-
 		Open_result open(char const *path, unsigned, Vfs_handle **out_handle,
 		                 Allocator &alloc) override
 		{
@@ -217,8 +215,6 @@ class Vfs_tresor_crypto::Decrypt_file_system : public Single_file_system
 
 		static char const *type_name() { return "decrypt"; }
 
-		char const *type() override { return type_name(); }
-
 		Open_result open(char const *path, unsigned /* flags */,
 		                 Vfs_handle **out_handle,
 		                 Allocator &alloc) override
@@ -296,12 +292,7 @@ class Vfs_tresor_crypto::Key_file_system : public Dir_file_system,
 
 		static char const *type_name() { return "keys"; }
 
-		char const *type() override { return type_name(); }
-
-		uint32_t key_id() const
-		{
-			return _key_id;
-		}
+		uint32_t key_id() const { return _key_id; }
 };
 
 
@@ -569,8 +560,6 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 
 		static char const *type_name() { return "keys"; }
 
-		char const *type() override { return type_name(); }
-
 
 		/*********************************
 		 ** Directory service interface **
@@ -835,8 +824,6 @@ class Vfs_tresor_crypto::Management_file_system : public Single_file_system
 			_type(type), _crypto(crypto), _type_name(type_name)
 		{ }
 
-		char const *type() override { return _type_name; }
-
 		Open_result open(char const  *path,
 		                 unsigned    /* flags */,
 		                 Vfs_handle **out_handle,
@@ -869,9 +856,8 @@ struct Vfs_tresor_crypto::Add_key_file_system : Vfs_tresor_crypto::Management_fi
 
 	Add_key_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto)
 	:
-		Management_file_system(parent_fs, crypto, Management_file_system::ADD_KEY, type_name()) { }
-
-	char const *type() override { return type_name(); }
+		Management_file_system(parent_fs, crypto, Management_file_system::ADD_KEY, type_name())
+	{ }
 };
 
 
@@ -880,9 +866,9 @@ struct Vfs_tresor_crypto::Remove_key_file_system : Vfs_tresor_crypto::Management
 	static char const *type_name() { return "remove_key"; }
 
 	Remove_key_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto)
-	: Management_file_system(parent_fs, crypto, Management_file_system::REMOVE_KEY, type_name()) { }
-
-	char const *type() override { return type_name(); }
+	:
+		Management_file_system(parent_fs, crypto, Management_file_system::REMOVE_KEY, type_name())
+	{ }
 };
 
 

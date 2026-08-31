@@ -134,8 +134,6 @@ struct Vfs_import::File_system : Vfs::File_system
 
 		_done = true;
 	}
-
-	const char* type() override { return "import"; }
 };
 
 

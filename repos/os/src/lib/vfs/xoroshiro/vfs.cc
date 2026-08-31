@@ -220,8 +220,7 @@ struct Vfs_xoroshiro::File_system : Single_file_system
 		_seed_file_path    { _get_seed_file_path(config) }
 	{ }
 
-	static char const *name()   { return "xoroshiro"; }
-	char const *type() override { return "xoroshiro"; }
+	static char const *name() { return "xoroshiro"; }
 
 	void destruct() override { destroy(_alloc, this); }
 

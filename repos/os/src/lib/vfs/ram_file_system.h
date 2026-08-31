@@ -888,8 +888,7 @@ class Vfs_ram::File_system : public Vfs::File_system
 		 ** File_system interface **
 		 ***************************/
 
-		static char const *name()   { return "ram"; }
-		char const *type() override { return "ram"; }
+		static char const *name() { return "ram"; }
 };
 
 

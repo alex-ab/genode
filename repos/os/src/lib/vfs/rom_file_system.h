@@ -132,8 +132,8 @@ class Vfs_rom::File_system : public Single_file_system
 			_binary(config.attribute_value("binary", true))
 		{ }
 
-		static char const *name()   { return "rom"; }
-		char const *type() override { return "rom"; }
+		static char const *name() { return "rom"; }
+
 
 		/*********************************
 		 ** Directory-service interface **

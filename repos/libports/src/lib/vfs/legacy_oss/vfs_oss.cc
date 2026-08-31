@@ -730,8 +730,7 @@ class Vfs_oss::Data_file_system : public Single_file_system
 			_audio.in_progress_sigh(_audio_in_progress_sigh);
 		}
 
-		static const char *name()   { return "data"; }
-		char const *type() override { return "data"; }
+		static const char *name() { return "data"; }
 
 		Open_result open(char const  *path, unsigned flags,
 		                 Vfs_handle **out_handle,
@@ -1144,8 +1143,6 @@ struct Vfs_oss::File_system : Union_file_system, Vfs::File_system::Factory
 	}
 
 	static const char *name() { return "legacy_oss"; }
-
-	char const *type() override { return name(); }
 
 	void destruct() override { destroy(_env.alloc(), this); }
 };

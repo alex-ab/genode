@@ -1136,8 +1136,7 @@ class Vfs_oss::Data_file_system : public Single_file_system
 			_audio.record_timer_sigh(_record_timer);
 		}
 
-		static const char *name()   { return "data"; }
-		char const *type() override { return "data"; }
+		static const char *name() { return "data"; }
 
 		Open_result open(char const  *path, unsigned flags,
 		                 Vfs_handle **out_handle,
@@ -1509,8 +1508,6 @@ struct Vfs_oss::File_system : public Union_file_system,
 	}
 
 	static const char *name() { return "oss_next"; }
-
-	char const *type() override { return name(); }
 
 	void destruct() override { destroy(_env.alloc(), this); }
 };

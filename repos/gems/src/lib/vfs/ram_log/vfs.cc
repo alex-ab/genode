@@ -113,8 +113,7 @@ struct Vfs_ram_log::File_system : Single_file_system
 		_buffer(_alloc, config.attribute_value("limit", Num_bytes { 16*1024 }))
 	{ }
 
-	static char const *name()   { return "ram_log"; }
-	char const *type() override { return "ram_log"; }
+	static char const *name() { return "ram_log"; }
 
 	void destruct() override { destroy(_alloc, this); }
 

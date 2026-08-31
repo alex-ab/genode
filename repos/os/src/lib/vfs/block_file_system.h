@@ -570,8 +570,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 
 		~Data_file_system() { }
 
-		static char const *name()   { return "data"; }
-		char const *type() override { return "data"; }
+		static char const *name() { return "data"; }
 
 		Open_result open(char const  *path, unsigned,
 		                 Vfs_handle **out_handle,
@@ -718,8 +717,6 @@ struct Vfs_block::File_system : Union_file_system, private Vfs::File_system::Fac
 	}
 
 	static const char *name() { return "block"; }
-
-	char const *type() override { return name(); }
 };
 
 #endif /* _INCLUDE__VFS__BLOCK_FILE_SYSTEM_H_ */

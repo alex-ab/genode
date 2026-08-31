@@ -364,7 +364,6 @@ class Vfs_pipe::File_system : public Vfs::File_system
 
 		File_system(Vfs::Env &env) : Vfs::File_system(Ident { "pipe" }), _env(env) { }
 
-		const char* type() override { return "pipe"; }
 
 		/***********************
 		 ** Directory service **

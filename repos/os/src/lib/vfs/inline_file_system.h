@@ -145,8 +145,7 @@ class Vfs_inline::File_system : public Single_file_system
 			_data(env.alloc(), config)
 		{ }
 
-		static char const *name()   { return "inline"; }
-		char const *type() override { return "inline"; }
+		static char const *name() { return "inline"; }
 
 		/********************************
 		 ** Directory service interface **

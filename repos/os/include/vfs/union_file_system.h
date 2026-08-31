@@ -530,8 +530,6 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 			return result;
 		}
 
-		char const *type() override { return "dir"; }
-
 		Progress update(Node const &node, Factory &factory) override
 		{
 			if (_config.constructed() && !_config->differs_from(node))

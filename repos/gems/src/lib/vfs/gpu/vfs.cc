@@ -119,7 +119,6 @@ struct Vfs_gpu::File_system : Single_file_system
 	}
 
 	static char const *type_name() { return "gpu"; }
-	char const *type() override { return type_name(); }
 };
 
 

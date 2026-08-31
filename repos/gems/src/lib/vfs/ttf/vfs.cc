@@ -215,8 +215,6 @@ struct Vfs_ttf::File_system : Dir_file_system,
 		Dir_file_system::update(Node(), *this);
 	}
 
-	char const *type() override { return "ttf"; }
-
 	void destruct() override { destroy(_env.alloc(), this); }
 
 	bool matches(Node const &node) const override

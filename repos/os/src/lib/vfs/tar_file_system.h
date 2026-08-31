@@ -751,8 +751,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 		 ** File_system interface **
 		 ***************************/
 
-		static char const *name()   { return "tar"; }
-		char const *type() override { return "tar"; }
+		static char const *name() { return "tar"; }
 };
 
 #endif /* _INCLUDE__VFS__TAR_FILE_SYSTEM_H_ */

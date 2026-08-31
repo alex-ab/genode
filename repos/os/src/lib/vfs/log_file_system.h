@@ -170,7 +170,6 @@ class Vfs_log::File_system : public Single_file_system
 		{ }
 
 		static const char *name()   { return "log"; }
-		char const *type() override { return "log"; }
 
 
 		/*********************************

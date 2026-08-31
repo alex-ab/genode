@@ -377,8 +377,6 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 			}
 		}
 
-		char const *type() override { return "fatfs"; }
-
 		void destruct() override { destroy(_vfs_env.alloc(), this); }
 
 		Open_result open(char const *path, unsigned vfs_mode,

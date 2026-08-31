@@ -150,7 +150,6 @@ class Vfs_tap::Data_file_system : public FS
 		}
 
 		static const char *name()   { return "data"; }
-		char const *type() override { return "data"; }
 
 
 		/*********************************
@@ -347,8 +346,6 @@ struct Vfs_tap::Compound_file_system : Union_file_system,
 	}
 
 	static const char *name() { return "tap"; }
-
-	char const *type() override { return name(); }
 
 	void destruct() override { destroy(_env.alloc(), this); }
 };

@@ -1701,8 +1701,6 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 
 		~Ip_file_system() { }
 
-		char const *type() override { return Vfs_ip::ip_stack().string(); }
-
 		bool matches(Genode::Node const &node) const override
 		{
 			/* accept updated attributes w/o re-constructing the file system */
