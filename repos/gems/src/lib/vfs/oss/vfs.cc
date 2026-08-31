@@ -1125,9 +1125,11 @@ class Vfs_oss::Data_file_system : public Single_file_system
 		                 Audio          &audio,
 		                 Name     const &name)
 		:
-			Single_file_system { parent_fs,
-			                     Node_type::CONTINUOUS_FILE, name.string(),
-			                     Node_rwx::ro(), Node() },
+			Single_file_system { parent_fs, {
+				.ident = name,
+				.name  = name,
+				.rwx   = File::RO
+			} },
 			_ep       { ep },
 			_vfs_user { vfs_user },
 			_audio    { audio }
@@ -1135,8 +1137,6 @@ class Vfs_oss::Data_file_system : public Single_file_system
 			_audio.play_timer_sigh(_play_timer);
 			_audio.record_timer_sigh(_record_timer);
 		}
-
-		static const char *name() { return "data"; }
 
 		Open_result open(char const  *path, unsigned flags,
 		                 Vfs_handle **out_handle,

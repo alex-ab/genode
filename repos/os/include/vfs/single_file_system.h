@@ -22,92 +22,107 @@ namespace Genode::Vfs { class Single_file_system; }
 
 class Genode::Vfs::Single_file_system : public File_system
 {
-	private:
+	public:
+
+		struct File /* used as namespace */
+		{
+			struct Name
+			{
+				String<64> string;
+
+				static Name from_node(Node const &node)
+				{
+					decltype(string) const node_type { node.type() };
+					return { node.attribute_value("name", node_type) };
+				}
+			};
+
+			using Read  = Vfs::File::Read;
+			using Write = Vfs::File::Write;
+
+			struct Rwx { Read r; Write w; bool x; };
+
+			static constexpr Rwx RO = {
+				.r = Read::ANYWHERE,
+				.w = Write::DENIED,
+				.x = false };
+
+			static constexpr Rwx RW_CONTINUOUS = {
+				.r = Read::ANYWHERE,
+				.w = Write::CONTINUOUS,
+				.x = false };
+
+			static constexpr Rwx WO_CONTINUOUS = {
+				.r = Read::NOTHING,
+				.w = Write::CONTINUOUS,
+				.x = false };
+
+			static constexpr Rwx RW_TRANSACTIONAL = {
+				.r = Read::ANYWHERE,
+				.w = Write::TRANSACTIONAL,
+				.x = false };
+		};
+
+		File::Name const name;
+		File::Rwx  const rwx;
+
+	protected:
 
 		Parent_fs &_parent_fs;
 
-		Node_type const _type;
-		Node_rwx  const _rwx;
-
-		using Filename = String<64>;
-
-		Filename _filename { };
-
 		bool _watched = false;
 
-	protected:
+		Node_rwx _node_rwx() const
+		{
+			return { .readable   = rwx.r != File::Read::NOTHING,
+			         .writeable  = rwx.w != File::Write::DENIED,
+			         .executable = rwx.x };
+		}
 
 		struct Single_vfs_handle : Vfs_handle
 		{
 			using Vfs_handle::Vfs_handle;
 		};
 
-		struct Single_vfs_dir_handle : Vfs_handle
+		struct Single_vfs_dir_handle : Vfs_handle, Noncopyable
 		{
-			private:
+			Single_file_system &_fs;
 
-				Node_type const _type;
-				Node_rwx  const _rwx;
+			Single_vfs_dir_handle(Single_file_system &fs, Allocator &alloc)
+			:
+				Vfs_handle(fs, alloc, 0), _fs(fs)
+			{ }
 
-				Filename const &_filename;
+			Read_result read(At const at, Byte_range_ptr const &dst) override
+			{
+				if (dst.num_bytes < sizeof(Dirent))
+					return Read_error::DENIED;
 
-				/*
-				 * Noncopyable
-				 */
-				Single_vfs_dir_handle(Single_vfs_dir_handle const &);
-				Single_vfs_dir_handle &operator = (Single_vfs_dir_handle const &);
+				file_size index = at.pos / sizeof(Dirent);
 
-			public:
+				Dirent &out = *(Dirent*)dst.start;
 
-				Single_vfs_dir_handle(Directory_service &ds,
-				                      Allocator         &alloc,
-				                      Node_type          type,
-				                      Node_rwx           rwx,
-				                      Filename    const &filename)
-				:
-					Vfs_handle(ds, alloc, 0),
-					_type(type), _rwx(rwx), _filename(filename)
-				{ }
-
-				Read_result read(At const at, Byte_range_ptr const &dst) override
-				{
-					if (dst.num_bytes < sizeof(Dirent))
-						return Read_error::DENIED;
-
-					file_size index = at.pos / sizeof(Dirent);
-
-					Dirent &out = *(Dirent*)dst.start;
-
-					auto dirent_type = [&] ()
-					{
-						switch (_type) {
-						case Node_type::DIRECTORY:          return Dirent_type::DIRECTORY;
-						case Node_type::SYMLINK:            return Dirent_type::SYMLINK;
-						case Node_type::CONTINUOUS_FILE:    return Dirent_type::CONTINUOUS_FILE;
-						case Node_type::TRANSACTIONAL_FILE: return Dirent_type::TRANSACTIONAL_FILE;
-						}
-						return Dirent_type::END;
+				if (index == 0) {
+					out = {
+						.type = (_fs.rwx.w == File::Write::TRANSACTIONAL)
+						        ? Dirent_type::TRANSACTIONAL_FILE
+						        : Dirent_type::CONTINUOUS_FILE,
+						.rwx  = _fs._node_rwx(),
+						.name = { _fs.name.string.string() }
 					};
-
-					if (index == 0) {
-						out = {
-							.type = dirent_type(),
-							.rwx  = _rwx,
-							.name = { _filename.string() }
-						};
-					} else {
-						out = {
-							.type = Dirent_type::END,
-							.rwx  = { },
-							.name = { }
-						};
-					}
-
-					return sizeof(Dirent);
+				} else {
+					out = {
+						.type = Dirent_type::END,
+						.rwx  = { },
+						.name = { }
+					};
 				}
 
-				bool read_ready()  const override { return true; }
-				bool write_ready() const override { return true; }
+				return sizeof(Dirent);
+			}
+
+			bool read_ready()  const override { return true; }
+			bool write_ready() const override { return true; }
 		};
 
 		bool _root(const char *path)
@@ -117,38 +132,30 @@ class Genode::Vfs::Single_file_system : public File_system
 
 		bool _single_file(const char *path)
 		{
-			return (strlen(path) == (strlen(_filename.string()) + 1)) &&
-			       (strcmp(&path[1], _filename.string()) == 0);
+			return (strlen(path) == (strlen(name.string.string()) + 1)) &&
+			       (strcmp(&path[1], name.string.string()) == 0);
 		}
 
 		void _notify_watchers()
 		{
-			using Path = String<Filename::capacity()>;
-			Path { "/", _filename }.with_span([&] (Span const &s) {
+			using Path = String<decltype(File::Name::string)::capacity() + 1>;
+			Path { "/", name.string }.with_span([&] (Span const &s) {
 				_parent_fs.notify_watchers({ s.start, s.num_bytes }); });
 		}
 
 	public:
 
-		Single_file_system(Parent_fs  &parent_fs,
-		                   Node_type   node_type,
-		                   char const *type_name,
-		                   Node_rwx    rwx,
-		                   Node const &config)
-		:
-			File_system(Ident::from_node(config)),
-			_parent_fs(parent_fs), _type(node_type), _rwx(rwx),
-			_filename(config.attribute_value("name", Filename(type_name)))
-		{ }
+		struct Attr
+		{
+			Ident      ident;
+			File::Name name;
+			File::Rwx  rwx;
+		};
 
-		Single_file_system(Parent_fs  &parent_fs,
-		                   Node_type   node_type,
-		                   char const *type_name,
-		                   Node_rwx    rwx)
+		Single_file_system(Parent_fs &parent_fs, Attr const &attr)
 		:
-			File_system(Ident({ type_name })),
-			_parent_fs(parent_fs), _type(node_type), _rwx(rwx),
-			_filename(type_name)
+			File_system(attr.ident), name(attr.name), rwx(attr.rwx),
+			_parent_fs(parent_fs)
 		{ }
 
 
@@ -165,8 +172,10 @@ class Genode::Vfs::Single_file_system : public File_system
 				out.type = Node_type::DIRECTORY;
 
 			} else if (_single_file(path)) {
-				out.type = _type;
-				out.rwx  = _rwx;
+				out.type = (rwx.w == File::Write::TRANSACTIONAL)
+				           ? Node_type::TRANSACTIONAL_FILE
+				           : Node_type::CONTINUOUS_FILE,
+				out.rwx  = _node_rwx();
 			} else {
 				return STAT_ERR_NO_ENTRY;
 			}
@@ -206,7 +215,7 @@ class Genode::Vfs::Single_file_system : public File_system
 
 			try {
 				*out_handle = new (alloc)
-					Single_vfs_dir_handle(*this, alloc, _type, _rwx, _filename);
+					Single_vfs_dir_handle(*this, alloc);
 				return OPENDIR_OK;
 			}
 			catch (Out_of_ram)  { return OPENDIR_ERR_OUT_OF_RAM; }
@@ -236,7 +245,7 @@ class Genode::Vfs::Single_file_system : public File_system
 
 		Watch_result watch(char const *path) override
 		{
-			if (_filename == path)
+			if (name.string == path)
 				_watched = true;
 
 			return Ok();
@@ -244,7 +253,7 @@ class Genode::Vfs::Single_file_system : public File_system
 
 		void unwatch(char const *path) override
 		{
-			if (_filename == path)
+			if (name.string == path)
 				_watched = false;
 		}
 };

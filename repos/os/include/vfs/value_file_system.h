@@ -91,26 +91,16 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 			Vfs_handle &operator = (Vfs_handle const &); 
 		};
 
-		using Config = String<200>;
-		Config _config(Name const &name) const
-		{
-			char buf[Config::capacity()] { };
-			Generator::generate({ buf, sizeof(buf) }, type_name(),
-				[&] (Generator &g) { g.attribute("name", name); }
-			).with_error([&] (Buffer_error) {
-				warning("VFS value fs config failed (", name, ")");
-			});
-			return Config(Cstring(buf));
-		}
-
 	public:
 
 		Value_file_system(Parent_fs &parent_fs, Name const &name,
 		                  Buffer const &initial_value)
 		:
-			Single_file_system(parent_fs,
-			                   Node_type::TRANSACTIONAL_FILE, type_name(),
-			                   Node_rwx::rw(), Node(_config(name)))
+			Single_file_system(parent_fs, {
+				.ident = { { type_name(), " ", name } },
+				.name  = name,
+				.rwx   = File::RW_TRANSACTIONAL
+			})
 		{
 			value(initial_value);
 		}

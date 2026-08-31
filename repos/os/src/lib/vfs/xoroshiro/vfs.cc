@@ -212,15 +212,15 @@ struct Vfs_xoroshiro::File_system : Single_file_system
 
 	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &config)
 	:
-		Single_file_system { parent_fs,
-		                     Node_type::CONTINUOUS_FILE, name(),
-		                     Node_rwx::ro(), config },
-		_alloc             { vfs_env.alloc() },
-		_root_dir          { Directory(vfs_env) },
-		_seed_file_path    { _get_seed_file_path(config) }
+		Single_file_system { parent_fs, {
+			.ident = Ident::from_node(config),
+			.name  = File::Name::from_node(config),
+			.rwx   = File::RO
+		} },
+		_alloc          { vfs_env.alloc() },
+		_root_dir       { Directory(vfs_env) },
+		_seed_file_path { _get_seed_file_path(config) }
 	{ }
-
-	static char const *name() { return "xoroshiro"; }
 
 	void destruct() override { destroy(_alloc, this); }
 
@@ -246,7 +246,7 @@ struct Vfs_xoroshiro::File_system : Single_file_system
 		catch (Out_of_ram)        { return OPEN_ERR_OUT_OF_RAM; }
 		catch (Out_of_caps)       { return OPEN_ERR_OUT_OF_CAPS; }
 		/* handled non-existing path */
-		catch (File::Open_failed) { return OPEN_ERR_UNACCESSIBLE; }
+		catch (Genode::File::Open_failed) { return OPEN_ERR_UNACCESSIBLE; }
 	}
 };
 

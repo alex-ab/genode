@@ -115,7 +115,11 @@ class Vfs_tresor_crypto::Encrypt_file_system : public Vfs::Single_file_system
 
 		Encrypt_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto, uint32_t key_id)
 		:
-			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, {
+				.ident = type_name(),
+				.name  = type_name(),
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
 			_crypto(crypto), _key_id(key_id)
 		{ }
 
@@ -209,7 +213,11 @@ class Vfs_tresor_crypto::Decrypt_file_system : public Single_file_system
 
 		Decrypt_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto, uint32_t key_id)
 		:
-			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE, type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, {
+				.ident = type_name(),
+				.name  = type_name(),
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
 			_crypto(crypto), _key_id(key_id)
 		{ }
 
@@ -819,8 +827,11 @@ class Vfs_tresor_crypto::Management_file_system : public Single_file_system
 		Management_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto,
 		                       Type type, char const *type_name)
 		:
-			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
-			                   type_name, Node_rwx::wo(), Node()),
+			Single_file_system(parent_fs, {
+				.ident = type_name,
+				.name  = type_name,
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
 			_type(type), _crypto(crypto), _type_name(type_name)
 		{ }
 

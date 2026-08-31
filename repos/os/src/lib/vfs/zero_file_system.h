@@ -32,9 +32,11 @@ struct Vfs_zero::File_system : Single_file_system
 
 	File_system(Vfs::Env &, Parent_fs &parent_fs, Node const &config)
 	:
-		Single_file_system(parent_fs,
-		                   Node_type::CONTINUOUS_FILE, name(),
-		                   Node_rwx::rw(), config),
+		Single_file_system(parent_fs, {
+			.ident = Ident::from_node(config),
+			.name  = File::Name::from_node(config),
+			.rwx   = File::RW_CONTINUOUS
+		}),
 		_size(config.attribute_value("size", Number_of_bytes(0)))
 	{ }
 

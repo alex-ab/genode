@@ -33,10 +33,6 @@ namespace Vfs_ip {
 template <Sock_level LEVEL, Sock_opt OPTNAME, bool READONLY>
 class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 {
-	public:
-
-		using Name = Genode::String<64>;
-
 	private:
 
 		using Allocator            = Genode::Allocator;
@@ -46,8 +42,6 @@ class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 		using size_t = Genode::size_t;
 
 		enum { BUF_SIZE = sizeof(long) };
-
-		Name const _file_name;
 
 		genode_socket_handle &_sock;
 
@@ -111,29 +105,22 @@ class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 				Vfs_handle &operator = (Vfs_handle const &); 
 		};
 
-		using Config = Genode::String<200>;
-		Config _config(Name const &name) const
-		{
-			char buf[Config::capacity()] { };
-			Genode::Generator::generate({ buf, sizeof(buf) }, type_name(),
-				[&] (Genode::Generator &g) { g.attribute("name", name); }
-			).with_error([&] (Genode::Buffer_error) {
-				Genode::warning("VFS value fs config failed (", _file_name, ")");
-			});
-			return Config(Genode::Cstring(buf));
-		}
-
 	public:
+
+		static char const *type_name() { return "sockopt"; }
+
+		using Name = Genode::String<64>;
 
 		Sockopt_value_file_system(Parent_fs &parent_fs, Name const &name,
 		                          genode_socket_handle &sock)
 		:
-			Single_file_system(parent_fs,
-			                   Node_type::TRANSACTIONAL_FILE, type_name(),
-			                   Node_rwx::rw(), Node(_config(name))),
-			_file_name(name), _sock(sock) { }
-
-		static char const *type_name() { return "sockopt"; }
+			Single_file_system(parent_fs, {
+				.ident = { { type_name(), " ", name } },
+				.name  = name,
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
+			_sock(sock)
+		{ }
 
 
 		/*********************************

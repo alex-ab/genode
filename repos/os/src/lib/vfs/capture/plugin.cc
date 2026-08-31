@@ -34,8 +34,6 @@ class Vfs_capture::Data_file_system : public Single_file_system
 {
 	private:
 
-		Name const &_name;
-
 		using Label = Genode::String<64>;
 		Label const &_label;
 
@@ -96,10 +94,12 @@ class Vfs_capture::Data_file_system : public Single_file_system
 		                 Label const &label,
 		                 Genode::Env &env)
 		:
-			Single_file_system(parent_fs,
-			                   Node_type::TRANSACTIONAL_FILE, name.string(),
-			                   Node_rwx::rw(), Node()),
-			_name(name), _label(label), _env(env)
+			Single_file_system(parent_fs, {
+				.ident = name,
+				.name  = name,
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
+			_label(label), _env(env)
 		{ }
 
 		static const char *name() { return "data"; }

@@ -961,8 +961,11 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 
 		Data_file_system(Parent_fs &parent_fs, Plugin &plugin)
 		:
-			Single_file_system(parent_fs, Node_type::CONTINUOUS_FILE,
-			                   type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, {
+				.ident = type_name(),
+				.name  = type_name(),
+				.rwx   = File::RW_CONTINUOUS
+			}),
 			_plugin(plugin)
 		{ }
 
@@ -1090,8 +1093,11 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 
 		Extend_file_system(Parent_fs &parent_fs, Plugin &plugin)
 		:
-			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
-			                   type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, {
+				.ident = type_name(),
+				.name  = type_name(),
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
 			_plugin(plugin)
 		{
 			_plugin.manage_extend_file_system(*this);
@@ -1204,8 +1210,11 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 
 		Rekey_file_system(Parent_fs &parent_fs, Plugin &plugin)
 		:
-			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
-			                   type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, {
+				.ident = type_name(),
+				.name  = type_name(),
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
 			_plugin(plugin)
 		{
 			_plugin.manage_rekey_file_system(*this);
@@ -1319,8 +1328,11 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 
 		Deinitialize_file_system(Parent_fs &parent_fs, Plugin &plugin)
 		:
-			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
-			                   type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, {
+				.ident = type_name(),
+				.name  = type_name(),
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
 			_plugin(plugin)
 		{
 			_plugin.manage_deinit_file_system(*this);

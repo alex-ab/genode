@@ -34,8 +34,6 @@ class Genode::Vfs::Readonly_value_file_system : public Single_file_system
 
 		using Buffer = String<BUF_SIZE + 1>;
 
-		Name const _file_name;
-
 		Buffer _buffer { };
 
 		struct Vfs_handle : Single_vfs_handle
@@ -65,27 +63,16 @@ class Genode::Vfs::Readonly_value_file_system : public Single_file_system
 			bool write_ready() const override { return false; }
 		};
 
-		using Config = String<200>;
-		Config _config(Name const &name) const
-		{
-			char buf[Config::capacity()] { };
-			Generator::generate({ buf, sizeof(buf) }, type_name(),
-				[&] (Generator &g) { g.attribute("name", name); }
-			).with_error([&] (Buffer_error) {
-				warning("VFS read-only value fs config failed (", _file_name, ")");
-			});
-			return Config(Cstring(buf));
-		}
-
 	public:
 
 		Readonly_value_file_system(Parent_fs &parent_fs, Name const &name,
 		                           T const &initial_value)
 		:
-			Single_file_system(parent_fs,
-			                   Node_type::TRANSACTIONAL_FILE, type_name(),
-			                   Node_rwx::ro(), Node(_config(name))),
-			_file_name(name)
+			Single_file_system(parent_fs, {
+				.ident = { { type_name(), " ", name } },
+				.name  = name,
+				.rwx   = File::RO
+			})
 		{
 			value(initial_value);
 		}

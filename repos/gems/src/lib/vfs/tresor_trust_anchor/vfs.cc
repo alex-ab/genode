@@ -1301,8 +1301,11 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 
 		Hashsum_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
-			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
-			                   type_name(), Node_rwx::ro(), Node()),
+			Single_file_system(parent_fs, {
+				.ident = type_name(),
+				.name  = type_name(),
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
 			_trust_anchor(ta)
 		{ }
 
@@ -1378,8 +1381,11 @@ class Vfs_tresor_trust_anchor::Generate_key_file_system : public Single_file_sys
 
 		Generate_key_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
-			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
-			                   type_name(), Node_rwx::ro(), Node()),
+			Single_file_system(parent_fs, {
+				.ident = type_name(),
+				.name  = type_name(),
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
 			_trust_anchor(ta)
 		{ }
 
@@ -1471,8 +1477,11 @@ class Vfs_tresor_trust_anchor::Encrypt_file_system : public Single_file_system
 
 		Encrypt_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
-			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
-			                   type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, {
+				.ident = type_name(),
+				.name  = type_name(),
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
 			_trust_anchor(ta)
 		{ }
 
@@ -1562,8 +1571,11 @@ class Vfs_tresor_trust_anchor::Decrypt_file_system : public Single_file_system
 
 		Decrypt_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
-			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
-			                   type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, {
+				.ident = type_name(),
+				.name  = type_name(),
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
 			_trust_anchor(ta)
 		{ }
 
@@ -1673,8 +1685,11 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 
 		Initialize_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
-			Single_file_system(parent_fs, Node_type::TRANSACTIONAL_FILE,
-			                   type_name(), Node_rwx::rw(), Node()),
+			Single_file_system(parent_fs, {
+				.ident = type_name(),
+				.name  = type_name(),
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
 			_trust_anchor(ta)
 		{ }
 

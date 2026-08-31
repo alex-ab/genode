@@ -92,8 +92,11 @@ struct Vfs_gpu::File_system : Single_file_system
 
 	File_system(Vfs::Env &env, Parent_fs &parent_fs, Node const &config)
 	:
-		Single_file_system(parent_fs, Node_type::CONTINUOUS_FILE,
-		                   type_name(), Node_rwx::ro(), config),
+		Single_file_system(parent_fs, {
+			.ident = Ident::from_node(config),
+			.name  = File::Name::from_node(config),
+			.rwx   = File::RO
+		}),
 		_env(env)
 	{ }
 

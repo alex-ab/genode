@@ -101,9 +101,11 @@ class Vfs_jitterentropy::File_system : public Single_file_system
 
 		File_system(Parent_fs &parent_fs, Allocator &alloc, Node const &config)
 		:
-			Single_file_system(parent_fs,
-			                   Node_type::CONTINUOUS_FILE, name(),
-			                   Node_rwx::ro(), config),
+			Single_file_system(parent_fs, {
+				.ident = Ident::from_node(config),
+				.name  = File::Name::from_node(config),
+				.rwx   = File::RO
+			}),
 			_alloc(alloc),
 			_ec_stir(0),
 			_initialized(_init_jitterentropy(alloc))

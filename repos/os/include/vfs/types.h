@@ -67,6 +67,12 @@ namespace Genode::Vfs {
 		                                 .executable = true }; }
 	};
 
+	namespace File
+	{
+		enum class Read  { NOTHING, ANYWHERE };
+		enum class Write { DENIED, CONTINUOUS, TRANSACTIONAL };
+	};
+
 	/**
 	 * Seek position in bytes, for read and write operations
 	 */

@@ -93,18 +93,6 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 		size_t             _stat_size { 0 };
 		Trace_entries      _entries { _env };
 
-		using Config = String<32>;
-
-		static Config _config()
-		{
-			char buf[Config::capacity()] { };
-
-			(void)Generator::generate({ buf, sizeof(buf) }, type_name(),
-				[&] (Generator &) { });
-
-			return Config(Cstring(buf));
-		}
-
 		void _setup_and_trace()
 		{
 			_entries.flush();
@@ -160,9 +148,11 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 		                         Trace::Policy_id policy,
 		                         Trace::Subject_id id)
 		:
-			Single_file_system(parent_fs,
-			                   Node_type::TRANSACTIONAL_FILE, type_name(),
-			                   Node_rwx::rw(), Node(_config())),
+			Single_file_system(parent_fs, {
+				.ident = type_name(),
+				.name  = type_name(),
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
 			_env(env), _trace(trace), _policy(policy), _id(id)
 		{ }
 

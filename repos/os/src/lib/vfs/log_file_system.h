@@ -162,9 +162,11 @@ class Vfs_log::File_system : public Single_file_system
 
 		File_system(Vfs::Env &env, Parent_fs &parent_fs, Node const &config)
 		:
-			Single_file_system(parent_fs,
-			                   Node_type::CONTINUOUS_FILE, name(),
-			                   Node_rwx::wo(), config),
+			Single_file_system(parent_fs, {
+				.ident = Ident::from_node(config),
+				.name  = File::Name::from_node(config),
+				.rwx   = File::WO_CONTINUOUS
+			}),
 			_label(config.attribute_value("label", Label())),
 			_log(_log_session(env.env()))
 		{ }

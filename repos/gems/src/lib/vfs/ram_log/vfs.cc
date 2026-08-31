@@ -107,8 +107,11 @@ struct Vfs_ram_log::File_system : Single_file_system
 
 	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &config)
 	:
-		Single_file_system(parent_fs, Node_type::CONTINUOUS_FILE,
-		                   name(), Node_rwx::rw(), config),
+		Single_file_system(parent_fs, {
+			.ident = Ident::from_node(config),
+			.name  = File::Name::from_node(config),
+			.rwx   = File::RW_CONTINUOUS
+		}),
 		_alloc(vfs_env.alloc()),
 		_buffer(_alloc, config.attribute_value("limit", Num_bytes { 16*1024 }))
 	{ }

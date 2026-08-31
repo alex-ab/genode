@@ -550,11 +550,11 @@ class Vfs_block::Data_file_system : public Single_file_system
 		Data_file_system(Vfs::Env &env, Parent_fs &parent_fs,
 		                 Block_connection &block, Name const &name)
 		:
-			Single_file_system { parent_fs,
-			                     Node_type::CONTINUOUS_FILE, name.string(),
-			                     block.info().writeable ? Node_rwx::rw()
-			                                            : Node_rwx::ro(),
-			                     Node() },
+			Single_file_system { parent_fs, {
+				.ident = name,
+				.name  = name,
+				.rwx   = block.info().writeable ? File::RW_CONTINUOUS : File::RO
+			} },
 			_env   { env },
 			_block { block }
 		{
@@ -569,8 +569,6 @@ class Vfs_block::Data_file_system : public Single_file_system
 		}
 
 		~Data_file_system() { }
-
-		static char const *name() { return "data"; }
 
 		Open_result open(char const  *path, unsigned,
 		                 Vfs_handle **out_handle,

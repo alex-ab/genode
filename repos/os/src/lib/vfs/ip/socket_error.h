@@ -76,24 +76,17 @@ class Vfs_ip::Error_file_system : public Single_file_system
 				Vfs_handle &operator = (Vfs_handle const &); 
 		};
 
-		Config _config() const
-		{
-			char buf[Config::capacity()] { };
-			Generator::generate({ buf, sizeof(buf) }, type_name(),
-				[] (Generator &) { }
-			).with_error([&] (Buffer_error) {
-				warning("VFS value fs config failed (", type_name(), ")");
-			});
-			return Config(Cstring(buf));
-		}
+		static char const *_type_name() { return "error"; }
 
 	public:
 
 		Error_file_system(Parent_fs &parent_fs)
 		:
-			Single_file_system(parent_fs,
-			                   Node_type::TRANSACTIONAL_FILE, type_name(),
-			                   Node_rwx::rw(), Node(_config()))
+			Single_file_system(parent_fs, {
+				.ident = _type_name(),
+				.name  = _type_name(),
+				.rwx   = File::RW_TRANSACTIONAL
+			})
 		{ }
 
 		Errno socket_error(Errno const err)
@@ -102,19 +95,17 @@ class Vfs_ip::Error_file_system : public Single_file_system
 
 			_err = err;
 
-			Generator::generate({ _error, sizeof(_error) }, type_name(),
+			Generator::generate({ _error, sizeof(_error) }, _type_name(),
 				[&] (Generator &g) {
 					g.attribute("name", _err_string(err));
 					g.attribute("value", unsigned(err));
 				}
 			).with_error([&] (Buffer_error) {
-				warning("Error fs failed (", type_name(), ")");
+				warning("Error fs failed (", _type_name(), ")");
 			});
 
 			return err;
 		}
-
-		static char const *type_name() { return "error"; }
 
 
 		/*********************************

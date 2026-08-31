@@ -51,8 +51,6 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 
 	private:
 
-		Name const _name;
-
 		Entrypoint &_ep;
 
 		Vfs::Env::User &_vfs_user;
@@ -212,10 +210,12 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 		                 Interrupt_handler    &interrupt_handler,
 		                 bool                  raw)
 		:
-			Single_file_system(parent_fs,
-			                   Node_type::TRANSACTIONAL_FILE, name.string(),
-			                   Node_rwx::rw(), Node()),
-			_name(name), _ep(ep), _vfs_user(vfs_user), _terminal(terminal),
+			Single_file_system(parent_fs, {
+				.ident = name,
+				.name  = name,
+				.rwx   = File::RW_TRANSACTIONAL
+			}),
+			_ep(ep), _vfs_user(vfs_user), _terminal(terminal),
 			_interrupt_handler(interrupt_handler),
 			_raw(raw)
 		{
