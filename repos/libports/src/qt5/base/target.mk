@@ -25,7 +25,7 @@ build: qmake_prepared.tag build_dependencies/lib/ld.lib.so
 	@# run qmake
 	@#
 
-	$(VERBOSE)source env.sh && $(QMAKE) \
+	$(VERBOSE)source ./env.sh && $(QMAKE) \
 		-qtconf build_dependencies/mkspecs/$(QT_PLATFORM)/qt.conf \
 		$(QT_DIR)/qtbase/qtbase.pro \
 		-- \
@@ -50,7 +50,7 @@ build: qmake_prepared.tag build_dependencies/lib/ld.lib.so
 	@# build
 	@#
 
-	$(VERBOSE)source env.sh && $(MAKE) sub-src $(QT5_OUTPUT_FILTER)
+	$(VERBOSE)source ./env.sh && $(MAKE) sub-src $(QT5_OUTPUT_FILTER)
 
 	@#
 	@# install into local 'install' directory

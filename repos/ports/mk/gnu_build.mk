@@ -157,7 +157,7 @@ Makefile reconfigure: $(MAKEFILE_LIST)
 #
 Makefile reconfigure: env.sh static_libs_symlinks.tag $(SHARED_LIBS)
 	@$(MSG_CONFIG)$(TARGET)
-	$(VERBOSE)source env.sh && $(CONFIGURE_SCRIPT) $(MKENV) $(CONFIGURE_ARGS) $(CONFIGURE_OUTPUT_FILTER)
+	$(VERBOSE)source ./env.sh && $(CONFIGURE_SCRIPT) $(MKENV) $(CONFIGURE_ARGS) $(CONFIGURE_OUTPUT_FILTER)
 
 env.sh:
 	$(VERBOSE)rm -f $@
@@ -187,7 +187,7 @@ env.sh:
 #
 built.tag: env.sh Makefile
 	@$(MSG_BUILD)$(TARGET)
-	$(VERBOSE)source env.sh &&\
+	$(VERBOSE)source ./env.sh &&\
 	          $(MAKE) $(MAKE_ENV) $(MAKE_VERBOSE) $(MAKE_TARGET) MAN= \
 	          $(BUILD_OUTPUT_FILTER)
 	@touch $@
@@ -205,7 +205,7 @@ installed.tag: built.tag
 ifneq ($(INSTALL_TARGET),)
 installed.tag:
 	@$(MSG_INST)$(TARGET)
-	$(VERBOSE)source env.sh && $(MAKE) $(MAKE_ENV) $(MAKE_VERBOSE) $(INSTALL_TARGET) DESTDIR=$(PWD)/install MAN= >> stdout.log 2>> stderr.log
+	$(VERBOSE)source ./env.sh && $(MAKE) $(MAKE_ENV) $(MAKE_VERBOSE) $(INSTALL_TARGET) DESTDIR=$(PWD)/install MAN= >> stdout.log 2>> stderr.log
 	@touch $@
 endif
 

@@ -38,7 +38,7 @@ build: qmake_prepared.tag qt5_so_files
 	@# run qmake
 	@#
 
-	$(VERBOSE)source env.sh && $(QMAKE) \
+	$(VERBOSE)source ./env.sh && $(QMAKE) \
 		-qtconf build_dependencies/mkspecs/$(QT_PLATFORM)/qt.conf \
 		$(QT_DIR)/qtdeclarative/qtdeclarative.pro \
 		-- \
@@ -50,7 +50,7 @@ build: qmake_prepared.tag qt5_so_files
 	@# build
 	@#
 
-	$(VERBOSE)source env.sh && $(MAKE) sub-src $(QT5_OUTPUT_FILTER)
+	$(VERBOSE)source ./env.sh && $(MAKE) sub-src $(QT5_OUTPUT_FILTER)
 
 	@#
 	@# install into local 'install' directory

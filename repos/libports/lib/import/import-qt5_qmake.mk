@@ -140,7 +140,7 @@ qmake_prepared.tag: env.sh \
 
 build_with_qmake: qmake_prepared.tag qt5_so_files
 
-	$(VERBOSE)source env.sh && $(QMAKE) \
+	$(VERBOSE)source ./env.sh && $(QMAKE) \
 		-spec build_dependencies/mkspecs/$(QT_PLATFORM) \
 		-qtconf build_dependencies/mkspecs/$(QT_PLATFORM)/qt.conf \
 		-nocache \
@@ -148,7 +148,7 @@ build_with_qmake: qmake_prepared.tag qt5_so_files
 		"CONFIG += force_debug_info" \
 		$(QT5_OUTPUT_FILTER)
 
-	$(VERBOSE)source env.sh && $(MAKE) $(QT5_OUTPUT_FILTER)
+	$(VERBOSE)source ./env.sh && $(MAKE) $(QT5_OUTPUT_FILTER)
 
 	$(VERBOSE)for qmake_target_binary in $(QMAKE_TARGET_BINARIES); do \
 		$(OBJCOPY) --only-keep-debug $${qmake_target_binary} $${qmake_target_binary}.debug; \
