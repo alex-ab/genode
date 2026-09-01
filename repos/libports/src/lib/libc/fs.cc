@@ -483,56 +483,53 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 			return stat.type == Vfs::Node_type::CONTINUOUS_FILE;
 		};
 
-		_monitor.monitor([&]
-		{
-			for (;;) {
+		_monitor.monitor([&] {
 
-				Span const src { (char const *)buf + offset, remaining_bytes };
-				Vfs::At const at { .pos = of.pos };
+			Span const src { (char const *)buf + offset, remaining_bytes };
+			Vfs::At const at { .pos = of.pos };
 
-				Vfs::Write_result partial_result = of.handle.write(at, src);
+			Vfs::Write_result partial_result = of.handle.write(at, src);
 
-				if (partial_result == Vfs::Write_error::RETRY)
-					return Fn::INCOMPLETE;
+			if (partial_result == Vfs::Write_error::RETRY)
+				return Fn::INCOMPLETE;
 
-				partial_result.with_result(
-					[&] (size_t num_bytes) {
-						total_written_bytes += num_bytes;
-						offset              += num_bytes;
-						remaining_bytes     -= num_bytes;
+			partial_result.with_result(
+				[&] (size_t num_bytes) {
+					total_written_bytes += num_bytes;
+					offset              += num_bytes;
+					remaining_bytes     -= num_bytes;
 
-						of.pos     += num_bytes;
-						of.modified = true;
+					of.pos     += num_bytes;
+					of.modified = true;
 
-						result = total_written_bytes;
-					},
-					[&] (Vfs::Write_error e) {
-						result = e;
-					});
+					result = total_written_bytes;
+				},
+				[&] (Vfs::Write_error e) {
+					result = e;
+				});
 
-				if (partial_result.failed())
-					return Fn::COMPLETE;
+			if (partial_result.failed())
+				return Fn::COMPLETE;
 
-				if (remaining_bytes == 0)
-					return Fn::COMPLETE;
+			if (remaining_bytes == 0)
+				return Fn::COMPLETE;
 
-				/*
-				 * If the write has not consumed all bytes, set up
-				 * another partial write iteration with the remaining
-				 * bytes as 'count'.
-				 *
-				 * The costly 'fd_refers_to_continuous_file' is called
-				 * for the first iteration only.
-				 */
-				bool const continuous_file = (iteration > 0 || _fd_refers_to_continuous_file());
+			/*
+			 * If the write has not consumed all bytes, set up another partial
+			 * write iteration with the remaining bytes as 'count'.
+			 *
+			 * The costly 'fd_refers_to_continuous_file' is called for the
+			 * first iteration only.
+			 */
+			bool const continuous_file = (iteration > 0 || _fd_refers_to_continuous_file());
 
-				if (!continuous_file) {
-					warning("partial write on transactional file");
-					result = Vfs::Write_error::DENIED;
-					return Fn::COMPLETE;
-				}
-				iteration++;
+			if (!continuous_file) {
+				warning("partial write on transactional file");
+				result = Vfs::Write_error::DENIED;
+				return Fn::COMPLETE;
 			}
+			iteration++;
+			return Fn::INCOMPLETE;
 		});
 	}
 
