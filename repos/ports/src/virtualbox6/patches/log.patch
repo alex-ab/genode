@@ -1,0 +1,22 @@
+diff --git a/src/virtualbox6/src/VBox/Runtime/common/log/log.cpp b/src/virtualbox6/src/VBox/Runtime/common/log/log.cpp
+index f71ed86..8e4327c 100644
+--- a/src/virtualbox6/src/VBox/Runtime/common/log/log.cpp
++++ b/src/virtualbox6/src/VBox/Runtime/common/log/log.cpp
+@@ -3203,7 +3203,17 @@ static int rtlogFileOpen(PRTLOGGER pLogger, PRTERRINFO pErrInfo)
+     else
+     {
+         RTFileDelete(pLogger->pInt->szFilename);
++#ifdef __GENODE__
++        /*
++         * On Genode we may open special files like /dev/log which already
++         * exist. Because RTFILE_O_CREATE implies O_EXCL when calling POSIX open
++         * (meaning an open for /dev/log will return EEXIST), use
++         * RTFILE_O_OPEN_CREATE which only sets O_CREAT
++         */
++        fOpen |= RTFILE_O_OPEN_CREATE;
++#else
+         fOpen |= RTFILE_O_CREATE;
++#endif
+     }
+     if (pLogger->fFlags & RTLOGFLAGS_WRITE_THROUGH)
+         fOpen |= RTFILE_O_WRITE_THROUGH;
