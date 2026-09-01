@@ -314,7 +314,7 @@ struct Vfs_tap::Compound_file_system : Union_file_system,
 		Generator::generate({ buf, sizeof(buf) }, "compound",
 			[&] (Generator &g) {
 				g.named_node("data", name);
-				g.named_node("dir", Name(".", name),
+				g.named_node("dir", Name(".", name), [&] {
 					g.node("info");
 					g.node("mac_addr");
 					g.node("name");
