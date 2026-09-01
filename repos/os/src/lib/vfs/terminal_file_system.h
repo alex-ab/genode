@@ -377,7 +377,7 @@ struct Vfs_terminal::File_system : Union_file_system,
 		return Union_file_system::update(Node(_config(_name)), *this);
 	}
 
-	static const char *name() { return "terminal"; }
+	static constexpr auto BUILTIN_FS_TYPE = "terminal";
 };
 
 #endif /* _INCLUDE__VFS__TERMINAL_FILE_SYSTEM_H_ */

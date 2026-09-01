@@ -711,7 +711,7 @@ struct Vfs_block::File_system : Union_file_system, private Vfs::File_system::Fac
 		return Union_file_system::update(Node(_config(_name)), *this);
 	}
 
-	static const char *name() { return "block"; }
+	static constexpr auto BUILTIN_FS_TYPE = "block";
 };
 
 #endif /* _INCLUDE__VFS__BLOCK_FILE_SYSTEM_H_ */

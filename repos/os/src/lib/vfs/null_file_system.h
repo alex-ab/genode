@@ -37,8 +37,6 @@ struct Vfs_null::File_system : Single_file_system
 		})
 	{ }
 
-	static char const *name() { return "null"; }
-
 	struct Null_vfs_handle : Single_vfs_handle
 	{
 		Null_vfs_handle(Directory_service &ds, Allocator &alloc)
@@ -73,6 +71,8 @@ struct Vfs_null::File_system : Single_file_system
 		catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 		catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
 	}
+
+	static constexpr auto BUILTIN_FS_TYPE = "null";
 };
 
 #endif /* _INCLUDE__VFS__NULL_FILE_SYSTEM_H_ */

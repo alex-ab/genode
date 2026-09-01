@@ -123,8 +123,6 @@ class Vfs_rtc::File_system : public Single_file_system
 			_rtc.set_sigh(_set_signal_handler);
 		}
 
-		static char const *name() { return "rtc"; }
-
 
 		/*********************************
 		 ** Directory-service interface **
@@ -156,6 +154,8 @@ class Vfs_rtc::File_system : public Single_file_system
 
 			return result;
 		}
+
+		static constexpr auto BUILTIN_FS_TYPE = "rtc";
 };
 
 #endif /* _INCLUDE__VFS__RTC_FILE_SYSTEM_H_ */

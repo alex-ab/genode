@@ -318,14 +318,14 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				[&] () -> Rename_result { return RENAME_ERR_NO_ENTRY; });
 		}
 
-		static char const *name()   { return "dir"; }
-
 		Progress update(Node const &node, Factory &factory) override
 		{
 			return _union.update(node, factory);
 		}
 
 		void resume_after_update() override { _union.resume_after_update(); }
+
+		static constexpr auto BUILTIN_FS_TYPE = "dir";
 };
 
 #endif /* _INCLUDE__VFS__DIR_FILE_SYSTEM_H_ */

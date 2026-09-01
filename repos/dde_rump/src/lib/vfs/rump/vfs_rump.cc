@@ -425,8 +425,6 @@ class Vfs_rump::File_system : public Vfs::File_system
 		 ** File_system interface **
 		 ***************************/
 
-		static char const *name() { return "rump"; }
-
 		void destruct() override { destroy(_env.alloc(), this); }
 
 

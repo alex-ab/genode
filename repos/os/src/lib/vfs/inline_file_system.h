@@ -151,7 +151,6 @@ class Vfs_inline::File_system : public Single_file_system
 			_data(env.alloc(), config)
 		{ }
 
-		static char const *name() { return "inline"; }
 
 		/********************************
 		 ** Directory service interface **
@@ -183,6 +182,8 @@ class Vfs_inline::File_system : public Single_file_system
 
 			return result;
 		}
+
+		static constexpr auto BUILTIN_FS_TYPE = "inline";
 };
 
 

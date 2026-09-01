@@ -160,7 +160,7 @@ class Vfs_symlink::File_system : public Single_file_system
 			return STAT_OK;
 		}
 
-		static char const *name() { return "symlink"; }
+		static constexpr auto BUILTIN_FS_TYPE = "symlink";
 };
 
 #endif /* _INCLUDE__VFS__SYMLINK_FILE_SYSTEM_H_ */

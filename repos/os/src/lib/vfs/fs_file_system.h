@@ -888,12 +888,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			}
 		};
 
-
-		/***************************
-		 ** File_system interface **
-		 ***************************/
-
-		static char const *name() { return "fs"; }
+		static constexpr auto BUILTIN_FS_TYPE = "fs";
 };
 
 #endif /* _INCLUDE__VFS__FS_FILE_SYSTEM_H_ */

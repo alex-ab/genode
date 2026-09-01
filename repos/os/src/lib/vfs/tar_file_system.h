@@ -746,12 +746,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 				destroy(vfs_handle->alloc(), tar_handle);
 		}
 
-
-		/***************************
-		 ** File_system interface **
-		 ***************************/
-
-		static char const *name() { return "tar"; }
+		static constexpr auto BUILTIN_FS_TYPE = "tar";
 };
 
 #endif /* _INCLUDE__VFS__TAR_FILE_SYSTEM_H_ */

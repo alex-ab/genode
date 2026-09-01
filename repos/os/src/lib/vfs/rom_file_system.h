@@ -134,8 +134,6 @@ class Vfs_rom::File_system : public Single_file_system
 			_binary(config.attribute_value("binary", true))
 		{ }
 
-		static char const *name() { return "rom"; }
-
 
 		/*********************************
 		 ** Directory-service interface **
@@ -199,6 +197,8 @@ class Vfs_rom::File_system : public Single_file_system
 
 			return result;
 		}
+
+		static constexpr auto BUILTIN_FS_TYPE = "rom";
 };
 
 #endif /* _INCLUDE__VFS__ROM_FILE_SYSTEM_H_ */

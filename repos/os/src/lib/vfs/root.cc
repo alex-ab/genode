@@ -60,7 +60,7 @@ struct Genode::Vfs::Root::Factory::Builtin_entry : Entry_base
 {
 	Allocator &_alloc;
 
-	Builtin_entry(Allocator &a) : Entry_base(FILE_SYSTEM::name()), _alloc(a) { }
+	Builtin_entry(Allocator &a) : Entry_base(FILE_SYSTEM::BUILTIN_FS_TYPE), _alloc(a) { }
 
 	Instance::Attempt create(Vfs::Env &env, Parent_fs &parent_fs, Node const &node) override
 	{

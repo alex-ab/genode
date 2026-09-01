@@ -884,11 +884,7 @@ class Vfs_ram::File_system : public Vfs::File_system
 				static_cap_cast<Ram_dataspace>(ds_cap));
 		}
 
-		/***************************
-		 ** File_system interface **
-		 ***************************/
-
-		static char const *name() { return "ram"; }
+		static constexpr auto BUILTIN_FS_TYPE = "ram";
 };
 
 

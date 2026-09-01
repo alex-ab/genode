@@ -171,8 +171,6 @@ class Vfs_log::File_system : public Single_file_system
 			_log(_log_session(env.env()))
 		{ }
 
-		static const char *name()   { return "log"; }
-
 
 		/*********************************
 		 ** Directory service interface **
@@ -193,6 +191,8 @@ class Vfs_log::File_system : public Single_file_system
 			catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
 		}
+
+		static constexpr auto BUILTIN_FS_TYPE = "log";
 };
 
 #endif /* _INCLUDE__VFS__LOG_FILE_SYSTEM_H_ */

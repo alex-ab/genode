@@ -40,8 +40,6 @@ struct Vfs_zero::File_system : Single_file_system
 		_size(config.attribute_value("size", Number_of_bytes(0)))
 	{ }
 
-	static char const *name() { return "zero"; }
-
 	struct Zero_vfs_handle : Single_vfs_handle
 	{
 		size_t const _size;
@@ -108,6 +106,8 @@ struct Vfs_zero::File_system : Single_file_system
 
 		return result;
 	}
+
+	static constexpr auto BUILTIN_FS_TYPE = "zero";
 };
 
 #endif /* _INCLUDE__VFS__ZERO_FILE_SYSTEM_H_ */

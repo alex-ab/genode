@@ -92,10 +92,6 @@ class Vfs_libusb::File_system : public Vfs::Single_file_system
 			}),
 			_env(env) { }
 
-		~File_system() { }
-
-		static char const *name() { return "libusb"; }
-
 		void destruct() override { destroy(_env.alloc(), this); }
 
 		Open_result open(char const *path, unsigned,
