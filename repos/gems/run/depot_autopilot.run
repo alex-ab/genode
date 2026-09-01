@@ -934,7 +934,7 @@ while {1} {
 			if {$previous_results != ""} {
 				append previous_results \012
 			}
-			append previous_results $last_test_result
+			append previous_results [regsub -all {\r} $last_test_result ""]
 			incr nr_of_tests_this_boot
 		}
 		# if the Autopilot is currently repeating, reset repeat-influenced variables
