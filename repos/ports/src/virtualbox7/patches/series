@@ -28,3 +28,4 @@ tpm.patch
 ich9.patch
 ohci.patch
 sharedclipboard.patch
+log.patch
