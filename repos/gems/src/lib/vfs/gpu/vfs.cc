@@ -120,8 +120,6 @@ struct Vfs_gpu::File_system : Single_file_system
 		catch (Out_of_ram)  { return OPEN_ERR_OUT_OF_RAM; }
 		catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
 	}
-
-	static char const *type_name() { return "gpu"; }
 };
 
 

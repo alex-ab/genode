@@ -120,13 +120,11 @@ class Vfs_glyphs::File_system : public Single_file_system
 
 	public:
 
-		static char const *type_name() { return "glyphs"; }
-
 		File_system(Parent_fs &parent_fs, Accessor &accessor)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "glyphs",
+				.name  = "glyphs",
 				.rwx   = File::RO
 			}),
 			_accessor(accessor)

@@ -962,14 +962,12 @@ class Vfs_tresor::Data_file_system : private Noncopyable, public Single_file_sys
 		Data_file_system(Parent_fs &parent_fs, Plugin &plugin)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "data",
+				.name  = "data",
 				.rwx   = File::RW_CONTINUOUS
 			}),
 			_plugin(plugin)
 		{ }
-
-		static char const *type_name() { return "data"; }
 
 		void notify_watchers() { Single_file_system::_notify_watchers(); }
 
@@ -1094,16 +1092,14 @@ class Vfs_tresor::Extend_file_system : private Noncopyable, public Single_file_s
 		Extend_file_system(Parent_fs &parent_fs, Plugin &plugin)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "extend",
+				.name  = "extend",
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
 			_plugin(plugin)
 		{
 			_plugin.manage_extend_file_system(*this);
 		}
-
-		static char const *type_name() { return "extend"; }
 
 		void notify_watchers() { Single_file_system::_notify_watchers(); }
 
@@ -1211,16 +1207,14 @@ class Vfs_tresor::Rekey_file_system : private Noncopyable, public Single_file_sy
 		Rekey_file_system(Parent_fs &parent_fs, Plugin &plugin)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "rekey",
+				.name  = "rekey",
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
 			_plugin(plugin)
 		{
 			_plugin.manage_rekey_file_system(*this);
 		}
-
-		static char const *type_name() { return "rekey"; }
 
 		void notify_watchers() { Single_file_system::_notify_watchers(); }
 
@@ -1329,16 +1323,14 @@ class Vfs_tresor::Deinitialize_file_system : private Noncopyable, public Single_
 		Deinitialize_file_system(Parent_fs &parent_fs, Plugin &plugin)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "deinitialize",
+				.name  = "deinitialize",
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
 			_plugin(plugin)
 		{
 			_plugin.manage_deinit_file_system(*this);
 		}
-
-		static char const *type_name() { return "deinitialize"; }
 
 		void notify_watchers() { Single_file_system::_notify_watchers(); }
 
@@ -1370,8 +1362,7 @@ struct Vfs_tresor::Current_file_system : Dir_file_system, private Vfs::File_syst
 
 	Instance::Attempt create(Vfs::Env&, Parent_fs &, Node const &node) override
 	{
-		if (node.has_type(Data_file_system::type_name()))
-			return { *this, { _data_fs } };
+		if (_data_fs.matches(node)) return { *this, { _data_fs } };
 
 		return Error::DENIED;
 	}
@@ -1384,8 +1375,8 @@ struct Vfs_tresor::Current_file_system : Dir_file_system, private Vfs::File_syst
 	{
 		char buf[Config::capacity()] { };
 		Generator::generate({ buf, sizeof(buf) }, "dir", [&] (Generator &g) {
-			g.attribute("name", String<16>("current"));
-			g.node("data", [&] { g.attribute("readonly", false); });
+			g.attribute("name", "current");
+			g.node("data");
 		}).with_error([] (Genode::Buffer_error) {
 			Genode::warning("VFS-tresor current config exceeds maximum buffer size");
 		});
@@ -1405,8 +1396,6 @@ struct Vfs_tresor::Current_file_system : Dir_file_system, private Vfs::File_syst
 	{
 		return Dir_file_system::update(Node(_config()), *this);
 	}
-
-	static char const *type_name() { return "current"; }
 };
 
 
@@ -1420,14 +1409,9 @@ struct Vfs_tresor::Control_file_system : Dir_file_system, private Vfs::File_syst
 
 	Instance::Attempt create(Vfs::Env&, Parent_fs &, Node const &node) override
 	{
-		if (node.has_type(Rekey_file_system::type_name()))
-			return { *this, { _rekey_fs } };
-
-		if (node.has_type(Deinitialize_file_system::type_name()))
-			return { *this, { _deinitialize_fs } };
-
-		if (node.has_type(Extend_file_system::type_name()))
-			return { *this, { _extend_fs } };
+		if (_rekey_fs       .matches(node)) return { *this, { _rekey_fs        } };
+		if (_deinitialize_fs.matches(node)) return { *this, { _deinitialize_fs } };
+		if (_extend_fs      .matches(node)) return { *this, { _extend_fs       } };
 
 		return Error::DENIED;
 	}
@@ -1441,9 +1425,9 @@ struct Vfs_tresor::Control_file_system : Dir_file_system, private Vfs::File_syst
 		char buf[Config::capacity()] { };
 		Generator::generate({ buf, sizeof(buf) }, "dir", [&] (Generator &g) {
 			g.attribute("name", "control");
-			g.node("rekey", [&] () { });
-			g.node("extend", [&] () { });
-			g.node("deinitialize", [&] () { });
+			g.node("rekey");
+			g.node("extend");
+			g.node("deinitialize");
 		}).with_error([&] (Genode::Buffer_error) {
 			Genode::warning("VFS-tresor control config exceeds maximum buffer size");
 		});
@@ -1467,8 +1451,6 @@ struct Vfs_tresor::Control_file_system : Dir_file_system, private Vfs::File_syst
 	{
 		return Dir_file_system::update(Node(_config()), *this);
 	}
-
-	static char const *type_name() { return "control"; }
 };
 
 
@@ -1480,11 +1462,8 @@ struct Vfs_tresor::File_system : Dir_file_system, private Vfs::File_system::Fact
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
-		if (node.has_type(Current_file_system::type_name()))
-			return { *this, { _current_fs } };
-
-		if (node.has_type(Control_file_system::type_name()))
-			return { *this, { _control_fs } };
+		if (_current_fs.matches(node)) return { *this, { _current_fs } };
+		if (_control_fs.matches(node)) return { *this, { _control_fs } };
 
 		return Error::DENIED;
 	}
@@ -1498,8 +1477,8 @@ struct Vfs_tresor::File_system : Dir_file_system, private Vfs::File_system::Fact
 		char buf[Config::capacity()] { };
 		Generator::generate({ buf, sizeof(buf) }, "dir", [&] (Generator &g) {
 			g.attribute("name", node.attribute_value("name", String<64>("tresor")));
-			g.node("control");
-			g.node("current");
+			g.named_node("dir", "control");
+			g.named_node("dir", "current");
 		}).with_error([&] (Genode::Buffer_error) {
 			Genode::warning("VFS-tresor config exceeds maximum buffer size");
 		});

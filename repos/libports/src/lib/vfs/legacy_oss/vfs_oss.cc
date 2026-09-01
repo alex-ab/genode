@@ -940,95 +940,26 @@ struct Vfs_oss::File_system : Union_file_system, Vfs::File_system::Factory
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
-		if (node.has_type("dir")) {
-			return { *this, { _dot_dir_fs } };
-		}
+		struct { Vfs::File_system &fs; } entries[] {
+			{ _dot_dir_fs           },
+			{ _data_fs              },
+			{ _info_fs              },
+			{ _channels_fs          },
+			{ _sample_rate_fs       },
+			{ _format_fs            },
+			{ _optr_samples_fs      },
+			{ _optr_fifo_samples_fs },
+			{ _play_underruns_fs    },
+			{ _ifrag_avail_fs       }, { _ifrag_bytes_fs       },
+			{ _ofrag_avail_fs       }, { _ofrag_bytes_fs       },
+			{ _enable_input_fs      }, { _enable_output_fs     },
+			{ _halt_input_fs        }, { _halt_output_fs       },
+			{ _ifrag_total_fs       }, { _ifrag_size_fs        },
+			{ _ofrag_total_fs       }, { _ofrag_size_fs        },
+		};
 
-		if (node.has_type("data")) {
-			return { *this, { _data_fs } };
-		}
-
-		if (node.has_type("info")) {
-			return { *this, { _info_fs } };
-		}
-
-		if (node.has_type(Readonly_value_file_system<unsigned>::type_name())) {
-
-			if (_channels_fs.matches(node)) {
-				return { *this, { _channels_fs } };
-			}
-
-			if (_sample_rate_fs.matches(node)) {
-				return { *this, { _sample_rate_fs } };
-			}
-
-			if (_ifrag_avail_fs.matches(node)) {
-				return { *this, { _ifrag_avail_fs } };
-			}
-
-			if (_ifrag_bytes_fs.matches(node)) {
-				return { *this, { _ifrag_bytes_fs } };
-			}
-
-			if (_ofrag_avail_fs.matches(node)) {
-				return { *this, { _ofrag_avail_fs } };
-			}
-
-			if (_ofrag_bytes_fs.matches(node)) {
-				return { *this, { _ofrag_bytes_fs } };
-			}
-
-			if (_format_fs.matches(node)) {
-				return { *this, { _format_fs } };
-			}
-
-			if (_optr_samples_fs.matches(node)) {
-				return { *this, { _optr_samples_fs } };
-			}
-
-			if (_optr_fifo_samples_fs.matches(node)) {
-				return { *this, { _optr_fifo_samples_fs } };
-			}
-		}
-
-		if (node.has_type(Value_file_system<unsigned>::type_name())) {
-
-			if (_enable_input_fs.matches(node)) {
-				return { *this, { _enable_input_fs } };
-			}
-
-			if (_enable_output_fs.matches(node)) {
-				return { *this, { _enable_output_fs } };
-			}
-
-			if (_halt_input_fs.matches(node)) {
-				return { *this, { _halt_input_fs } };
-			}
-
-			if (_halt_output_fs.matches(node)) {
-				return { *this, { _halt_output_fs } };
-			}
-
-			if (_ifrag_total_fs.matches(node)) {
-				return { *this, { _ifrag_total_fs } };
-			}
-
-			if (_ifrag_size_fs.matches(node)) {
-				return { *this, { _ifrag_size_fs } };
-			}
-
-			if (_ofrag_total_fs.matches(node)) {
-				return { *this, { _ofrag_total_fs } };
-			}
-
-			if (_ofrag_size_fs.matches(node)) {
-				return { *this, { _ofrag_size_fs } };
-			}
-
-			if (_play_underruns_fs.matches(node)) {
-				return { *this, { _play_underruns_fs } };
-			}
-		}
+		for (auto &e : entries)
+			if (e.fs.matches(node)) return { *this, { e.fs } };
 
 		return Error::DENIED;
 	}
@@ -1042,88 +973,29 @@ struct Vfs_oss::File_system : Union_file_system, Vfs::File_system::Factory
 
 		(void)Genode::Generator::generate({ buf, sizeof(buf) }, "compound",
 		                                  [&] (Genode::Generator &g) {
-
-			g.node("data", [&] () {
-				g.attribute("name", name); });
-
-			g.node("dir", [&] () {
-				g.attribute("name", Name(".", name));
-				g.node("info", [&] () { });
-
-				g.node("readonly_value", [&] {
-					g.attribute("name", "channels");
-				});
-
-				g.node("readonly_value", [&] {
-					 g.attribute("name", "sample_rate");
-				});
-
-				g.node("readonly_value", [&] {
-					g.attribute("name", "format");
-				});
-
-				g.node("value", [&] {
-					g.attribute("name", "enable_input");
-				});
-
-				g.node("value", [&] {
-					g.attribute("name", "enable_output");
-				});
-
-				g.node("value", [&] {
-					g.attribute("name", "halt_input");
-				});
-
-				g.node("value", [&] {
-					g.attribute("name", "halt_output");
-				});
-
-				g.node("value", [&] {
-					g.attribute("name", "ifrag_total");
-				});
-
-				g.node("value", [&] {
-					 g.attribute("name", "ifrag_size");
-				});
-
-				g.node("readonly_value", [&] {
-					 g.attribute("name", "ifrag_avail");
-				});
-
-				g.node("readonly_value", [&] {
-					 g.attribute("name", "ifrag_bytes");
-				});
-
-				g.node("value", [&] {
-					g.attribute("name", "ofrag_total");
-				});
-
-				g.node("value", [&] {
-					 g.attribute("name", "ofrag_size");
-				});
-
-				g.node("readonly_value", [&] {
-					 g.attribute("name", "ofrag_avail");
-				});
-
-				g.node("readonly_value", [&] {
-					 g.attribute("name", "ofrag_bytes");
-				});
-
-				g.node("readonly_value", [&] {
-					 g.attribute("name", "optr_samples");
-				});
-
-				g.node("readonly_value", [&] {
-					 g.attribute("name", "optr_fifo_samples");
-				});
-
-				g.node("value", [&] {
-					 g.attribute("name", "play_underruns");
-				});
+			g.named_node("data", name);
+			g.named_node("dir", Name(".", name), [&] {
+				g.node("info");
+				g.named_node("readonly_value", "channels");
+				g.named_node("readonly_value", "sample_rate");
+				g.named_node("readonly_value", "format");
+				g.named_node("value",          "enable_input");
+				g.named_node("value",          "enable_output");
+				g.named_node("value",          "halt_input");
+				g.named_node("value",          "halt_output");
+				g.named_node("value",          "ifrag_total");
+				g.named_node("value",          "ifrag_size");
+				g.named_node("readonly_value", "ifrag_avail");
+				g.named_node("readonly_value", "ifrag_bytes");
+				g.named_node("value",          "ofrag_total");
+				g.named_node("value",          "ofrag_size");
+				g.named_node("readonly_value", "ofrag_avail");
+				g.named_node("readonly_value", "ofrag_bytes");
+				g.named_node("readonly_value", "optr_samples");
+				g.named_node("readonly_value", "optr_fifo_samples");
+				g.named_node("value",          "play_underruns");
 			});
 		});
-
 		return Config(Genode::Cstring(buf));
 	}
 

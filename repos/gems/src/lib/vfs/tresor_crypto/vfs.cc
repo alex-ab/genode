@@ -116,14 +116,12 @@ class Vfs_tresor_crypto::Encrypt_file_system : public Vfs::Single_file_system
 		Encrypt_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto, uint32_t key_id)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "encrypt",
+				.name  = "encrypt",
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
 			_crypto(crypto), _key_id(key_id)
 		{ }
-
-		static char const *type_name() { return "encrypt"; }
 
 		Open_result open(char const *path, unsigned, Vfs_handle **out_handle,
 		                 Allocator &alloc) override
@@ -214,14 +212,12 @@ class Vfs_tresor_crypto::Decrypt_file_system : public Single_file_system
 		Decrypt_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto, uint32_t key_id)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "decrypt",
+				.name  = "decrypt",
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
 			_crypto(crypto), _key_id(key_id)
 		{ }
-
-		static char const *type_name() { return "decrypt"; }
 
 		Open_result open(char const *path, unsigned /* flags */,
 		                 Vfs_handle **out_handle,
@@ -253,11 +249,8 @@ class Vfs_tresor_crypto::Key_file_system : public Dir_file_system,
 
 		Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
 		{
-			if (node.has_type(Encrypt_file_system::type_name()))
-				return { *this, { _encrypt_fs } };
-
-			if (node.has_type(Decrypt_file_system::type_name()))
-				return { *this, { _decrypt_fs } };
+			if (_encrypt_fs.matches(node)) return { *this, { _encrypt_fs } };
+			if (_decrypt_fs.matches(node)) return { *this, { _decrypt_fs } };
 
 			return Error::DENIED;;
 		}
@@ -272,9 +265,7 @@ class Vfs_tresor_crypto::Key_file_system : public Dir_file_system,
 
 			Generator::generate({ buf, sizeof(buf) }, "dir",
 				[&] (Generator &g) {
-
 					g.attribute("name", String<16>(key_id));
-
 					g.node("decrypt");
 					g.node("encrypt");
 
@@ -298,8 +289,6 @@ class Vfs_tresor_crypto::Key_file_system : public Dir_file_system,
 			Dir_file_system::update(Node(_config(key_id)), *this);
 		}
 
-		static char const *type_name() { return "keys"; }
-
 		uint32_t key_id() const { return _key_id; }
 };
 
@@ -313,6 +302,8 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 
 		bool _root_dir(char const *path) { return strcmp(path, "/keys") == 0; }
 		bool _top_dir(char const *path) { return strcmp(path, "/") == 0; }
+
+		static constexpr auto _FS_TYPE = "keys";
 
 		struct Key_registry
 		{
@@ -530,8 +521,8 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 				path++;
 			}
 
-			size_t const name_len = strlen(type_name());
-			if (strcmp(path, type_name(), name_len) != 0) {
+			size_t const name_len = strlen(_FS_TYPE);
+			if (strcmp(path, _FS_TYPE, name_len) != 0) {
 				return nullptr;
 			}
 
@@ -555,18 +546,16 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 		void notify_watchers(Span const &rel_path) override
 		{
 			using Path = String<MAX_PATH_LEN>;
-			Path { type_name(), "/", Cstring(rel_path.start, rel_path.num_bytes) }
+			Path { _FS_TYPE, "/", Cstring(rel_path.start, rel_path.num_bytes) }
 				.with_span([&] (Span const &s) {
 					_parent_fs.notify_watchers(s); });
 		}
 
 		Keys_file_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Tresor_crypto::Interface &crypto)
 		:
-			Vfs::File_system(Ident { type_name() }),
+			Vfs::File_system(Ident { _FS_TYPE }),
 			_vfs_env(vfs_env), _parent_fs(parent_fs), _key_reg(*this, vfs_env.alloc(), crypto)
 		{ }
-
-		static char const *type_name() { return "keys"; }
 
 
 		/*********************************
@@ -863,22 +852,18 @@ class Vfs_tresor_crypto::Management_file_system : public Single_file_system
 
 struct Vfs_tresor_crypto::Add_key_file_system : Vfs_tresor_crypto::Management_file_system
 {
-	static char const *type_name() { return "add_key"; }
-
 	Add_key_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto)
 	:
-		Management_file_system(parent_fs, crypto, Management_file_system::ADD_KEY, type_name())
+		Management_file_system(parent_fs, crypto, Management_file_system::ADD_KEY, "add_key")
 	{ }
 };
 
 
 struct Vfs_tresor_crypto::Remove_key_file_system : Vfs_tresor_crypto::Management_file_system
 {
-	static char const *type_name() { return "remove_key"; }
-
 	Remove_key_file_system(Parent_fs &parent_fs, Tresor_crypto::Interface &crypto)
 	:
-		Management_file_system(parent_fs, crypto, Management_file_system::REMOVE_KEY, type_name())
+		Management_file_system(parent_fs, crypto, Management_file_system::REMOVE_KEY, "remove_key")
 	{ }
 };
 
@@ -895,9 +880,9 @@ struct Vfs_tresor_crypto::File_system : Dir_file_system, Vfs::File_system::Facto
 
 		Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
 		{
-			if (node.has_type(Add_key_file_system::type_name()))    return { *this, { _add_key_fs    } };
-			if (node.has_type(Remove_key_file_system::type_name())) return { *this, { _remove_key_fs } };
-			if (node.has_type(Keys_file_system::type_name()))       return { *this, { _keys_fs       } };
+			if (_add_key_fs   .matches(node)) return { *this, { _add_key_fs    } };
+			if (_remove_key_fs.matches(node)) return { *this, { _remove_key_fs } };
+			if (_keys_fs      .matches(node)) return { *this, { _keys_fs       } };
 
 			return Error::DENIED;
 		}
@@ -913,12 +898,10 @@ struct Vfs_tresor_crypto::File_system : Dir_file_system, Vfs::File_system::Facto
 
 			Generator::generate({ buf, sizeof(buf) }, "dir",
 				[&] (Generator &g) {
-					g.attribute(
-						"name", node.attribute_value("name", String<64>("")));
-
-					g.node("add_key",    [&] () { });
-					g.node("remove_key", [&] () { });
-					g.node("keys",       [&] () { });
+					g.attribute("name", node.attribute_value("name", String<64>("")));
+					g.node("add_key");
+					g.node("remove_key");
+					g.node("keys");
 			}).with_error([] (Buffer_error) {
 				warning("VFS-tresor_crypto compound exceeds maximum buffer size"); });
 

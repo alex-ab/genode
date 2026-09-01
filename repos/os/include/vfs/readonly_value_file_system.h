@@ -69,15 +69,13 @@ class Genode::Vfs::Readonly_value_file_system : public Single_file_system
 		                           T const &initial_value)
 		:
 			Single_file_system(parent_fs, {
-				.ident = { { type_name(), " ", name } },
+				.ident = { { "readonly_value ", name } },
 				.name  = name,
 				.rwx   = File::RO
 			})
 		{
 			value(initial_value);
 		}
-
-		static char const *type_name() { return "readonly_value"; }
 
 		void value(T const &value)
 		{

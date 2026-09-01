@@ -286,11 +286,11 @@ struct Vfs_tap::Compound_file_system : Union_file_system,
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
-		if (node.has_type("dir"))       return { *this, { _dot_dir_fs  } };
-		if (node.has_type("data"))      return { *this, { _data_fs     } };
-		if (node.has_type("info"))      return { *this, { _info_fs     } };
-		if (node.has_type("mac_addr"))  return { *this, { _mac_addr_fs } };
-		if (node.has_type("name"))      return { *this, { _name_fs     } };
+		if (_dot_dir_fs .matches(node)) return { *this, { _dot_dir_fs  } };
+		if (_data_fs    .matches(node)) return { *this, { _data_fs     } };
+		if (_info_fs    .matches(node)) return { *this, { _info_fs     } };
+		if (_mac_addr_fs.matches(node)) return { *this, { _mac_addr_fs } };
+		if (_name_fs    .matches(node)) return { *this, { _name_fs     } };
 
 		return Error::DENIED;
 	}
@@ -313,12 +313,8 @@ struct Vfs_tap::Compound_file_system : Union_file_system,
 
 		Generator::generate({ buf, sizeof(buf) }, "compound",
 			[&] (Generator &g) {
-
-				g.node("data", [&] () {
-					g.attribute("name", name); });
-
-				g.node("dir", [&] () {
-					g.attribute("name", Name(".", name));
+				g.named_node("data", name);
+				g.named_node("dir", Name(".", name),
 					g.node("info");
 					g.node("mac_addr");
 					g.node("name");

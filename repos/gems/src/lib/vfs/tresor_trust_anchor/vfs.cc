@@ -1302,14 +1302,12 @@ class Vfs_tresor_trust_anchor::Hashsum_file_system : public Single_file_system
 		Hashsum_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "hash",
+				.name  = "hash",
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
 			_trust_anchor(ta)
 		{ }
-
-		static char const *type_name() { return "hash"; }
 
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
@@ -1382,14 +1380,12 @@ class Vfs_tresor_trust_anchor::Generate_key_file_system : public Single_file_sys
 		Generate_key_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "generate_key",
+				.name  = "generate_key",
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
 			_trust_anchor(ta)
 		{ }
-
-		static char const *type_name() { return "generate_key"; }
 
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
@@ -1478,14 +1474,12 @@ class Vfs_tresor_trust_anchor::Encrypt_file_system : public Single_file_system
 		Encrypt_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "encrypt",
+				.name  = "encrypt",
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
 			_trust_anchor(ta)
 		{ }
-
-		static char const *type_name() { return "encrypt"; }
 
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
@@ -1572,14 +1566,12 @@ class Vfs_tresor_trust_anchor::Decrypt_file_system : public Single_file_system
 		Decrypt_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "decrypt",
+				.name  = "decrypt",
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
 			_trust_anchor(ta)
 		{ }
-
-		static char const *type_name() { return "decrypt"; }
 
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
@@ -1686,14 +1678,12 @@ class Vfs_tresor_trust_anchor::Initialize_file_system : public Single_file_syste
 		Initialize_file_system(Parent_fs &parent_fs, Trust_anchor &ta)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "initialize",
+				.name  = "initialize",
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
 			_trust_anchor(ta)
 		{ }
-
-		static char const *type_name() { return "initialize"; }
 
 		Open_result open(char const *path, unsigned,
 		                 Vfs::Vfs_handle **out_handle,
@@ -1736,25 +1726,11 @@ struct Vfs_tresor_trust_anchor::File_system : Dir_file_system, Vfs::File_system:
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
-		if (node.has_type(Decrypt_file_system::type_name())) {
-			return { *this, { _decrypt_fs } };
-		}
-
-		if (node.has_type(Encrypt_file_system::type_name())) {
-			return { *this, { _encrypt_fs } };
-		}
-
-		if (node.has_type(Generate_key_file_system::type_name())) {
-			return { *this, { _gen_key_fs } };
-		}
-
-		if (node.has_type(Hashsum_file_system::type_name())) {
-			return { *this, { _hash_fs } };
-		}
-
-		if (node.has_type(Initialize_file_system::type_name())) {
-			return { *this, { _init_fs } };
-		}
+		if (_decrypt_fs.matches(node)) return { *this, { _decrypt_fs } };
+		if (_encrypt_fs.matches(node)) return { *this, { _encrypt_fs } };
+		if (_gen_key_fs.matches(node)) return { *this, { _gen_key_fs } };
+		if (_hash_fs   .matches(node)) return { *this, { _hash_fs    } };
+		if (_init_fs   .matches(node)) return { *this, { _init_fs    } };
 
 		return Error::DENIED;
 	}

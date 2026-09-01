@@ -211,7 +211,7 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 		                 bool                  raw)
 		:
 			Single_file_system(parent_fs, {
-				.ident = name,
+				.ident = { { "data ", name } },
 				.name  = name,
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
@@ -324,12 +324,12 @@ struct Vfs_terminal::File_system : Union_file_system,
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
-		if (node.has_type("dir"))        return { *this, { _dot_dir_fs } };
-		if (node.has_type("data"))       return { *this, { _data_fs } };
-		if (node.has_type("info"))       return { *this, { _info_fs } };
-		if (node.has_type("rows"))       return { *this, { _rows_fs } };
-		if (node.has_type("columns"))    return { *this, { _columns_fs } };
-		if (node.has_type("interrupts")) return { *this, { _interrupts_fs } };
+		if (_dot_dir_fs   .matches(node)) return { *this, { _dot_dir_fs    } };
+		if (_data_fs      .matches(node)) return { *this, { _data_fs       } };
+		if (_info_fs      .matches(node)) return { *this, { _info_fs       } };
+		if (_rows_fs      .matches(node)) return { *this, { _rows_fs       } };
+		if (_columns_fs   .matches(node)) return { *this, { _columns_fs    } };
+		if (_interrupts_fs.matches(node)) return { *this, { _interrupts_fs } };
 
 		return Error::DENIED;
 	}
@@ -343,16 +343,12 @@ struct Vfs_terminal::File_system : Union_file_system,
 
 		Generator::generate({ buf, sizeof(buf) }, "compound",
 			[&] (Generator &g) {
-
-				g.node("data", [&] {
-					g.attribute("name", name); });
-
-				g.node("dir", [&] {
-					g.attribute("name", Dir_file_system::Name(".", name));
-					g.node("info");
-					g.node("rows");
-					g.node("columns");
-					g.node("interrupts");
+				g.named_node("data", name);
+				g.named_node("dir", Dir_file_system::Name(".", name), [&] {
+					g.named_node("readonly_value", "info");
+					g.named_node("readonly_value", "rows");
+					g.named_node("readonly_value", "columns");
+					g.named_node("readonly_value", "interrupts");
 				});
 
 		}).with_error([] (Buffer_error) {

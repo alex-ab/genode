@@ -922,7 +922,7 @@ class Vfs_ip::Ip_sockopt_dir : public Vfs_ip::Directory
 
 		Ip_sockopt_dir(Vfs::Env &env, Parent_fs &parent_fs, genode_socket_handle &sock)
 		:
-			Directory(Sockopt_file_system::type_name()),
+			Directory("sockopts"),
 			_sockopt_fs(env, parent_fs, sock)
 		{ }
 

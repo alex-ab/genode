@@ -138,15 +138,11 @@ struct Vfs_ttf::File_system : Dir_file_system,
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
-		if (node.has_type(Vfs_glyphs::File_system::type_name()))
-			return { *this, { _glyphs_fs } };
-
-		if (node.has_type(Readonly_value_file_system<unsigned>::type_name())) {
-			if (_baseline_fs.matches(node))   return { *this, { _baseline_fs   } };
-			if (_height_fs.matches(node))     return { *this, { _height_fs     } };
-			if (_max_width_fs.matches(node))  return { *this, { _max_width_fs  } };
-			if (_max_height_fs.matches(node)) return { *this, { _max_height_fs } };
-		}
+		if (_glyphs_fs    .matches(node)) return { *this, { _glyphs_fs     } };
+		if (_baseline_fs  .matches(node)) return { *this, { _baseline_fs   } };
+		if (_height_fs    .matches(node)) return { *this, { _height_fs     } };
+		if (_max_width_fs .matches(node)) return { *this, { _max_width_fs  } };
+		if (_max_height_fs.matches(node)) return { *this, { _max_height_fs } };
 
 		return Error::DENIED;
 	}
@@ -194,10 +190,10 @@ struct Vfs_ttf::File_system : Dir_file_system,
 		Generator::generate({ buf, sizeof(buf) }, "dir", [&] (Generator &g) {
 			g.attribute("name", node_name(node));
 			g.node("glyphs");
-			g.node("readonly_value", [&] { g.attribute("name", "baseline");   });
-			g.node("readonly_value", [&] { g.attribute("name", "height");     });
-			g.node("readonly_value", [&] { g.attribute("name", "max_width");  });
-			g.node("readonly_value", [&] { g.attribute("name", "max_height"); });
+			g.named_node("readonly_value", "baseline");
+			g.named_node("readonly_value", "height");
+			g.named_node("readonly_value", "max_width");
+			g.named_node("readonly_value", "max_height");
 		}).with_error([] (Buffer_error) {
 			warning("VFS-TTF compound exceeds maximum buffer size");
 		});

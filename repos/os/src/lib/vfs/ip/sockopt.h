@@ -107,15 +107,13 @@ class Vfs_ip::Sockopt_value_file_system : public Single_file_system
 
 	public:
 
-		static char const *type_name() { return "sockopt"; }
-
 		using Name = Genode::String<64>;
 
 		Sockopt_value_file_system(Parent_fs &parent_fs, Name const &name,
 		                          genode_socket_handle &sock)
 		:
 			Single_file_system(parent_fs, {
-				.ident = { { type_name(), " ", name } },
+				.ident = { { "sockopt ", name } },
 				.name  = name,
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
@@ -177,14 +175,12 @@ struct Vfs_ip::Sockopt_file_system : Dir_file_system, File_system::Factory
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
-		if (node.has_type(Sockopt<GENODE_SO_INVALID>::type_name())) {
-			if (_so_error.matches(node))      return { *this, { _so_error } };
-			if (_so_keepalive.matches(node))  return { *this, { _so_keepalive } };
-			if (_so_reuseaddr.matches(node))  return { *this, { _so_reuseaddr } };
-			if (_tcp_keepcnt.matches(node))   return { *this, { _tcp_keepcnt } };
-			if (_tcp_keepidle.matches(node))  return { *this, { _tcp_keepidle } };
-			if (_tcp_keepintvl.matches(node)) return { *this, { _tcp_keepintvl } };
-		}
+		if (_so_error     .matches(node)) return { *this, { _so_error      } };
+		if (_so_keepalive .matches(node)) return { *this, { _so_keepalive  } };
+		if (_so_reuseaddr .matches(node)) return { *this, { _so_reuseaddr  } };
+		if (_tcp_keepcnt  .matches(node)) return { *this, { _tcp_keepcnt   } };
+		if (_tcp_keepidle .matches(node)) return { *this, { _tcp_keepidle  } };
+		if (_tcp_keepintvl.matches(node)) return { *this, { _tcp_keepintvl } };
 
 		return Error::DENIED;
 	}
@@ -200,14 +196,13 @@ struct Vfs_ip::Sockopt_file_system : Dir_file_system, File_system::Factory
 
 		Generator::generate({ buf, sizeof(buf) }, "dir",
 			[&] (Generator &g) {
-				g.attribute("name", type_name());
-
-				g.node("sockopt", [&] () { g.attribute("name", "so_error"     ); });
-				g.node("sockopt", [&] () { g.attribute("name", "so_keepalive" ); });
-				g.node("sockopt", [&] () { g.attribute("name", "so_reuseaddr" ); });
-				g.node("sockopt", [&] () { g.attribute("name", "tcp_keepcnt"  ); });
-				g.node("sockopt", [&] () { g.attribute("name", "tcp_keepidle" ); });
-				g.node("sockopt", [&] () { g.attribute("name", "tcp_keepintvl"); });
+				g.attribute("name", "sockopts");
+				g.named_node("sockopt", "so_error"     );
+				g.named_node("sockopt", "so_keepalive" );
+				g.named_node("sockopt", "so_reuseaddr" );
+				g.named_node("sockopt", "tcp_keepcnt"  );
+				g.named_node("sockopt", "tcp_keepidle" );
+				g.named_node("sockopt", "tcp_keepintvl");
 
 		}).with_error([] (Genode::Buffer_error) {
 			Genode::warning("VFS-sockopt exceeds maximum buffer size");
@@ -218,13 +213,11 @@ struct Vfs_ip::Sockopt_file_system : Dir_file_system, File_system::Factory
 
 	Sockopt_file_system(Vfs::Env &env, Parent_fs &parent_fs, genode_socket_handle &sock)
 	:
-		Dir_file_system(env, parent_fs, type_name()),
+		Dir_file_system(env, parent_fs, "sockopts"),
 		_sock(sock)
 	{
 		Dir_file_system::update(Node(_config()), *this);
 	}
-
-	static char const *type_name() { return "sockopts"; }
 };
 
 #endif /* _SOCKOPT_H_ */

@@ -551,7 +551,7 @@ class Vfs_block::Data_file_system : public Single_file_system
 		                 Block_connection &block, Name const &name)
 		:
 			Single_file_system { parent_fs, {
-				.ident = name,
+				.ident = { { "data ", name } },
 				.name  = name,
 				.rwx   = block.info().writeable ? File::RW_CONTINUOUS : File::RO
 			} },
@@ -653,11 +653,11 @@ struct Vfs_block::File_system : Union_file_system, private Vfs::File_system::Fac
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
-		if (node.has_type("dir"))         return { *this, { _dot_dir_fs } };
-		if (node.has_type("data"))        return { *this, { _data_fs } };
-		if (node.has_type("info"))        return { *this, { _info_fs } };
-		if (node.has_type("block_count")) return { *this, { _block_count_fs } };
-		if (node.has_type("block_size"))  return { *this, { _block_size_fs } };
+		if (_dot_dir_fs    .matches(node)) return { *this, { _dot_dir_fs     } };
+		if (_data_fs       .matches(node)) return { *this, { _data_fs        } };
+		if (_info_fs       .matches(node)) return { *this, { _info_fs        } };
+		if (_block_count_fs.matches(node)) return { *this, { _block_count_fs } };
+		if (_block_size_fs .matches(node)) return { *this, { _block_size_fs  } };
 
 		return Error::DENIED;
 	}
@@ -672,14 +672,11 @@ struct Vfs_block::File_system : Union_file_system, private Vfs::File_system::Fac
 
 		Generator::generate({ buf, sizeof(buf) }, "compound",
 			[&] (Generator &g) {
-
-				g.node("data", [&] { g.attribute("name", name); });
-
-				g.node("dir", [&] {
-					g.attribute("name", Name(".", name));
-					g.node("info");
-					g.node("block_count");
-					g.node("block_size");
+				g.named_node("data", name);
+				g.named_node("dir", Name(".", name), [&] {
+					g.named_node("readonly_value", "info");
+					g.named_node("readonly_value", "block_count");
+					g.named_node("readonly_value", "block_size");
 				});
 
 		}).with_error([&] (Buffer_error) {

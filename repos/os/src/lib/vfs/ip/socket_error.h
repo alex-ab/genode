@@ -76,15 +76,13 @@ class Vfs_ip::Error_file_system : public Single_file_system
 				Vfs_handle &operator = (Vfs_handle const &); 
 		};
 
-		static char const *_type_name() { return "error"; }
-
 	public:
 
 		Error_file_system(Parent_fs &parent_fs)
 		:
 			Single_file_system(parent_fs, {
-				.ident = _type_name(),
-				.name  = _type_name(),
+				.ident = "error",
+				.name  = "error",
 				.rwx   = File::RW_TRANSACTIONAL
 			})
 		{ }
@@ -95,14 +93,12 @@ class Vfs_ip::Error_file_system : public Single_file_system
 
 			_err = err;
 
-			Generator::generate({ _error, sizeof(_error) }, _type_name(),
+			Generator::generate({ _error, sizeof(_error) }, "error",
 				[&] (Generator &g) {
 					g.attribute("name", _err_string(err));
 					g.attribute("value", unsigned(err));
 				}
-			).with_error([&] (Buffer_error) {
-				warning("Error fs failed (", _type_name(), ")");
-			});
+			).with_error([&] (Buffer_error) { warning("Error fs failed"); });
 
 			return err;
 		}

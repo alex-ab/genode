@@ -169,8 +169,8 @@ struct Vfs_capture::File_system : Union_file_system, Vfs::File_system::Factory
 
 	Instance::Attempt create(Vfs::Env&, Parent_fs &, Node const &node) override
 	{
-		if (node.has_type("dir"))  return { *this, { _dot_dir_fs } };
-		if (node.has_type("data")) return { *this, { _data_fs    } };
+		if (_dot_dir_fs.matches(node)) return { *this, { _dot_dir_fs } };
+		if (_data_fs   .matches(node)) return { *this, { _data_fs    } };
 
 		return Error::DENIED;
 	}
@@ -184,8 +184,8 @@ struct Vfs_capture::File_system : Union_file_system, Vfs::File_system::Factory
 
 		Genode::Generator::generate({ buf, sizeof(buf) }, "compound",
 			[&] (Genode::Generator &g) {
-				g.node("data", [&] { g.attribute("name", name); });
-				g.node("dir",  [&] { g.attribute("name", Name(".", name)); });
+				g.named_node("data", name);
+				g.named_node("dir",  Name(".", name));
 		}).with_error([] (Genode::Buffer_error) {
 			Genode::warning("VFS-capture compound exceeds maximum buffer size");
 		});

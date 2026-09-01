@@ -149,14 +149,12 @@ class Vfs_trace::Trace_buffer_file_system : public Single_file_system
 		                         Trace::Subject_id id)
 		:
 			Single_file_system(parent_fs, {
-				.ident = type_name(),
-				.name  = type_name(),
+				.ident = "trace_buffer",
+				.name  = "trace_buffer",
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
 			_env(env), _trace(trace), _policy(policy), _id(id)
 		{ }
-
-		static char const *type_name() { return "trace_buffer"; }
 
 
 		/***************************
@@ -245,13 +243,9 @@ struct Vfs_trace::Subject : Dir_file_system, private Vfs::File_system::Factory
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
-		if (node.has_type(Value_file_system<unsigned>::type_name())) {
-			if (_enabled_fs.matches(node))     return { *this, { _enabled_fs } };
-			if (_buffer_size_fs.matches(node)) return { *this, { _buffer_size_fs } };
-		}
-
-		if (node.has_type(Trace_buffer_file_system::type_name()))
-			return { *this, { _trace_fs } };
+		if (_enabled_fs    .matches(node)) return { *this, { _enabled_fs     } };
+		if (_buffer_size_fs.matches(node)) return { *this, { _buffer_size_fs } };
+		if (_trace_fs      .matches(node)) return { *this, { _trace_fs       } };
 
 		return Error::DENIED;
 	}
@@ -296,11 +290,10 @@ struct Vfs_trace::Subject : Dir_file_system, private Vfs::File_system::Factory
 
 		Generator::generate({ buf, sizeof(buf) }, "dir",
 			[&] (Generator &g) {
-
 				g.attribute("name", node.attribute_value("name", Vfs_trace::Name()));
-				g.node("value", [&] () { g.attribute("name", "enable"); });
-				g.node("value", [&] () { g.attribute("name", "buffer_size"); });
-				g.node(Trace_buffer_file_system::type_name(), [&] () {});
+				g.named_node("value", "enable");
+				g.named_node("value", "buffer_size");
+				g.node("trace_buffer");
 		}).with_error([] (Genode::Buffer_error) {
 			warning("VFS-trace compound exceeds maximum buffer size");
 		});
@@ -318,8 +311,6 @@ struct Vfs_trace::Subject : Dir_file_system, private Vfs::File_system::Factory
 	{
 		Dir_file_system::update(Node(_config(node)), *this);
 	}
-
-	static char const *type_name() { return "trace_node"; }
 };
 
 
@@ -373,17 +364,15 @@ struct Vfs_trace::File_system : Dir_file_system, private Vfs::File_system::Facto
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &parent_fs, Node const &node) override
 	{
-		if (node.has_type(Subject::type_name()))
-			return _policy_id.convert<Instance::Attempt>(
-				[&] (Trace::Policy_id const id) {
-					auto &fs = *new (_env.alloc())
-						Subject(_env, parent_fs, _trace, id, node);
-					return Instance::Attempt { *this, { fs } };
-				},
-				[&] (Trace::Connection::Alloc_policy_error) {
-					return Error::DENIED;
-				});
-		return Error::DENIED;
+		return _policy_id.convert<Instance::Attempt>(
+			[&] (Trace::Policy_id const id) {
+				auto &fs = *new (_env.alloc())
+					Subject(_env, parent_fs, _trace, id, node);
+				return Instance::Attempt { *this, { fs } };
+			},
+			[&] (Trace::Connection::Alloc_policy_error) {
+				return Error::DENIED;
+			});
 	}
 
 	void _free(Instance &inst) override { destroy(_env.alloc(), &inst.fs); };
