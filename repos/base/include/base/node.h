@@ -367,6 +367,16 @@ class Genode::Generator : Noncopyable
 
 		void node(char const *name) { node(name, [] { }); }
 
+		void named_node(char const *type, auto const &name, auto const &fn)
+		{
+			node(type, [&] { attribute("name", name); fn(); });
+		}
+
+		void named_node(char const *type, auto const &name)
+		{
+			named_node(type, name, [&] { });
+		}
+
 		void attribute(char const *name, char const *str, size_t str_len);
 		void attribute(char const *name, char const *str);
 		void attribute(char const *name, bool value);
