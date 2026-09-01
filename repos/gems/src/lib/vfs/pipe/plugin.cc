@@ -474,7 +474,7 @@ class Vfs_pipe::File_system : public Vfs::File_system
 				if (_pipe_id(cpath, id)) {
 					out = Stat {
 						.size              = file_size(0),
-						.type              = Node_type::CONTINUOUS_FILE,
+						.type              = Dirent_type::CONTINUOUS_FILE,
 						.rwx               = Node_rwx::rw(),
 						.device            = addr_t(this),
 						.modification_time = { }
@@ -492,7 +492,7 @@ class Vfs_pipe::File_system : public Vfs::File_system
 						if (io == "/in") {
 							out = Stat {
 								.size              = file_size(pipe.buffer.avail_capacity()),
-								.type              = Node_type::CONTINUOUS_FILE,
+								.type              = Dirent_type::CONTINUOUS_FILE,
 								.rwx               = Node_rwx::wo(),
 								.device            = addr_t(this),
 								.modification_time = { }
@@ -503,7 +503,7 @@ class Vfs_pipe::File_system : public Vfs::File_system
 							out = Stat {
 								.size              = file_size(PIPE_BUF_SIZE
 								                             - pipe.buffer.avail_capacity()),
-								.type              = Node_type::CONTINUOUS_FILE,
+								.type              = Dirent_type::CONTINUOUS_FILE,
 								.rwx               = Node_rwx::ro(),
 								.device            = addr_t(this),
 								.modification_time = { }
@@ -600,7 +600,7 @@ class Vfs_pipe::Pipe_file_system : public Vfs_pipe::File_system
 			if (path == "/new") {
 				out = Stat {
 					.size              = 1,
-					.type              = Node_type::TRANSACTIONAL_FILE,
+					.type              = Dirent_type::TRANSACTIONAL_FILE,
 					.rwx               = Node_rwx::ro(),
 					.device            = addr_t(this),
 					.modification_time = { }

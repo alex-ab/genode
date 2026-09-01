@@ -85,13 +85,13 @@ static void vfs_stat_to_libc_stat_struct(Genode::Vfs::Directory_service::Stat co
 	               writeable_bits  = S_IWUSR,
 	               executable_bits = S_IXUSR;
 
-	auto type = [] (Genode::Vfs::Node_type type)
+	auto type = [] (Genode::Vfs::Dirent_type type)
 	{
 		switch (type) {
-		case Vfs::Node_type::DIRECTORY:          return S_IFDIR;
-		case Vfs::Node_type::CONTINUOUS_FILE:    return S_IFREG;
-		case Vfs::Node_type::TRANSACTIONAL_FILE: return S_IFCHR;
-		case Vfs::Node_type::SYMLINK:            return S_IFLNK;
+		case Vfs::Dirent_type::DIRECTORY:          return S_IFDIR;
+		case Vfs::Dirent_type::CONTINUOUS_FILE:    return S_IFREG;
+		case Vfs::Dirent_type::TRANSACTIONAL_FILE: return S_IFCHR;
+		case Vfs::Dirent_type::SYMLINK:            return S_IFLNK;
 		}
 		return 0;
 	};
@@ -480,7 +480,7 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 			if (_vfs.stat(fd.path.string(), stat) != Result::STAT_OK)
 				return false;
 
-			return stat.type == Vfs::Node_type::CONTINUOUS_FILE;
+			return stat.type == Vfs::Dirent_type::CONTINUOUS_FILE;
 		};
 
 		_monitor.monitor([&] {
@@ -618,23 +618,20 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 		[&] (size_t num_bytes) { return num_bytes >= sizeof(Dirent); },
 		[&] (Vfs::Read_error)  { return false; });
 
-	using Dirent_type = Vfs::Directory_service::Dirent_type;
-
-	if (!ok || dirent_out.type == Dirent_type::END)
+	if (!ok)
 		return 0;
 
 	/*
 	 * Convert dirent structure from VFS to libc
 	 */
 
-	auto dirent_type = [] (Dirent_type type)
+	auto dirent_type = [] (Vfs::Dirent_type type)
 	{
 		switch (type) {
-		case Dirent_type::DIRECTORY:          return DT_DIR;
-		case Dirent_type::CONTINUOUS_FILE:    return DT_REG;
-		case Dirent_type::TRANSACTIONAL_FILE: return DT_CHR;
-		case Dirent_type::SYMLINK:            return DT_LNK;
-		case Dirent_type::END:                return DT_UNKNOWN;
+		case Vfs::Dirent_type::DIRECTORY:          return DT_DIR;
+		case Vfs::Dirent_type::CONTINUOUS_FILE:    return DT_REG;
+		case Vfs::Dirent_type::TRANSACTIONAL_FILE: return DT_CHR;
+		case Vfs::Dirent_type::SYMLINK:            return DT_LNK;
 		}
 		return DT_UNKNOWN;
 	};

@@ -244,10 +244,7 @@ void Fs_tool::Main::_copy_all_files(Node const &operation)
 
 	Directory(_root_dir, from).for_each_entry([&] (Directory::Entry const &entry) {
 
-		bool const continous_file =
-			(entry.type() == Vfs::Directory_service::Dirent_type::CONTINUOUS_FILE);
-
-		if (continous_file)
+		if (entry.type() == Vfs::Dirent_type::CONTINUOUS_FILE)
 			_copy_file(Path(from, "/", entry.name()),
 			           Path(to,   "/", entry.name()),
 			           buffer);

@@ -244,13 +244,7 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 					if ((res != FR_OK) || (!info.fname[0])) {
 						f_readdir(&dir, nullptr);
 						cur_index = 0;
-
-						vfs_dirent = {
-							.type = Dirent_type::END,
-							.rwx  = Node_rwx::rwx(),
-							.name = { }
-						};
-						return sizeof(Dirent);
+						return Read_eof();
 					}
 					cur_index++;
 				}
@@ -557,12 +551,12 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 			case FR_OK:
 				stat.device = (addr_t)this;
 				stat.type   = (info.fattrib & AM_DIR)
-				            ? Node_type::DIRECTORY
-				            : Node_type::CONTINUOUS_FILE;
+				            ? Dirent_type::DIRECTORY
+				            : Dirent_type::CONTINUOUS_FILE;
 				stat.rwx    = Node_rwx::rwx();
 
 				/* XXX: size in f_stat is always zero */
-				if ((stat.type == Node_type::CONTINUOUS_FILE) && (info.fsize == 0)) {
+				if ((stat.type == Dirent_type::CONTINUOUS_FILE) && (info.fsize == 0)) {
 					File *file = _opened_file(path);
 					if (file) {
 						stat.size = f_size(&file->fil);

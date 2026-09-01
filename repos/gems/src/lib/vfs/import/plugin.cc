@@ -101,8 +101,6 @@ struct Vfs_import::File_system : Vfs::File_system
 					}
 				}
 				return;
-			case Dirent_type::END:
-				return;
 			}
 			warning("skipping import of ", e);
 		});

@@ -148,9 +148,8 @@ struct Fs_query::Watched_directory
 	{
 		_dir.for_each_entry([&] (Directory::Entry const &entry) {
 
-			using Dirent_type = Vfs::Directory_service::Dirent_type;
-			bool const file = (entry.type() == Dirent_type::CONTINUOUS_FILE)
-			               || (entry.type() == Dirent_type::TRANSACTIONAL_FILE);
+			bool const file = (entry.type() == Vfs::Dirent_type::CONTINUOUS_FILE)
+			               || (entry.type() == Vfs::Dirent_type::TRANSACTIONAL_FILE);
 			if (file) {
 				try {
 					new (_alloc) Registered<Watched_file>(_files, _dir, entry.name(),
@@ -181,15 +180,13 @@ struct Fs_query::Watched_directory
 
 		static Count from_dir(Directory const &dir)
 		{
-			using Type = Vfs::Directory_service::Dirent_type;
 			Count count { };
 			dir.for_each_entry([&] (Directory::Entry const &entry) {
 				switch (entry.type()) {
-				case Type::TRANSACTIONAL_FILE:
-				case Type::CONTINUOUS_FILE:    count.files++;    break;
-				case Type::DIRECTORY:          count.dirs++;     break;
-				case Type::SYMLINK:            count.symlinks++; break;
-				case Type::END:                break;
+				case Vfs::Dirent_type::TRANSACTIONAL_FILE:
+				case Vfs::Dirent_type::CONTINUOUS_FILE: count.files++;    break;
+				case Vfs::Dirent_type::DIRECTORY:       count.dirs++;     break;
+				case Vfs::Dirent_type::SYMLINK:         count.symlinks++; break;
 				}
 			});
 			return count;

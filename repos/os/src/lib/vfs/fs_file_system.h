@@ -108,25 +108,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			case Node_type::TRANSACTIONAL_FILE: return Dirent_type::TRANSACTIONAL_FILE;
 			case Node_type::SYMLINK:            return Dirent_type::SYMLINK;
 			}
-			return Dirent_type::END;
-		}
-
-		/**
-		 * Convert 'File_system::Node_type' to 'Node_type'
-		 */
-		static Node_type _node_type(::File_system::Node_type type)
-		{
-			using Type = ::File_system::Node_type;
-
-			switch (type) {
-			case Type::DIRECTORY:          return Node_type::DIRECTORY;
-			case Type::CONTINUOUS_FILE:    return Node_type::CONTINUOUS_FILE;
-			case Type::TRANSACTIONAL_FILE: return Node_type::TRANSACTIONAL_FILE;
-			case Type::SYMLINK:            return Node_type::SYMLINK;
-			}
-
-			error("invalid File_system::Node_type");
-			return Node_type::CONTINUOUS_FILE;
+			return Dirent_type::CONTINUOUS_FILE;
 		}
 
 		/**
@@ -428,30 +410,23 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 				Read_result const read_result =
 					Fs_vfs_handle::read(at, Byte_range_ptr((char *)(&entry), DIRENT_SIZE));
 
-				return read_result.convert<Read_result>([&] (size_t num_bytes) {
+				return read_result.convert<Read_result>(
+					[&] (size_t num_bytes) -> Read_result {
 
-					entry.sanitize();
+						if (num_bytes < DIRENT_SIZE)
+							return Read_eof();
 
-					Dirent &dirent = *(Dirent*)dst.start;
+						entry.sanitize();
 
-					if (num_bytes < DIRENT_SIZE) {
-
-						/* no entry found for the given index, or error */
-						dirent = Dirent {
-							.type = Dirent_type::END,
-							.rwx  = { },
-							.name = { }
-						};
-					} else {
-						dirent = Dirent {
+						Dirent &out = *(Dirent*)dst.start;
+						out = Dirent {
 							.type = _dirent_type(entry.type),
 							.rwx  = _node_rwx(entry.rwx),
 							.name = { entry.name.buf }
 						};
-					}
-					return sizeof(Dirent);
-				},
-				[&] (Read_error e) { return e; });
+						return sizeof(Dirent);
+					},
+					[&] (Read_error e) { return e; });
 			}
 		};
 
@@ -625,7 +600,7 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			out = Stat();
 
 			out.size   = status.size;
-			out.type   = _node_type(status.type);
+			out.type   = _dirent_type(status.type);
 			out.rwx    = _node_rwx(status.rwx);
 			out.device = (addr_t)this;
 			out.modification_time = {

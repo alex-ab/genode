@@ -137,7 +137,7 @@ struct Genode::Vfs::Directory_service : Interface
 	struct Stat
 	{
 		file_size     size;
-		Node_type     type;
+		Dirent_type   type;
 		Node_rwx      rwx;
 		unsigned long device;
 		Timestamp     modification_time;
@@ -155,15 +155,6 @@ struct Genode::Vfs::Directory_service : Interface
 	/************
 	 ** Dirent **
 	 ************/
-
-	enum class Dirent_type
-	{
-		END,
-		DIRECTORY,
-		SYMLINK,
-		CONTINUOUS_FILE,
-		TRANSACTIONAL_FILE,
-	};
 
 	struct Dirent
 	{

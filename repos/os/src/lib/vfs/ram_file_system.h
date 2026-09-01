@@ -402,39 +402,27 @@ class Vfs_ram::Directory : public Vfs_ram::Node
 
 			size_t index = seek.value / sizeof(Dirent);
 
-			Dirent &dirent = *(Dirent*)dst.start;
-
-			using Dirent_type = Directory_service::Dirent_type;
+			Dirent &out = *(Dirent*)dst.start;
 
 			Node *node_ptr = _entries.first();
 			if (node_ptr) node_ptr = node_ptr->index(index);
-			if (!node_ptr) {
-				dirent.type = Dirent_type::END;
-				return sizeof(Dirent);
-			}
+			if (!node_ptr)
+				return Vfs_handle::Read_eof();
 
 			Node &node = *node_ptr;
 
 			auto dirent_type = [&] ()
 			{
-				if (dynamic_cast<File      *>(node_ptr)) return Dirent_type::CONTINUOUS_FILE;
 				if (dynamic_cast<Directory *>(node_ptr)) return Dirent_type::DIRECTORY;
 				if (dynamic_cast<Symlink   *>(node_ptr)) return Dirent_type::SYMLINK;
-
-				return Dirent_type::END;
+				return Dirent_type::CONTINUOUS_FILE;
 			};
 
-			Dirent_type const type = dirent_type();
-
-			if (type == Dirent_type::END)
-				return 0;
-
-			dirent = {
-				.type = type,
+			out = {
+				.type = dirent_type(),
 				.rwx  = node.rwx(),
 				.name = { node.name() }
 			};
-
 			return sizeof(Dirent);
 		}
 };
@@ -762,17 +750,17 @@ class Vfs_ram::File_system : public Vfs::File_system
 
 			Node &node = *node_ptr;
 
-			auto node_type = [&] ()
+			auto dirent_type = [&] ()
 			{
-				if (dynamic_cast<Directory *>(node_ptr)) return Node_type::DIRECTORY;
-				if (dynamic_cast<Symlink   *>(node_ptr)) return Node_type::SYMLINK;
+				if (dynamic_cast<Directory *>(node_ptr)) return Dirent_type::DIRECTORY;
+				if (dynamic_cast<Symlink   *>(node_ptr)) return Dirent_type::SYMLINK;
 
-				return Node_type::CONTINUOUS_FILE;
+				return Dirent_type::CONTINUOUS_FILE;
 			};
 
 			stat = {
 				.size              = node.length(),
-				.type              = node_type(),
+				.type              = dirent_type(),
 				.rwx               = node.rwx(),
 				.device            = (addr_t)this,
 				.modification_time = node.modification_time()

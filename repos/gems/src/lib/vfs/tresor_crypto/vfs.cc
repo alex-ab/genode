@@ -414,10 +414,8 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 
 			Read_result _query_keys(size_t index, Dirent &out)
 			{
-				if (index >= _key_reg.number_of_keys()) {
-					out.type = Dirent_type::END;
-					return sizeof(Dirent);
-				}
+				if (index >= _key_reg.number_of_keys())
+					return Read_eof();
 
 				try {
 					Key_file_system const &fs = _key_reg.by_index((unsigned)index);
@@ -437,15 +435,14 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 
 			Read_result _query_root(size_t index, Dirent &out)
 			{
-				if (index == 0) {
-					out = {
-						.type = Dirent_type::DIRECTORY,
-						.rwx  = Node_rwx::rx(),
-						.name = { "keys" }
-					};
-				} else {
-					out.type = Dirent_type::END;
-				}
+				if (index > 0)
+					return Read_eof();
+
+				out = {
+					.type = Dirent_type::DIRECTORY,
+					.rwx  = Node_rwx::rx(),
+					.name = { "keys" }
+				};
 				return sizeof(Dirent);
 			}
 
@@ -640,7 +637,7 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 			 * current directory.
 			 */
 			if (strlen(path) == 0 || _top_dir(path)) {
-				out_stat.type   = Node_type::DIRECTORY;
+				out_stat.type   = Dirent_type::DIRECTORY;
 				out_stat.device = (addr_t)this;
 				return STAT_OK;
 			}

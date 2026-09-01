@@ -280,7 +280,7 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 			if (strlen(path) == 0 || _top_dir(path)) {
 				out = {
 					.size              = 0,
-					.type              = Node_type::DIRECTORY,
+					.type              = Dirent_type::DIRECTORY,
 					.rwx               = Node_rwx::rwx(),
 					.device            = (addr_t)this,
 					.modification_time = { },

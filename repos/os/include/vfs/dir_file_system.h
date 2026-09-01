@@ -99,22 +99,15 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 					return Read_error::DENIED;
 
 				file_size const index = at.pos / sizeof(Dirent);
+				if (index > 0)
+					return Read_eof();
 
-				Dirent &dirent = *(Dirent*)dst.start;
-
-				if (index == 0) {
-					dirent = {
-						.type = Dirent_type::DIRECTORY,
-						.rwx  = Node_rwx::rwx(),
-						.name = { _fs._name.string() }
-					};
-				} else {
-					dirent = {
-						.type = Dirent_type::END,
-						.rwx  = { },
-						.name = { }
-					};
-				}
+				Dirent &out = *(Dirent*)dst.start;
+				out = {
+					.type = Dirent_type::DIRECTORY,
+					.rwx  = Node_rwx::rwx(),
+					.name = { _fs._name.string() }
+				};
 				return sizeof(Dirent);
 			}
 
@@ -180,7 +173,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 			if (_slash(path)) {
 				out = {
 					.size              = 0,
-					.type              = Node_type::DIRECTORY,
+					.type              = Dirent_type::DIRECTORY,
 					.rwx               = Node_rwx::rwx(),
 					.device            = (addr_t)this,
 					.modification_time = { },

@@ -691,7 +691,7 @@ class Vfs_server::File : public Io_node, public Vfs::Read_ready_response_handler
 				using Result = Directory_service::Stat_result;
 				Vfs::Directory_service::Stat stat { };
 				if (env.fs().stat(path.string(), stat) == Result::STAT_OK)
-					_write_type = (stat.type == Vfs::Node_type::CONTINUOUS_FILE)
+					_write_type = (stat.type == Vfs::Dirent_type::CONTINUOUS_FILE)
 					            ? Write_type::CONTINUOUS : Write_type::TRANSACTIONAL;
 			}
 		}
@@ -802,9 +802,9 @@ struct Vfs_server::Directory : Io_node
 		{
 			from.sanitize();
 
-			auto fs_dirent_type = [&] (Vfs::Directory_service::Dirent_type type)
+			auto fs_dirent_type = [&] (Vfs::Dirent_type type)
 			{
-				using From = Vfs::Directory_service::Dirent_type;
+				using From = Vfs::Dirent_type;
 				using To   = ::File_system::Node_type;
 
 				/*
@@ -814,7 +814,6 @@ struct Vfs_server::Directory : Io_node
 				To const default_result = To::CONTINUOUS_FILE;
 
 				switch (type) {
-				case From::END:                return default_result;
 				case From::DIRECTORY:          return To::DIRECTORY;
 				case From::SYMLINK:            return To::SYMLINK;
 				case From::CONTINUOUS_FILE:    return To::CONTINUOUS_FILE;
@@ -853,9 +852,6 @@ struct Vfs_server::Directory : Io_node
 
 				Vfs_dirent &vfs_dirent = *(Vfs_dirent *)(ptr);
 				Fs_dirent  &fs_dirent  = *(Fs_dirent  *)(ptr);
-
-				if (vfs_dirent.type == Vfs::Directory_service::Dirent_type::END)
-					break;
 
 				fs_dirent = _convert_dirent(vfs_dirent, _policy);
 

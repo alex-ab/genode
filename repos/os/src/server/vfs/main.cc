@@ -639,15 +639,15 @@ class Vfs_server::Session_component : private Session_resources,
 				if (_vfs_env.fs().stat(node.path.string(), vfs_stat) != Directory_service::STAT_OK)
 					throw Invalid_handle();
 
-				auto fs_node_type = [&] (Vfs::Node_type type)
+				auto fs_node_type = [&] (Vfs::Dirent_type type)
 				{
 					using To = ::File_system::Node_type;
 
 					switch (type) {
-					case Vfs::Node_type::DIRECTORY:          return To::DIRECTORY;
-					case Vfs::Node_type::SYMLINK:            return To::SYMLINK;
-					case Vfs::Node_type::CONTINUOUS_FILE:    return To::CONTINUOUS_FILE;
-					case Vfs::Node_type::TRANSACTIONAL_FILE: return To::TRANSACTIONAL_FILE;
+					case Vfs::Dirent_type::DIRECTORY:          return To::DIRECTORY;
+					case Vfs::Dirent_type::SYMLINK:            return To::SYMLINK;
+					case Vfs::Dirent_type::CONTINUOUS_FILE:    return To::CONTINUOUS_FILE;
+					case Vfs::Dirent_type::TRANSACTIONAL_FILE: return To::TRANSACTIONAL_FILE;
 					};
 					return To::CONTINUOUS_FILE;
 				};
@@ -655,12 +655,12 @@ class Vfs_server::Session_component : private Session_resources,
 				auto fs_node_size = [&] (Vfs::Directory_service::Stat const &vfs_stat)
 				{
 					switch (vfs_stat.type) {
-					case Vfs::Node_type::DIRECTORY:
-					case Vfs::Node_type::SYMLINK:
+					case Vfs::Dirent_type::DIRECTORY:
+					case Vfs::Dirent_type::SYMLINK:
 						return 0ULL;
 
-					case Vfs::Node_type::CONTINUOUS_FILE:
-					case Vfs::Node_type::TRANSACTIONAL_FILE:
+					case Vfs::Dirent_type::CONTINUOUS_FILE:
+					case Vfs::Dirent_type::TRANSACTIONAL_FILE:
 						return vfs_stat.size;
 					};
 					return 0ULL;

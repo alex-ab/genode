@@ -72,23 +72,15 @@ class Vfs_symlink::File_system : public Single_file_system
 					return Read_error::DENIED;
 
 				file_size index = at.pos / sizeof(Dirent);
+				if (index > 0)
+					return Read_eof();
 
 				Dirent &out = *(Dirent*)dst.start;
-
-				if (index == 0) {
-					out = {
-						.type = Dirent_type::SYMLINK,
-						.rwx  = Node_rwx::ro(),
-						.name = { _fs.Single_file_system::name.string.string() }
-					};
-				} else {
-					out = {
-						.type = Dirent_type::END,
-						.rwx  = { },
-						.name = { }
-					};
-				}
-
+				out = {
+					.type = Dirent_type::SYMLINK,
+					.rwx  = Node_rwx::ro(),
+					.name = { _fs.Single_file_system::name.string.string() }
+				};
 				return sizeof(Dirent);
 			}
 
@@ -152,7 +144,7 @@ class Vfs_symlink::File_system : public Single_file_system
 			out.device = (addr_t)this;
 
 			if (_single_file(path)) {
-				out.type = Node_type::SYMLINK,
+				out.type = Dirent_type::SYMLINK,
 				out.rwx  = Node_rwx::ro();
 			} else {
 				return STAT_ERR_NO_ENTRY;

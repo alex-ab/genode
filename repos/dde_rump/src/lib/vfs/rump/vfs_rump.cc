@@ -226,16 +226,21 @@ class Vfs_rump::File_system : public Vfs::File_system
 				struct stat s { };
 				rump_sys_lstat(path, &s);
 
+				bool const valid = (S_ISREG (s.st_mode))
+				                || (S_ISDIR (s.st_mode))
+				                || (S_ISLNK (s.st_mode))
+				                || (S_ISBLK (s.st_mode))
+				                || (S_ISCHR (s.st_mode))
+				                || (S_ISFIFO(s.st_mode));
+
+				if (!valid)
+					return Read_eof();
+
 				auto dirent_type = [] (unsigned mode)
 				{
-					if (S_ISREG (mode)) return Dirent_type::CONTINUOUS_FILE;
 					if (S_ISDIR (mode)) return Dirent_type::DIRECTORY;
 					if (S_ISLNK (mode)) return Dirent_type::SYMLINK;
-					if (S_ISBLK (mode)) return Dirent_type::CONTINUOUS_FILE;
-					if (S_ISCHR (mode)) return Dirent_type::CONTINUOUS_FILE;
-					if (S_ISFIFO(mode)) return Dirent_type::CONTINUOUS_FILE;
-
-					return Dirent_type::END;
+					else                return Dirent_type::CONTINUOUS_FILE;
 				};
 
 				Node_rwx const rwx { .readable   = true,
@@ -696,10 +701,10 @@ class Vfs_rump::File_system : public Vfs::File_system
 
 			auto type = [] (unsigned mode)
 			{
-				if (S_ISDIR(mode)) return Node_type::DIRECTORY;
-				if (S_ISLNK(mode)) return Node_type::SYMLINK;
+				if (S_ISDIR(mode)) return Dirent_type::DIRECTORY;
+				if (S_ISLNK(mode)) return Dirent_type::SYMLINK;
 
-				return Node_type::CONTINUOUS_FILE;
+				return Dirent_type::CONTINUOUS_FILE;
 			};
 
 			stat = {

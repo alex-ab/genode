@@ -931,7 +931,7 @@ class Vfs_ip::Ip_sockopt_dir : public Vfs_ip::Directory
 			Directory_service::Stat out;
 			if (_sockopt_fs.stat(name, out) == Directory_service::STAT_OK) {
 				/* sockopts directory */
-				if (out.type == Node_type::DIRECTORY) return this;
+				if (out.type == Dirent_type::DIRECTORY) return this;
 
 				return &_dummy;
 			}
@@ -1167,16 +1167,12 @@ class Vfs_ip::Ip_socket_dir final : public Socket_dir
 				}
 			}
 			if (!node) {
-				out = {
-					.type = Directory_service::Dirent_type::END,
-					.rwx  = { },
-					.name = { } };
-
+				out = { };
 				return -1;
 			}
 
 			out = {
-				.type = Directory_service::Dirent_type::TRANSACTIONAL_FILE,
+				.type = Dirent_type::TRANSACTIONAL_FILE,
 				.rwx  = Node_rwx::rw(),
 				.name = { node->name() } };
 
@@ -1481,20 +1477,13 @@ class Vfs_ip::Protocol_dir_impl : public Protocol_dir
 				}
 			}
 			if (!node) {
-				out = {
-					.type = Directory_service::Dirent_type::END,
-					.rwx  = { },
-					.name = { } };
-
+				out = { };
 				return -1;
 			}
 
-			using Dirent_type = Directory_service::Dirent_type;
-
-			Dirent_type const type =
-				dynamic_cast<Vfs_ip::Directory*>(node) ? Dirent_type::DIRECTORY :
-				dynamic_cast<Vfs_ip::File     *>(node) ? Dirent_type::TRANSACTIONAL_FILE
-				                                       : Dirent_type::END;
+			Dirent_type const type = dynamic_cast<Vfs_ip::Directory*>(node)
+			                       ? Dirent_type::DIRECTORY
+			                       : Dirent_type::TRANSACTIONAL_FILE;
 
 			Node_rwx const rwx = (type == Dirent_type::DIRECTORY)
 			                   ? Node_rwx::rwx()
@@ -1784,7 +1773,7 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 				char const *name;
 			};
 
-			enum { NUM_ENTRIES = 8U };
+			enum { NUM_ENTRIES = 7U };
 			static Entry const entries[NUM_ENTRIES] = {
 				{ Dirent_type::DIRECTORY,          "tcp" },
 				{ Dirent_type::DIRECTORY,          "udp" },
@@ -1793,10 +1782,12 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 				{ Dirent_type::TRANSACTIONAL_FILE, "gateway" },
 				{ Dirent_type::TRANSACTIONAL_FILE, "nameserver" },
 				{ Dirent_type::TRANSACTIONAL_FILE, "link_state" },
-				{ Dirent_type::END,                "" }
 			};
 
-			Entry const &entry = entries[min(index, NUM_ENTRIES - 1U)];
+			if (index >= NUM_ENTRIES)
+				return -1;
+
+			Entry const &entry = entries[index];
 
 			Dirent &out = *(Dirent*)dst.start;
 
@@ -1823,28 +1814,28 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 			out = { };
 
 			if (dynamic_cast<Directory*>(node)) {
-				out.type = Node_type::DIRECTORY;
+				out.type = Dirent_type::DIRECTORY;
 				out.rwx  = Node_rwx::rwx();
 				out.size = 1;
 				return STAT_OK;
 			}
 
 			if (dynamic_cast<Ip_data_file*>(node)) {
-				out.type = Node_type::CONTINUOUS_FILE;
+				out.type = Dirent_type::CONTINUOUS_FILE;
 				out.rwx  = Node_rwx::rw();
 				out.size = 0;
 				return STAT_OK;
 			}
 
 			if (dynamic_cast<Ip_peek_file*>(node)) {
-				out.type = Node_type::CONTINUOUS_FILE;
+				out.type = Dirent_type::CONTINUOUS_FILE;
 				out.rwx  = Node_rwx::rw();
 				out.size = 0;
 				return STAT_OK;
 			}
 
 			if (dynamic_cast<Vfs_ip::File*>(node)) {
-				out.type = Node_type::TRANSACTIONAL_FILE;
+				out.type = Dirent_type::TRANSACTIONAL_FILE;
 				out.rwx  = Node_rwx::rw();
 				out.size = 0x1000;  /* there may be something to read */
 				return STAT_OK;

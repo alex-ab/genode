@@ -61,7 +61,7 @@ struct Genode::Directory : Noncopyable, Interface
 
 				Entry() { }
 
-				using Dirent_type = Vfs::Directory_service::Dirent_type;
+				using Dirent_type = Vfs::Dirent_type;
 
 			public:
 
@@ -85,7 +85,7 @@ struct Genode::Directory : Noncopyable, Interface
 
 				Name name() const { return Name(Cstring(_dirent.name.buf)); }
 
-				Vfs::Directory_service::Dirent_type type() const { return _dirent.type; }
+				Dirent_type type() const { return _dirent.type; }
 
 				bool dir() const { return _dirent.type == Dirent_type::DIRECTORY; }
 
@@ -174,8 +174,7 @@ struct Genode::Directory : Noncopyable, Interface
 					if ((num_bytes > 0) && (num_bytes < sizeof(entry._dirent)))
 						warning("failed to access dir entry ", i, " of '", _path, "'");
 
-					return (num_bytes == sizeof(entry._dirent))
-					    && (entry._dirent.type != Vfs::Directory_service::Dirent_type::END);
+					return (num_bytes == sizeof(entry._dirent));
 				},
 				[&] (Vfs::Read_error) { return false; });
 
@@ -241,8 +240,8 @@ struct Genode::Directory : Noncopyable, Interface
 			if (_stat(rel_path, stat) != Vfs::Directory_service::STAT_OK)
 				return false;
 
-			return stat.type == Vfs::Node_type::TRANSACTIONAL_FILE
-			    || stat.type == Vfs::Node_type::CONTINUOUS_FILE;
+			return stat.type == Vfs::Dirent_type::TRANSACTIONAL_FILE
+			    || stat.type == Vfs::Dirent_type::CONTINUOUS_FILE;
 		}
 
 		bool directory_exists(Path const &rel_path) const
@@ -252,7 +251,7 @@ struct Genode::Directory : Noncopyable, Interface
 			if (_stat(rel_path, stat) != Vfs::Directory_service::STAT_OK)
 				return false;
 
-			return stat.type == Vfs::Node_type::DIRECTORY;
+			return stat.type == Vfs::Dirent_type::DIRECTORY;
 		}
 
 		bool symlink_exists(Path const &rel_path) const
@@ -262,7 +261,7 @@ struct Genode::Directory : Noncopyable, Interface
 			if (_stat(rel_path, stat) != Vfs::Directory_service::STAT_OK)
 				return false;
 
-			return stat.type == Vfs::Node_type::SYMLINK;
+			return stat.type == Vfs::Dirent_type::SYMLINK;
 		}
 
 		bool entry_exists(Path const &rel_path) const
@@ -285,8 +284,8 @@ struct Genode::Directory : Noncopyable, Interface
 			if (_stat(rel_path, stat) != Vfs::Directory_service::STAT_OK)
 				throw Nonexistent_file();
 
-			if (stat.type == Vfs::Node_type::TRANSACTIONAL_FILE
-			 || stat.type == Vfs::Node_type::CONTINUOUS_FILE)
+			if (stat.type == Vfs::Dirent_type::TRANSACTIONAL_FILE
+			 || stat.type == Vfs::Dirent_type::CONTINUOUS_FILE)
 				return stat.size;
 
 			throw Nonexistent_file();

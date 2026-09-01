@@ -463,11 +463,8 @@ struct Unlink_test : public Stress_test
 
 			subpath.append(dirent.name.buf);
 			switch (dirent.type) {
-			case Vfs::Directory_service::Dirent_type::END:
-				error("reached the end prematurely");
-				throw Exception();
 
-			case Vfs::Directory_service::Dirent_type::DIRECTORY:
+			case Vfs::Dirent_type::DIRECTORY:
 				empty_dir(subpath.base());
 				[[fallthrough]];
 

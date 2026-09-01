@@ -98,26 +98,18 @@ class Genode::Vfs::Single_file_system : public File_system
 				if (dst.num_bytes < sizeof(Dirent))
 					return Read_error::DENIED;
 
-				file_size index = at.pos / sizeof(Dirent);
+				file_size const index = at.pos / sizeof(Dirent);
+				if (index > 0)
+					return Read_eof();
 
 				Dirent &out = *(Dirent*)dst.start;
-
-				if (index == 0) {
-					out = {
-						.type = (_fs.rwx.w == File::Write::TRANSACTIONAL)
-						        ? Dirent_type::TRANSACTIONAL_FILE
-						        : Dirent_type::CONTINUOUS_FILE,
-						.rwx  = _fs._node_rwx(),
-						.name = { _fs.name.string.string() }
-					};
-				} else {
-					out = {
-						.type = Dirent_type::END,
-						.rwx  = { },
-						.name = { }
-					};
-				}
-
+				out = {
+					.type = (_fs.rwx.w == File::Write::TRANSACTIONAL)
+					        ? Dirent_type::TRANSACTIONAL_FILE
+					        : Dirent_type::CONTINUOUS_FILE,
+					.rwx  = _fs._node_rwx(),
+					.name = { _fs.name.string.string() }
+				};
 				return sizeof(Dirent);
 			}
 
@@ -169,12 +161,12 @@ class Genode::Vfs::Single_file_system : public File_system
 			out.device = (addr_t)this;
 
 			if (_root(path)) {
-				out.type = Node_type::DIRECTORY;
+				out.type = Dirent_type::DIRECTORY;
 
 			} else if (_single_file(path)) {
 				out.type = (rwx.w == File::Write::TRANSACTIONAL)
-				           ? Node_type::TRANSACTIONAL_FILE
-				           : Node_type::CONTINUOUS_FILE,
+				           ? Dirent_type::TRANSACTIONAL_FILE
+				           : Dirent_type::CONTINUOUS_FILE,
 				out.rwx  = _node_rwx();
 			} else {
 				return STAT_ERR_NO_ENTRY;
