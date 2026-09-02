@@ -23,9 +23,7 @@ struct Libc::Rtc
 {
 	using Allocator = Genode::Allocator;
 
-	Directory &_root_dir;
-
-	Allocator &_alloc;
+	Fs const &_fs;
 
 	Rtc_path const _rtc_path;
 
@@ -43,37 +41,39 @@ struct Libc::Rtc
 
 	void _update_rtc_value_from_file()
 	{
-		try {
-			File_content const content(_alloc, _root_dir, _rtc_path.string(),
-			                           File_content::Limit{4096U});
-			content.bytes([&] (char const *ptr, size_t size) {
+		bool found = false;
+		char buf[32] { };
 
-				char buf[32] { };
-				::memcpy(buf, ptr, min(sizeof(buf) - 1, size));
+		_fs.with_file_content(_rtc_path.string(), [&] (Span const &s) {
+			found = true;
+			::memcpy(buf, s.start, min(sizeof(buf) - 1, s.num_bytes));
+		});
 
-				struct tm tm { };
-				if (strptime(buf, "%Y-%m-%d %H:%M:%S", &tm)
-				 || strptime(buf, "%Y-%m-%d %H:%M", &tm)) {
-					_rtc_value = timegm(&tm);
-					if (_rtc_value == (time_t)-1)
-						_rtc_value = 0;
-				}
-			});
-		} catch (...) {
-			warning(_rtc_path, " not readable, returning ", _rtc_value);
+		if (found) {
+			struct tm tm { };
+			if (strptime(buf, "%Y-%m-%d %H:%M:%S", &tm)
+			 || strptime(buf, "%Y-%m-%d %H:%M", &tm)) {
+				_rtc_value = timegm(&tm);
+				if (_rtc_value == (time_t)-1)
+					_rtc_value = 0;
+			}
 		}
+
+		if (!found || !_rtc_value)
+			warning(_rtc_path, " not readable, returning ", _rtc_value);
 	}
 
-	Rtc(Directory &root_dir, Allocator &alloc, Rtc_path const &rtc_path)
+	Rtc(Fs const &fs, Rtc_path const &rtc_path)
 	:
-		_root_dir(root_dir), _alloc(alloc), _rtc_path(rtc_path)
+		_fs(fs), _rtc_path(rtc_path)
 	{
 		if (!_rtc_path_valid) {
 			warning("rtc not configured, returning ", _rtc_value);
 			return;
 		}
 
-		_watch_io_handler.construct(_root_dir, _rtc_path, *this, &Rtc::_handle_watch);
+		/* FIXME unsynchronized use of _root_dir */
+		_watch_io_handler.construct(_fs._root_dir, _rtc_path, *this, &Rtc::_handle_watch);
 	}
 
 	timespec read(Duration current_time)

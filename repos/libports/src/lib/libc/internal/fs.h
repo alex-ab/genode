@@ -134,7 +134,11 @@ struct Libc::Fs
 
 	int ioctl(File_descriptor &, unsigned long request, char *argp);
 
-	/* monitored root-directory utilities */
+	/* monitored file-system utilities */
+	using With_file_content = Genode::Callable<void, Span const &>;
+	void _with_file_content(char const *, With_file_content::Ft const &) const;
+	void with_file_content(char const *path, auto const &fn) const {
+		_with_file_content(path, With_file_content::Fn { fn }); }
 	bool directory_exists(char const *path) const;
 
 	/* kernel-specific API without monitor */

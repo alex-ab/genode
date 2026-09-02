@@ -2402,3 +2402,13 @@ bool Libc::Fs::directory_exists(char const *path) const
 	});
 	return result;
 }
+
+
+void Libc::Fs::_with_file_content(char const *path, With_file_content::Ft const &fn) const
+{
+	_monitor.monitor([&] {
+		File_content content { _kernel_heap, _root_dir, path, File_content::Limit { 4096 } };
+		content.bytes([&] (char const *ptr, size_t size) { fn(Span { ptr, size }); });
+		return Fn::COMPLETE;
+	});
+}

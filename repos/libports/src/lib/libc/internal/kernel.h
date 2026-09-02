@@ -677,7 +677,7 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 		timespec current_real_time() override
 		{
 			if (!_rtc.constructed())
-				_rtc.construct(_root_dir, _heap, _config.rtc);
+				_rtc.construct(_fs, _config.rtc);
 
 			return _rtc->read(current_time());
 		}
