@@ -86,7 +86,7 @@ struct Sculpt::Vfs
 
 		/* write back the result */
 		edit.with_result([&] (Span const &s) {
-			New_file file { _root, path };
+			New_file file { _root, path, { } };
 			file.append(s);
 		},
 		[&] (Buffer_error) { warning("buffer exceeded while editing ", path); },
@@ -113,7 +113,7 @@ struct Sculpt::Vfs
 
 		File_content{ _alloc, _root, from, { file_size } }.bytes(
 			[&] (char const *start, size_t num_bytes) {
-				New_file file { _root, to };
+				New_file file { _root, to, { } };
 				file.append({ start, num_bytes }); });
 	}
 

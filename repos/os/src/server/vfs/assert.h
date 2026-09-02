@@ -37,6 +37,17 @@ namespace File_system {
 		}
 	}
 
+	static inline void assert_mkdir(Mkdir_result r)
+	{
+		switch (r) {
+		case Mkdir_result::DENIED:       throw Lookup_failed();
+		case Mkdir_result::OUT_OF_RAM:   throw Out_of_ram();
+		case Mkdir_result::OUT_OF_CAPS:  throw Out_of_caps();
+		case Mkdir_result::RETRY:        throw Lookup_failed();
+		case Mkdir_result::OK:           break;
+		}
+	}
+
 	static inline void assert_openlink(Directory_service::Openlink_result r)
 	{
 		using Result = Directory_service::Openlink_result;

@@ -237,7 +237,7 @@ struct Text_area::Main : Text_area_widget::Action
 		bool write_error = false;
 
 		try {
-			New_file new_file(_vfs, path);
+			New_file new_file(_vfs, path, { });
 
 			auto write = [&] (char const *cstring)
 			{

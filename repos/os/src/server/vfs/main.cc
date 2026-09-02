@@ -502,9 +502,13 @@ class Vfs_server::Session_component : private Session_resources,
 				throw Lookup_failed();
 
 			if (create && !exists) {
-				Vfs_handle *h = nullptr;
-				assert_opendir(_vfs_env.fs().opendir(path_str, true, &h, _alloc));
-				if (h) h->close();
+				Mkdir_result mkdir_result;
+				for (;;) {
+					mkdir_result = _vfs_env.fs().mkdir(path_str, { });
+					if (mkdir_result != Mkdir_result::RETRY) break;
+					_ep.wait_and_dispatch_one_io_signal();
+				}
+				assert_mkdir(mkdir_result);
 			}
 
 			Directory::Policy const policy { .writeable = _writeable };

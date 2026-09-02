@@ -66,6 +66,19 @@ inline void assert_open(Vfs::Directory_service::Open_result r)
 	throw Exception();
 }
 
+inline void assert_mkdir(Vfs::Mkdir_result r)
+{
+	using Result = Vfs::Mkdir_result;
+	switch (r) {
+	case Result::OK: return;
+	case Result::DENIED:      error("Mkdir_result::DENIED");      break;
+	case Result::OUT_OF_RAM:  error("Mkdir_result::OUT_OF_RAM");  break;
+	case Result::OUT_OF_CAPS: error("Mkdir_result::OUT_OF_CAPS"); break;
+	case Result::RETRY:       error("Mkdir_result::RETRY");       break;
+	}
+	throw Exception();
+}
+
 inline void assert_opendir(Vfs::Directory_service::Opendir_result r)
 {
 	using Result = Vfs::Directory_service::Opendir_result;
@@ -143,16 +156,28 @@ struct Stress_test
 };
 
 
+void static mkdir(Vfs::File_system &vfs, Vfs::Env::Io &io, const char *path)
+{
+	Vfs::Mkdir_result mkdir_result;
+	for (;;) {
+		mkdir_result = vfs.mkdir(path, { });
+		if (mkdir_result != Vfs::Mkdir_result::RETRY) break;
+		io.commit_and_wait();
+	}
+	assert_mkdir(mkdir_result);
+}
+
+
 struct Mkdir_test : public Stress_test
 {
+	Vfs::Env::Io &_io;
+
 	void mkdir_b(int depth)
 	{
 		if (++depth > MAX_DEPTH) return;
 
 		path.append("/b");
-		Vfs::Vfs_handle *dir_handle;
-		assert_opendir(vfs.opendir(path.base(), true, &dir_handle, alloc));
-		dir_handle->close();
+		mkdir(vfs, _io, path.base());
 		++count;
 		mkdir_b(depth);
 	}
@@ -163,25 +188,23 @@ struct Mkdir_test : public Stress_test
 
 		size_t path_len = strlen(path.base());
 
-		Vfs::Vfs_handle *dir_handle;
-
 		path.append("/b");
-		assert_opendir(vfs.opendir(path.base(), true, &dir_handle, alloc));
-		dir_handle->close();
+		mkdir(vfs, _io, path.base());
 		++count;
 		mkdir_b(depth);
 
 		path.base()[path_len] = '\0';
 
 		path.append("/a");
-		assert_opendir(vfs.opendir(path.base(), true, &dir_handle, alloc));
-		dir_handle->close();
+		mkdir(vfs, _io, path.base());
 		++count;
 		mkdir_a(depth);
 	}
 
-	Mkdir_test(Vfs::File_system &vfs, Genode::Allocator &alloc, char const *parent)
-	: Stress_test(vfs, alloc, parent)
+	Mkdir_test(Vfs::File_system &vfs, Vfs::Env::Io &io, Genode::Allocator &alloc,
+	           char const *parent)
+	:
+		Stress_test(vfs, alloc, parent), _io(io)
 	{
 		try { mkdir_a(1); } catch (...) {
 			error("failed at '", path, "' after ", count, " directories");
@@ -308,8 +331,8 @@ struct Write_test : public Stress_test
 		}
 	}
 
-	Write_test(Vfs::File_system &vfs, Genode::Allocator &alloc,
-	           char const *parent, Vfs::Env::Io &io)
+	Write_test(Vfs::File_system &vfs, Vfs::Env::Io &io, Genode::Allocator &alloc,
+	           char const *parent)
 	:
 		Stress_test(vfs, alloc, parent), _io(io)
 	{
@@ -403,8 +426,8 @@ struct Read_test : public Stress_test
 		}
 	}
 
-	Read_test(Vfs::File_system &vfs, Genode::Allocator &alloc, char const *parent,
-	          Vfs::Env::Io &io)
+	Read_test(Vfs::File_system &vfs, Vfs::Env::Io &io, Genode::Allocator &alloc,
+	          char const *parent)
 	:
 		Stress_test(vfs, alloc, parent), _io(io)
 	{
@@ -439,7 +462,7 @@ struct Unlink_test : public Stress_test
 		subpath.append("/");
 
 		Vfs::Vfs_handle *dir_handle;
-		assert_opendir(vfs.opendir(path, false, &dir_handle, alloc));
+		assert_opendir(vfs.opendir(path, &dir_handle, alloc));
 
 		Vfs::Directory_service::Dirent dirent { };
 		for (unsigned i = vfs.num_dirent(path); i;) {
@@ -483,8 +506,8 @@ struct Unlink_test : public Stress_test
 		dir_handle->close();
 	}
 
-	Unlink_test(Vfs::File_system &vfs, Genode::Allocator &alloc,
-	            char const *parent, Vfs::Env::Io &io)
+	Unlink_test(Vfs::File_system &vfs, Vfs::Env::Io &io, Genode::Allocator &alloc,
+	            char const *parent)
 	:
 		Stress_test(vfs, alloc, parent), _io(io)
 	{
@@ -558,10 +581,8 @@ void Component::construct(Genode::Env &env)
 
 		for (int i = 0; i < ROOT_TREE_COUNT; ++i) {
 			path = { "/", i };
-			Vfs::Vfs_handle *dir_handle;
-			vfs_root.fs().opendir(path.string(), true, &dir_handle, heap);
-			dir_handle->close();
-			Mkdir_test test(vfs_root.fs(), heap, path.string());
+			mkdir(vfs_root.fs(), vfs_root.io(), path.string());
+			Mkdir_test test(vfs_root.fs(), vfs_root.io(), heap, path.string());
 			count += test.wait();
 		}
 		elapsed_ms = timer.elapsed_ms() - elapsed_ms;
@@ -612,7 +633,7 @@ void Component::construct(Genode::Env &env)
 
 		for (int i = 0; i < ROOT_TREE_COUNT; ++i) {
 			path = { "/", i };
-			Write_test test(vfs_root.fs(), heap, path.string(), vfs_root.io());
+			Write_test test(vfs_root.fs(), vfs_root.io(), heap, path.string());
 			count += test.wait();
 
 		}
@@ -646,7 +667,7 @@ void Component::construct(Genode::Env &env)
 
 		for (int i = 0; i < ROOT_TREE_COUNT; ++i) {
 			path = { "/", i };
-			Read_test test(vfs_root.fs(), heap, path.string(), vfs_root.io());
+			Read_test test(vfs_root.fs(), vfs_root.io(), heap, path.string());
 			count += test.wait();
 		}
 
@@ -680,7 +701,7 @@ void Component::construct(Genode::Env &env)
 
 		for (int i = 0; i < ROOT_TREE_COUNT; ++i) {
 			path = { "/", i };
-			Unlink_test test(vfs_root.fs(), heap, path.string(), vfs_root.io());
+			Unlink_test test(vfs_root.fs(), vfs_root.io(), heap, path.string());
 			count += test.wait();
 
 		}

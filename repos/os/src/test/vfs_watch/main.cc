@@ -123,13 +123,13 @@ struct Test::Main
 		};
 
 		if (step.type() == "new_file") {
-			New_file file(_root, name_attr());
+			New_file file(_root, name_attr(), { });
 			Content { Node::Quoted_content(step) }.with_span([&] (Span const &s) {
 				file.append(s); });
 			_next_step();
 
 		} else if (step.type() == "append") {
-			Append_file file(_root, name_attr());
+			Append_file file(_root, name_attr(), { });
 			Content { Node::Quoted_content(step) }.with_span([&] (Span const &s) {
 				file.append(s); });
 			_next_step();

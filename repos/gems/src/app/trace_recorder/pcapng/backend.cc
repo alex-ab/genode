@@ -35,7 +35,7 @@ void Writer::start_iteration(Directory             &root,
 
 	/* append to file */
 	try {
-		_dst_file.construct(root, _file_path);
+		_dst_file.construct(root, _file_path, Vfs::Timestamp { });
 
 		_interface_registry.clear();
 		_buffer.clear();

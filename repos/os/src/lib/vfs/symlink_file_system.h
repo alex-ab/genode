@@ -100,15 +100,11 @@ class Vfs_symlink::File_system : public Single_file_system
 			_target(config.attribute_value("target", Target()))
 		{ }
 
-		Opendir_result opendir(char const *path, bool create,
-		                       Vfs_handle **out_handle,
+		Opendir_result opendir(char const *path, Vfs_handle **out_handle,
 		                       Allocator &alloc) override
 		{
 			if (!_root(path))
 				return OPENDIR_ERR_LOOKUP_FAILED;
-
-			if (create)
-				return OPENDIR_ERR_PERMISSION_DENIED;
 
 			try {
 				*out_handle = new (alloc) Symlink_dir_handle(*this, alloc);

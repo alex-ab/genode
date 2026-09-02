@@ -85,7 +85,7 @@ Genode::Vfs::Dir_handle::read(At at, Byte_range_ptr const &dst)
 {
 	if (!_channel_ptr) {
 		Directory_service::Opendir_result const result =
-			_root_dir.opendir(path.string(), { }, &_channel_ptr, _alloc);
+			_root_dir.opendir(path.string(), &_channel_ptr, _alloc);
 
 		switch (result) {
 		case Directory_service::OPENDIR_ERR_PERMISSION_DENIED:

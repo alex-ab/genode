@@ -34,11 +34,6 @@ struct Genode::Vfs::Directory_service : Interface
 
 	enum General_error { ERR_FD_INVALID, NUM_GENERAL_ERRORS };
 
-
-	/**********
-	 ** Open **
-	 **********/
-
 	/**
 	 * Flags of 'mode' argument of open syscall
 	 */
@@ -80,10 +75,9 @@ struct Genode::Vfs::Directory_service : Interface
 		OPENDIR_OK
 	};
 
-	virtual Opendir_result opendir(char const * path, bool create,
-	                               Vfs_handle **, Allocator &)
+	virtual Opendir_result opendir(char const *path, Vfs_handle **, Allocator &)
 	{
-		(void)path; (void)create; return OPENDIR_ERR_LOOKUP_FAILED;
+		(void)path; return OPENDIR_ERR_LOOKUP_FAILED;
 	}
 
 	enum Openlink_result
@@ -129,11 +123,6 @@ struct Genode::Vfs::Directory_service : Interface
 	 */
 	virtual void unwatch(char const *path) { (void)path; }
 
-
-	/**********
-	 ** Stat **
-	 **********/
-
 	struct Stat
 	{
 		file_size     size;
@@ -150,11 +139,6 @@ struct Genode::Vfs::Directory_service : Interface
 	{
 		(void)path; return STAT_ERR_NO_ENTRY;
 	}
-
-
-	/************
-	 ** Dirent **
-	 ************/
 
 	struct Dirent
 	{
@@ -184,6 +168,29 @@ struct Genode::Vfs::Directory_service : Interface
 		}
 	};
 
+	/**
+	 * Create directory
+	 *
+	 * If the directory already exists, its modification time is updated to the
+	 * provided timestamp.
+	 */
+	virtual Mkdir_result mkdir(char const *path, Timestamp)
+	{
+		(void)path; return Mkdir_result::DENIED;
+	}
+
+	/**
+	 * Return number of directory entries located at given path
+	 */
+	virtual unsigned num_dirent(char const *path) { (void)path; return 0; }
+
+	virtual bool directory(char const *path) { (void)path; return false; }
+
+	/**
+	 * Return leaf path or nullptr if the path does not exist
+	 */
+	virtual bool dir_entry_exists(char const *path) { (void)path; return false; }
+
 
 	/************
 	 ** Unlink **
@@ -209,19 +216,6 @@ struct Genode::Vfs::Directory_service : Interface
 	{
 		(void)from; (void)to; return RENAME_ERR_NO_ENTRY;
 	}
-
-
-	/**
-	 * Return number of directory entries located at given path
-	 */
-	virtual unsigned num_dirent(char const *path) { (void)path; return 0; }
-
-	virtual bool directory(char const *path) { (void)path; return false; }
-
-	/**
-	 * Return leaf path or nullptr if the path does not exist
-	 */
-	virtual bool dir_entry_exists(char const *path) { (void)path; return false; }
 };
 
 #endif /* _INCLUDE__VFS__DIRECTORY_SERVICE_H_ */

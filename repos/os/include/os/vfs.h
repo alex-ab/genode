@@ -394,7 +394,7 @@ struct Genode::Directory : Noncopyable, Interface
 		 * This operation may fail. Its success can be checked by calling
 		 * 'directory_exists'.
 		 */
-		void create_sub_directory(Path const &sub_path)
+		void create_sub_directory(Path const &sub_path, Vfs::Timestamp ts)
 		{
 			using namespace Genode;
 
@@ -410,12 +410,9 @@ struct Genode::Directory : Noncopyable, Interface
 
 				Path path = join(_path, Path(Cstring(sub_path.string(), sub_path_len)));
 
-				if (!directory_exists(path)) {
-					Vfs::Vfs_handle *handle_ptr = nullptr;
-					(void)_fs.opendir(path.string(), true, &handle_ptr, _alloc);
-					if (handle_ptr)
-						handle_ptr->close();
-				}
+				if (!directory_exists(path))
+					while (_fs.mkdir(path.string(), ts) == Vfs::Mkdir_result::RETRY)
+						_io.commit_and_wait();
 
 				if (end_of_path)
 					break;
@@ -772,11 +769,12 @@ class Genode::Writeable_file : Noncopyable
 		bool const _compound_dir_created;
 
 		static bool _create_compound_dir(Directory             &dir,
-		                                 Directory::Path const &rel_path)
+		                                 Directory::Path const &rel_path,
+		                                 Vfs::Timestamp  const  ts)
 		{
 			Genode::Path<Vfs::MAX_PATH_LEN> dir_path { rel_path };
 			dir_path.strip_last_element();
-			dir.create_sub_directory(dir_path.string());
+			dir.create_sub_directory(dir_path.string(), ts);
 			return true;
 		}
 
@@ -821,9 +819,12 @@ class Genode::Writeable_file : Noncopyable
 			                   : Append_result::OK;
 		}
 
-		Writeable_file(Directory &dir, Directory::Path const &path)
+		/**
+		 * \param ts  time stamp used for compound directories if created
+		 */
+		Writeable_file(Directory &dir, Directory::Path const &path, Vfs::Timestamp ts)
 		:
-			_compound_dir_created(_create_compound_dir(dir, path)),
+			_compound_dir_created(_create_compound_dir(dir, path, ts)),
 			_io(dir._io),
 			_handle(dir._vfs_env.file_handles(), dir._fs, dir._alloc,
 			        { .path      = Directory::join(dir._path, path),
@@ -863,11 +864,12 @@ class Genode::Append_file : public Writeable_file
 		/**
 		 * Constructor
 		 *
+		 * \param ts  timestamp used for newly created compound directories
 		 * \throw Create_failed
 		 */
-		Append_file(Directory &dir, Directory::Path const &path)
+		Append_file(Directory &dir, Directory::Path const &path, Vfs::Timestamp ts)
 		:
-			Writeable_file(dir, path)
+			Writeable_file(dir, path, ts)
 		{
 			Vfs::Directory_service::Stat stat { };
 			if (dir._stat(path, stat) == Vfs::Directory_service::STAT_OK)
@@ -899,11 +901,12 @@ class Genode::New_file : public Writeable_file
 		/**
 		 * Constructor
 		 *
+		 * \param ts  timestamp used for newly created compound directories
 		 * \throw Create_failed
 		 */
-		New_file(Directory &dir, Directory::Path const &path)
+		New_file(Directory &dir, Directory::Path const &path, Vfs::Timestamp ts)
 		:
-			Writeable_file(dir, path)
+			Writeable_file(dir, path, ts)
 		{ }
 
 		~New_file()

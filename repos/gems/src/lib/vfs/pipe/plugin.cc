@@ -404,14 +404,9 @@ class Vfs_pipe::File_system : public Vfs::File_system
 			return result;
 		}
 
-		Opendir_result opendir(char const *cpath, bool create,
-		                       Vfs_handle **handle,
+		Opendir_result opendir(char const *cpath, Vfs_handle **handle,
 		                       Allocator &alloc) override
 		{
-			/* open dummy handles on directories */
-			if (create)
-				return OPENDIR_ERR_PERMISSION_DENIED;
-
 			Path io { cpath };
 			if (io == "/") {
 				*handle = new (alloc) Dir_handle(*this, alloc, 0);

@@ -583,26 +583,11 @@ class Vfs_rump::File_system : public Vfs::File_system
 			}
 		}
 
-		Opendir_result opendir(char const *path, bool create,
-		                       Vfs_handle **handle, Allocator &alloc) override
+		Opendir_result opendir(char const *path, Vfs_handle **handle,
+		                       Allocator &alloc) override
 		{
 			if (strlen(path) == 0)
 				path = "/";
-
-			bool const new_dir_entry = create && !dir_entry_exists(path);
-
-			if (create) {
-				if (rump_sys_mkdir(path, 0777) != 0) switch (::errno) {
-				case ENAMETOOLONG: return OPENDIR_ERR_NAME_TOO_LONG;
-				case EACCES:       return OPENDIR_ERR_PERMISSION_DENIED;
-				case ENOENT:       return OPENDIR_ERR_LOOKUP_FAILED;
-				case EEXIST:       return OPENDIR_ERR_NODE_ALREADY_EXISTS;
-				case ENOSPC:       return OPENDIR_ERR_NO_SPACE;
-				default:
-					error(__func__, ": unhandled rump error ", errno);
-					return OPENDIR_ERR_PERMISSION_DENIED;
-				}
-			}
 
 			int fd = rump_sys_open(path, O_RDONLY | O_DIRECTORY);
 			if (fd == -1) switch (errno) {
@@ -621,7 +606,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 					Rump_vfs_dir_handle(*this, alloc, 0777, {
 						.path          = { path },
 						.fd            = fd,
-						.new_dir_entry = new_dir_entry
+						.new_dir_entry = false
 					});
 				*handle = h;
 				return OPENDIR_OK;
@@ -761,6 +746,31 @@ class Vfs_rump::File_system : public Vfs::File_system
 			_notify_compound_dir_watchers(to);
 
 			return RENAME_OK;
+		}
+
+		Mkdir_result mkdir(char const *path, Timestamp) override
+		{
+			if (strlen(path) == 0)
+				path = "/";
+
+			bool const new_dir_entry = !dir_entry_exists(path);
+
+			if (new_dir_entry) {
+				if (rump_sys_mkdir(path, 0777) != 0) switch (::errno) {
+				default:
+					error(__func__, ": unhandled rump error ", errno);
+					[[fallthrough]];
+				case ENAMETOOLONG:
+				case EACCES:
+				case ENOENT:
+				case EEXIST:
+				case ENOSPC:
+					return Mkdir_result::DENIED;
+				}
+			}
+			_notify_watchers(path);
+			_notify_compound_dir_watchers(path);
+			return Mkdir_result::OK;
 		}
 };
 

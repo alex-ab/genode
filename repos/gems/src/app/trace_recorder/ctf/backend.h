@@ -84,7 +84,7 @@ class Ctf::Backend : Trace_recorder::Backend_base
 			/* copy metadata file while adapting clock declaration */
 			Directory::Path metadata_path { Directory::join(path, "metadata") };
 			if (!root.file_exists(metadata_path)) {
-				New_file        metadata_file { root, metadata_path };
+				New_file        metadata_file { root, metadata_path, { } };
 				_metadata.write_file(metadata_file);
 			}
 

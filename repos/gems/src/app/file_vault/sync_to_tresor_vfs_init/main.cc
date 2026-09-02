@@ -30,7 +30,7 @@ void Component::construct(Env &env)
 		[&] (Node const &config) { root.apply_config(config); },
 		[&]                      { error("VFS not configured"); });
 
-	{ Append_file { root, Directory::Path("/tresor/tresor/current/data") }; }
+	{ Append_file { root, Directory::Path("/tresor/tresor/current/data"), { } }; }
 
 	env.parent().exit(0);
 }

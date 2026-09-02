@@ -582,14 +582,9 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 		}
 
 		Opendir_result opendir(char const  *path,
-		                       bool         create,
 		                       Vfs_handle **out_handle,
 		                       Allocator   &alloc) override
 		{
-			if (create) {
-				return OPENDIR_ERR_PERMISSION_DENIED;
-			}
-
 			_key_reg.update(_vfs_env);
 
 			bool const top = _top_dir(path);
@@ -606,7 +601,7 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 				try {
 					Key_file_system &fs = _key_reg.by_path(sub_path);
 					Vfs_handle *handle = nullptr;
-					Opendir_result const res = fs.opendir(sub_path, create, &handle, alloc);
+					Opendir_result const res = fs.opendir(sub_path, &handle, alloc);
 					if (res != OPENDIR_OK) {
 						return OPENDIR_ERR_LOOKUP_FAILED;
 					}

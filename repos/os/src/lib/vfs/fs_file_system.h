@@ -65,9 +65,6 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			::File_system::Packet_descriptor queued_sync_packet { };
 		};
 
-		struct Fs_vfs_handle;
-		using Fs_vfs_handle_queue = Fifo<Fs_vfs_handle>;
-
 		Remote_io::Peer _peer { _env.deferred_wakeups(), *this };
 
 		/**
@@ -121,19 +118,66 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			         .executable = rwx.executable };
 		}
 
-		struct Fs_vfs_handle : Vfs_handle,
-		                       private ::File_system::Node,
-		                       private Handle_space::Element,
-		                       private Handle_state
+		struct Open_fs_handle : Interface,
+		                        private ::File_system::Node,
+		                        private Handle_space::Element
 		{
 			friend Id_space<::File_system::Node>;
-			friend Fs_vfs_handle_queue;
 
+			Open_fs_handle(Handle_space &space, ::File_system::Node_handle node_handle)
+			:
+				Handle_space::Element(*this, space, node_handle)
+			{ }
+
+			::File_system::File_handle file_handle() const
+			{
+				return ::File_system::File_handle { id().value };
+			}
+
+			using Packet_descriptor = ::File_system::Packet_descriptor;
+
+			struct Handle_ack_result { bool release_packet; };
+
+			virtual Handle_ack_result handle_ack(Packet_descriptor const &packet) = 0;
+		};
+
+		/**
+		 * State of current mkdir operation, kept until mtime update is complete
+		 */
+		struct Mkdir_op : private Open_fs_handle
+		{
+			File_system &_fs;
+
+			using Path = String<MAX_PATH_LEN>;
+			Path const path;
+
+			bool acked = false;
+
+			Mkdir_op(File_system &fs, ::File_system::Dir_handle h, Path const &p)
+			:
+				Open_fs_handle(fs._handle_space, h), _fs(fs), path(p)
+			{ }
+
+			~Mkdir_op() { _fs._fs.close(file_handle()); }
+
+			Handle_ack_result handle_ack(Packet_descriptor const &) override
+			{
+				acked = true;
+				return { .release_packet = true };
+			}
+		};
+
+		Constructible<Mkdir_op> _mkdir_op { };
+
+		struct Fs_vfs_handle : Vfs_handle, private Open_fs_handle, private Handle_state
+		{
 			using Handle_state::queued_read_state;
 			using Handle_state::queued_read_packet;
 			using Handle_state::queued_sync_packet;
 			using Handle_state::queued_sync_state;
 			using Handle_state::read_ready_state;
+
+			using Open_fs_handle::file_handle;
 
 			File_system &_fs;
 
@@ -142,14 +186,43 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			              ::File_system::Node_handle node_handle)
 			:
 				Vfs_handle(fs, alloc, status_flags),
-				Handle_space::Element(*this, space, node_handle),
+				Open_fs_handle(space, node_handle),
 				_fs(fs)
 			{ }
 
-			::File_system::File_handle file_handle() const
+			/**
+			 * Open_handle interface
+			 */
+			Handle_ack_result handle_ack(Packet_descriptor const &packet) override
 			{
-				return ::File_system::File_handle { id().value };
-			}
+				if (!packet.succeeded())
+					error("packet operation=", (int)packet.operation(), " failed");
+
+				switch (packet.operation()) {
+				case Packet_descriptor::READ_READY:
+					read_ready_state = Handle_state::Read_ready_state::READY;
+					read_ready_response();
+					return { };
+
+				case Packet_descriptor::READ:
+					queued_read_packet = packet;
+					queued_read_state  = Handle_state::Queued_state::ACK;
+					return { };
+
+				case Packet_descriptor::SYNC:
+					queued_sync_packet = packet;
+					queued_sync_state  = Handle_state::Queued_state::ACK;
+					return { };
+
+				case Packet_descriptor::CONTENT_CHANGED:
+					return { };
+
+				case Packet_descriptor::WRITE:
+				case Packet_descriptor::WRITE_TIMESTAMP:
+					return { .release_packet = true };
+				}
+				return { };
+			};
 
 			virtual Write_result write(At const at, Const_byte_range_ptr const &src) override
 			{
@@ -487,40 +560,6 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 				Handle_space::Id const id(packet.handle());
 
-				auto handle_fn = [&] (Fs_vfs_handle &handle)
-				{
-					if (!packet.succeeded())
-						error("packet operation=", (int)packet.operation(), " failed");
-
-					switch (packet.operation()) {
-					case Packet_descriptor::READ_READY:
-						handle.read_ready_state = Handle_state::Read_ready_state::READY;
-						handle.read_ready_response();
-						break;
-
-					case Packet_descriptor::READ:
-						handle.queued_read_packet = packet;
-						handle.queued_read_state  = Handle_state::Queued_state::ACK;
-						break;
-
-					case Packet_descriptor::WRITE:
-						source.release_packet(packet);
-						break;
-
-					case Packet_descriptor::SYNC:
-						handle.queued_sync_packet = packet;
-						handle.queued_sync_state  = Handle_state::Queued_state::ACK;
-						break;
-
-					case Packet_descriptor::CONTENT_CHANGED:
-						break;
-
-					case Packet_descriptor::WRITE_TIMESTAMP:
-						source.release_packet(packet);
-						break;
-					}
-				};
-
 				if (packet.operation() == Packet_descriptor::CONTENT_CHANGED)
 					_watch_handle_space.apply<Fs_watch_handle>(id,
 						[&] (Fs_watch_handle &handle) {
@@ -531,7 +570,13 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 							warning("ack for unknown watch handle ", id);
 						});
 				else
-					_handle_space.apply<Fs_vfs_handle>(id, handle_fn,
+					_handle_space.apply<Open_fs_handle>(id,
+						[&] (Open_fs_handle &handle) {
+							if (handle.handle_ack(packet).release_packet) {
+								source.release_packet(packet);
+								any_ack_handled = true;
+							}
+						},
 						[&] {
 							warning("ack for unknown File_system handle ", id,
 							        " op=", (int)packet.operation());
@@ -669,6 +714,72 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			return RENAME_OK;
 		}
 
+		Mkdir_result mkdir(char const *path, Timestamp ts) override
+		{
+			Absolute_path dir_path(path);
+
+			using ::File_system::Packet_descriptor;
+			using Tx = ::File_system::Session::Tx;
+
+			/* cancel mkdir operation if paths mismatch */
+			if (_mkdir_op.constructed() && _mkdir_op->path != path)
+				_mkdir_op.destruct();
+
+			if (!_mkdir_op.constructed()) {
+				Tx::Source &source = *_fs.tx();
+
+				/* check precondition for mtime update */
+				if (!source.ready_to_submit())
+					return Mkdir_result::RETRY;
+
+				bool already_exists = false;
+				Mkdir_result result = Mkdir_result::DENIED;
+				::File_system::Dir_handle dir { ~0u };
+
+				auto try_open_dir = [&] (bool create)
+				{
+					try {
+						dir = _fs.dir(dir_path.base(), create);
+						result = Mkdir_result::OK;
+					}
+					catch (::File_system::Lookup_failed)       { }
+					catch (::File_system::Name_too_long)       { }
+					catch (::File_system::Node_already_exists) { already_exists = true; }
+					catch (::File_system::No_space)            { }
+					catch (::File_system::Permission_denied)   { }
+					catch (Out_of_ram)                         { result = Mkdir_result::OUT_OF_RAM; }
+					catch (Out_of_caps)                        { result = Mkdir_result::OUT_OF_CAPS; }
+				};
+
+				try_open_dir(true);
+				if (already_exists)
+					try_open_dir(false);
+
+				if (result != Mkdir_result::OK)
+					return result;
+
+				/* update mtime */
+				try {
+					Packet_descriptor p(source.alloc_packet(0), dir,
+					                    Packet_descriptor::WRITE_TIMESTAMP,
+					                    ::File_system::Timestamp {
+					                       .ms_since_1970 = ts.ms_since_1970 });
+					_submit_packet(p);
+				}
+				catch (Tx::Source::Packet_alloc_failed) { result = Mkdir_result::RETRY; }
+
+				_mkdir_op.construct(*this, dir, path);
+			}
+
+			/* '_mkdir_op' cannot be unconstructed at this point */
+
+			if (!_mkdir_op->acked)
+				return Mkdir_result::RETRY;
+
+			_mkdir_op.destruct();
+			return Mkdir_result::OK;
+		}
+
 		unsigned num_dirent(char const *path) override
 		{
 			if (strcmp(path, "") == 0)
@@ -755,13 +866,13 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 			return OPEN_OK;
 		}
 
-		Opendir_result opendir(char const *path, bool create,
-		                       Vfs_handle **out_handle, Allocator &alloc) override
+		Opendir_result opendir(char const *path, Vfs_handle **out_handle,
+		                       Allocator &alloc) override
 		{
 			Absolute_path dir_path(path);
 
 			try {
-				::File_system::Dir_handle dir = _fs.dir(dir_path.base(), create);
+				::File_system::Dir_handle dir = _fs.dir(dir_path.base(), false);
 
 				*out_handle = new (alloc)
 					Fs_vfs_dir_handle(*this, alloc, ::File_system::READ_ONLY,

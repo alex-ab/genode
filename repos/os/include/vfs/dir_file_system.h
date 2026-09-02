@@ -228,13 +228,10 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 				[&] () -> Open_result { return OPEN_ERR_UNACCESSIBLE; });
 		}
 
-		Opendir_result opendir(char const *path, bool create,
-		                       Vfs_handle **out, Allocator &alloc) override
+		Opendir_result opendir(char const *path, Vfs_handle **out,
+		                       Allocator &alloc) override
 		{
 			if (_slash(path)) {
-				if (create)
-					return OPENDIR_ERR_PERMISSION_DENIED;
-
 				try { *out = new (alloc) Dir_vfs_handle(*this, alloc); }
 				catch (Out_of_ram)  { return OPENDIR_ERR_OUT_OF_RAM; }
 				catch (Out_of_caps) { return OPENDIR_ERR_OUT_OF_CAPS; }
@@ -243,7 +240,7 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 
 			return _with_sub_dir_path(path,
 				[&] (char const *path) {
-					return _union.opendir(path, create, out, alloc);
+					return _union.opendir(path, out, alloc);
 				},
 				[&] () -> Opendir_result { return OPENDIR_ERR_LOOKUP_FAILED; });
 		}
@@ -309,6 +306,16 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 						});
 				},
 				[&] () -> Rename_result { return RENAME_ERR_NO_ENTRY; });
+		}
+
+		Mkdir_result mkdir(char const *path, Timestamp ts) override
+		{
+			if (_slash(path))
+				return Mkdir_result::OK;
+
+			return _with_sub_path(path,
+				[&] (auto const &path) { return _union.mkdir(path, ts); },
+				[&] () -> Mkdir_result { return Mkdir_result::DENIED; });
 		}
 
 		Progress update(Node const &node, Factory &factory) override

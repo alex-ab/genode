@@ -214,13 +214,12 @@ class Vfs_audit::File_system : public Vfs::File_system
 			return r;
 		}
 
-		Opendir_result opendir(char const *path, bool create,
-	                               Vfs_handle **out, Allocator &alloc) override
+		Opendir_result opendir(char const *path, Vfs_handle **out, Allocator &alloc) override
 		{
-			_log(__func__, " ", path, create ? " create " : "");
+			_log(__func__, " ", path);
 
 			Vfs_handle *audited = nullptr;
-			Opendir_result r = _fs.opendir(_expand(path).string(), create, &audited, alloc);
+			Opendir_result r = _fs.opendir(_expand(path).string(), &audited, alloc);
 
 			if (!audited || r != OPENDIR_OK)
 				return r;
@@ -257,6 +256,12 @@ class Vfs_audit::File_system : public Vfs::File_system
 		{
 			_log(__func__, " ", from, " ", to);
 			return _fs.rename(_expand(from).string(), _expand(to).string());
+		}
+
+		Mkdir_result mkdir(char const *path, Timestamp ts) override
+		{
+			_log(__func__, " ", path);
+			return _fs.mkdir(_expand(path).string(), ts);
 		}
 
 		unsigned num_dirent(const char *path) override

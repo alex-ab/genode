@@ -609,40 +609,18 @@ class Vfs_ram::File_system : public Vfs::File_system
 			}
 		}
 
-		Opendir_result opendir(char const * const path, bool create,
+		Opendir_result opendir(char const * const path,
 		                       Vfs_handle **handle, Allocator &alloc) override
 		{
 			Directory * const parent = lookup_parent(path);
 			if (!parent)
 				return OPENDIR_ERR_LOOKUP_FAILED;
 
-			char const * const name = basename(path);
+			Node * const node = lookup(path);
+			if (!node) return OPENDIR_ERR_LOOKUP_FAILED;
 
-			Directory *dir;
-
-			if (create) {
-				if (*name == '\0')
-					return OPENDIR_ERR_NODE_ALREADY_EXISTS;
-
-				if (strlen(name) >= MAX_NAME_LEN)
-					return OPENDIR_ERR_NAME_TOO_LONG;
-
-				if (parent->child(name))
-					return OPENDIR_ERR_NODE_ALREADY_EXISTS;
-
-				try { dir = new (_env.alloc()) Directory(name); }
-				catch (Out_of_memory) { return OPENDIR_ERR_NO_SPACE; }
-
-				parent->adopt(dir);
-				_notify_compound_dir_watchers(path);
-			} else {
-
-				Node * const node = lookup(path);
-				if (!node) return OPENDIR_ERR_LOOKUP_FAILED;
-
-				dir = dynamic_cast<Directory *>(node);
-				if (!dir) return OPENDIR_ERR_LOOKUP_FAILED;
-			}
+			Directory *dir = dynamic_cast<Directory *>(node);
+			if (!dir) return OPENDIR_ERR_LOOKUP_FAILED;
 
 			try {
 				Io_handle * const io_handle_ptr = new (alloc)
@@ -650,19 +628,9 @@ class Vfs_ram::File_system : public Vfs::File_system
 				dir->open(*io_handle_ptr);
 				*handle = io_handle_ptr;
 				return OPENDIR_OK;
-			} catch (Out_of_ram) {
-				if (create) {
-					parent->release(dir);
-					remove(dir);
-				}
-				return OPENDIR_ERR_OUT_OF_RAM;
-			} catch (Out_of_caps) {
-				if (create) {
-					parent->release(dir);
-					remove(dir);
-				}
-				return OPENDIR_ERR_OUT_OF_CAPS;
 			}
+			catch (Out_of_ram)  { return OPENDIR_ERR_OUT_OF_RAM; }
+			catch (Out_of_caps) { return OPENDIR_ERR_OUT_OF_CAPS; }
 		}
 
 		Openlink_result openlink(char const * const path, bool create,
@@ -832,6 +800,42 @@ class Vfs_ram::File_system : public Vfs::File_system
 			_try_complete_unlink({ Cstring(path) }, parent, *node);
 
 			return UNLINK_OK;
+		}
+
+		Mkdir_result mkdir(char const *path, Timestamp ts) override
+		{
+			Directory * const parent = lookup_parent(path);
+			if (!parent)
+				return Mkdir_result::DENIED;
+
+			char const * const name = basename(path);
+			if (strlen(name) >= MAX_NAME_LEN)
+				return Mkdir_result::DENIED;
+
+			if (*name == '\0')
+				return Mkdir_result::OK; /* already exists */
+
+			if (Node * node = lookup(path)) {
+				/* update timestamp of existing directory */
+				if (Directory *dir = dynamic_cast<Directory*>(node)) {
+					dir->update_modification_timestamp(ts);
+					return Mkdir_result::OK;
+				}
+				return Mkdir_result::DENIED; /* conflict with file or symlink */
+			}
+
+			try {
+				Directory &dir = *new (_env.alloc()) Directory(name);
+				parent->adopt(&dir);
+				_notify_compound_dir_watchers(path);
+				dir.update_modification_timestamp(ts);
+			}
+			catch (Out_of_caps) { return Mkdir_result::DENIED; }
+			catch (Out_of_ram)  { return Mkdir_result::DENIED; }
+
+			_notify_watchers(path);
+			_notify_compound_dir_watchers(path);
+			return Mkdir_result::OK;
 		}
 
 		Dataspace_capability dataspace(char const * const path) override

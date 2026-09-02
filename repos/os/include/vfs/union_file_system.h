@@ -371,7 +371,7 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 					return;
 
 				Vfs_handle *child_handle_ptr = nullptr;
-				result = fs.opendir(dir_vfs_handle._path.string(), false,
+				result = fs.opendir(dir_vfs_handle._path.string(),
 				                    &child_handle_ptr, dir_vfs_handle.alloc());
 				if (quota_exceeded(result))
 					return;
@@ -393,8 +393,8 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 			return at_least_one_ok ? OPENDIR_OK : result;
 		}
 
-		Opendir_result opendir(char const *path, bool create,
-		                       Vfs_handle **out_handle, Allocator &alloc) override
+		Opendir_result opendir(char const *path, Vfs_handle **out_handle,
+		                       Allocator &alloc) override
 		{
 			if (_update_in_progress)
 				error("attempt to access dir '", path, "' during VFS update");
@@ -402,8 +402,6 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 			Opendir_result result = OPENDIR_OK;
 
 			if (_top_dir(path)) {
-				if (create)
-					return OPENDIR_ERR_PERMISSION_DENIED;
 
 				/*
 				 * opendir with '/' (called from 'open_composite_dirs' returns handle
@@ -424,32 +422,6 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 					close(root_handle);
 
 				return result;
-			}
-
-			if (create) {
-				if (dir_entry_exists(path))
-					return OPENDIR_ERR_NODE_ALREADY_EXISTS;
-
-				auto opendir_fn = [&] (File_system &fs, char const *path)
-				{
-					Vfs_handle *tmp_handle;
-					Opendir_result opendir_result =
-						fs.opendir(path, true, &tmp_handle, alloc);
-
-					if (opendir_result == OPENDIR_OK)
-						tmp_handle->close();
-
-					return opendir_result; /* return from lambda */
-				};
-
-				Opendir_result opendir_result =
-					_dir_op(OPENDIR_ERR_LOOKUP_FAILED,
-					        OPENDIR_ERR_PERMISSION_DENIED,
-					        OPENDIR_OK,
-					        path, opendir_fn);
-
-				if (opendir_result != OPENDIR_OK)
-					return opendir_result;
 			}
 
 			Dir_vfs_handle *dir_vfs_handle;
@@ -527,6 +499,18 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 				if (result == RENAME_ERR_NO_ENTRY)
 					result = fs.rename(from_path, to_path); });
 
+			return result;
+		}
+
+		Mkdir_result mkdir(char const *path, Timestamp ts) override
+		{
+			if (_top_dir(path))
+				return Mkdir_result::OK;
+
+			Mkdir_result result = Mkdir_result::DENIED;
+			_for_each_fs([&] (Fs &fs) {
+				if (result == Mkdir_result::DENIED)
+					result = fs.mkdir(path, ts); });
 			return result;
 		}
 

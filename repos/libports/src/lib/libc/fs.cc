@@ -118,6 +118,19 @@ static void vfs_stat_to_libc_stat_struct(Genode::Vfs::Directory_service::Stat co
 }
 
 
+static Genode::Vfs::Timestamp timestamp_now(Libc::Fs &fs)
+{
+	Genode::Vfs::Timestamp result { };
+	if (fs._config.update_mtime && fs._now.has_real_time()) {
+		timespec const ts = fs._now.current_real_time();
+		result.ms_since_1970 = ts.tv_sec >= 0
+		                     ? ts.tv_sec*1000ull + ts.tv_nsec/1000000ull
+		                     : 0;
+	}
+	return result;
+}
+
+
 namespace Libc {
 
 	bool read_ready_from_kernel(File_descriptor &fd)
@@ -365,25 +378,29 @@ int Libc::Fs::fstat(File_descriptor &fd, struct stat &buf)
 
 int Libc::Fs::mkdir(const char *path, mode_t mode)
 {
-	Vfs::Vfs_handle *dir_handle_ptr = nullptr;
-
 	int result = -1;
 	int result_errno = 0;
+
+	Vfs::Timestamp const mtime = timestamp_now(*this);
+
+	bool first = true;
 	_monitor.monitor([&] {
-		using Result = Vfs::Directory_service::Opendir_result;
-		switch (_vfs.opendir(path, true, &dir_handle_ptr, _kernel_heap)) {
-		case Result::OPENDIR_ERR_LOOKUP_FAILED:       result_errno = ENOENT;       break;
-		case Result::OPENDIR_ERR_NAME_TOO_LONG:       result_errno = ENAMETOOLONG; break;
-		case Result::OPENDIR_ERR_NODE_ALREADY_EXISTS: result_errno = EEXIST;       break;
-		case Result::OPENDIR_ERR_NO_SPACE:            result_errno = ENOSPC;       break;
-		case Result::OPENDIR_ERR_OUT_OF_RAM:          result_errno = EPERM;        break;
-		case Result::OPENDIR_ERR_OUT_OF_CAPS:         result_errno = EPERM;        break;
-		case Result::OPENDIR_ERR_PERMISSION_DENIED:   result_errno = EPERM;        break;
-		case Result::OPENDIR_OK:
-			dir_handle_ptr->close();
-			result = 0;
-			break;
+
+		/* text for confict only once */
+		if (first && _root_dir.entry_exists(path)) {
+			result_errno = EEXIST;
+			return Fn::COMPLETE;
 		}
+		first = false;
+
+		Vfs::Mkdir_result mkdir_result = _vfs.mkdir(path, mtime);
+		if (mkdir_result == Vfs::Mkdir_result::RETRY)
+			return Fn::INCOMPLETE;
+
+		if (mkdir_result == Vfs::Mkdir_result::OK)
+			result = 0;
+		else
+			result_errno = EPERM;
 
 		return Fn::COMPLETE;
 	});
@@ -1713,13 +1730,7 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 	Vfs::Vfs_handle &handle = *handle_ptr;
 	handle.handler(&_response_handler);
 
-	Vfs::Timestamp mtime { };
-	if (_config.update_mtime && _now.has_real_time()) {
-		timespec const ts = _now.current_real_time();
-		mtime.ms_since_1970 = ts.tv_sec >= 0
-		                    ? ts.tv_sec*1000ull + ts.tv_nsec/1000000ull
-		                    : 0;
-	}
+	Vfs::Timestamp mtime = timestamp_now(*this);
 
 	{
 		Vfs::Vfs_handle::Write_result write_result = Vfs::Vfs_handle::Write_error::DENIED;

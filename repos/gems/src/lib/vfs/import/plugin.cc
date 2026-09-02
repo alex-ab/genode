@@ -44,7 +44,7 @@ struct Vfs_import::File_system : Vfs::File_system
 
 		bool write_error = false;
 		try {
-			New_file dst_file(dst, path);
+			New_file dst_file(dst, path, { });
 
 			char buf[4096];
 			At at { };
@@ -75,7 +75,7 @@ struct Vfs_import::File_system : Vfs::File_system
 	static void _copy_dir(Root_directory &src, Directory &dst,
 	                      Directory::Path const &path, bool overwrite)
 	{
-		dst.create_sub_directory(path);
+		dst.create_sub_directory(path, { });
 
 		Directory(src,path).for_each_entry([&] (Directory::Entry const &e) {
 			auto entry_path = Directory::join(path, e.name());

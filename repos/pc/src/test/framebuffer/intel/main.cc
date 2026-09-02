@@ -116,7 +116,7 @@ void Framebuffer_controller::_update_fb_config(Node const &report)
 		[&] (size_t used) {
 			buf[used] = 0;
 			try {
-				New_file file { _root_dir, "fb.config" };
+				New_file file { _root_dir, "fb.config", { } };
 				file.append(buf, used + 1);
 			} catch (...) { error("failed to write config to file"); }
 		},

@@ -427,27 +427,13 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 			return OPEN_OK;
 		}
 
-		Opendir_result opendir(char const *path, bool create,
-		                       Vfs_handle **vfs_handle,
+		Opendir_result opendir(char const *path, Vfs_handle **vfs_handle,
 		                       Allocator &alloc) override
 		{
 			Fatfs_dir_handle *handle;
 
 			/* attempt allocation before modifying blocks */
 			handle = new (alloc) Fatfs_dir_handle(*this, alloc, path);
-
-			if (create) {
-				FRESULT res = f_mkdir((const TCHAR*)path);
-				if (res != FR_OK) {
-					destroy(alloc, handle);
-					switch (res) {
-					case FR_EXIST:        return OPENDIR_ERR_NODE_ALREADY_EXISTS;
-					case FR_NO_PATH:      return OPENDIR_ERR_LOOKUP_FAILED;
-					case FR_INVALID_NAME: return OPENDIR_ERR_NAME_TOO_LONG;
-					default:              return OPENDIR_ERR_PERMISSION_DENIED;
-					}
-				}
-			}
 
 			FRESULT res = f_opendir(&handle->dir, (const TCHAR*)path);
 			if (res != FR_OK) {
@@ -635,6 +621,15 @@ class Vfs_fatfs::File_system : public Vfs::File_system
 			if (strcmp(from, to) != 0)
 				_notify_parent_of(to);
 			return RENAME_OK;
+		}
+
+		Mkdir_result mkdir(char const *path, Timestamp) override
+		{
+			FRESULT res = f_mkdir((const TCHAR*)path);
+			if (res != FR_OK)
+				return (res == FR_EXIST) ? Mkdir_result::OK
+				                         : Mkdir_result::DENIED;
+			return Mkdir_result::OK;
 		}
 };
 

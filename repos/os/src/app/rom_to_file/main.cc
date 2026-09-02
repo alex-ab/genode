@@ -98,7 +98,7 @@ void Rom_to_file::Main::_handle_update()
 		if (_rom_ds->valid()) {
 
 			try {
-				New_file new_file { _root_dir, _rom_name };
+				New_file new_file { _root_dir, _rom_name, { } };
 
 				size_t const len = max(strlen(_rom_ds->local_addr<char>()),
 				                       _rom_ds->size());

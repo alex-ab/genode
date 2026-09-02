@@ -698,8 +698,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 			catch (Out_of_caps) { return OPEN_ERR_OUT_OF_CAPS; }
 		}
 
-		Opendir_result opendir(char const *path, bool /* create */,
-		                       Vfs_handle **out_handle,
+		Opendir_result opendir(char const *path, Vfs_handle **out_handle,
 		                       Allocator& alloc) override
 		{
 			Node const *node = dereference(path);

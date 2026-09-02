@@ -112,7 +112,7 @@ struct Main
 	Root_directory root = config_rom.node().with_sub_node("vfs",
 		[&] (Node const &config) -> Root_directory { return { env, heap, config }; },
 		[&] ()                   -> Root_directory { return { env, heap, Node() }; });
-	Reconstructible<Append_file> pcap_file { root, "/output.pcap" };
+	Reconstructible<Append_file> pcap_file { root, "/output.pcap", Vfs::Timestamp { } };
 	Attached_rom_dataspace pcap_rom { env, "input.pcap" };
 	Parser pcap_parser { pcap_rom.local_addr<char>(), pcap_rom.size() };
 	unsigned long num_errors = 0;

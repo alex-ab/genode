@@ -41,7 +41,7 @@ namespace Fs_report {
 		if (parent == "/")
 			return;
 
-		dir.create_sub_directory(parent.string());
+		dir.create_sub_directory(parent.string(), { });
 	}
 }
 
@@ -73,7 +73,7 @@ struct Fs_report::Session_component : Rpc_object<Report::Session>
 		Span const bytes { _ds.local_addr<char>(), min(length, _ds.size()) };
 
 		try {
-			New_file dst { _root_dir, _path.string() };
+			New_file dst { _root_dir, _path.string(), { } };
 
 			if (dst.append(bytes) != New_file::Append_result::OK)
 				error("failed to write '", _path,"'");

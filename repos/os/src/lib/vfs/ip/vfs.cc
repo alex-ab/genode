@@ -1898,8 +1898,8 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 			return OPEN_ERR_UNACCESSIBLE;
 		}
 
-		Opendir_result opendir(char const *path, bool /* create */,
-		                       Vfs_handle **out_handle, Allocator &alloc) override
+		Opendir_result opendir(char const *path, Vfs_handle **out_handle,
+		                       Allocator &alloc) override
 		{
 			Vfs_ip::Node *node = _lookup(path);
 

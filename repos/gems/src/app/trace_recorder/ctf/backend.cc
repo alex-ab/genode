@@ -23,7 +23,7 @@ void Writer::start_iteration(Directory             &root,
 	_file_path = Directory::join(path, info.thread_name());
 
 	try {
-		_dst_file.construct(root, _file_path);
+		_dst_file.construct(root, _file_path, Vfs::Timestamp { });
 
 		/* initialise packet header */
 		_packet_buffer.init_header(info);

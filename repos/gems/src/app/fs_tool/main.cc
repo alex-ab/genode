@@ -179,7 +179,7 @@ void Fs_tool::Main::_new_file(Node const &operation)
 	bool create_error = false;
 
 	try {
-		New_file new_file(_root_dir, path);
+		New_file new_file(_root_dir, path, { });
 		auto write = [&] (char const *str)
 		{
 			if (new_file.append(str, strlen(str)) != New_file::Append_result::OK)
@@ -210,7 +210,7 @@ void Fs_tool::Main::_copy_file(Path const &from, Path const &to,
 {
 	try {
 		Readonly_file const src { _root_dir, from };
-		New_file            dst { _root_dir, to };
+		New_file            dst { _root_dir, to, { } };
 
 		Readonly_file::At at { 0 };
 
@@ -254,7 +254,7 @@ void Fs_tool::Main::_copy_all_files(Node const &operation)
 
 void Fs_tool::Main::_create_dir(Node const &operation)
 {
-	_root_dir.create_sub_directory(operation.attribute_value("path", Path()));
+	_root_dir.create_sub_directory(operation.attribute_value("path", Path()), { });
 }
 
 
