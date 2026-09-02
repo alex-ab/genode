@@ -315,9 +315,9 @@ struct Vfs_tap::Compound_file_system : Union_file_system,
 			[&] (Generator &g) {
 				g.named_node("data", name);
 				g.named_node("dir", Name(".", name), [&] {
-					g.node("info");
-					g.node("mac_addr");
-					g.node("name");
+					g.named_node("readonly_value", "info");
+					g.named_node("value",          "mac_addr");
+					g.named_node("readonly_value", "name");
 				});
 		}).with_error([] (Buffer_error) {
 			warning("VFS-tap compound exceeds maximum buffer size");

@@ -40,7 +40,7 @@ class Vfs_nic::File_system : public Single_file_system
 		File_system(Parent_fs &parent_fs, char const *name)
 		:
 			Single_file_system(parent_fs, {
-				.ident = name,
+				.ident = { { "data ", name } },
 				.name  = name,
 				.rwx   = File::RW_TRANSACTIONAL
 			})
