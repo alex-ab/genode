@@ -134,6 +134,9 @@ struct Libc::Fs
 
 	int ioctl(File_descriptor &, unsigned long request, char *argp);
 
+	/* monitored root-directory utilities */
+	bool directory_exists(char const *path) const;
+
 	/* kernel-specific API without monitor */
 	Open_file_result open_file_from_kernel(Open_file_attr const &);
 	int stat_from_kernel(char const *, struct stat &);

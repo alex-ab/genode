@@ -729,7 +729,7 @@ __SYS_(int, msync, (void *start, ::size_t len, int flags),
 static int _open(Libc::Fds::Bits &bits, Libc::Fds::Space &space,
                  Libc::File_descriptor::Path const &path, int libc_fd, int flags)
 {
-	if (fs()._root_dir.directory_exists(path.string())) {
+	if (fs().directory_exists(path.string())) {
 
 		if ((flags & O_ACCMODE) != O_RDONLY)
 			return Errno { EISDIR };

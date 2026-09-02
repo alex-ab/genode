@@ -2391,3 +2391,14 @@ int Libc::Fs::enqueue_aiocb(File_descriptor &fd, struct aiocb const &iocb)
 		++fd.lio_list_queued;
 	}) ? 0 : Errno(EAGAIN);
 }
+
+
+bool Libc::Fs::directory_exists(char const *path) const
+{
+	bool result;
+	_monitor.monitor([&] {
+		result = _root_dir.directory_exists(path);
+		return Fn::COMPLETE;
+	});
+	return result;
+}
