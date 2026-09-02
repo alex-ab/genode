@@ -58,7 +58,7 @@ class Depot_remove::Archive_remover
 			dir.for_each_entry([&] (auto const &entry) {
 				if (entry.name() == ".." || entry.name() == ".")
 					return;
-				else if (entry.type() == Vfs::Directory_service::Dirent_type::DIRECTORY)
+				else if (entry.type() == Vfs::Dirent_type::DIRECTORY)
 					_remove_directory(depot, Directory::join(path, entry.name()));
 				else
 					/*
