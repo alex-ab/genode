@@ -218,6 +218,8 @@ struct Vfs_ip::Sockopt_file_system : Dir_file_system, File_system::Factory
 	{
 		Dir_file_system::update(Node(_config()), *this);
 	}
+
+	~Sockopt_file_system() { Dir_file_system::update(Node(), *this); }
 };
 
 #endif /* _SOCKOPT_H_ */

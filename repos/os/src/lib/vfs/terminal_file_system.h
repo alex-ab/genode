@@ -372,6 +372,12 @@ struct Vfs_terminal::File_system : Union_file_system,
 		_handle_size_changed();
 	}
 
+	~File_system()
+	{
+		_dot_dir_fs.update(Node(), *this);
+		Union_file_system::update(Node(), *this);
+	}
+
 	Progress update(Node const &, Vfs::File_system::Factory &) override
 	{
 		return Union_file_system::update(Node(_config(_name)), *this);

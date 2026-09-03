@@ -706,6 +706,12 @@ struct Vfs_block::File_system : Union_file_system, private Vfs::File_system::Fac
 		_block_size_fs .value(_block.info().block_size);
 	}
 
+	~File_system()
+	{
+		_dot_dir_fs.update(Node(), *this);
+		Union_file_system::update(Node(), *this);
+	}
+
 	Progress update(Node const &, Vfs::File_system::Factory &) override
 	{
 		return Union_file_system::update(Node(_config(_name)), *this);
