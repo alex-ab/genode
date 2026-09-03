@@ -311,6 +311,8 @@ struct Vfs_trace::Subject : Dir_file_system, private Vfs::File_system::Factory
 	{
 		Dir_file_system::update(Node(_config(node)), *this);
 	}
+
+	~Subject() { Dir_file_system::update(Node(), *this); }
 };
 
 
@@ -412,6 +414,8 @@ struct Vfs_trace::File_system : Dir_file_system, private Vfs::File_system::Facto
 
 		_install_null_policy();
 	}
+
+	~File_system() { Dir_file_system::update(Node(), *this); }
 
 	void destruct() override { destroy(_env.alloc(), this); }
 };

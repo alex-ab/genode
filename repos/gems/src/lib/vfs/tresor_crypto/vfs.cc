@@ -289,6 +289,8 @@ class Vfs_tresor_crypto::Key_file_system : public Dir_file_system,
 			Dir_file_system::update(Node(_config(key_id)), *this);
 		}
 
+		~Key_file_system() { Dir_file_system::update(Node(), *this); }
+
 		uint32_t key_id() const { return _key_id; }
 };
 
