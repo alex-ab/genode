@@ -638,9 +638,9 @@ struct Vfs_block::File_system : Union_file_system, private Vfs::File_system::Fac
 
 	Dir_file_system _dot_dir_fs;
 
-	Readonly_value_file_system<Info>     _info_fs        { *this, "info",        Info { } };
-	Readonly_value_file_system<uint64_t> _block_count_fs { *this, "block_count", 0 };
-	Readonly_value_file_system<size_t>   _block_size_fs  { *this, "block_size",  0 };
+	Readonly_value_file_system<Info>     _info_fs        { _dot_dir_fs, "info",        Info { } };
+	Readonly_value_file_system<uint64_t> _block_count_fs { _dot_dir_fs, "block_count", 0 };
+	Readonly_value_file_system<size_t>   _block_size_fs  { _dot_dir_fs, "block_size",  0 };
 
 	static Name name(Node const &config) {
 		return config.attribute_value("name", Name("block")); }
