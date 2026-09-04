@@ -19,7 +19,7 @@ proc dst_ip { } {
 }
 
 install_config {
-config
+config | prio_levels: 2
 + parent-provides
   + service ROM
   + service IRQ
@@ -37,7 +37,7 @@ config
 
 + default | caps: 100 | ram: 1M
 
-+ start timer
++ start timer | priority: -1
   + provides | + service Timer
 
 + start drivers | caps: 1200 | ram: 32M | managing_system: yes
@@ -104,3 +104,6 @@ append qemu_args " -nographic "
 append_qemu_nic_args
 
 run_genode_until ".*child \"ping\" exited with exit value 0.*\n" 60
+
+grep_output {(Error)}
+compare_output_to {}

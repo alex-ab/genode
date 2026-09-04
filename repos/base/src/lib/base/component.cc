@@ -140,7 +140,9 @@ struct Genode::Component_env : Env
 						switch (e) {
 						case Error::INSUFFICIENT_RAM:  return Session_error::INSUFFICIENT_RAM;
 						case Error::INSUFFICIENT_CAPS: return Session_error::INSUFFICIENT_CAPS;
-						case Error::DENIED:            break;
+						case Error::DENIED:            error("DENIED XXX A"); break;
+						default:
+							error("DENIED XXX B ", unsigned(e));
 						}
 						return Session_error::DENIED; }
 				);

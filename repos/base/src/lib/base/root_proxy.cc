@@ -177,7 +177,7 @@ void Root_proxy::_handle_session_request(Node const &request, char const *type)
 
 		using Error = Genode::Session_error;
 
-		auto error_response = [] (Error e)
+		auto error_response = [&] (Error e, auto const &string)
 		{
 			switch (e) {
 
@@ -189,8 +189,15 @@ void Root_proxy::_handle_session_request(Node const &request, char const *type)
 			case Error::INSUFFICIENT_CAPS:
 				return Parent::Session_response::INSUFFICIENT_CAPS;
 
-			case Error::DENIED: break;
+			case Error::DENIED:
+				error("proxy: Error::DENIED !");
+				log(request);
+				break;
+			default:
+				error("proxy: DENIED default ????");
+
 			}
+			error("proxy: DENIED -string: ", string);
 			return Parent::Session_response::DENIED;
 		};
 
@@ -201,7 +208,7 @@ void Root_proxy::_handle_session_request(Node const &request, char const *type)
 					_env.parent().deliver_session_cap(id, cap);
 				},
 				[&] (Error e) {
-					_env.parent().session_response(id, error_response(e));
+					_env.parent().session_response(id, error_response(e, args.string()));
 				});
 		});
 	}

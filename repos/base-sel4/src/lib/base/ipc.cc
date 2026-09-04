@@ -189,6 +189,8 @@ static void decode_seL4_message(seL4_MessageInfo_t const &msg_info,
 
 		dst_msg.data_size(num_data_words*sizeof(umword_t));
 	}
+	else
+		raw("oi oi - dont do that ", num_msg_words, " ", unsigned(MR_IDX_DATA));
 
 	/**
 	 * Now we got all data from the IPCBuffer, we may use Native_capability
@@ -221,6 +223,8 @@ static void decode_seL4_message(seL4_MessageInfo_t const &msg_info,
 		 */
 		if (!rpc_obj_key.valid() && caps_extra == 0) {
 			dst_msg.insert(Native_capability());
+			if (num_caps != 1 || caps_unwrapped)
+				warning("invalid cap inserted dst_msg B ", caps_extra, " ", Hex(rpc_obj_key.value()), " num_caps=", num_caps);
 			continue;
 		}
 
@@ -252,6 +256,20 @@ static void decode_seL4_message(seL4_MessageInfo_t const &msg_info,
 
 			dst_msg.insert(arg_cap);
 		} if (curr_sel4_cap_idx >= caps_extra) {
+			warning("invalid cap inserted dst_msg A ", curr_sel4_cap_idx, ">=", caps_extra, " unwrapped=", Hex(caps_unwrapped), " num_caps=", num_caps);
+			unsigned long const arg_badge = arg_badges[curr_sel4_cap_idx];
+
+			if (arg_badge != rpc_obj_key.value()) {
+				warning("argument badge (", arg_badge, ") != RPC object key (",
+				    rpc_obj_key.value(), ")");
+			}
+
+			Native_capability arg_cap = Capability_space::lookup(rpc_obj_key);
+			warning("or cap A received ? ", Hex(arg_cap.local_name()), " ", Hex(rpc_obj_key.value()));
+
+			Native_capability arg_cap2 = Capability_space::lookup(Rpc_obj_key(arg_badge));
+			warning("or cap B received ? ", Hex(arg_cap2.local_name()));
+
 			dst_msg.insert(Native_capability());
 			continue;
 		} else {

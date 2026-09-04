@@ -309,7 +309,9 @@ Parent::Session_cap_result Child::session_cap(Client::Id id)
 				_revert_quota_and_destroy(session);
 
 				switch (phase) {
-				case Session_state::SERVICE_DENIED:         return Session_cap_error::DENIED;
+				case Session_state::SERVICE_DENIED:
+					error("PHASE SESSION_CAP DENIED ");
+					return Session_cap_error::DENIED;
 				case Session_state::INSUFFICIENT_RAM_QUOTA: return Session_cap_error::INSUFFICIENT_RAM;
 				case Session_state::INSUFFICIENT_CAP_QUOTA: return Session_cap_error::INSUFFICIENT_CAPS;
 				default: break;
@@ -638,6 +640,7 @@ void Child::session_response(Server::Id id, Session_response response)
 			break;
 
 		case Parent::Session_response::DENIED:
+			error("Parent::Session_response::DENIED");
 			session.phase = Session_state::SERVICE_DENIED;
 			if (session.ready_callback)
 				session.ready_callback->session_ready(session);

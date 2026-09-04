@@ -65,7 +65,9 @@ class Genode::Attached_dataspace : Noncopyable
 				switch (e) {
 				case Local_rm::Error::OUT_OF_RAM:        throw Out_of_ram();
 				case Local_rm::Error::OUT_OF_CAPS:       throw Out_of_caps();
-				case Local_rm::Error::REGION_CONFLICT:   throw Region_conflict();
+				case Local_rm::Error::REGION_CONFLICT:
+					error("Attached_dataspace region conflict ", ds);
+					throw Region_conflict();
 				case Local_rm::Error::INVALID_DATASPACE: throw Invalid_dataspace();
 				}
 			});

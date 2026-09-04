@@ -38,7 +38,7 @@ Rpc_cap_factory::Alloc_result Rpc_cap_factory::alloc(Native_capability ep)
 	 */
 	auto cap_sel = platform_specific().core_sel_alloc().alloc();
 
-	return cap_sel.convert<Rpc_cap_factory::Alloc_result>([&](auto const result) {
+	auto res = cap_sel.convert<Rpc_cap_factory::Alloc_result>([&](auto const result) {
 		auto rpc_obj_key = Rpc_obj_key(result);
 
 		auto cap = Capability_space::create_rpc_obj_cap(ep, rpc_obj_key);
@@ -47,14 +47,29 @@ Rpc_cap_factory::Alloc_result Rpc_cap_factory::alloc(Native_capability ep)
 			if (cap.valid()) {
 				_pool.insert(new (_entry_slab) Entry(cap));
 				return Alloc_result(cap);
-			}
+			} else
+				error("no valid cap");
 		}
 		catch (Out_of_caps) { return Alloc_result(Alloc_error::OUT_OF_CAPS); }
 		catch (Out_of_ram)  { return Alloc_result(Alloc_error::OUT_OF_RAM);  }
-		catch (Denied)      { return Alloc_result(Alloc_error::DENIED);      }
+		catch (Denied)      { error("denied A"); return Alloc_result(Alloc_error::DENIED);      }
+
+		error("denied B");
 
 		return Alloc_result( Alloc_error::DENIED );
-	}, [](auto) { return Alloc_result(Alloc_error::DENIED); });
+	}, [](auto) {
+		error("denied C");
+		return Alloc_result(Alloc_error::DENIED);
+	});
+
+	if (!res.ok() && cap_sel.ok()) {
+		error("free cap_sel due to !ok");
+		cap_sel.with_result([&](auto const result) {
+			platform_specific().core_sel_alloc().free(Cap_sel(unsigned(result)));
+		}, [](auto) { /* cap_sel is ok() == true */ });
+	}
+
+	return res;
 }
 
 

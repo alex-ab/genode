@@ -121,6 +121,10 @@ void Session_state::generate_client_side_info(Generator &g, Detail detail) const
 
 	if (detail.args == Detail::ARGS)
 		g.node("args", [&] { g.append_quoted(_args.string()); });
+
+	if (phase == Genode::Session_state::SERVICE_DENIED) {
+		error(__func__, " SERVICE_DENY ", _service.name(), " ", _label, " ", _args.string());
+	}
 }
 
 

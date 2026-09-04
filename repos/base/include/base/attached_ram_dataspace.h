@@ -72,6 +72,7 @@ class Genode::Attached_ram_dataspace
 					_ram->free(_ds, _size);
 					if (e == Local_rm::Error::OUT_OF_RAM)  throw Out_of_ram();
 					if (e == Local_rm::Error::OUT_OF_CAPS) throw Out_of_caps();
+					error("Attached_ram_dataspace region conflict ", _ds);
 					throw Attached_dataspace::Region_conflict();
 				});
 
