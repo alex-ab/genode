@@ -465,7 +465,7 @@ copy_file [genode_dir]/repos/gems/recipes/pkg/sculpt/README [model]/README
 copy_file [genode_dir]/repos/gems/run/sculpt/vimrc          [model]/vimrc
 
 # keyboard layouts
-foreach file { en_us de_ch de_de fr_ch fr_fr fr_bepo special } {
+foreach file { en_us en_gb de_ch de_de fr_ch fr_fr fr_bepo special } {
 	set from [genode_dir]/repos/os/src/server/event_filter/$file.chargen
 	set to   [model]/keyboard/$file
 	check_syntax $from

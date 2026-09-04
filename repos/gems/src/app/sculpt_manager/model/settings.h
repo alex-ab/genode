@@ -45,6 +45,7 @@ struct Sculpt::Settings
 				{ .name = "Swiss French", .chargen_file = "keyboard/fr_ch" },
 				{ .name = "Swiss German", .chargen_file = "keyboard/de_ch" },
 				{ .name = "US English",   .chargen_file = "keyboard/en_us" },
+				{ .name = "UK English",   .chargen_file = "keyboard/en_gb" },
 			};
 
 			for (auto layout : layouts)
