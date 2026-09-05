@@ -89,9 +89,10 @@ void Dma_allocator::unreserve(addr_t phys_addr, size_t) { _free_dma_addr(phys_ad
 Dma_buffer & Dma_allocator::alloc_buffer(Ram_dataspace_capability cap,
                                          addr_t                   phys_addr,
                                          size_t                   size,
-                                         bool const               remapable)
+                                         bool const               remapable,
+                                         addr_t                   prefer_dma_addr)
 {
-	addr_t dma_addr = _alloc_dma_addr(phys_addr, size, remapable);
+	addr_t dma_addr = _alloc_dma_addr(prefer_dma_addr, size, remapable);
 
 	if (!dma_addr)
 		throw Out_of_virtual_memory();
@@ -123,6 +124,11 @@ Dma_allocator::Dma_allocator(Allocator &md_alloc)
 	enum { DMA_SIZE = 0xffffe000 };
 	if (_dma_alloc.add_range(0x1000, DMA_SIZE).failed())
 		warning("unable to add 0x1000 range to DMA allocator");
+
+#if 0
+	if (_dma_alloc.add_range(1ull << 32, 8ull << 32).failed())
+		warning("unable to add 4G - 36G range to DMA allocator");
+#endif
 
 	/*
 	 * Interrupt address range is special handled and in general not

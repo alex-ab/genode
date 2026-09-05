@@ -253,7 +253,7 @@ void Session_component::release_device(Capability<Platform::Device_interface> de
 
 
 Genode::Ram_dataspace_capability
-Session_component::alloc_dma_buffer(size_t const size, Cache cache)
+Session_component::alloc_dma_buffer_at(size_t const size, Cache cache, addr_t prefer_dma_addr)
 {
 	struct Guard {
 
@@ -311,10 +311,15 @@ Session_component::alloc_dma_buffer(size_t const size, Cache cache)
 
 
 	try {
+		bool remapable   = prefer_dma_addr == ~0ULL && _dma_remapable();
+		auto dma_addr    = _env.pd().dma_addr(guard.ram_cap);
+		auto prefer_addr = prefer_dma_addr == ~0ULL ? dma_addr : prefer_dma_addr;
+
 		Dma_buffer &buf = _dma_allocator.alloc_buffer(guard.ram_cap,
-		                                              _env.pd().dma_addr(guard.ram_cap),
+		                                              dma_addr,
 		                                              _env.pd().ram_size(guard.ram_cap),
-		                                              _dma_remapable());
+		                                              remapable,
+		                                              prefer_addr);
 		guard.buf = &buf;
 
 		_domain.add_range({ buf.dma_addr, buf.size }, buf.phys_addr, buf.cap).with_error(
@@ -329,6 +334,13 @@ Session_component::alloc_dma_buffer(size_t const size, Cache cache)
 
 	guard.disarm();
 	return guard.ram_cap;
+}
+
+
+Genode::Ram_dataspace_capability
+Session_component::alloc_dma_buffer(size_t const size, Cache cache)
+{
+	return alloc_dma_buffer_at(size, cache, ~0ULL);
 }
 
 

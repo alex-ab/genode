@@ -94,6 +94,11 @@ struct Platform::Session : Genode::Session
 	virtual Ram_dataspace_capability alloc_dma_buffer(size_t, Cache) = 0;
 
 	/**
+	  * Allocate memory suitable for DMA
+	  */
+	virtual Ram_dataspace_capability alloc_dma_buffer_at(size_t, Cache, addr_t) = 0;
+
+	/**
 	 * Free previously allocated DMA memory
 	 */
 	virtual void free_dma_buffer(Ram_dataspace_capability) = 0;
@@ -118,6 +123,9 @@ struct Platform::Session : Genode::Session
 	GENODE_RPC_THROW(Rpc_alloc_dma_buffer, Ram_dataspace_capability,
 	                 alloc_dma_buffer,
 	                 GENODE_TYPE_LIST(Out_of_ram, Out_of_caps), size_t, Cache);
+	GENODE_RPC_THROW(Rpc_alloc_dma_buffer_at, Ram_dataspace_capability,
+	                 alloc_dma_buffer_at,
+	                 GENODE_TYPE_LIST(Out_of_ram, Out_of_caps), size_t, Cache, addr_t);
 	GENODE_RPC(Rpc_free_dma_buffer, void, free_dma_buffer,
 	           Ram_dataspace_capability);
 	GENODE_RPC(Rpc_dma_addr, addr_t, dma_addr,
@@ -125,7 +133,7 @@ struct Platform::Session : Genode::Session
 
 	GENODE_RPC_INTERFACE(Rpc_devices_rom, Rpc_acquire_device, Rpc_acquire_single_device,
 	                     Rpc_release_device, Rpc_alloc_dma_buffer, Rpc_free_dma_buffer,
-	                     Rpc_dma_addr);
+	                     Rpc_dma_addr, Rpc_alloc_dma_buffer_at);
 };
 
 #endif /* _INCLUDE__PLATFORM_SESSION__PLATFORM_SESSION_H_ */
