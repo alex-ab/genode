@@ -1,5 +1,7 @@
 include $(REP_DIR)/lib/mk/virtualbox7-common.inc
 
+VBOX_CC_OPT += -DVBOX_DIS_WITH_X86_AMD64
+
 SRC_CC += VMM/VMMR3/target-x86/CPUMR3Dbg-x86.cpp
 
 SRC_CC += VMM/VMMR3/DBGFR3.cpp
