@@ -248,6 +248,7 @@ Sup::Handle_exit_result Sup::Vmx::handle_exit(Vcpu_state &state)
 		return { Exit_state::ERROR, VINF_EM_TRIPLE_FAULT };
 
 	default:
+		error("unhandled VMX exit (", exit, "), initiating CPU hang");
 		return { Exit_state::ERROR, VERR_EM_GUEST_CPU_HANG };
 	}
 }
