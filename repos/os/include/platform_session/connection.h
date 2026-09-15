@@ -69,9 +69,9 @@ class Platform::Connection : public Genode::Connection<Session>,
 
 	public:
 
-		Connection(Env &env)
+		Connection(Env &env, bool mem4G = false)
 		:
-			Genode::Connection<Session>(env, Label(), Ram_quota { 84*1024 }, Args()),
+			Genode::Connection<Session>(env, Label(), Ram_quota { 84*1024 }, Args("mem4G=", mem4G)),
 			Client(cap()),
 			_env(env)
 		{

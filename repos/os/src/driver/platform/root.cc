@@ -41,7 +41,8 @@ Driver::Root::Create_result Driver::Root::_create_session(const char *args)
 			                  label_from_args(args),
 			                  session_resources_from_args(args),
 			                  policy.attribute_value("info", false),
-			                  policy.attribute_value("version", Version()));
+			                  policy.attribute_value("version", Version()),
+			                  Arg_string::find_arg(args, "mem4G").bool_value(false));
 		},
 		[&] () -> Create_result {
 			error("Invalid session request, no matching policy for ",

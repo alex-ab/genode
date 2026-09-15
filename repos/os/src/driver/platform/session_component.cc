@@ -380,14 +380,15 @@ Session_component::Session_component(Env                          &env,
                                      Label          const         &label,
                                      Resources      const         &resources,
                                      bool           const          info,
-                                     Policy_version const          version)
+                                     Policy_version const          version,
+                                     bool           const          mem4G)
 :
 	Session_object<Platform::Session>(env.ep(), resources, label),
 	Session_registry::Element(registry, *this),
 	Dynamic_rom_session::Producer("devices"),
 	_env(env), _config(config), _devices(devices),
 	_info(info), _version(version),
-	_dma_allocator(_md_alloc),
+	_dma_allocator(_md_alloc, mem4G),
 	_domain(_create_domain())
 {
 	/*
