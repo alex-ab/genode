@@ -89,9 +89,10 @@ void Dma_allocator::unreserve(addr_t phys_addr, size_t) { _free_dma_addr(phys_ad
 Dma_buffer & Dma_allocator::alloc_buffer(Ram_dataspace_capability cap,
                                          addr_t                   phys_addr,
                                          size_t                   size,
-                                         bool const               remapable)
+                                         bool const               remapable,
+                                         addr_t                   addr_dma)
 {
-	addr_t dma_addr = _alloc_dma_addr(phys_addr, size, remapable);
+	addr_t dma_addr = _alloc_dma_addr(addr_dma, size, remapable);
 
 	if (!dma_addr)
 		throw Out_of_virtual_memory();

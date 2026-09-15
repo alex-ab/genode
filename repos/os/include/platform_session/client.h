@@ -41,6 +41,9 @@ struct Platform::Client : Genode::Rpc_client<Session>
 	Ram_dataspace_capability alloc_dma_buffer(size_t size, Cache cache) override {
 		return call<Rpc_alloc_dma_buffer>(size, cache); }
 
+	Ram_dataspace_capability alloc_dma_buffer_at(size_t size, Cache cache, addr_t dma_addr) override {
+		return call<Rpc_alloc_dma_buffer_at>(size, cache, dma_addr); }
+
 	void free_dma_buffer(Ram_dataspace_capability cap) override {
 		call<Rpc_free_dma_buffer>(cap); }
 
