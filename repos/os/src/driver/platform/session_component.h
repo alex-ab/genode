@@ -87,6 +87,7 @@ class Driver::Session_component
 		Device_capability acquire_single_device() override;
 		void release_device(Device_capability) override;
 		Ram_dataspace_capability alloc_dma_buffer(size_t, Cache) override;
+		Ram_dataspace_capability alloc_dma_buffer_at(size_t, Cache, addr_t) override;
 		void free_dma_buffer(Ram_dataspace_capability ram_cap) override;
 		addr_t dma_addr(Ram_dataspace_capability) override;
 

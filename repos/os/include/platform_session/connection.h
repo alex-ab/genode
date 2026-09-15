@@ -116,6 +116,12 @@ class Platform::Connection : public Genode::Connection<Session>,
 				return Client::alloc_dma_buffer(size, cache); });
 		}
 
+		Ram_dataspace_capability alloc_dma_buffer_at(size_t size, Cache cache, addr_t dma_addr) override
+		{
+			return retry_with_upgrade(Ram_quota{max((size_t)4096, size)}, Cap_quota{2}, [&] () {
+				return Client::alloc_dma_buffer_at(size, cache, dma_addr); });
+		}
+
 		void with_xml(auto const &fn)
 		{
 			try {

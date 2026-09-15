@@ -74,7 +74,7 @@ class Driver::Dma_allocator
 
 		Dma_buffer & alloc_buffer(Ram_dataspace_capability cap,
 		                          addr_t phys_addr, size_t size,
-		                          bool const remapable);
+		                          bool const remapable, addr_t dma_addr);
 
 		Registry<Dma_buffer>       & buffer_registry()       { return _registry; }
 		Registry<Dma_buffer> const & buffer_registry() const { return _registry; }
