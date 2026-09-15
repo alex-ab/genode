@@ -54,7 +54,8 @@ class Driver::Session_component
 		                  Label            const       &label,
 		                  Resources        const       &resources,
 		                  bool             const        info,
-		                  Policy_version   const        version);
+		                  Policy_version   const        version,
+		                  bool             const        mem4G);
 
 		~Session_component();
 

@@ -116,7 +116,7 @@ void Dma_allocator::_free_dma_addr(addr_t dma_addr)
 }
 
 
-Dma_allocator::Dma_allocator(Allocator &md_alloc)
+Dma_allocator::Dma_allocator(Allocator &md_alloc, bool mem4G)
 :
 	_md_alloc(md_alloc)
 {
@@ -124,6 +124,10 @@ Dma_allocator::Dma_allocator(Allocator &md_alloc)
 	enum { DMA_SIZE = 0xffffe000 };
 	if (_dma_alloc.add_range(0x1000, DMA_SIZE).failed())
 		warning("unable to add 0x1000 range to DMA allocator");
+
+	if (mem4G && sizeof(addr_t) > 4 && _dma_alloc.add_range(1ul << 32,
+	                                                        7ul << 32).failed())
+		warning("unable to add 4G - 32G range to DMA allocator");
 
 	/*
 	 * Interrupt address range is special handled and in general not
