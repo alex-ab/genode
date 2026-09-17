@@ -38,14 +38,14 @@ runtime | ram: 32M | caps: 1000 | binary: init
     | + libc | stdin: /dev/null | stdout: /dev/log | stderr: /dev/log
     |        | pipe: /pipe      | proc: /proc
     | + vfs
-    |   + fs
+    |   + fs | label: procfs -> /
     |   + dir dev
     |     + null
     |     + log
     |     + symlink fd | target: /proc/self/fd
     |   + dir proc | + ram
     + route
-      + service ROM | label: /test-libc_procfs | + parent | label: test-libc_procfs
-      + service File_system                    | + child vfs
-      + any-service                            | + parent
+      + service ROM | label: /test-libc_procfs        | + parent | label: test-libc_procfs
+      + service File_system | label_prefix: procfs -> | + child vfs
+      + any-service                                   | + parent
 -

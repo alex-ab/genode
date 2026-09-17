@@ -534,9 +534,17 @@ struct Libc::Forked_child : Child_policy, Child_ready
 		 *
 		 * We keep the label intact only for the LOG sessions to retain
 		 * unambiguous debug messages.
+		 *
+		 * Due to the convention for file-system session labels to follow
+		 * the pattern "identity -> resource", we need to keep the last two
+		 * label elements.
 		 */
-		if (name != "LOG")
-			rewritten_label = label.last_element();
+		if (name != "LOG") {
+			if (name == "File_system")
+				rewritten_label = prefixed_label(label.prefix().last_element(), label.last_element());
+			else
+				rewritten_label = label.last_element();
+		}
 
 		if (name == Rom_session::service_name()) {
 

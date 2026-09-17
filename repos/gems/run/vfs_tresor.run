@@ -169,16 +169,16 @@ config | verbose: yes
   |       |        | stderr: /dev/terminal | rtc:    /dev/rtc
   |       |        | pipe:   /dev/pipe
   |       | + vfs
-  |       |   + fs | label: shell | buffer_size: 1M
-  |       |   + dir dev | + fs | label: tresor | buffer_size: 1M
+  |       |   + fs | label: shell -> / | buffer_size: 1M
+  |       |   + dir dev | + fs | label: tresor -> / | buffer_size: 1M
   |       |   + rom .profile | label: vfs_tresor.sh
   |       | + arg  bash | : --login
   |       | + env TERM | : screen
   |       | + env HOME | : /
   |       | + env PATH | : /bin
   |       + route
-  |         + service File_system | label: shell  | + child vfs        | label: /
-  |         + service File_system | label: tresor | + child vfs_tresor | label: /
+  |         + service File_system | label_prefix: shell  | + child vfs
+  |         + service File_system | label_prefix: tresor | + child vfs_tresor
   |         + service ROM | label_suffix: .lib.so | + parent
   |         + service ROM | label_last: /bin/bash | + child vfs_rom
   |         + service ROM | label_prefix: /bin    | + child vfs_rom

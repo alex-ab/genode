@@ -203,16 +203,16 @@ config
       |     |        | stderr: /dev/terminal | rtc:    /dev/rtc
       |     |        | pipe:   /dev/pipe
       |     | + vfs
-      |     |   + fs | label: shell | buffer_size: 1M
-      |     |   + dir file_vault | + fs | label: file_vault | buffer_size: 1M
+      |     |   + fs | label: shell -> / | buffer_size: 1M
+      |     |   + dir file_vault | + fs | label: file_vault -> / | buffer_size: 1M
       |     |   + rom .profile | label: } [bash_profile] {
       |     | + arg bash | : --login
       |     | + env TERM | : screen
       |     | + env HOME | : /
       |     | + env PATH | : /bin
       |     + route
-      |       + service File_system | label: shell      | + child vfs | label: /
-      |       + service File_system | label: file_vault | + parent | label: bash -> file_vault -> /
+      |       + service File_system | label_prefix: shell      | + child vfs
+      |       + service File_system | label_prefix: file_vault | + parent
       |       + service ROM | label_suffix: .lib.so     | + parent
       |       + service ROM | label_last: /bin/bash     | + child fs_rom
       |       + service ROM | label_prefix: /bin        | + child fs_rom
