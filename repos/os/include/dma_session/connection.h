@@ -16,6 +16,7 @@
 
 #include <base/connection.h>
 #include <base/env.h>
+#include <base/rpc_client.h>
 #include <dma_session/dma_session.h>
 
 namespace Dma {
@@ -36,9 +37,9 @@ class Dma::Connection : public Genode::Connection<Session>,
 
 	public:
 
-		Connection(Env &env)
+		Connection(Env &env, Label label = Label())
 		:
-			Genode::Connection<Session>(env, Label(), Ram_quota { 84*1024 }, Args()),
+			Genode::Connection<Session>(env, label, Ram_quota { RAM_QUOTA }, Args()),
 			Rpc_client<Session>(cap()),
 			_env(env)
 		{ }

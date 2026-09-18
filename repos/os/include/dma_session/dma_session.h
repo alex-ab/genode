@@ -35,6 +35,7 @@ struct Dma::Session : Genode::Session
 	 */
 	static const char *service_name() { return "Dma"; }
 
+	static constexpr unsigned RAM_QUOTA = 84*1024;
 	static constexpr unsigned CAP_QUOTA = 18;
 
 	virtual ~Session() { }
