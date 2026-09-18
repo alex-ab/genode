@@ -1,0 +1,10 @@
+TARGET   = usb
+INC_DIR += $(PRG_DIR)
+LIBS    += base
+SRC_CC  += device.cc
+SRC_CC  += device_component.cc
+SRC_CC  += host_session_component.cc
+SRC_CC  += interface_component.cc
+SRC_CC  += main.cc
+SRC_CC  += root.cc
+SRC_CC  += session_component.cc

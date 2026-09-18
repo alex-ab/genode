@@ -28,6 +28,7 @@ namespace Usb {
 	struct Interface_session;
 	struct Device_session;
 	class  Session;
+	class  Host_session;
 }
 
 
@@ -180,6 +181,12 @@ struct Usb::Device_session : Interface
 };
 
 
+/**
+ * Session interface for clients that drive an USB connected device
+ * via the USB service resp. multiplexer. These clients indirectly
+ * communicate over the bus using a host controlling driver in
+ * between.
+ */
 struct Usb::Session : public Genode::Session
 {
 	/**
@@ -246,4 +253,119 @@ struct Usb::Session : public Genode::Session
 	                     Rpc_release_device);
 };
 
+
+/**
+ * Session interface for clients that drive an USB host controller,
+ * thereby participate directly at the bus protocol.
+ */
+struct Usb::Host_session : public Genode::Session
+{
+	/**
+	 * \noapi
+	 */
+	static const char *service_name() { return "Usb_host"; }
+
+	static constexpr unsigned CAP_QUOTA = 8;
+	static constexpr unsigned RAM_QUOTA = 144 * 1024;
+
+	virtual ~Host_session() {}
+
+	/**
+	 * Request the dataspace used to report devices attached to
+	 * the host client
+	 *
+	 * \return capapility to dataspace
+	 */
+	virtual Dataspace_capability devices_dataspace() = 0;
+
+	using Submit_result = Attempt<Ok, Alloc_error>;
+
+	/**
+	 * Submit report data that is currently contained in the devices dataspace
+	 *
+	 * \param length  length of report in bytes
+	 */
+	virtual Submit_result devices_submit(size_t size) = 0;
+
+	/**
+	 * Request ROM dataspace containing outstanding requests
+	 * of the multiplexer that need to be processed by the
+	 * host client (e.g. acquire or release devices/interfaces)
+	 *
+	 * \return  capability to ROM dataspace
+	 */
+	virtual Rom_dataspace_capability requests_rom() = 0;
+
+	/**
+	 * Install signal handler to be notified when requests ROM
+	 * needs to get updated.
+	 */
+	virtual void requests_sigh(Signal_context_capability) = 0;
+
+	/**
+	 * Install signal handler to be notified if any client dataspaces
+	 * containing USB request blocks have changed.
+	 */
+	virtual void sigh(Signal_context_capability) = 0;
+
+	struct Id { unsigned long value; };
+
+	enum class Id_error { INVALID };
+
+	using Dataspace_result = Attempt<Dataspace_capability, Id_error>;
+	using Signal_result = Attempt<Signal_context_capability, Id_error>;
+
+	/**
+	 * Request dataspace to directly communicate client's USB request
+	 * blocks of either device or interface level with a host client.
+	 *
+	 * \param client_id  id taken from the requests ROM to identify dataspace
+	 * \return either dataspace capability or error if id isn't valid (anymore)
+	 */
+	virtual Dataspace_result client_dataspace(Id client_id) = 0;
+
+	/**
+	 * Request context to signal changes of the communication buffer
+	 * done by the host client to the USB device/interface client.
+	 *
+	 * \param client_id  id taken from the requests ROM to identify context
+	 * \return either signal context capability or error
+	 */
+	virtual Signal_result client_sigh(Id client_id) = 0;
+
+	/**
+	 * Gets called to mark the requested device/interface being acquired by
+	 * the related client.
+	 *
+	 * \param client_id  id taken from the requests ROM to identify connection
+	 */
+	virtual void acquired(Id client_id) = 0;
+
+	/**
+	 * Gets called to mark the requested device/interface being released by
+	 * the related client.
+	 *
+	 * \param client_id  id taken from the requests ROM to identify connection
+	 */
+	virtual void released(Id client_id) = 0;
+
+
+	/*********************
+	 ** RPC declaration **
+	 *********************/
+
+	GENODE_RPC(Rpc_devices_ds, Dataspace_capability, devices_dataspace);
+	GENODE_RPC(Rpc_devices_submit, Submit_result, devices_submit, size_t);
+	GENODE_RPC(Rpc_requests_rom, Rom_dataspace_capability, requests_rom);
+	GENODE_RPC(Rpc_requests_sigh, void, requests_sigh, Signal_context_capability);
+	GENODE_RPC(Rpc_sigh, void, sigh, Signal_context_capability);
+	GENODE_RPC(Rpc_client_ds, Dataspace_result, client_dataspace, Id);
+	GENODE_RPC(Rpc_client_sigh, Signal_result, client_sigh, Id);
+	GENODE_RPC(Rpc_acquired, void, acquired, Id);
+	GENODE_RPC(Rpc_released, void, released, Id);
+	GENODE_RPC_INTERFACE(Rpc_devices_ds, Rpc_devices_submit, Rpc_requests_rom,
+	                     Rpc_requests_sigh, Rpc_sigh,
+	                     Rpc_client_ds, Rpc_client_sigh,
+	                     Rpc_acquired, Rpc_released);
+};
 #endif /* _INCLUDE__USB_SESSION__USB_SESSION_H_ */
