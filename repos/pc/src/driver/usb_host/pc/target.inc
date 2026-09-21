@@ -7,7 +7,7 @@ LIBS    := base pc_lx_emul jitterentropy
 
 INC_DIR += $(REL_PRG_DIR)
 SRC_CC  += main.cc
-SRC_CC  += lx_emul/shared_dma_buffer.cc
+SRC_CC  += lx_emul/external_memory.cc
 SRC_C   += dummies.c
 SRC_C   += lx_emul.c
 SRC_C   += $(notdir $(wildcard $(REL_PRG_DIR)/generated_dummies.c))

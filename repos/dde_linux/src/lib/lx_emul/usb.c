@@ -81,6 +81,13 @@ struct usb_per_dev_data
 	bool                 kill_task;
 };
 
+struct usb_per_iface_data
+{
+	struct usb_interface *iface;
+	struct usb_anchor submitted;
+	bool release;
+};
+
 
 static int poll_usb_device(void * args);
 static void open_usb_dev(struct usb_device * udev)
@@ -103,6 +110,22 @@ static void open_usb_dev(struct usb_device * udev)
 }
 
 
+static struct usb_per_iface_data * open_usb_iface(struct usb_interface * iface)
+{
+	struct usb_per_iface_data * data = usb_get_intfdata(iface);
+
+	if (!data) {
+		data = kmalloc(sizeof(struct usb_per_iface_data), GFP_KERNEL);
+		data->iface = iface;
+		data->release = false;
+		init_usb_anchor(&data->submitted);
+		usb_set_intfdata(iface, data);
+	}
+
+	return data;
+}
+
+
 static void release_device(struct usb_per_dev_data * data)
 {
 	unsigned int ifnum;
@@ -121,6 +144,11 @@ static void release_device(struct usb_per_dev_data * data)
 	for (ifnum = 0; ifnum < 8; ifnum++) {
 		struct usb_interface * iface = usb_ifnum_to_if(data->dev, ifnum);
 		if (iface) {
+			struct usb_per_iface_data *iface_data = usb_get_intfdata(iface);
+			if (iface_data) {
+				usb_kill_anchored_urbs(&iface_data->submitted);
+				kfree(iface_data);
+			}
 			usb_driver_claim_interface(&usb_drv, iface, NULL);
 			usb_driver_release_interface(&usb_drv, iface);
 		}
@@ -131,6 +159,47 @@ static void release_device(struct usb_per_dev_data * data)
 
 	usb_reset_device(data->dev);
 	usb_unlock_device(data->dev);
+}
+
+
+static void release_interface(struct usb_per_iface_data *data)
+{
+	genode_usb_bus_num_t  bus;
+	genode_usb_dev_num_t  dev;
+	genode_usb_intf_num_t ifnum;
+
+	struct usb_device *udev =
+		data ? interface_to_usbdev(data->iface) : NULL;
+
+	if (!udev || !data || !data->release)
+		return;
+
+	bus   = udev->bus->busnum;
+	dev   = udev->devnum;
+	ifnum = data->iface->cur_altsetting->desc.bInterfaceNumber;
+
+	usb_kill_anchored_urbs(&data->submitted);
+	usb_set_intfdata(data->iface, NULL);
+
+	kfree(data);
+	genode_usb_interface_released(bus, dev, ifnum);
+}
+
+
+static void release_interfaces(struct usb_device *udev)
+{
+	struct usb_host_config *config = udev ? udev->actconfig : NULL;
+	int i;
+
+	if (!config)
+		return;
+
+	for (i = 0; i < config->desc.bNumInterfaces; i++) {
+		struct usb_interface *iface = config->interface[i];
+		struct usb_per_iface_data *data =
+			iface ? usb_get_intfdata(iface) : NULL;
+		release_interface(data);
+	}
 }
 
 
@@ -189,13 +258,45 @@ handle_control_request(genode_usb_request_handle_t handle,
 }
 
 
+static struct usb_interface *find_interface(struct usb_device *udev,
+                                     struct usb_host_endpoint *ep)
+{
+	struct usb_host_config *config = udev ? udev->actconfig : NULL;
+	int i, j;
+
+	if (!udev || !ep || !config)
+		return NULL;
+
+	for (i = 0; i < config->desc.bNumInterfaces; i++) {
+		struct usb_interface *intf = config->interface[i];
+		struct usb_host_interface *alts = intf ? intf->cur_altsetting : NULL;
+
+		if (!intf || !alts)
+			continue;
+
+		for (j = 0; j < alts->desc.bNumEndpoints; j++)
+			if (&alts->endpoint[j] == ep)
+				return intf;
+	}
+
+	return NULL;
+}
+
+
 static void anchor_and_submit_urb(genode_usb_request_handle_t handle,
                                   struct urb                 *urb,
-                                  struct usb_anchor          *anchor)
+                                  struct usb_device          *udev,
+                                  struct usb_host_endpoint   *ep)
 {
+	struct usb_interface *iface = find_interface(udev, ep);
+	struct usb_per_iface_data *data = iface ? open_usb_iface(iface) : NULL;
 	int ret;
-	usb_anchor_urb(urb, anchor);
-	ret = usb_submit_urb(urb, GFP_KERNEL);
+
+	if (data) {
+		usb_anchor_urb(urb, &data->submitted);
+		ret = usb_submit_urb(urb, GFP_KERNEL);
+	} else
+		ret = -ENODEV;
 
 	if (!ret)
 		return;
@@ -232,8 +333,6 @@ static void async_complete(struct urb *urb)
 }
 
 
-
-
 static void
 handle_irq_request(genode_usb_request_handle_t handle,
                    unsigned char               ep_addr,
@@ -241,7 +340,6 @@ handle_irq_request(genode_usb_request_handle_t handle,
                    void                       *opaque_callback_data)
 {
 	struct usb_device        *udev = (struct usb_device *) opaque_callback_data;
-	struct usb_per_dev_data  *data = dev_get_drvdata(&udev->dev);
 	int pipe = (ep_addr & USB_DIR_IN) ? usb_rcvintpipe(udev, ep_addr & 0x7f)
 	                                  : usb_sndintpipe(udev, ep_addr & 0x7f);
 	struct usb_host_endpoint *ep = usb_pipe_endpoint(udev, pipe);
@@ -262,7 +360,7 @@ handle_irq_request(genode_usb_request_handle_t handle,
 
 	usb_fill_int_urb(urb, udev, pipe, payload.start, payload.num_bytes,
 	                 async_complete, handle, ep->desc.bInterval);
-	anchor_and_submit_urb(handle, urb, &data->submitted);
+	anchor_and_submit_urb(handle, urb, udev, ep);
 }
 
 
@@ -272,12 +370,11 @@ handle_bulk_request(genode_usb_request_handle_t handle,
                    struct genode_buffer         payload,
                    void                        *opaque_callback_data)
 {
-	struct usb_device       * udev = (struct usb_device *) opaque_callback_data;
-	struct usb_per_dev_data * data = dev_get_drvdata(&udev->dev);
-	struct urb *urb;
-
+	struct usb_device *udev = (struct usb_device *) opaque_callback_data;
 	int pipe = (ep_addr & USB_DIR_IN) ? usb_rcvbulkpipe(udev, ep_addr & 0x7f)
 	                                  : usb_sndbulkpipe(udev, ep_addr & 0x7f);
+	struct usb_host_endpoint *ep = usb_pipe_endpoint(udev, pipe);
+	struct urb *urb;
 
 	if (!payload.start || payload.num_bytes >= (INT_MAX - sizeof(struct urb))) {
 		genode_usb_ack_request(handle, handle_return_code(-EINVAL), NULL);
@@ -292,7 +389,7 @@ handle_bulk_request(genode_usb_request_handle_t handle,
 
 	usb_fill_bulk_urb(urb, udev, pipe, payload.start, payload.num_bytes,
 	                  async_complete, handle);
-	anchor_and_submit_urb(handle, urb, &data->submitted);
+	anchor_and_submit_urb(handle, urb, udev, ep);
 }
 
 
@@ -304,8 +401,7 @@ handle_isoc_request(genode_usb_request_handle_t        handle,
                     struct genode_buffer               payload,
                     void                              *opaque_callback_data)
 {
-	struct usb_device        *udev = (struct usb_device *) opaque_callback_data;
-	struct usb_per_dev_data  *data = dev_get_drvdata(&udev->dev);
+	struct usb_device *udev = (struct usb_device *) opaque_callback_data;
 	int pipe = (ep_addr & USB_DIR_IN) ? usb_rcvisocpipe(udev, ep_addr & 0x7f)
 	                                  : usb_sndisocpipe(udev, ep_addr & 0x7f);
 	struct usb_host_endpoint *ep = usb_pipe_endpoint(udev, pipe);
@@ -345,7 +441,7 @@ handle_isoc_request(genode_usb_request_handle_t        handle,
 		urb->iso_frame_desc[i].length = packets[i].size;
 		offset += packets[i].size;
 	}
-	anchor_and_submit_urb(handle, urb, &data->submitted);
+	anchor_and_submit_urb(handle, urb, udev, ep);
 }
 
 
@@ -410,8 +506,11 @@ static int poll_usb_device(void * args)
 		if (!data->dev)
 			genode_usb_discontinue_device(bus, dev);
 
+		if (data->dev) release_interfaces(data->dev);
+
 		if (data->kill_task) {
 			exit_usb_task(data);
+			genode_usb_device_released(bus, dev);
 			do_exit(0);
 		}
 		lx_emul_task_schedule(true);
@@ -497,26 +596,37 @@ static struct usb_device * find_usb_device(genode_usb_bus_num_t bus,
 }
 
 
-static int device_released(void *d)
-{
-	struct usb_device *udev = (struct usb_device*)d;
-	struct usb_per_dev_data * data = udev ? dev_get_drvdata(&udev->dev) : NULL;
-	return !data;
-}
-
-
-void lx_emul_usb_release_device(genode_usb_bus_num_t bus,
+bool lx_emul_usb_release_device(genode_usb_bus_num_t bus,
                                 genode_usb_dev_num_t dev)
 {
 	struct usb_device * udev = find_usb_device(bus, dev);
 	struct usb_per_dev_data * data = udev ? dev_get_drvdata(&udev->dev) : NULL;
 
 	if (!data)
-		return;
+		return true;
 
 	data->kill_task = true;
 	lx_emul_task_unblock(data->task);
-	lx_emul_execute_kernel_until(&device_released, udev);
+	return false;
+}
+
+
+bool lx_emul_usb_release_interface(genode_usb_bus_num_t bus,
+                                   genode_usb_dev_num_t dev,
+                                   genode_usb_intf_num_t ifnum)
+{
+	struct usb_device *udev = find_usb_device(bus, dev);
+	struct usb_per_dev_data *dev_data =
+		udev ? dev_get_drvdata(&udev->dev) : NULL;
+	struct usb_interface *iface = udev ? usb_ifnum_to_if(udev, ifnum) : NULL;
+	struct usb_per_iface_data *data = iface ? usb_get_intfdata(iface) : NULL;
+
+	if (!dev_data || !data)
+		return true;
+
+	data->release = true;
+	lx_emul_task_unblock(dev_data->task);
+	return false;
 }
 
 

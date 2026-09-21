@@ -20,8 +20,12 @@
 extern "C" {
 #endif
 
-extern void lx_emul_usb_release_device(genode_usb_bus_num_t bus,
+extern bool lx_emul_usb_release_device(genode_usb_bus_num_t bus,
                                        genode_usb_dev_num_t dev);
+
+extern bool lx_emul_usb_release_interface(genode_usb_bus_num_t bus,
+                                          genode_usb_dev_num_t dev,
+                                          genode_usb_intf_num_t ifnum);
 
 #ifdef __cplusplus
 }

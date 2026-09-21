@@ -24,6 +24,7 @@ struct genode_usb_interface;
 
 typedef unsigned int genode_usb_bus_num_t;
 typedef unsigned int genode_usb_dev_num_t;
+typedef unsigned char genode_usb_intf_num_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -149,6 +150,13 @@ typedef struct genode_usb_request_callbacks * genode_usb_req_callback_t;
 bool genode_usb_device_acquired(genode_usb_bus_num_t bus,
                                 genode_usb_dev_num_t dev);
 
+void genode_usb_device_released(genode_usb_bus_num_t bus,
+                                genode_usb_dev_num_t dev);
+
+void genode_usb_interface_released(genode_usb_bus_num_t bus,
+                                   genode_usb_dev_num_t dev,
+                                   genode_usb_intf_num_t ifnum);
+
 bool
 genode_usb_request_by_bus_dev(genode_usb_bus_num_t            bus,
                               genode_usb_dev_num_t            dev,
@@ -174,10 +182,17 @@ void genode_usb_handle_disconnected_sessions(void);
 #include <base/signal.h>
 
 /**
- * Callback to signal release of device(s)
+ * Callback to signal release of device
  */
-typedef void (*genode_usb_dev_release_t) (genode_usb_bus_num_t bus,
+typedef bool (*genode_usb_dev_release_t) (genode_usb_bus_num_t bus,
                                           genode_usb_dev_num_t dev);
+
+/**
+ * Callback to signal release of interface
+ */
+typedef bool (*genode_usb_intf_release_t) (genode_usb_bus_num_t bus,
+                                           genode_usb_dev_num_t dev,
+                                           genode_usb_intf_num_t ifnum);
 
 namespace Genode_c_api {
 
@@ -186,11 +201,12 @@ namespace Genode_c_api {
 	/**
 	 * Initialize USB root component
 	 */
-	void initialize_usb_service(Env                                   &env,
-	                            Signal_context_capability              sigh_cap,
-	                            genode_shared_dataspace_alloc_attach_t alloc_fn,
-	                            genode_shared_dataspace_free_t         free_fn,
-	                            genode_usb_dev_release_t               release_fn);
+	void initialize_usb_service(Env                      &env,
+	                            Signal_context_capability sigh_cap,
+	                            genode_external_memory_register_t register_fn,
+	                            genode_external_memory_unregister_t unregister_fn,
+	                            genode_usb_dev_release_t  release_dev_fn,
+	                            genode_usb_intf_release_t release_intf_fn);
 }
 
 #endif /* __cplusplus */
