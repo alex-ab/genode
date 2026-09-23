@@ -21,7 +21,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/libc \
                   [depot_user]/src/openssl-minimal \
                   [depot_user]/src/zlib \
-                  [depot_user]/src/curl \
+                  [depot_user]/src/curl-minimal \
                   [depot_user]/src/init \
                   [depot_user]/src/chroot \
                   [depot_user]/src/extract \

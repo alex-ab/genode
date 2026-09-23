@@ -20,7 +20,7 @@ source ${genode_dir}/repos/ports/run/lte_parameters.inc
 import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/black_hole \
                   [depot_user]/pkg/test_usb_host-[board] \
-                  [depot_user]/src/curl \
+                  [depot_user]/src/curl-minimal \
                   [depot_user]/src/fetchurl \
                   [depot_user]/src/init \
                   [depot_user]/src/libc \

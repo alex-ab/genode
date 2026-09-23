@@ -60,7 +60,7 @@ create_boot_directory
 set depot_archives { }
 lappend depot_archives [depot_user]/raw/test-wg_reconnect
 lappend depot_archives [depot_user]/src/[base_src]
-lappend depot_archives [depot_user]/src/curl
+lappend depot_archives [depot_user]/src/curl-minimal
 lappend depot_archives [depot_user]/src/dynamic_rom
 lappend depot_archives [depot_user]/src/fetchurl
 lappend depot_archives [depot_user]/src/init

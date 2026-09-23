@@ -38,7 +38,7 @@ void Sculpt::gen_update_child_content(Generator &g)
 		connect_parent_rom(g, "fetchurl");
 		connect_parent_rom(g, "fs_tool");
 		connect_parent_rom(g, "chroot");
-		connect_parent_rom(g, "curl.lib.so");
+		connect_parent_rom(g, "curl-minimal.lib.so");
 		connect_parent_rom(g, "init");
 		connect_parent_rom(g, "depot_query");
 		connect_parent_rom(g, "depot_download_manager");

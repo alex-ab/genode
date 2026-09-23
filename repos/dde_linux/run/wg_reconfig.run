@@ -382,7 +382,7 @@ append targets {
 	app/fetchurl server/dynamic_rom }
 
 append boot_modules {
-	core init timer nic_router wireguard fetchurl ping report_rom curl.lib.so
+	core init timer nic_router wireguard fetchurl ping report_rom curl-minimal.lib.so
 	ld.lib.so dynamic_rom }
 
 build $targets

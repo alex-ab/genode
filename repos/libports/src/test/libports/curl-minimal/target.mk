@@ -1,5 +1,5 @@
-TARGET = test-curl
-LIBS   = curl
+TARGET = test-curl-minimal
+LIBS   = curl-minimal
 SRC_CC = main.cc
 
 vpath main.cc $(PRG_DIR)/..

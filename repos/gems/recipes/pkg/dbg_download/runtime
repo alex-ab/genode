@@ -23,7 +23,7 @@ runtime | ram: 128M | caps: 3000 | binary: init | config: depot_download.config
   + rom | label: fs_rom
   + rom | label: fs_tool
   + rom | label: fetchurl
-  + rom | label: curl.lib.so
+  + rom | label: curl-minimal.lib.so
   + rom | label: libc.lib.so
   + rom | label: libcrypto-minimal.lib.so
   + rom | label: zlib.lib.so

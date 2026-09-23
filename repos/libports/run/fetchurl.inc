@@ -17,7 +17,7 @@ create_boot_directory
 
 import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/pkg/[drivers_nic_pkg] \
-                  [depot_user]/src/curl \
+                  [depot_user]/src/curl-minimal \
                   [depot_user]/src/fetchurl \
                   [depot_user]/src/init \
                   [depot_user]/src/libc \

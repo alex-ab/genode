@@ -10,7 +10,7 @@ _/src/libc
 _/src/openssl-minimal
 _/src/vfs
 _/src/zlib
-_/src/curl
+_/src/curl-minimal
 _/src/init
 _/src/chroot
 _/src/libarchive

@@ -1,4 +1,4 @@
-CURL_PORT_DIR := $(call select_from_ports,curl)
+CURL_PORT_DIR := $(call select_from_ports,curl-minimal)
 LIB_SRC_DIR   := $(CURL_PORT_DIR)/src/lib/curl/lib
 
 SRC_C = \
@@ -150,9 +150,9 @@ SRC_C = \
 
 CC_OPT += -DHAVE_CONFIG_H -DBUILDING_LIBCURL=1
 
-LIBS += libc zlib libssl1
+LIBS += libc zlib libssl-minimal
 
-include $(call select_from_repositories,lib/import/import-curl.mk)
+include $(call select_from_repositories,lib/import/import-curl-minimal.mk)
 
 INC_DIR += $(LIB_SRC_DIR)
 
