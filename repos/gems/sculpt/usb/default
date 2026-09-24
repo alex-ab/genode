@@ -1,4 +1,4 @@
-config | managed: yes | bios_handoff: no
+config | managed: yes
 .
 . available devices are listed at /report/usb/devices
 .

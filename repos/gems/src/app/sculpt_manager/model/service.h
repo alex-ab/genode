@@ -29,7 +29,7 @@ struct Sculpt::Service
 		AUDIO_IN, AUDIO_OUT, BLOCK, EVENT, CAPTURE, FS, NIC, GUI, GPU,
 		RM, IO_MEM, IO_PORT, IRQ, REPORT, ROM, TERMINAL, TRACE, USB, RTC, I2C,
 		PLATFORM, PIN_STATE, PIN_CONTROL, VM, PD, UPLINK, PLAY, RECORD,
-		DMA, UNDEFINED };
+		DMA, USB_HOST, UNDEFINED };
 
 	enum class Match_label { EXACT, LAST, FS };
 
@@ -62,6 +62,7 @@ struct Sculpt::Service
 		case Type::TERMINAL:    return "terminal";
 		case Type::TRACE:       return "trace";
 		case Type::USB:         return "usb";
+		case Type::USB_HOST:    return "usb_host";
 		case Type::RTC:         return "rtc";
 		case Type::PLATFORM:    return "platform";
 		case Type::PIN_STATE:   return "pin_state";
@@ -102,6 +103,7 @@ struct Sculpt::Service
 		case Type::TERMINAL:    return "Terminal";
 		case Type::TRACE:       return "TRACE";
 		case Type::USB:         return "Usb";
+		case Type::USB_HOST:    return "Usb_host";
 		case Type::RTC:         return "Rtc";
 		case Type::PLATFORM:    return "Platform";
 		case Type::PIN_STATE:   return "Pin_state";

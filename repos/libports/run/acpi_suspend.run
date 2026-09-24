@@ -90,9 +90,6 @@ proc usb_config { } {
 	return {
   |         + start usb | caps: 200 | ram: 12M
   |           + binary pc_usb_host
-  |           + provides | + service Usb
-  |           + config
-  |           | + report | devices: no
   |           + route
   |             + service Report | + child report_rom
   |             + any-service    | + parent }
@@ -649,6 +646,7 @@ import_from_depot [depot_user]/src/init \
                   [depot_user]/src/report_rom \
                   [depot_user]/src/dynamic_rom \
                   [depot_user]/src/nano3d \
+                  [depot_user]/src/usb \
                   [depot_user]/src/log_core \
                   [depot_user]/raw/pc_display_firmware
 
@@ -764,6 +762,16 @@ config | verbose: no | prio_levels: 4
 } [  gpu_client] {
 } [ ahci_config] {
 } [ nvme_config] {
+
++ start usb | caps: 200 | ram: 1M
+  + provides
+    + service Usb
+    + service Usb_host
+  + config
+    + report | devices: no | config: no
+  + route
+    + service Platform | + child platform | label: usb
+    + any-service      | + parent
 
 + start drivers_init | caps: 10000 | ram: 128M } [priority_drivers] {
   + binary init

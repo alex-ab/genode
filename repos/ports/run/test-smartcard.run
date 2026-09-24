@@ -86,15 +86,15 @@ config
 -}
 
 #
-# Define USB host controller config
+# Define USB config
 #
 append usb_config {
-config | bios_handoff: no
+config
   + policy | label: test-smartcard ->
     + device | vendor_id: } [smartcard_vendor_id] { | product_id: } [smartcard_product_id] {
 -
 }
-set fd [open [run_dir]/genode/usb_host.config w]
+set fd [open [run_dir]/genode/usb.config w]
 puts $fd $usb_config
 close $fd
 

@@ -47,7 +47,7 @@ config | verbose: no
   + config | verbose: no
     + default-policy | report: usb -> usb -> devices
 
-+ start usb | caps: 1200 | ram: 32M | managing_system: yes
++ start usb | caps: 1500 | ram: 32M | managing_system: yes
   + binary init
   + provides | + service Usb
   + route
@@ -112,11 +112,11 @@ config | verbose: no
 -}
 
 #
-# Define USB host controller config
+# Define USB config
 #
-set fd [open [run_dir]/genode/usb_host.config w]
+set fd [open [run_dir]/genode/usb.config w]
 puts $fd {
-config | bios_handoff: no
+config
   + report | devices: yes
   + policy | label_prefix: usb_hid | + device | class: 0x3
 -}

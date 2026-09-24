@@ -65,6 +65,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/pc_rtc \
                   [depot_user]/src/pc_nic \
                   [depot_user]/src/nic_router \
+                  [depot_user]/src/usb \
                   [depot_user]/src/seoul/2026-04-22
 
 proc smp_vcpus { } {
@@ -191,10 +192,10 @@ config | verbose: no | prio_levels: 4
       + parent
       + any-child
 
-+ start usb | priority: -2 | caps: 300 | ram: 12M
-  + binary pc_usb_host
++ start usb | priority: -2 | caps: 200 | ram: 1M
   + provides
   | + service Usb
+  | + service Usb_host
   + config
   | + report | devices: yes
   | + policy | label_prefix: usb_hid
@@ -202,8 +203,16 @@ config | verbose: no | prio_levels: 4
   | + policy | label_prefix: seoul
   |   + device
   + route
-    + service Report
-    | + child report_rom
+    + service Report | + child report_rom
+    + service Dma    | + child platform | label: usb
+    + any-service
+      + parent
+      + any-child
+
++ start pc_usb_host | priority: -2 | caps: 300 | ram: 12M
+  + route
+    + service Platform | + child platform | label: usb
+    + service Dma      | + child platform | label: usb
     + any-service
       + parent
       + any-child

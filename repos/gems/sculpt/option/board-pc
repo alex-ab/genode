@@ -7,6 +7,7 @@ option
     + dma wifi
     + dma audio
     + dma acpica
+    + dma usb
     + platform
     + platform nic
     + platform wifi
@@ -44,15 +45,24 @@ option
     + rom board         | + child model           | label: option/board
     + rom platform_info | + parent
 
-+ child usb | binary: pc_usb_host | ram: 16M | caps: 200 | priority: media | enabled: discover
-  + managed | disable: while_suspended
++ child usb | binary: usb | ram: 1M | caps: 300
   + provides
     + usb
+    + usb_host
+  + connect
+    + rom usb    | + parent      | . no anchor in graph
+    + rom config | + child model | label: child/usb
+    + report     | + child report
+    + dma        | + child platform | label: usb
+
++ child usb_host | binary: pc_usb_host | ram: 16M | caps: 200 | priority: media | enabled: discover
+  + managed | disable: while_suspended
+  + config | bios_handoff: no
   + connect
     + dma        | + child platform | label: usb
     + platform   | + child platform | label: usb
     + report     | + child report
-    + rom config | + child model    | label: child/usb
+    + usb_host   | + child usb
 
 + child intel_gpu | binary: intel_gpu | ram: 32M | caps: 1400 | priority: media | enabled: discover
   + managed | max_ram: 256M | max_caps: 5000

@@ -90,11 +90,11 @@ config
 -}
 
 #
-# Define USB host controller config
+# Define USB config
 #
-set fd [open [run_dir]/genode/usb_host.config w]
+set fd [open [run_dir]/genode/usb.config w]
 puts $fd {
-config | bios_handoff: no
+config
   + policy | label_prefix: usb_net
     | + device | vendor_id: 0x0b95 | product_id: 0x1790 | . AX88179A
     | + device | vendor_id: 0x0bda | product_id: 0x8156 | . RTL8156

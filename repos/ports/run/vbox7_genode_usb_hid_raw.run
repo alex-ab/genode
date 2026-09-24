@@ -34,6 +34,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/ps2 \
                   [depot_user]/src/report_rom \
                   [depot_user]/src/stdcxx \
+                  [depot_user]/src/usb \
                   [depot_user]/src/vbox7 \
                   [depot_user]/src/vesa_fb \
                   [depot_user]/src/vfs \
@@ -108,16 +109,26 @@ config | prio_levels: 4
     + policy | label_prefix: usb | info: yes
       + pci | class: USB
 
-+ start usb | ram: 16M | caps: 200 | priority: -1
-  + binary pc_usb_host
-  + provides | + service Usb
-  + config | bios_handoff: no
++ start usb | ram: 1M | caps: 200 | priority: -1
+  + provides
+    + service Usb
+    + service Usb_host
+  + config
     + report | devices: yes | config: yes
     + policy | label_prefix: virtualbox
       + device | class: 0x3
   + route
-    + service IRQ    | + child acpi
+    + service Dma    | + child platform | label: usb
     + service Report | + child report_rom
+    + any-service
+      + parent
+      + any-child
+
++ start pc_usb_host | ram: 16M | caps: 200 | priority: -1
+  + config | bios_handoff: no
+  + route
+    + service Platform | + child platform | label: usb
+    + service Dma      | + child platform | label: usb
     + any-service
       + parent
       + any-child
@@ -240,6 +251,7 @@ unify_output {(?n)device number [0-9]+} "device number X"
 unify_output {(?n)input[0-9]} "inputX"
 unify_output {(?n) as /devices/.*} ""
 unify_output {(?n)^\[init -\> usb.*} ""
+unify_output {(?n)^\[init -\> pc_usb_host.*} ""
 unify_output {(?n)^\[init -\> log_terminal\] \[init -\> usb.*} ""
 unify_output {(?n)^.*dangling allocation.*$} ""
 unify_output {(?n)^.*usbfs: process .* did not claim interface.*$} ""

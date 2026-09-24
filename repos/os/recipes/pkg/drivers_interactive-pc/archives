@@ -2,6 +2,7 @@ _/src/pc_platform
 _/src/acpi
 _/src/ps2
 _/src/pc_usb_host
+_/src/usb
 _/src/usb_hid
 _/src/vesa_fb
 _/src/report_rom

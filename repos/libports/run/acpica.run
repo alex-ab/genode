@@ -25,6 +25,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/dynamic_rom \
                   [depot_user]/src/event_filter \
                   [depot_user]/src/init \
+                  [depot_user]/src/usb \
                   [depot_user]/src/pc_usb_host \
                   [depot_user]/src/pc_platform \
                   [depot_user]/src/ps2 \
@@ -105,15 +106,26 @@ config
     + service Event    | + child event_filter | label: ps2
     + any-service      | + parent
 
-+ start usb | caps: 200 | ram: 20M
-  + binary pc_usb_host
-  + provides | + service Usb
-  + config | bios_handoff: no
++ start usb | caps: 200 | ram: 1M
+  + provides
+    + service Usb
+    + service Usb_host
+  + config
   | + report | devices: yes
   | + policy | label_prefix: usb_hid
   |   + device | class: 0x3
   + route
     + service Report | + child drivers_reports
+    + service Dma    | + child platform | label: usb
+    + any-service
+      + parent
+      + any-child
+
++ start pc_usb_host | caps: 200 | ram: 20M
+  + config | bios_handoff: no
+  + route
+    + service Platform | + child platform | label: usb
+    + service Dma      | + child platform | label: usb
     + any-service
       + parent
       + any-child

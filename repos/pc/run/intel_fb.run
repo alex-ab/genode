@@ -39,6 +39,7 @@ set build_components {
 }
 
 append_if $use_usb build_components { driver/usb_host }
+append_if $use_usb build_components { server/usb }
 append_if $use_gpu build_components { driver/gpu/intel }
 append_if $use_top build_components { app/top }
 
@@ -285,15 +286,24 @@ append config {
 }
 
 append_if $use_usb config {
-    + start usb | priority: 0 | caps: 200 | ram: 12M
-      + binary pc_usb_host
-      + provides | + service Usb
-      + config | bios_handoff: no
+    + start usb | priority: 0 | caps: 200 | ram: 1M
+      + provides
+        + service Usb
+        + service Usb_host
+      + config
       | + report | devices: yes
       + route
         + service Dma      | + parent | label: usb
-        + service Platform | + parent | label: usb
         + service Report   | + child report_rom_usb
+        + any-service
+          + parent
+          + any-child
+
+    + start pc_usb_host | priority: 0 | caps: 200 | ram: 12M
+      + config | bios_handoff: no
+      + route
+        + service Dma      | + parent | label: usb
+        + service Platform | + parent | label: usb
         + any-service
           + parent
           + any-child

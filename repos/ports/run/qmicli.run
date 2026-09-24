@@ -125,7 +125,7 @@ config | verbose: yes
 }
 
 #
-# Define USB host controller config
+# Define USB config
 #
 # * Quectel EG-25g
 # * Huawai ME906e
@@ -133,14 +133,14 @@ config | verbose: yes
 # Change to your modem and adjust "configuration" for 'usb_net'
 #
 set config {
-config | bios_handoff: no
+config
   + policy | label_prefix: usb_net
     + device | vendor_id: 0x2c7c | product_id: 0x125
     + device | vendor_id: 0x12d1 | product_id: 0x15c1
 -
 }
 
-set fd [open [run_dir]/genode/usb_host.config w]
+set fd [open [run_dir]/genode/usb.config w]
 puts $fd $config
 close $fd
 

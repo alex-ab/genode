@@ -181,11 +181,11 @@ config
 -}
 
 #
-# Define USB host controller config
+# Define USB config
 #
-set fd [open [run_dir]/genode/usb_host.config w]
+set fd [open [run_dir]/genode/usb.config w]
 puts $fd {
-config | bios_handoff: no
+config
   + policy | label_prefix: usb_serial
     | + device | vendor_id: 0x067b | product_id: 0x2303 | . Prolific PL2303
     | + device | vendor_id: 0x0557 | product_id: 0x2008 | . Prolific PL2303

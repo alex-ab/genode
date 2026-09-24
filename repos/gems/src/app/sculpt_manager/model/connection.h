@@ -50,6 +50,7 @@ struct Sculpt::Connection : List_model<Connection>::Element
 		case Service::Type::TERMINAL:    return "Terminal";
 		case Service::Type::TRACE:       return "Tracing";
 		case Service::Type::USB:         return "USB";
+		case Service::Type::USB_HOST:    return "USB host";
 		case Service::Type::RTC:         return "Real-time clock";
 		case Service::Type::PLATFORM:    return "Device access";
 		case Service::Type::PIN_STATE:   return "GPIO pin state";

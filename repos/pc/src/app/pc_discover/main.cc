@@ -99,7 +99,7 @@ void Pc_discover::Main::_handle_devices()
 		if (condition) enable_child(name); else remove_child(name);
 	};
 
-	enable_or_remove_child("usb",       detected.usb);
+	enable_or_remove_child("usb_host",  detected.usb);
 	enable_or_remove_child("intel_gpu", detected.intel_gfx);
 	enable_or_remove_child("intel_fb",  detected.intel_gfx &&  intel_fb_usable);
 	enable_or_remove_child("boot_fb",   detected.boot_fb   && !intel_fb_usable);

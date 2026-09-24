@@ -52,7 +52,7 @@ config | verbose: yes
     + service Timer               | + child timer
     + any-service                 | + parent
 
-+ start usb_block | ram: 4M
++ start usb_block | ram: 4M | caps: 200
   + provides | + service Block
   + config | report: yes | writeable: no
   + route
@@ -86,11 +86,13 @@ config | verbose: yes
 }
 
 #
-# Define USB host controller config
+# Define USB config
 #
-set fd [open [run_dir]/genode/usb_host.config w]
+set fd [open [run_dir]/genode/usb.config w]
 puts $fd {
-config | bios_handoff: no | + policy | label: usb_block -> | + device usb-1-2
+config
+  + report | devices: yes
+  + policy | label: usb_block -> | + device usb-1-2
 -
 }
 close $fd

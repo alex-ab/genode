@@ -97,11 +97,11 @@ config
 -}
 
 #
-# Define USB host controller config
+# Define USB config
 #
-set fd [open [run_dir]/genode/usb_host.config w]
+set fd [open [run_dir]/genode/usb.config w]
 puts $fd {
-config | bios_handoff: no
+config
   + report | devices: yes
   + policy | label_prefix: usb_hid | + device | class: 0x3
 -}

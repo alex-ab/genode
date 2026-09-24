@@ -4,3 +4,4 @@ _/src/pci_decode
 _/src/pc_usb_host
 _/src/pc_platform
 _/src/report_rom
+_/src/usb

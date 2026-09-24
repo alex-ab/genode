@@ -56,6 +56,8 @@ schema option
     + node | category: target
   + node usb
     + node | category: target
+  + node usb_host
+    + node | category: target
   + node timer
     + node | category: target
   + node pd
@@ -108,6 +110,7 @@ schema option
   + node terminal | + attr name  | type: any | default:
   + node gpu
   + node usb
+  + node usb_host
   + node timer
   + node pd
   + node cpu

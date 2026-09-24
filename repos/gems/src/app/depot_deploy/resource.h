@@ -30,7 +30,7 @@ struct Depot_deploy::Resource
 		AUDIO_IN, AUDIO_OUT, BLOCK, EVENT, CAPTURE, FS, NIC, GUI, GPU, LOG,
 		RM, IO_MEM, IO_PORT, IRQ, REPORT, ROM, TERMINAL, TRACE, USB, RTC,
 		I2C, PLATFORM, PIN_STATE, PIN_CONTROL, VM, PD, UPLINK, PLAY, RECORD,
-		DMA, UNDEFINED
+		DMA, USB_HOST, UNDEFINED
 	};
 
 	using Node_type = String<16>;  /* runtime node type */
@@ -62,6 +62,7 @@ struct Depot_deploy::Resource
 		case TERMINAL:    return "Terminal";
 		case TRACE:       return "TRACE";
 		case USB:         return "Usb";
+		case USB_HOST:    return "Usb_host";
 		case RTC:         return "Rtc";
 		case PLATFORM:    return "Platform";
 		case PIN_STATE:   return "Pin_state";
@@ -99,7 +100,7 @@ struct Depot_deploy::Resource::Types
 
 	Dictionary<Entry, Node_type> dict { };
 
-	Entry const _entries[31] {
+	Entry const _entries[32] {
 		{ dict, "audio_in",    AUDIO_IN    }, /* deprecated */
 		{ dict, "audio_out",   AUDIO_OUT   }, /* deprecated */
 		{ dict, "block",       BLOCK       },
@@ -122,6 +123,7 @@ struct Depot_deploy::Resource::Types
 		{ dict, "terminal",    TERMINAL    },
 		{ dict, "trace",       TRACE       },
 		{ dict, "usb",         USB         },
+		{ dict, "usb_host",    USB_HOST    },
 		{ dict, "rtc",         RTC         },
 		{ dict, "platform",    PLATFORM    },
 		{ dict, "pin_state",   PIN_STATE   },
