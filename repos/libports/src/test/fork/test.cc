@@ -48,6 +48,7 @@ int main(int, char **argv)
 	if (fork_ret == 0) {
 		printf("pid %d: child says hello\n", getpid());
 
+		setuid(1000);
 		setgid(1000);
 
 		/*
@@ -102,6 +103,12 @@ int main(int, char **argv)
 			uid_t const uid = getuid();
 			if (uid != 1000) {
 				printf("Error: unexpected uid %d\n", uid);
+				return -1;
+			}
+
+			gid_t const gid = getgid();
+			if (gid != 1000) {
+				printf("Error: unexpected gid %d\n", gid);
 				return -1;
 			}
 

@@ -119,8 +119,8 @@ namespace Libc {
 	 */
 	void init_fork(Genode::Env &, Fs &, Fds &,
 	               Config_accessor const &, Genode::Allocator &heap,
-	               Heap &malloc_heap, int pid, uid_t uid, Monitor &, Signal &,
-	               Binary_name const &);
+	               Heap &malloc_heap, int pid, uid_t uid, gid_t gid,
+	               Monitor &, Signal &, Binary_name const &);
 
 	struct Reset_atexit : Interface
 	{

@@ -73,6 +73,7 @@ static size_t                 _user_stack_size;
 static int                    _pid;
 static int                    _pid_cnt;
 static int                    _uid;
+static int                    _gid;
 static Config_accessor const *_config_accessor_ptr;
 static Binary_name     const *_binary_name_ptr;
 static Forked_children       *_forked_children_ptr;
@@ -95,13 +96,14 @@ struct Libc::Child_config
 
 	pid_t const _pid;
 	uid_t const _uid;
+	gid_t const _gid;
 
 	void _generate(Generator &, Node const &config, Fs &, Fds &);
 
 	Child_config(Genode::Env &env, Config_accessor const &config_accessor,
-	             Fs &fs, Fds &fds, pid_t pid, uid_t uid)
+	             Fs &fs, Fds &fds, pid_t pid, uid_t uid, gid_t gid)
 	:
-		_env(env), _pid(pid), _uid(uid)
+		_env(env), _pid(pid), _uid(uid), _gid(gid)
 	{
 		config_accessor.with_config([&] (Node const &config) {
 
@@ -179,6 +181,7 @@ void Libc::Child_config::_generate(Generator &g, Node const &config, Fs &fs, Fds
 
 		g.attribute("pid", _pid);
 		g.attribute("uid", _uid);
+		g.attribute("gid", _gid);
 
 		using Path = String<Vfs::MAX_PATH_LEN>;
 		config.with_optional_sub_node("libc", [&] (Node const &node) {
@@ -605,13 +608,14 @@ struct Libc::Forked_child : Child_policy, Child_ready
 	             Signal                    &signal,
 	             pid_t                      pid,
 	             uid_t                      uid,
+	             gid_t                      gid,
 	             Config_accessor     const &config_accessor,
 	             Parent_services           &parent_services,
 	             Local_rom_services        &local_rom_services)
 	:
 		_env(env), _binary_name(binary_name),
 		_signal(signal), _pid(pid),
-		_child_config(env, config_accessor, fs, fds, pid, uid),
+		_child_config(env, config_accessor, fs, fds, pid, uid, gid),
 		_parent_services(parent_services),
 		_local_rom_services(local_rom_services),
 		_local_clone_service(env, fork_ep, *this),
@@ -648,7 +652,7 @@ static Forked_child * fork_kernel_routine()
 	Registered<Forked_child> *child = new (alloc)
 		Registered<Forked_child>(*_forked_children_ptr, env, *_fs_ptr, *_fds_ptr,
 		                         fork_ep, alloc, *_binary_name_ptr,
-		                         signal, child_pid, _uid, *_config_accessor_ptr,
+		                         signal, child_pid, _uid, _gid, *_config_accessor_ptr,
 		                         parent_services, local_rom_services);
 
 	fork_result = child_pid;
@@ -761,6 +765,48 @@ extern "C" int __sys_setreuid(uid_t ruid, uid_t euid)
 
 int setreuid(uid_t, uid_t) __attribute__((weak, alias("__sys_setreuid")));
 
+/********************
+ ** getgid/getegid **
+ ********************/
+
+extern "C" gid_t __sys_getgid(void) __attribute__((weak));
+extern "C" gid_t __sys_getgid(void) { return _gid; }
+
+gid_t getgid(void)        __attribute__((weak, alias("__sys_getgid")));
+gid_t getegid(void)       __attribute__((weak, alias("__sys_getgid")));
+gid_t __sys_getegid(void) __attribute__((weak, alias("__sys_getgid")));
+
+/********************
+ ** setgid/setegid **
+ ********************/
+
+extern "C" int __sys_setgid(gid_t) __attribute__((weak));
+extern "C" int __sys_setgid(gid_t gid)
+{
+	_gid = gid;
+	return 0;
+}
+
+int setgid(gid_t)        __attribute__((weak, alias("__sys_setgid")));
+int setegid(gid_t)       __attribute__((weak, alias("__sys_setgid")));
+int __sys_setegid(gid_t) __attribute__((weak, alias("__sys_setgid")));
+
+/**************
+ ** setregid **
+ **************/
+
+extern "C" int __sys_setregid(gid_t, gid_t) __attribute__((weak));
+extern "C" int __sys_setregid(gid_t rgid, gid_t egid)
+{
+	if (rgid != egid)
+		return Errno { EPERM };
+
+	_gid = rgid;
+	return 0;
+}
+
+int setregid(gid_t, gid_t) __attribute__((weak, alias("__sys_setregid")));
+
 /***********
  ** wait4 **
  ***********/
@@ -868,7 +914,7 @@ extern "C" pid_t wait4(pid_t, int *, int, rusage *) __attribute__((weak, alias("
 void Libc::init_fork(Genode::Env &env, Fs &fs, Fds &fds,
                      Config_accessor const &config_accessor,
                      Genode::Allocator &alloc, Heap &malloc_heap, pid_t pid,
-                     uid_t uid, Monitor &monitor, Signal &signal,
+                     uid_t uid, gid_t gid, Monitor &monitor, Signal &signal,
                      Binary_name const &binary_name)
 {
 	_env_ptr             = &env;
@@ -881,6 +927,7 @@ void Libc::init_fork(Genode::Env &env, Fs &fs, Fds &fds,
 	_config_accessor_ptr = &config_accessor;
 	_pid                 =  pid;
 	_uid                 =  uid;
+	_gid                 =  gid;
 	_binary_name_ptr     = &binary_name;
 
 	static Forked_children forked_children { };

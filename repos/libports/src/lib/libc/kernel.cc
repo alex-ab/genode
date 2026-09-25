@@ -530,7 +530,7 @@ Libc::Kernel::Kernel(Genode::Env &env, Genode::Allocator &heap)
 	}
 
 	init_fork(_env, _fs, _fds, _libc_env, _heap, *_malloc_heap, _config.pid,
-	          _config.uid, *this, _signal, _binary_name);
+	          _config.uid, _config.gid, *this, _signal, _binary_name);
 	init_execve(_env, _heap, _user_stack, *this, *this, _binary_name, _fds);
 	init_sleep(*this);
 	init_file_operations(*this, _fds, _fs, _config, _procfs);
