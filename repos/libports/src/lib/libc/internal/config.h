@@ -31,6 +31,7 @@ struct Libc::Config
 
 	bool   update_mtime, cloned;
 	pid_t  pid;
+	uid_t  uid;
 	Path   rtc, rng, pipe, proc, socket, nameserver;
 	size_t stack_size;
 	Align  mmap_align;
@@ -54,6 +55,7 @@ struct Libc::Config
 			.update_mtime = libc.attribute_value("update_mtime", true),
 			.cloned       = libc.attribute_value("cloned", false),
 			.pid          = libc.attribute_value("pid",    pid_t(0)),
+			.uid          = libc.attribute_value("uid",    uid_t(0)),
 			.rtc          = libc.attribute_value("rtc",    Path()),
 			.rng          = libc.attribute_value("rng",    Path()),
 			.pipe         = libc.attribute_value("pipe",   Path()),

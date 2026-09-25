@@ -48,6 +48,8 @@ int main(int, char **argv)
 	if (fork_ret == 0) {
 		printf("pid %d: child says hello\n", getpid());
 
+		setgid(1000);
+
 		/*
 		 * Validate that the child's heap and RW segment correspond to the
 		 * the state of the parent.
@@ -95,6 +97,12 @@ int main(int, char **argv)
 
 			for (int k = 0; k < MAX_COUNT; k++) {
 				printf("pid %d: grand child k = %d\n", getpid(), k);
+			}
+
+			uid_t const uid = getuid();
+			if (uid != 1000) {
+				printf("Error: unexpected uid %d\n", uid);
+				return -1;
 			}
 
 			return 0;
