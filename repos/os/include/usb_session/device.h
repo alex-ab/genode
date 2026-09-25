@@ -385,6 +385,16 @@ class Usb::Interface
 		Urb_handler<Interface_session> _urb_handler;
 		Endpoint                       _eps[2][MAX_EPS] { };
 
+		static size_t _buffer_size(size_t size)
+		{
+			/*
+			 * prevent Packet_stream_base::Transport_dataspace_too_small
+			 * exception by defining minimum buffer size
+			 */
+			return Genode::max(size, sizeof(Tx_policy::Submit_queue) +
+			                         sizeof(Tx_policy::Ack_queue));
+		}
+
 	public:
 
 		struct Interface_not_avail : Exception {};
@@ -679,9 +689,9 @@ inline Usb::Endpoint::Endpoint(Interface &iface, Direction d, Type t)
 };
 
 
-inline Usb::Interface::Interface(Device &device, Index idx, size_t buffer_size)
+inline Usb::Interface::Interface(Device &device, Index idx, size_t size)
 :
-	Interface_capability(device._interface_cap(idx.number, buffer_size)),
+	Interface_capability(device._interface_cap(idx.number, _buffer_size(size))),
 	_device(device), _idx(idx),
 	_urb_handler(call<Rpc_tx_cap>(), device._rm, device._md_alloc)
 {
