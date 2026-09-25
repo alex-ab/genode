@@ -111,6 +111,7 @@ clock_gettime W
 clock_nanosleep W
 close T
 closedir T
+closefrom T
 closelog T
 confstr T
 connect T
@@ -327,6 +328,7 @@ getrusage W
 gets T
 getservbyname W
 getservbyport T
+getservbyname_r T
 getservbyport_r T
 getsid W
 getsockname T

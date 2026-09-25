@@ -96,6 +96,7 @@ ret_type name args \
 	ret_type         name args __attribute__((weak, alias("__sys_" #name))); \
 
 
+DUMMY(void  ,   , closefrom, (int))
 DUMMY(int   , -1, chroot, (const char *))
 DUMMY(int   , -1, clock_getres, (clockid_t, struct timespec *))
 DUMMY(int   , -1, cpuset_getaffinity, (cpulevel_t, cpuwhich_t, id_t, size_t, cpuset_t *))
@@ -116,6 +117,7 @@ DUMMY_SILENT(pid_t , -1, getppid, (void))
 DUMMY(pid_t , -1, getpgrp, (void))
 DUMMY(int   , -1, getpriority, (int, int))
 DUMMY(int   , -1, getrusage, (int, rusage *))
+DUMMY(int   ,  0, getservbyname_r, (const char *, const char *, struct servent *, char *, size_t, struct servent **))
 DUMMY(unsigned int, 0, if_nametoindex, (const char *))
 DUMMY(int   , -1, link, (const char *, const char *))
 DUMMY(int   ,  0, minherit, (void *, size_t, int))
