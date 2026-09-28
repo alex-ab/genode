@@ -34,7 +34,7 @@ struct Depot_deploy::Resource
 	};
 
 	using Node_type = String<16>;  /* runtime node type */
-	using Name      = String<32>;
+	using Name      = String<64>;
 
 	Type type;
 
