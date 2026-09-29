@@ -13,14 +13,13 @@ content: include
 include:
 	mkdir -p $@
 	cp -r $(PORT_DIR)/src/lib/libdrm/*.h $@
-	mkdir -p $@/drm
-	cp -r $(PORT_DIR)/src/lib/libdrm/include/drm/*.h $@/drm
 	mkdir -p $@/intel
 	cp -r $(PORT_DIR)/src/lib/libdrm/intel/*.h $@/intel
 	mkdir -p $@/etnaviv
 	cp -r $(PORT_DIR)/src/lib/libdrm/etnaviv/*.h $@/etnaviv
 	mkdir -p $@/libdrm
 	cp $(REP_DIR)/include/libdrm/ioctl_dispatch.h $@/libdrm
+	cp -r $(PORT_DIR)/src/lib/libdrm/include/drm/*.h $@/libdrm
 
 content: LICENSE
 
