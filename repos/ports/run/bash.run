@@ -140,7 +140,6 @@ config | verbose: yes
   |   + dir dev | + symlink fd | target: /proc/self/fd
   |   + dir proc | + ram
   | + arg bash
-  | + arg -c | : ls -l / | cat; ls -l / | cat; ls -l / | cat
   | + env TERM | : screen
   | + env PATH | : /bin
   + route
