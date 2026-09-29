@@ -14,7 +14,18 @@ include:
 	mkdir -p $@
 	cp -r $(PORT_DIR)/include/* $@
 
-content: LICENSE
+content: LICENSE expat.pc
 
 LICENSE:
 	cp $(PORT_DIR)/src/lib/expat/contrib/COPYING $@
+
+VERSION := $(shell sed -n 's/VERSION.*:=[ ]*\(.*\)/\1/p' $(REP_DIR)/ports/expat.port)
+
+expat.pc:
+	echo "depot_api_dir=DEPOT_API_DIR" > $@
+	echo 'includedir=$${depot_api_dir}/include' >> $@
+	echo "Name: expat" >> $@
+	echo "Description: expat XML parser" >> $@
+	echo "Version: $(VERSION)" >> $@
+	echo "Libs: -l:expat.lib.so" >> $@
+	echo 'Cflags: -I$${includedir}' >> $@
