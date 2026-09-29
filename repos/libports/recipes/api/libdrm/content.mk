@@ -21,8 +21,20 @@ include:
 	cp $(REP_DIR)/include/libdrm/ioctl_dispatch.h $@/libdrm
 	cp -r $(PORT_DIR)/src/lib/libdrm/include/drm/*.h $@/libdrm
 
-content: LICENSE
+content: LICENSE libdrm.pc
 
 LICENSE:
 	echo "MIT, see header files" > $@
+
+VERSION := $(shell sed -n 's/VERSION.*:=[ ]*\(.*\)/\1/p' $(REP_DIR)/ports/libdrm.port)
+
+libdrm.pc:
+	echo "depot_api_dir=DEPOT_API_DIR" > $@
+	echo 'includedir=$${depot_api_dir}/include' >> $@
+	echo "" >> $@
+	echo "Name: libdrm" >> $@
+	echo "Description: Userspace interface to kernel DRM services" >> $@
+	echo "Version: $(VERSION)" >> $@
+	echo "Libs: -l:libdrm.lib.so" >> $@
+	echo 'Cflags: -I$${includedir} -I$${includedir}/libdrm' >> $@
 
