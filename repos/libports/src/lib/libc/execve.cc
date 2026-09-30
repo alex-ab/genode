@@ -168,9 +168,9 @@ struct Libc::Interpreter
 
 	unsigned const num_args;
 
-	Interpreter(Genode::Env &env, char const * const filename)
+	Interpreter(Genode::Env &env, char const * const script_filename, char const * const orig_filename)
 	:
-		_rom(env, filename), num_args(_count_args() + 1 /* argv0 */)
+		_rom(env, script_filename), num_args(_count_args() + 2 /* argv0 + orig_filename */)
 	{
 		if (script()) {
 			args = (char **)calloc(num_args + 1 /* null termination */, sizeof(char *));
@@ -182,6 +182,9 @@ struct Libc::Interpreter
 
 			_for_each_arg([&] (Arg arg) {
 				args[i++] = strndup(arg.ptr, arg.length); });
+
+			/* supply original filename as last argument */
+			args[i++] = strdup(orig_filename);
 		}
 	}
 
@@ -254,7 +257,9 @@ struct Libc::String_array : Noncopyable
 	:
 		_alloc(alloc),
 
-		count(_num_entries(src_array_1) + _num_entries(src_array_2))
+		/* if 'src_array_2' is supplied, we skip its first element (argv0) */
+		count(_num_entries(src_array_1) + _num_entries(src_array_2) -
+		      (src_array_2 ? 1 : 0))
 	{
 		/* marshal array strings to buffer */
 		size_t size = 1024;
@@ -280,7 +285,7 @@ struct Libc::String_array : Noncopyable
 			};
 
 			try_append_entries(src_array_1);
-			try_append_entries(src_array_2);
+			try_append_entries(src_array_2, 1) /* skip old argv0 */;
 
 			bool const done = (dst_i == count);
 			if (done) {
@@ -388,7 +393,7 @@ extern "C" int execve(char const *filename,
 		Constructible<Libc::Interpreter> interpreter { };
 
 		try {
-			interpreter.construct(*_env_ptr, resolved_path.string()); }
+			interpreter.construct(*_env_ptr, resolved_path.string(), path.string()); }
 		catch (...) {
 			warning("execve: executable binary inaccessible as ROM module");
 			return Libc::Errno(ENOENT);
