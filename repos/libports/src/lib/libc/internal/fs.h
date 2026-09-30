@@ -114,13 +114,10 @@ struct Libc::Fs
 	void destroy(Open_file &);
 	void destroy(Open_dir &);
 
-	int pipe(File_descriptor *pipefdo[2]);
-
 	ssize_t getdirentries(Open_dir &, char *, size_t , off_t *);
 
 	int     fstat(File_descriptor &, struct stat &);
 	off_t   lseek(File_descriptor &, off_t offset, int whence);
-	int     fcntl(File_descriptor &, int, long);
 	ssize_t read (File_descriptor &, void *, size_t);
 	ssize_t write(File_descriptor &, void const *, size_t );
 	void   *mmap (File_descriptor &, void *, size_t, int, int, off_t);
