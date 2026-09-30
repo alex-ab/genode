@@ -361,7 +361,7 @@ static int _dup(File_descriptor &fd, Fds::Bits &bits, Fds::Space &space, int new
 	/* clear flags to prevent double create if 'fd' refers to a created file */
 	int const new_flags = fd.flags & ~(O_EXCL | O_CREAT);
 
-	auto new_file_descriptor = [&] (auto &open_file_or_dir)
+	auto new_file_descriptor = [&] (auto &open_file_or_dir, auto &orig_open_file_or_dir)
 	{
 		File_descriptor &new_fd =
 			*new (fs()._kernel_heap) File_descriptor(space, new_id, open_file_or_dir, fd.path);
@@ -369,7 +369,9 @@ static int _dup(File_descriptor &fd, Fds::Bits &bits, Fds::Space &space, int new
 		procfs().add_fd_file(new_id, fd.path);
 
 		new_fd.flags = new_flags;
-		fs().lseek(new_fd, fs().lseek(fd, 0, SEEK_CUR), SEEK_SET);
+		fs().lseek(open_file_or_dir,
+		           fs().lseek(orig_open_file_or_dir, 0, SEEK_CUR),
+		           SEEK_SET);
 		return new_id;
 	};
 
@@ -382,14 +384,14 @@ static int _dup(File_descriptor &fd, Fds::Bits &bits, Fds::Space &space, int new
 		}).convert<int>(
 			[&] (Open_file &dup_of) {
 				dup_of.modified = fd.open_file_ptr->modified;
-				return new_file_descriptor(dup_of);
+				return new_file_descriptor(dup_of, *fd.open_file_ptr);
 			},
 			[&] (Errno e) { return release_new_id(e); });
 	}
 
 	if (fd.open_dir_ptr)
 		return fs().open_dir(fd.path.string(), new_flags).convert<int>(
-			[&] (Open_dir &dup_od) { return new_file_descriptor(dup_od); },
+			[&] (Open_dir &dup_od) { return new_file_descriptor(dup_od, *fd.open_dir_ptr); },
 			[&] (Errno e)          { return release_new_id(e); });
 
 	warning("dup called for non-file/dir descriptor (", fd.path, ")");
@@ -525,8 +527,24 @@ __SYS_(int, fstat, (int libc_fd, struct stat *buf),
 		return Errno { EFAULT };
 
 	return with_fd(libc_fd, "fstat", [&] (File_descriptor &fd) -> int {
-		if (fd.open_file_ptr || fd.open_dir_ptr) return fs().fstat(fd, *buf);
-		return Errno { EBADF };
+		if (fd.open_file_ptr) {
+			int result = fs().fstat(*fd.open_file_ptr, *buf);
+
+			/*
+			 * The libc expects stdout to be a character device.
+			 * If 'st_mode' is set to 'S_IFREG', 'printf' does not work.
+			 */
+			if (fd.libc_fd == 1) {
+				buf->st_mode &= ~S_IFMT;
+				buf->st_mode |=  S_IFCHR;
+			}
+
+			return result;
+		}
+		else if (fd.open_dir_ptr)
+			return fs().fstat(*fd.open_dir_ptr, *buf);
+
+		return Errno(EBADF);
 	});
 })
 
@@ -618,9 +636,13 @@ __SYS_(int, ioctl, (int libc_fd, unsigned long request, char *argp),
 
 __SYS_(::off_t, lseek, (int libc_fd, ::off_t offset, int whence),
 {
-	return with_fd(libc_fd, "lseek", [&] (File_descriptor &fd) -> ::off_t {
-		if (fd.open_file_ptr || fd.open_dir_ptr)
-			return fs().lseek(fd, offset, whence);
+	return with_fd(libc_fd, "lseek", [&] (File_descriptor &fd) -> ::off_t
+	{
+		if (fd.open_file_ptr)
+			return fs().lseek(*fd.open_file_ptr, offset, whence);
+		else if (fd.open_dir_ptr)
+			return fs().lseek(*fd.open_dir_ptr, offset, whence);
+
 		return Errno { ESPIPE };
 	});
 })
@@ -783,7 +805,7 @@ static int _open(Libc::Fds::Bits &bits, Libc::Fds::Space &space,
 		new_fd.flags = flags;
 
 		if (flags & O_APPEND)
-			fs().lseek(new_fd, 0, SEEK_END);
+			fs().lseek(of, 0, SEEK_END);
 
 		return libc_fd;
 	};
@@ -1005,7 +1027,7 @@ __SYS_(ssize_t, read, (int libc_fd, void *buf, ::size_t count),
 			return Errno(EBADF);
 
 		if (fd.open_file_ptr)
-			return fs().read(fd, buf, count);
+			return fs().read(*fd.open_file_ptr, buf, count, fd.flags & O_NONBLOCK);
 
 		if (fd.socket_ptr)
 			return socket_read(*fd.socket_ptr, buf, count);
@@ -1146,16 +1168,24 @@ extern "C" int unlink(const char *path)
 
 __SYS_(ssize_t, write, (int libc_fd, const void *buf, ::size_t count),
 {
-	int flags = fcntl(libc_fd, F_GETFL);
+	return with_fd(libc_fd, "write", [&] (File_descriptor &fd) -> ssize_t {
+		if (fd.open_dir_ptr) {
+			return int(Errno(EISDIR));
+		}
 
-	if ((flags != -1) && (flags & O_APPEND))
-		lseek(libc_fd, 0, SEEK_END);
-
-	return with_fd(libc_fd, "write", [&] (File_descriptor &fd) {
-		if (fd.socket_ptr)
+		else if (fd.socket_ptr) {
 			return socket_write(*fd.socket_ptr, buf, count);
-		else
-			return fs().write(fd, buf, count);
+		}
+
+		else if (fd.open_file_ptr) {
+			if ((fd.flags != -1) && (fd.flags & O_APPEND))
+				fs().lseek(*fd.open_file_ptr, 0, SEEK_END);
+
+			if ((fd.flags & O_ACCMODE) != O_RDONLY)
+				return fs().write(*fd.open_file_ptr, buf, count, fd.flags & O_NONBLOCK);
+		}
+
+		return int(Errno(EBADF));
 	});
 })
 

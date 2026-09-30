@@ -116,10 +116,14 @@ struct Libc::Fs
 
 	ssize_t getdirentries(Open_dir &, char *, size_t , off_t *);
 
-	int     fstat(File_descriptor &, struct stat &);
-	off_t   lseek(File_descriptor &, off_t offset, int whence);
-	ssize_t read (File_descriptor &, void *, size_t);
-	ssize_t write(File_descriptor &, void const *, size_t );
+	int     fstat(Open_file &, struct stat &);
+	int     fstat(Open_dir &,  struct stat &);
+
+	off_t   lseek(Open_file &, off_t offset, int whence);
+	off_t   lseek(Open_dir &,  off_t offset, int whence);
+
+	ssize_t read (Open_file &, void *, size_t, bool);
+	ssize_t write(Open_file &, void const *, size_t, bool);
 	void   *mmap (File_descriptor &, void *, size_t, int, int, off_t);
 
 	int wait_aio     (File_descriptor &, int timeout_ms);

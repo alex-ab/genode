@@ -356,23 +356,18 @@ struct Sync
 };
 
 
-int Libc::Fs::fstat(File_descriptor &fd, struct stat &buf)
+int Libc::Fs::fstat(Open_file &of, struct stat &buf)
 {
-	if (fd.open_file_ptr && fd.open_file_ptr->modified)
-		fsync(*fd.open_file_ptr);
+	if (of.modified)
+		fsync(of);
 
-	int const result = stat(fd.path.string(), buf);
+	return stat(of.handle.path.string(), buf);
+}
 
-	/*
-	 * The libc expects stdout to be a character device.
-	 * If 'st_mode' is set to 'S_IFREG', 'printf' does not work.
-	 */
-	if (fd.libc_fd == 1) {
-		buf.st_mode &= ~S_IFMT;
-		buf.st_mode |=  S_IFCHR;
-	}
 
-	return result;
+int Libc::Fs::fstat(Open_dir &od, struct stat &buf)
+{
+	return stat(od.handle.path.string(), buf);
 }
 
 
@@ -458,16 +453,11 @@ int Libc::Fs::stat(char const *path, struct stat &buf)
 }
 
 
-ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
+ssize_t Libc::Fs::write(Open_file &of, const void *buf, ::size_t count, bool nonblock)
 {
-	if (!fd.open_file_ptr || (fd.flags & O_ACCMODE) == O_RDONLY)
-		return Errno(EBADF);
-
-	Open_file &of = *fd.open_file_ptr;
-
 	Vfs::Write_result result = 0;
 
-	if (fd.flags & O_NONBLOCK) {
+	if (nonblock) {
 		_monitor.monitor([&] {
 			Const_byte_range_ptr const src { (char const *)buf, count };
 			result = of.handle.write({ .pos = of.pos }, src);
@@ -487,7 +477,7 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 		{
 			Vfs::File_system::Stat stat { };
 
-			if (_vfs.stat(fd.path.string(), stat) != Vfs::Stat_result::OK)
+			if (_vfs.stat(of.handle.path.string(), stat) != Vfs::Stat_result::OK)
 				return false;
 
 			return stat.type == Vfs::Dirent_type::CONTINUOUS_FILE;
@@ -549,14 +539,9 @@ ssize_t Libc::Fs::write(File_descriptor &fd, const void *buf, ::size_t count)
 }
 
 
-ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
+ssize_t Libc::Fs::read(Open_file &of, void *buf, ::size_t count, bool nonblock)
 {
 	using Result = Vfs::Read_result;
-
-	if (!fd.open_file_ptr)
-		return Errno { EBADF };
-
-	Open_file &of = *fd.open_file_ptr;
 
 	int result_errno = 0;
 	size_t out_count = 0;
@@ -566,7 +551,7 @@ ssize_t Libc::Fs::read(File_descriptor &fd, void *buf, ::size_t count)
 
 		if (of.closing) result_errno = EBADF;
 
-		if (!queued && fd.flags & O_NONBLOCK && !read_ready_from_kernel(fd))
+		if (!queued && nonblock && (of.handle.read_ready() != Vfs::Read_ready_result::YES))
 			result_errno = EAGAIN;
 
 		if (result_errno) {
@@ -1606,26 +1591,39 @@ void Libc::Fs::lseek_from_kernel(File_descriptor &fd, ::off_t pos)
 }
 
 
-::off_t Libc::Fs::lseek(File_descriptor &fd, ::off_t offset, int whence)
+::off_t Libc::Fs::lseek(Open_file &of, ::off_t offset, int whence)
 {
-	if (!fd.open_file_ptr && !fd.open_dir_ptr)
-		return Errno(EBADF);
-
-	uint64_t &pos = fd.open_file_ptr ? fd.open_file_ptr->pos
-	                                 : fd.open_dir_ptr->pos;
 	switch (whence) {
-	case SEEK_SET: pos  = offset; break;
-	case SEEK_CUR: pos += offset; break;
+	case SEEK_SET: of.pos  = offset; break;
+	case SEEK_CUR: of.pos += offset; break;
 	case SEEK_END:
 		{
 			struct stat stat;
 			::memset(&stat, 0, sizeof(stat));
-			fstat(fd, stat);
-			pos = stat.st_size + offset;
+			fstat(of, stat);
+			of.pos = stat.st_size + offset;
 		}
 		break;
 	}
-	return pos;
+	return of.pos;
+}
+
+
+::off_t Libc::Fs::lseek(Open_dir &od, ::off_t offset, int whence)
+{
+	switch (whence) {
+	case SEEK_SET: od.pos  = offset; break;
+	case SEEK_CUR: od.pos += offset; break;
+	case SEEK_END:
+		{
+			struct stat stat;
+			::memset(&stat, 0, sizeof(stat));
+			fstat(od, stat);
+			od.pos = stat.st_size + offset;
+		}
+		break;
+	}
+	return od.pos;
 }
 
 

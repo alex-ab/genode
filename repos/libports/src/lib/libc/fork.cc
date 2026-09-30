@@ -150,7 +150,7 @@ static void generate_open_fds(Genode::Generator &g, Libc::Fs &fs, Libc::Fds &fds
 					g.attribute("writeable", "yes");
 
 				if (fd.open_file_ptr) {
-					::off_t const seek = fs.lseek(fd, 0, SEEK_CUR);
+					::off_t const seek = fs.lseek(*fd.open_file_ptr, 0, SEEK_CUR);
 					if (seek)
 						g.attribute("seek", seek);
 				} else if (fd.kqueue_ptr)
@@ -760,7 +760,7 @@ static void update_append_libc_fds(Fs &fs, Fds &fds)
 	fds.with_space([&] (Fds::Space &space) {
 		space.for_each<File_descriptor>([&] (File_descriptor &fd) {
 			if (fd.open_file_ptr && (fd.flags & O_APPEND))
-				fs.lseek(fd, 0, SEEK_END); }); });
+				fs.lseek(*fd.open_file_ptr, 0, SEEK_END); }); });
 }
 
 
