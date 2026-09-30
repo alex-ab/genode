@@ -74,6 +74,11 @@ class Genode::Vfs::Watch_handle : Noncopyable
 
 		~Watch_handle() { unwatch(); }
 
+		bool affected(Span const &path_prefix) const
+		{
+			return path.with_span([&] (Span const &s) { return s.starts_with(path_prefix); });
+		}
+
 		bool watching() const { return _watching; }
 
 		Watch_result watch()

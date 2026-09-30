@@ -75,21 +75,70 @@ class Genode::Vfs::Root : public Env, private Env::Io, private Env::User
 
 		struct Root_parent_fs : Parent_fs
 		{
-			Watch_handles &_watch_handles;
+			Root &_root;
 
 			void notify_watchers(Span const &path) override
 			{
-				_watch_handles.for_each([&] (Watch_handle const &handle) {
+				_root._watch_handles.for_each([&] (Watch_handle const &handle) {
 					handle.path.with_span([&] (Span const &s) {
 						if (s.equals(path))
 							handle.handler.io_handle_watch(); }); });
 			}
 
-			Root_parent_fs(Watch_handles &handles) : _watch_handles(handles) { }
+			void detach_channels(Span const &path) override
+			{
+				_root._detach_channels(path);
+			}
 
-		} _root_parent_fs { _watch_handles };
+			Root_parent_fs(Root &root) : _root(root) { }
+
+		} _root_parent_fs { *this };
 
 		Union_file_system _fs { *this, _root_parent_fs, File_system::Ident { "root" } };
+
+		void _for_each_watch_handle(auto const &cond_fn, auto const &fn)
+		{
+			/* loop for conditionally visiting each item outside the registry mutex */
+			for (;;) {
+				Watch_handle *ptr = nullptr;
+				_watch_handles.for_each([&] (Watch_handle &handle) {
+					if (!ptr && cond_fn(handle)) ptr = &handle; });
+
+				if (!ptr)
+					break;
+				fn(*ptr);
+			}
+		};
+
+		void _detach_channels(Span const &path)
+		{
+			_for_each_watch_handle(
+				[&] (Watch_handle &h) { return h.watching() && h.affected(path); },
+				[&] (Watch_handle &h) { h.unwatch(); });
+
+			_dir_handles.for_each([&] (Dir_handle &handle) {
+				if (handle.affected(path))
+					handle.detach(); });
+
+			_file_handles.for_each([&] (File_handle &handle) {
+				if (handle.affected(path))
+					while (handle.detach() == File_handle::Detach_result::RETRY)
+						commit_and_wait(); });
+		}
+
+		void _reattach_channels(Span const &path)
+		{
+			_for_each_watch_handle(
+				[&] (Watch_handle &h) { return !h.watching() && h.affected(path); },
+				[&] (Watch_handle &h) {
+					if (h.watch().failed())
+						warning("unable to re-watch ", h.path); });
+
+			_file_handles.for_each([&] (File_handle &handle) {
+				if (handle.affected(path))
+					while (handle.attach() == File_handle::Attach_error::RETRY)
+						commit_and_wait(); });
+		}
 
 	public:
 
@@ -114,46 +163,13 @@ class Genode::Vfs::Root : public Env, private Env::Io, private Env::User
 
 		Progress apply_config(Node const &config)
 		{
-			/* loop to conditionally visit each item outside the registry mutex */
-			auto for_each_watch_handle = [&] (auto const &cond_fn, auto const &fn)
-			{
-				for (;;) {
-					Watch_handle *ptr = nullptr;
-					_watch_handles.for_each([&] (Watch_handle &handle) {
-						if (!ptr && cond_fn(handle)) ptr = &handle; });
-
-					if (!ptr)
-						break;
-					fn(*ptr);
-				}
-			};
-
-			for_each_watch_handle(
-				[&] (Watch_handle &h) { return h.watching(); },
-				[&] (Watch_handle &h) { h.unwatch(); });
-
-			_dir_handles.for_each([&] (Dir_handle &handle) {
-				handle.detach(); });
-
-			_file_handles.for_each([&] (File_handle &handle) {
-				while (handle.detach() == File_handle::Detach_result::RETRY)
-					commit_and_wait(); });
+			_detach_channels(Span::from_cstring("/"));
 
 			Progress const result = _fs.update(config, _fs_factory);
-
 			if (result.progressed)
 				_fs.resume_after_update();
 
-			for_each_watch_handle(
-				[&] (Watch_handle &h) { return !h.watching(); },
-				[&] (Watch_handle &h) {
-					if (h.watch().failed())
-						warning("unable to re-watch ", h.path); });
-
-			_file_handles.for_each([&] (File_handle &handle) {
-				while (handle.attach() == File_handle::Attach_error::RETRY)
-					commit_and_wait(); });
-
+			_reattach_channels(Span::from_cstring("/"));
 			return result;
 		}
 

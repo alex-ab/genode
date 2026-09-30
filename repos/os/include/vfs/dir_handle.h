@@ -54,6 +54,17 @@ class Genode::Vfs::Dir_handle : Noncopyable
 
 		~Dir_handle() { detach(); }
 
+		bool affected(Span const &path_prefix) const
+		{
+			/*
+			 * Strip last path element from 'path_prefix' to detach the
+			 * composite dir channel of a union fs whenever an immediate child
+			 * is affected.
+			 */
+			return path.with_span([&] (Span const &s) {
+				return s.starts_with(without_last_path_elem(path_prefix)); });
+		}
+
 		void detach()
 		{
 			if (_channel_ptr)

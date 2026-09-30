@@ -96,6 +96,7 @@ namespace Genode::Vfs {
 	struct Parent_fs : Noncopyable, Interface
 	{
 		virtual void notify_watchers(Span const &) = 0;
+		virtual void detach_channels(Span const &) = 0;
 	};
 
 	static inline void with_compound_dir(Span const &path, auto const &fn)
@@ -116,6 +117,13 @@ namespace Genode::Vfs {
 		path.split('/', [&] (Span const &elem) {
 			if (elem.num_bytes)
 				fn(elem); });
+	}
+
+	static inline Span without_last_path_elem(Span const &path)
+	{
+		size_t n = path.num_bytes;
+		while (n > 0 && path.start[n - 1] != '/') n--;
+		return { path.start, n };
 	}
 
 	using Watch_result = Attempt<Ok, Alloc_error>;

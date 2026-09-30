@@ -193,6 +193,11 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 			_parent_fs.notify_watchers(rel_path);
 		}
 
+		void detach_channels(Span const &rel_path) override
+		{
+			_parent_fs.detach_channels(rel_path);
+		}
+
 	public:
 
 		Union_file_system(Env &env, Parent_fs &parent_fs, Ident const &ident)

@@ -505,15 +505,27 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 			return path;
 		}
 
-		/**
+		/*
 		 * Parent_fs role for the children of this file system
 		 */
-		void notify_watchers(Span const &rel_path) override
+
+		void _with_compound_path(Span const &rel_path, auto const &fn) const
 		{
 			using Path = String<MAX_PATH_LEN>;
-			Path { _FS_TYPE, "/", Cstring(rel_path.start, rel_path.num_bytes) }
-				.with_span([&] (Span const &s) {
-					_parent_fs.notify_watchers(s); });
+			Path { "/", _FS_TYPE, Cstring(rel_path.start, rel_path.num_bytes) }
+				.with_span([&] (Span const &s) { fn(s); });
+		}
+
+		void notify_watchers(Span const &rel_path) override
+		{
+			_with_compound_path(rel_path, [&] (Span const &s) {
+				_parent_fs.notify_watchers(s); });
+		}
+
+		void detach_channels(Span const &rel_path) override
+		{
+			_with_compound_path(rel_path, [&] (Span const &s) {
+				_parent_fs.detach_channels(s); });
 		}
 
 		Keys_file_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Tresor_crypto::Interface &crypto)

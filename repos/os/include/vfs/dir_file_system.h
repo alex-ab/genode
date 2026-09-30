@@ -128,15 +128,27 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 
 	protected:
 
-		/**
+		/*
 		 * Parent_fs role for '_union' child of this dir file system
 		 */
-		void notify_watchers(Span const &rel_path) override
+
+		void _with_compound_path(Span const &rel_path, auto const &fn) const
 		{
 			using Path = String<MAX_PATH_LEN>;
 			Path { "/", _name, Cstring(rel_path.start, rel_path.num_bytes) }
-				.with_span([&] (Span const &s) {
-					_parent_fs.notify_watchers(s); });
+				.with_span([&] (Span const &s) { fn(s); });
+		}
+
+		void notify_watchers(Span const &rel_path) override
+		{
+			_with_compound_path(rel_path, [&] (Span const &s) {
+				_parent_fs.notify_watchers(s); });
+		}
+
+		void detach_channels(Span const &rel_path) override
+		{
+			_with_compound_path(rel_path, [&] (Span const &s) {
+				_parent_fs.detach_channels(s); });
 		}
 
 	public:

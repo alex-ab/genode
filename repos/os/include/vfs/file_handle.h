@@ -132,6 +132,11 @@ class Genode::Vfs::File_handle : Noncopyable
 				warning("destructing still attached VFS file handle for ", path);
 		}
 
+		bool affected(Span const &path_prefix) const
+		{
+			return path.with_span([&] (Span const &s) { return s.starts_with(path_prefix); });
+		}
+
 		Attach_result attach()
 		{
 			return _with_channel(
