@@ -15,6 +15,7 @@
 #include <base/log.h>
 #include <xml/generator.h>
 #include <xml/node.h>
+#include <base/node.h>
 
 using Genode::size_t;
 
@@ -165,6 +166,63 @@ static size_t xml_with_exceptions(Genode::Byte_range_ptr const &dst)
 	                   [&] (Buffer_error) -> size_t { throw Buffer_exceeded(); });
 }
 
+
+static void process_hid_node(Genode::Node const &hid, Genode::Xml_generator &xml)
+{
+	using namespace Genode;
+
+	/* attributes */
+	hid.for_each_attribute([&] (Node::Attribute const &a) {
+		xml.attribute(Generator::Tag_name { a.tag }.string(), a.value.start, a.value.num_bytes);
+	});
+
+	bool parse_quoted = true;
+
+	/* subordinate nodes */
+	hid.for_each_sub_node([&] (Node const &n) {
+		parse_quoted = false;
+		xml.node(n.type().string(), [&] () {
+			process_hid_node(n, xml);
+		});
+	});
+
+	/* mixing of quoted content and sub-nodes within one node is not supported */
+	if (!parse_quoted) return;
+
+	/* quoted content */
+	hid.for_each_quoted_line([&] (auto const &l) {
+		xml.append_sanitized(l.bytes.start, l.bytes.num_bytes);
+		if (!l.last) xml.append("\n");
+	});
+}
+
+
+static bool test_hid_to_xml(Genode::Span const &in, Genode::Byte_range_ptr &out)
+{
+	/* comments are not converted */
+
+	using namespace Genode;
+
+	Node hid { in };
+
+	if (!hid.valid()) {
+		log("abort conversion - invalid HID");
+		return false;
+	}
+
+	bool success = false;
+
+	Xml_generator::generate(out, { hid.type() }, [&] (Xml_generator &xml) {
+		process_hid_node(hid, xml);
+	}).with_result(
+		[&] (size_t) { success = true; },
+		[&] (auto)   { log("truncated conversion - buffer too small"); }
+	);
+
+	return success;
+}
+
+
 extern void gcov_init(Genode::Env &env);
 extern void genode_exit(int status);
 
@@ -249,6 +307,46 @@ void Component::construct(Genode::Env &env)
 			return;
 		}
 	}
+
+	/*
+	 * Test HID-to-XML conversion
+	 */
+	{
+		static char buf_4b[4];
+		static char buf_4kb[0x1000];
+
+		auto test = [&] (char const *hid, auto &buf) {
+			Byte_range_ptr xml { buf, sizeof(buf) };
+			if (test_hid_to_xml({ hid, strlen(hid) }, xml))
+				log(Xml_node(Span { xml.start, xml.num_bytes }));
+		};
+
+		char const * const test_xml =
+		"test\n"
+		"+ config\n"
+		"  + vfs\n"
+		"    . comment here\n"
+		"    .\n"
+		"    + tar bash.tar\n"
+		"\n"
+		"    + dir dev\n"
+		"      . pseudo devices used by libc\n"
+		"      + log\n"
+		"      + inline rtc | : 2026-09-30 16:00\n"
+		"    + inline motd\n"
+		"      : line 1\n"
+		"      : line 2\n"
+		"      : line 3\n"
+		"  + libc | stdout: /dev/log | rtc: /dev/rtc\n"
+		"-";
+
+		test("",              buf_4b);
+		test("-",             buf_4b);
+		test("test nomen\n-", buf_4b);
+		test("test nomen\n-", buf_4kb);
+		test(test_xml,        buf_4kb);
+	}
+	log("");
 
 	log("--- XML generator test finished ---");
 	genode_exit(0);

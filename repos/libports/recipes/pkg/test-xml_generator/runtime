@@ -54,6 +54,26 @@ runtime | ram: 2M | caps: 100 | binary: test-xml_generator
   : *	</level1>
   : </config>
   :
+  : abort conversion - invalid HID
+  : abort conversion - invalid HID
+  : truncated conversion - buffer too small
+  : <test name="nomen"/>
+  : <test>
+  : *	<config>
+  : *		<vfs>
+  : *			<tar name="bash.tar"/>
+  : *			<dir name="dev">
+  : *				<log/>
+  : *				<inline name="rtc">2026-09-30 16:00</inline>
+  : *			</dir>
+  : *			<inline name="motd">line 1
+  : line 2
+  : line 3</inline>
+  : *		</vfs>
+  : *		<libc stdout="/dev/log" rtc="/dev/rtc"/>
+  : *	</config>
+  : </test>
+  :
   : --- XML generator test finished ---
 
 + content
