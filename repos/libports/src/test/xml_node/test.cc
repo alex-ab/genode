@@ -17,6 +17,7 @@
 #include <base/attached_ram_dataspace.h>
 #include <base/component.h>
 #include <base/log.h>
+#include <base/node.h>
 
 using namespace Genode;
 
@@ -374,6 +375,58 @@ static void test_decoded_content(Env        &env,
 }
 
 
+static void process_xml_node(Xml_node const &xml, Generator &hid)
+{
+	/* attributes */
+	xml.for_each_attribute([&] (Xml_attribute const &a) {
+		a.with_raw_value([&] (char const *s, size_t l) {
+			hid.attribute(a.name().string(), s, l);
+		});
+	});
+
+	bool parse_cdata = true;
+
+	/* subordinate nodes */
+	xml.for_each_sub_node([&] (Xml_node const &n) {
+		parse_cdata = false;
+		hid.node(n.type().string(), [&] () {
+			process_xml_node(n, hid);
+		});
+	});
+
+	/* mixing of CDATA and XML content within one node is not supported */
+	if (!parse_cdata) return;
+
+	/* CDATA */
+	xml.for_each_quoted_line([&] (auto const &l) {
+		hid.append_quoted(l.bytes.start, l.bytes.num_bytes);
+	});
+};
+
+
+static bool test_xml_to_hid(Span const &in, Byte_range_ptr &out)
+{
+	/* comments are not converted */
+
+	try {
+		Xml_node xml { in };
+
+		bool success = false;
+
+		Generator::generate(out, xml.type(), [&] (Generator &hid) {
+			process_xml_node(xml, hid);
+		}).with_result(
+			[&] (size_t) { success = true; },
+			[&] (auto)   { log("truncated conversion - buffer too small"); }
+		);
+
+		return success;
+	} catch (Xml_attribute::Invalid_syntax &) {
+		log("abort conversion - invalid XML");
+		return false;
+	}
+}
+
 void Component::construct(Genode::Env &env)
 {
 	log("--- XML-token test ---");
@@ -448,6 +501,26 @@ void Component::construct(Genode::Env &env)
 		Xml_node("<lines>\n\t <xml/> </lines>")
 			.for_each_quoted_line([&] (Xml_node::Quoted_line const &) {
 				log("should not appear because content is no CDATA"); });
+	}
+	log("");
+
+	log("-- Test XML-to-HID conversion --");
+	{
+		static char buf_4b[4];
+		static char buf_4kb[0x1000];
+
+		auto test = [&] (char const *xml, auto &buf) {
+			Byte_range_ptr hid { buf, sizeof(buf) };
+			if (test_xml_to_hid({ xml, strlen(xml) }, hid))
+				log(Node({ hid.start, hid.num_bytes }));
+		};
+
+		test("",                          buf_4b);
+		test("<test name=\"nomen\"/>",    buf_4b);
+		test("<test name=\"nomen\"/>",    buf_4kb);
+		test(xml_test_valid,              buf_4kb);
+		test(xml_test_text_between_nodes, buf_4kb);
+		test(xml_test_truncated,          buf_4kb);
 	}
 	log("");
 

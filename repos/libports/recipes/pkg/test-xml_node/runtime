@@ -117,6 +117,35 @@ runtime | ram: 10M | caps: 100 | binary: test-xml_node
   : line 2: 'third' last=0
   : line 3: 'last' last=1
   :
+  : -- Test XML-to-HID conversion --
+  : abort conversion - invalid XML
+  : truncated conversion - buffer too small
+  : test nomen
+  : -
+  : config
+  : + program
+  : * + filename
+  : *   : init
+  : * + quota
+  : *   : 16M
+  : + program
+  : * + filename
+  : *   : timer
+  : * + quota
+  : *   : 64K
+  : + program
+  : * + filename
+  : *   : framebuffer
+  : * + quota
+  : *   : 8M
+  : -
+  : config
+  : + program | attr: abcd
+  : + program
+  : * : inProgram
+  : -
+  : abort conversion - invalid XML
+  :
   : --- End of XML-parser test ---
 
 + content
