@@ -23,7 +23,6 @@
 namespace Genode {
 	class Node;
 	class Generator;
-	class Xml_node; /* forward declaration */
 }
 
 
