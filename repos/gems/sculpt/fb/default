@@ -1,3 +1,9 @@
 config | managed: yes | width: 1024 | height: 768 | max_width: 3840 | max_height: 2160
 + report | connectors: yes
++ vfs
+  | . The firmware is solely required for the pc_intel_fb driver
+  | . when driving Xe devices (Panther Lake) and should be ignored by
+  | . all other drivers, including ARM ones.
+  + dir firmware
+    + tar pc_display_firmware.tar
 -
