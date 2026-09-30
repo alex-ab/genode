@@ -337,6 +337,9 @@ proc query_expected_log_pattern { } {
 		# prevent pipe characters from interpretation as regexp OR
 		regsub -all {[|]} $line {[|]} line
 
+		# prevent plus characters from interpretation as sequence of 1 or more matches of the atom
+		regsub -all {\+} $line {\+} line
+
 		# replace wildcards by non-greedy regexp wildcards
 		regsub -all {\*} $line {.*?} line
 
