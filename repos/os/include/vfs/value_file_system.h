@@ -2,6 +2,7 @@
  * \brief  File system for providing a value as a file
  * \author Josef Soentgen
  * \author Sebastian Sumpf
+ * \author Norman Feske
  * \date   2018-11-24
  */
 
@@ -33,15 +34,20 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 
 	private:
 
-		using Buffer = String<BUF_SIZE + 1>;
+		struct Buffer { char bytes[BUF_SIZE]; size_t len; };
 
-		Buffer _buffer { };
+		/*
+		 * The '_back' buffer is targeted by read and write operations.
+		 * The '_front' buffer is consumed by the VFS plugin. In contrast
+		 * to '_back' that can be filled via multiple consecutivy write
+		 * operations, '_front' contains a consistent state.
+		 */
+		Buffer _back { }, _front { };
 
 		struct File_channel : Vfs::File_channel
 		{
 			Allocator         &_alloc;
 			Value_file_system &_value_fs;
-			Buffer            &_buffer { _value_fs._buffer };
 
 			File_channel(Allocator &alloc, Attr attr, Value_file_system &value_fs)
 			:
@@ -50,34 +56,33 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 
 			Read_result read(At const at, Byte_range_ptr const &dst) override
 			{
-				if (at.pos >= _buffer.length())
+				if (at.pos >= _value_fs._back.len)
 					return Read_eof();
 
-				char const * const src = _buffer.string() + at.pos;
-				size_t const len = min((size_t)(_buffer.length() - at.pos), dst.num_bytes);
+				size_t const n = min(size_t(_value_fs._back.len - at.pos), dst.num_bytes);
 
-				memcpy(dst.start, src, len);
-				return len;
+				memcpy(dst.start, _value_fs._back.bytes + at.pos, n);
+				return n;
 			}
 
 			Write_result write(At const at, Const_byte_range_ptr const &src) override
 			{
-				if (!writeable || at.pos > BUF_SIZE)
+				if (!writeable || at.pos >= BUF_SIZE)
 					return Write_error::DENIED;
 
-				size_t const len = min(size_t(BUF_SIZE - at.pos), src.num_bytes);
+				size_t const n = min(size_t(BUF_SIZE - at.pos), src.num_bytes);
 
-				_buffer = Buffer(Cstring(src.start, len));
-
-				_value_fs._notify_watchers();
-
-				return len;
+				memcpy(_value_fs._back.bytes + at.pos, src.start, n);
+				_value_fs._back.len = max(_value_fs._back.len, size_t(at.pos + n));
+				return n;
 			}
 
 			Resize_result resize(file_size size) override
 			{
-				if (!writeable || size >= BUF_SIZE)
+				if (!writeable || size > BUF_SIZE)
 					return Resize_result::DENIED;
+
+				_value_fs._back.len = size_t(size);
 
 				return Resize_result::OK;
 			}
@@ -86,36 +91,46 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 			bool write_ready() const override { return true; }
 
 			void destruct() override { destroy(_alloc, this); }
+
+			Sync_result sync() override
+			{
+				_value_fs._front = _value_fs._back;
+				_value_fs._notify_watchers();
+				return Sync_result::OK;
+			}
 		};
 
 	public:
 
 		Value_file_system(Parent_fs &parent_fs, Name const &name,
-		                  Buffer const &initial_value)
+		                  auto const &initial_value)
 		:
 			Single_file_system(parent_fs, {
 				.ident = { { "value ", name } },
 				.name  = name,
-				.rwx   = File::RW_TRANSACTIONAL
+				.rwx   = File::RW_CONTINUOUS
 			})
 		{
 			value(initial_value);
 		}
 
-		void value(Buffer const &value)
+		void value(auto const &value)
 		{
-			_buffer = Buffer(value);
+			String<BUF_SIZE + 1>(value).with_span([&] (Span const &s) {
+				memcpy(_back.bytes, s.start, s.num_bytes);
+				_back.len = s.num_bytes;
+			});
+			_front = _back;
 		}
 
-		T value()
+		T value() const
 		{
-			T val { 0 };
-			ascii_to(_buffer.string(), val);
-
+			T val { };
+			parse(Span(_front.bytes, _front.len), val);
 			return val;
 		}
 
-		Buffer buffer() const  { return _buffer; }
+		void with_span(auto const &fn) const { fn(Span(_front.bytes, _front.len)); }
 
 		Open_result open(char const *path, Open_attr attr, Allocator &alloc) override
 		{
@@ -133,7 +148,7 @@ class Genode::Vfs::Value_file_system : public Single_file_system
 		Stat_result stat(char const *path, Stat &out) override
 		{
 			Stat_result result = Single_file_system::stat(path, out);
-			out.size = _buffer.length();
+			out.size = _back.len;
 			return result;
 		}
 };

@@ -34,8 +34,7 @@ namespace Vfs_tap {
 	};
 	static inline size_t parse(Span const &, Uplink_mode &);
 
-	/* overload Value_file_system to work with Net::Mac_address */
-	class Mac_file_system;
+	using Mac_file_system = Value_file_system<Net::Mac_address>;
 
 	using Name  = String<64>;
 
@@ -43,34 +42,6 @@ namespace Vfs_tap {
 	template <typename> struct Compound_file_system;
 
 	struct Device_update_handler;
-};
-
-
-class Vfs_tap::Mac_file_system : public Value_file_system<Net::Mac_address>
-{
-	public:
-
-		Mac_file_system(Parent_fs &parent_fs, Name const &name, Net::Mac_address const &mac)
-		: Value_file_system(parent_fs, name, mac)
-		{ }
-
-		using Value_file_system<Net::Mac_address>::value;
-
-		Net::Mac_address value()
-		{
-			Net::Mac_address val { };
-			val.parse(Span { buffer().string(), buffer().length() });
-
-			return val;
-		}
-
-		Net::Mac_address value() const
-		{
-			Net::Mac_address val { };
-			val.parse(Span { buffer().string(), buffer().length() });
-
-			return val;
-		}
 };
 
 

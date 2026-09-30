@@ -240,7 +240,7 @@ struct Vfs_trace::Subject : Dir_file_system, private Vfs::File_system::Factory
 
 	Value_file_system<bool, 6>             _enabled_fs { *this, "enable", "false\n"};
 	Value_file_system<Number_of_bytes, 16> _buffer_size_fs { *this, "buffer_size", "1M\n"};
-	String<17>                             _buffer_string { _buffer_size_fs.buffer() };
+	String<17>                             _buffer_string { _buffer_size_fs.value() };
 	Trace_buffer_file_system               _trace_fs;
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
@@ -281,7 +281,7 @@ struct Vfs_trace::Subject : Dir_file_system, private Vfs::File_system::Factory
 			return;
 		}
 
-		_buffer_string = _buffer_size_fs.buffer();
+		_buffer_size_fs.with_span([&] (Span const &s) { _buffer_string = { s }; });
 	}
 
 	using Config = String<200>;
