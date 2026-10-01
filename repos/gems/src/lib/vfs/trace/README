@@ -27,7 +27,7 @@ in the plugin. It limits the number of thread that can be traced at once.
 
 Limitations:
 
-The plugin retrieves up to 128 running components at load time. There is
+The plugin retrieves up to 2048 running components at load time. There is
 currently no support to add or remove components once the plugin has been
 started. This implies that components that are started at a later stage will not
 appear within the file system.

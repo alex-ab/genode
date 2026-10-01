@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (C) 2023 Genode Labs GmbH
+ * Copyright (C) 2023-2026 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
@@ -98,6 +98,14 @@ class Vfs_trace::Trace_node : public Dictionary::Element
 			});
 		}
 
+		void clear()
+		{
+			while(_dict.with_any_element([&] (Trace_node &node) {
+				node.clear();
+				destroy(_alloc, &node);
+			})) { };
+		}
+
 		Trace::Subject_id const &id() const { return _id; }
 };
 
@@ -114,6 +122,8 @@ class Vfs_trace::Trace_directory
 
 		Trace_directory(Allocator &alloc) : _alloc(alloc) { }
 
+		~Trace_directory() { _root.clear(); }
+
 		void insert(Trace::Subject_info const &info, Trace::Subject_id const id)
 		{
 			_root.insert(info.session_label(), info.thread_name(), id);
@@ -122,6 +132,11 @@ class Vfs_trace::Trace_directory
 		void generate(Generator &g)
 		{
 			_root.generate(g);
+		}
+
+		void clear()
+		{
+			_root.clear();
 		}
 };
 

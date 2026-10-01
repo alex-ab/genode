@@ -5,14 +5,15 @@
  */
 
 /*
- * Copyright (C) 2023 Genode Labs GmbH
+ * Copyright (C) 2019-2026 Genode Labs GmbH
  *
  * This file is part of the Genode OS framework, which is distributed
  * under the terms of the GNU Affero General Public License version 3.
  */
 
-#include <base/attached_rom_dataspace.h>
 #include <base/attached_dataspace.h>
+#include <base/attached_ram_dataspace.h>
+#include <base/attached_rom_dataspace.h>
 #include <vfs/dir_file_system.h>
 #include <vfs/single_file_system.h>
 #include <vfs/value_file_system.h>
@@ -316,10 +317,16 @@ struct Vfs_trace::Subject : Dir_file_system, private Vfs::File_system::Factory
 	}
 
 	~Subject() { Dir_file_system::update(Node(), *this); }
+
+	Progress update(Node const &node, Vfs::File_system::Factory &) override
+	{
+		return _config(node).with_span([&] (Span const &s) {
+			return Dir_file_system::update(Node(s), *this); });
+	}
 };
 
 
-struct Vfs_trace::File_system : Dir_file_system, private Vfs::File_system::Factory
+struct Vfs_trace::File_system : Union_file_system, private Vfs::File_system::Factory
 {
 	using Policy_id = Trace::Connection::Alloc_policy_result;
 
@@ -369,58 +376,105 @@ struct Vfs_trace::File_system : Dir_file_system, private Vfs::File_system::Facto
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &parent_fs, Node const &node) override
 	{
-		return _policy_id.convert<Instance::Attempt>(
-			[&] (Trace::Policy_id const id) {
-				auto &fs = *new (_env.alloc())
-					Subject(_env, parent_fs, _trace, id, node);
-				return Instance::Attempt { *this, { fs } };
-			},
-			[&] (Trace::Connection::Alloc_policy_error) {
-				return Error::DENIED;
-			});
+		if (node.type() == "dir") {
+			auto &fs = *new (_env.alloc()) Dir_file_system(_env, parent_fs, _name(node));
+			return { *this, { fs } };
+		}
+
+		if (node.type() == "trace_node")
+			return _policy_id.convert<Instance::Attempt>(
+				[&] (Trace::Policy_id const id) {
+					auto &fs = *new (_env.alloc()) Subject(_env, parent_fs, _trace, id, node);
+					return Instance::Attempt { *this, { fs } };
+				},
+				[&] (Trace::Connection::Alloc_policy_error) {
+					return Error::DENIED;
+				});
+
+		return Error::DENIED;
 	}
 
 	void _free(Instance &inst) override { destroy(_env.alloc(), &inst.fs); };
 
-	static Const_byte_range_ptr _config(Vfs::Env &vfs_env, Trace_directory &directory)
-	{
-		char *buf = (char *)vfs_env.alloc().alloc(512*1024);
+	static Name _name(Node const &n) { return n.attribute_value("name", Name()); }
 
-		return Generator::generate({ buf, sizeof(buf) }, "node",
-			[&] (Generator &g) { directory.generate(g); }
-		).convert<Const_byte_range_ptr>(
-			[&] (size_t num_bytes) {
-				return Const_byte_range_ptr(buf, num_bytes); },
-			[&] (Buffer_error) {
-				warning("VFS-trace node exceeds maximum buffer size");
+	Constructible<Attached_ram_dataspace> _vfs_config_ram { };
+
+	bool _resize_config_ram()
+	{
+		size_t size = _vfs_config_ram->size() * 2;
+
+		_vfs_config_ram.destruct();
+
+		/* limit to 2MB for now */
+		if (size > 2ul * 1024 * 1024) return false;
+
+		_vfs_config_ram.construct(_env.env().ram(), _env.env().rm(), size);
+
+		return true;
+	}
+
+	Const_byte_range_ptr _config(Trace_directory &directory)
+	{
+		char  *buf      = _vfs_config_ram->local_addr<char>();
+		size_t buf_size = _vfs_config_ram->size();
+
+		while (Generator::generate({ buf, buf_size }, "composite",
+		       [&] (Generator &g) { directory.generate(g); }).failed()) {
+			/* limit reached */
+			if (!_resize_config_ram()) {
+				warning("VFS-trace node exceeds maximum buffer size (>2MB)");
 				return Const_byte_range_ptr(nullptr, 0);
-			});
+			}
+
+			buf      = _vfs_config_ram->local_addr<char>();
+			buf_size = _vfs_config_ram->size();
+		}
+
+		return Const_byte_range_ptr(buf, buf_size);
+	}
+
+	void _update_trace_subjects()
+	{
+		_directory.clear();
+
+		unsigned subjects { 0 }, dead { 0 }, good { 0 };
+		_trace.for_each_subject_info([&] (Trace::Subject_id   const id,
+		                                  Trace::Subject_info const &info) {
+			subjects++;
+			if (info.state() == Trace::Subject_info::DEAD) {
+				dead++;
+				return;
+			}
+
+			good++;
+			_directory.insert(info, id);
+		});
+
+		log("retrieved: ", good, "/", subjects, " subjects (", dead,  " dead)");
 	}
 
 	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
 	:
-		Dir_file_system(vfs_env, parent_fs,
-		                Node(_config(vfs_env, _directory)).attribute_value("name", String<64>()),
-		                Ident::from_node(node)),
+		Union_file_system(vfs_env, parent_fs, Ident::from_node(node)),
 		_env(vfs_env), _trace(vfs_env.env(), _config_session_ram(node), 512*1024)
 	{
-		Dir_file_system::update(Node(_config(vfs_env, _directory)), *this);
-
-		_trace.for_each_subject_info([&] (Trace::Subject_id   const id,
-		                                  Trace::Subject_info const &info) {
-
-			if (info.state() == Trace::Subject_info::DEAD)
-				return;
-
-			_directory.insert(info, id);
-		});
 
 		_install_null_policy();
+
+		_update_trace_subjects();
+
+		_vfs_config_ram.construct(_env.env().ram(), _env.env().rm(), 512 * 1024);
 	}
 
-	~File_system() { Dir_file_system::update(Node(), *this); }
+	~File_system() { Union_file_system::update(Node(), *this); }
 
 	void destruct() override { destroy(_env.alloc(), this); }
+
+	Progress update(Node const &, Vfs::File_system::Factory &) override
+	{
+		return Union_file_system::update(Node(_config(_directory)), *this);
+	}
 };
 
 
