@@ -105,7 +105,6 @@ class Vfs_symlink::File_system : public Single_file_system
 		Stat_result stat(char const *path, Stat &out) override
 		{
 			out = Stat { };
-			out.device = (addr_t)this;
 
 			if (_single_file(path)) {
 				out.type = Dirent_type::SYMLINK,

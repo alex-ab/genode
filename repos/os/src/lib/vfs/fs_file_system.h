@@ -104,11 +104,11 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 			switch (type) {
 			case Node_type::DIRECTORY:          return Dirent_type::DIRECTORY;
-			case Node_type::CONTINUOUS_FILE:    return Dirent_type::CONTINUOUS_FILE;
-			case Node_type::TRANSACTIONAL_FILE: return Dirent_type::TRANSACTIONAL_FILE;
+			case Node_type::CONTINUOUS_FILE:    return Dirent_type::FILE;
+			case Node_type::TRANSACTIONAL_FILE: return Dirent_type::DEVICE;
 			case Node_type::SYMLINK:            return Dirent_type::SYMLINK;
 			}
-			return Dirent_type::CONTINUOUS_FILE;
+			return Dirent_type::FILE;
 		}
 
 		/**
@@ -756,10 +756,9 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 			out = Stat();
 
-			out.size   = status.size;
-			out.type   = _dirent_type(status.type);
-			out.rwx    = _node_rwx(status.rwx);
-			out.device = (addr_t)this;
+			out.size = status.size;
+			out.type = _dirent_type(status.type);
+			out.rwx  = _node_rwx(status.rwx);
 			out.modification_time = {
 				.ms_since_1970 = status.modification_time.ms_since_1970 };
 

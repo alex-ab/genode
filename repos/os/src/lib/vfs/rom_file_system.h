@@ -161,7 +161,7 @@ class Vfs_rom::File_system : public Single_file_system
 			 * found a file), obtain the size of the most current ROM module
 			 * version.
 			 */
-			if (out.type == Dirent_type::CONTINUOUS_FILE) {
+			if (out.type == Dirent_type::FILE) {
 				_update();
 				out.size = _content_size;
 				out.rwx  = { .readable   = true,

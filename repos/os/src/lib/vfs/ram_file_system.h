@@ -394,7 +394,7 @@ class Vfs_ram::Directory : public Vfs_ram::Node
 			{
 				if (dynamic_cast<Directory *>(node_ptr)) return Dirent_type::DIRECTORY;
 				if (dynamic_cast<Symlink   *>(node_ptr)) return Dirent_type::SYMLINK;
-				return Dirent_type::CONTINUOUS_FILE;
+				return Dirent_type::FILE;
 			};
 
 			out = {
@@ -614,14 +614,13 @@ class Vfs_ram::File_system : public Vfs::File_system
 				if (dynamic_cast<Directory *>(node_ptr)) return Dirent_type::DIRECTORY;
 				if (dynamic_cast<Symlink   *>(node_ptr)) return Dirent_type::SYMLINK;
 
-				return Dirent_type::CONTINUOUS_FILE;
+				return Dirent_type::FILE;
 			};
 
 			stat = {
 				.size              = node.length(),
 				.type              = dirent_type(),
 				.rwx               = node.rwx(),
-				.device            = (addr_t)this,
 				.modification_time = node.mtime
 			};
 

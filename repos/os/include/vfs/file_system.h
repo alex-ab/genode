@@ -130,11 +130,10 @@ struct Genode::Vfs::File_system : Interface, Noncopyable
 
 	struct Stat
 	{
-		file_size     size;
-		Dirent_type   type;
-		Node_rwx      rwx;
-		unsigned long device;
-		Timestamp     modification_time;
+		file_size   size;
+		Dirent_type type;
+		Node_rwx    rwx;
+		Timestamp   modification_time;
 	};
 
 	virtual Stat_result stat(char const *path, Stat &)

@@ -80,8 +80,8 @@ struct Vfs_import::File_system : Vfs::File_system
 		Directory(src,path).for_each_entry([&] (Directory::Entry const &e) {
 			auto entry_path = Directory::join(path, e.name());
 			switch (e.type()) {
-			case Dirent_type::TRANSACTIONAL_FILE:
-			case Dirent_type::CONTINUOUS_FILE:
+			case Dirent_type::DEVICE:
+			case Dirent_type::FILE:
 				if (dst.entry_exists(entry_path) && !overwrite)
 					log("retaining ", entry_path, " instead of importing file");
 				else

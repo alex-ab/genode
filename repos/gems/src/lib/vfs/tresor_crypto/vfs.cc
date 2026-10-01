@@ -577,8 +577,7 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 			 * current directory.
 			 */
 			if (strlen(path) == 0 || _top_dir(path)) {
-				out_stat.type   = Dirent_type::DIRECTORY;
-				out_stat.device = (addr_t)this;
+				out_stat.type = Dirent_type::DIRECTORY;
 				return Stat_result::OK;
 			}
 

@@ -71,11 +71,11 @@ struct Genode::Directory : Noncopyable, Interface
 
 					print(out, _dirent.name.buf, " (");
 					switch (_dirent.type) {
-					case Dirent_type::TRANSACTIONAL_FILE: print(out, "file");    break;
-					case Dirent_type::CONTINUOUS_FILE:    print(out, "file");    break;
-					case Dirent_type::DIRECTORY:          print(out, "dir");     break;
-					case Dirent_type::SYMLINK:            print(out, "symlink"); break;
-					default:                              print(out, "other");   break;
+					case Dirent_type::DEVICE:    print(out, "device");  break;
+					case Dirent_type::FILE:      print(out, "file");    break;
+					case Dirent_type::DIRECTORY: print(out, "dir");     break;
+					case Dirent_type::SYMLINK:   print(out, "symlink"); break;
+					default:                     print(out, "other");   break;
 					}
 					print(out, ")");
 				}
@@ -238,8 +238,8 @@ struct Genode::Directory : Noncopyable, Interface
 			if (_stat(rel_path, stat) != Vfs::Stat_result::OK)
 				return false;
 
-			return stat.type == Vfs::Dirent_type::TRANSACTIONAL_FILE
-			    || stat.type == Vfs::Dirent_type::CONTINUOUS_FILE;
+			return stat.type == Vfs::Dirent_type::DEVICE
+			    || stat.type == Vfs::Dirent_type::FILE;
 		}
 
 		bool directory_exists(Path const &rel_path) const
@@ -282,8 +282,8 @@ struct Genode::Directory : Noncopyable, Interface
 			if (_stat(rel_path, stat) != Vfs::Stat_result::OK)
 				throw Nonexistent_file();
 
-			if (stat.type == Vfs::Dirent_type::TRANSACTIONAL_FILE
-			 || stat.type == Vfs::Dirent_type::CONTINUOUS_FILE)
+			if (stat.type == Vfs::Dirent_type::DEVICE
+			 || stat.type == Vfs::Dirent_type::FILE)
 				return stat.size;
 
 			throw Nonexistent_file();

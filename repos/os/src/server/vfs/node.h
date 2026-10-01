@@ -671,7 +671,7 @@ class Vfs_server::File : public Io_node, public Vfs::Read_ready_response_handler
 
 				Vfs::File_system::Stat stat { };
 				if (env.fs().stat(path.string(), stat) == Stat_result::OK)
-					_write_type = (stat.type == Vfs::Dirent_type::CONTINUOUS_FILE)
+					_write_type = (stat.type == Vfs::Dirent_type::FILE)
 					            ? Write_type::CONTINUOUS : Write_type::TRANSACTIONAL;
 			}
 		}
@@ -794,10 +794,10 @@ struct Vfs_server::Directory : Io_node
 				To const default_result = To::CONTINUOUS_FILE;
 
 				switch (type) {
-				case From::DIRECTORY:          return To::DIRECTORY;
-				case From::SYMLINK:            return To::SYMLINK;
-				case From::CONTINUOUS_FILE:    return To::CONTINUOUS_FILE;
-				case From::TRANSACTIONAL_FILE: return To::TRANSACTIONAL_FILE;
+				case From::DIRECTORY: return To::DIRECTORY;
+				case From::SYMLINK:   return To::SYMLINK;
+				case From::FILE:      return To::CONTINUOUS_FILE;
+				case From::DEVICE:    return To::TRANSACTIONAL_FILE;
 				}
 				return default_result;
 			};

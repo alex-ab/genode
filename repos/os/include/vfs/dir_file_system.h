@@ -186,7 +186,6 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 					.size              = 0,
 					.type              = Dirent_type::DIRECTORY,
 					.rwx               = Node_rwx::rwx(),
-					.device            = (addr_t)this,
 					.modification_time = { },
 				};
 				return Stat_result::OK;

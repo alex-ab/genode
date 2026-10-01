@@ -88,10 +88,10 @@ static void vfs_stat_to_libc_stat_struct(Genode::Vfs::File_system::Stat const &s
 	auto type = [] (Genode::Vfs::Dirent_type type)
 	{
 		switch (type) {
-		case Vfs::Dirent_type::DIRECTORY:          return S_IFDIR;
-		case Vfs::Dirent_type::CONTINUOUS_FILE:    return S_IFREG;
-		case Vfs::Dirent_type::TRANSACTIONAL_FILE: return S_IFCHR;
-		case Vfs::Dirent_type::SYMLINK:            return S_IFLNK;
+		case Vfs::Dirent_type::DIRECTORY: return S_IFDIR;
+		case Vfs::Dirent_type::FILE:      return S_IFREG;
+		case Vfs::Dirent_type::DEVICE:    return S_IFCHR;
+		case Vfs::Dirent_type::SYMLINK:   return S_IFLNK;
 		}
 		return 0;
 	};
@@ -112,7 +112,7 @@ static void vfs_stat_to_libc_stat_struct(Genode::Vfs::File_system::Stat const &s
 	dst.st_blksize = FS_BLOCK_SIZE;
 	dst.st_blocks  = (dst.st_size + FS_BLOCK_SIZE - 1) / FS_BLOCK_SIZE;
 	dst.st_ino     = pseudo_inode_from_path(path);
-	dst.st_dev     = src.device;
+	dst.st_dev     = 1;
 	dst.st_mtim    = mtime;
 	dst.st_nlink   = 1;
 }
@@ -480,7 +480,7 @@ ssize_t Libc::Fs::write(Open_file &of, const void *buf, ::size_t count, bool non
 			if (_vfs.stat(of.handle.path.string(), stat) != Vfs::Stat_result::OK)
 				return false;
 
-			return stat.type == Vfs::Dirent_type::CONTINUOUS_FILE;
+			return stat.type == Vfs::Dirent_type::FILE;
 		};
 
 		_monitor.monitor([&] {
@@ -623,10 +623,10 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 	auto dirent_type = [] (Vfs::Dirent_type type)
 	{
 		switch (type) {
-		case Vfs::Dirent_type::DIRECTORY:          return DT_DIR;
-		case Vfs::Dirent_type::CONTINUOUS_FILE:    return DT_REG;
-		case Vfs::Dirent_type::TRANSACTIONAL_FILE: return DT_CHR;
-		case Vfs::Dirent_type::SYMLINK:            return DT_LNK;
+		case Vfs::Dirent_type::DIRECTORY: return DT_DIR;
+		case Vfs::Dirent_type::FILE:      return DT_REG;
+		case Vfs::Dirent_type::DEVICE:    return DT_CHR;
+		case Vfs::Dirent_type::SYMLINK:   return DT_LNK;
 		}
 		return DT_UNKNOWN;
 	};

@@ -102,8 +102,7 @@ class Genode::Vfs::Single_file_system : public File_system
 				Dirent &out = *(Dirent*)dst.start;
 				out = {
 					.type = (_fs.rwx.w == File::Write::TRANSACTIONAL)
-					        ? Dirent_type::TRANSACTIONAL_FILE
-					        : Dirent_type::CONTINUOUS_FILE,
+					        ? Dirent_type::DEVICE : Dirent_type::FILE,
 					.rwx  = _fs._node_rwx(),
 					.name = { _fs.name.string.string() }
 				};
@@ -147,15 +146,13 @@ class Genode::Vfs::Single_file_system : public File_system
 		Stat_result stat(char const *path, Stat &out) override
 		{
 			out = Stat { };
-			out.device = (addr_t)this;
 
 			if (_root(path)) {
 				out.type = Dirent_type::DIRECTORY;
 
 			} else if (_single_file(path)) {
 				out.type = (rwx.w == File::Write::TRANSACTIONAL)
-				           ? Dirent_type::TRANSACTIONAL_FILE
-				           : Dirent_type::CONTINUOUS_FILE,
+				           ? Dirent_type::DEVICE : Dirent_type::FILE,
 				out.rwx  = _node_rwx();
 			} else {
 				return Stat_result::DENIED;

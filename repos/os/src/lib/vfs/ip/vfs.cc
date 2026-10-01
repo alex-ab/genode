@@ -1126,7 +1126,7 @@ class Vfs_ip::Ip_socket_dir final : public Socket_dir
 			}
 
 			out = {
-				.type = Dirent_type::TRANSACTIONAL_FILE,
+				.type = Dirent_type::DEVICE,
 				.rwx  = Node_rwx::rw(),
 				.name = { node->name() } };
 
@@ -1422,7 +1422,7 @@ class Vfs_ip::Protocol_dir_impl : public Protocol_dir
 
 			Dirent_type const type = dynamic_cast<Vfs_ip::Directory*>(node)
 			                       ? Dirent_type::DIRECTORY
-			                       : Dirent_type::TRANSACTIONAL_FILE;
+			                       : Dirent_type::DEVICE;
 
 			Node_rwx const rwx = (type == Dirent_type::DIRECTORY)
 			                   ? Node_rwx::rwx()
@@ -1711,13 +1711,13 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 
 			enum { NUM_ENTRIES = 7U };
 			static Entry const entries[NUM_ENTRIES] = {
-				{ Dirent_type::DIRECTORY,          "tcp" },
-				{ Dirent_type::DIRECTORY,          "udp" },
-				{ Dirent_type::TRANSACTIONAL_FILE, "address" },
-				{ Dirent_type::TRANSACTIONAL_FILE, "netmask" },
-				{ Dirent_type::TRANSACTIONAL_FILE, "gateway" },
-				{ Dirent_type::TRANSACTIONAL_FILE, "nameserver" },
-				{ Dirent_type::TRANSACTIONAL_FILE, "link_state" },
+				{ Dirent_type::DIRECTORY, "tcp" },
+				{ Dirent_type::DIRECTORY, "udp" },
+				{ Dirent_type::DEVICE,    "address" },
+				{ Dirent_type::DEVICE,    "netmask" },
+				{ Dirent_type::DEVICE,    "gateway" },
+				{ Dirent_type::DEVICE,    "nameserver" },
+				{ Dirent_type::DEVICE,    "link_state" },
 			};
 
 			if (index >= NUM_ENTRIES)
@@ -1753,21 +1753,21 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 			}
 
 			if (dynamic_cast<Ip_data_file*>(node)) {
-				out.type = Dirent_type::CONTINUOUS_FILE;
+				out.type = Dirent_type::FILE;
 				out.rwx  = Node_rwx::rw();
 				out.size = 0;
 				return Stat_result::OK;
 			}
 
 			if (dynamic_cast<Ip_peek_file*>(node)) {
-				out.type = Dirent_type::CONTINUOUS_FILE;
+				out.type = Dirent_type::FILE;
 				out.rwx  = Node_rwx::rw();
 				out.size = 0;
 				return Stat_result::OK;
 			}
 
 			if (dynamic_cast<Vfs_ip::File*>(node)) {
-				out.type = Dirent_type::TRANSACTIONAL_FILE;
+				out.type = Dirent_type::DEVICE;
 				out.rwx  = Node_rwx::rw();
 				out.size = 0x1000;  /* there may be something to read */
 				return Stat_result::OK;

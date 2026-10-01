@@ -240,7 +240,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 				{
 					if (S_ISDIR (mode)) return Dirent_type::DIRECTORY;
 					if (S_ISLNK (mode)) return Dirent_type::SYMLINK;
-					else                return Dirent_type::CONTINUOUS_FILE;
+					else                return Dirent_type::FILE;
 				};
 
 				Node_rwx const rwx { .readable   = true,
@@ -581,7 +581,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 				if (S_ISDIR(mode)) return Dirent_type::DIRECTORY;
 				if (S_ISLNK(mode)) return Dirent_type::SYMLINK;
 
-				return Dirent_type::CONTINUOUS_FILE;
+				return Dirent_type::FILE;
 			};
 
 			stat = {
@@ -590,8 +590,6 @@ class Vfs_rump::File_system : public Vfs::File_system
 				.rwx    = { .readable   = true,
 				            .writeable  = true,
 				            .executable = (sb.st_mode & S_IXUSR) != 0 },
-				.device = vfs_device_t(sb.st_dev),
-
 				.modification_time = {
 					.ms_since_1970 = uint64_t(sb.st_mtim.tv_sec*1000 +
 					                          sb.st_mtim.tv_nsec/1000000) }

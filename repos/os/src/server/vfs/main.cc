@@ -670,10 +670,10 @@ class Vfs_server::Session_component : private Session_resources,
 					using To = ::File_system::Node_type;
 
 					switch (type) {
-					case Vfs::Dirent_type::DIRECTORY:          return To::DIRECTORY;
-					case Vfs::Dirent_type::SYMLINK:            return To::SYMLINK;
-					case Vfs::Dirent_type::CONTINUOUS_FILE:    return To::CONTINUOUS_FILE;
-					case Vfs::Dirent_type::TRANSACTIONAL_FILE: return To::TRANSACTIONAL_FILE;
+					case Vfs::Dirent_type::DIRECTORY: return To::DIRECTORY;
+					case Vfs::Dirent_type::SYMLINK:   return To::SYMLINK;
+					case Vfs::Dirent_type::FILE:      return To::CONTINUOUS_FILE;
+					case Vfs::Dirent_type::DEVICE:    return To::TRANSACTIONAL_FILE;
 					};
 					return To::CONTINUOUS_FILE;
 				};
@@ -685,8 +685,8 @@ class Vfs_server::Session_component : private Session_resources,
 					case Vfs::Dirent_type::SYMLINK:
 						return 0ULL;
 
-					case Vfs::Dirent_type::CONTINUOUS_FILE:
-					case Vfs::Dirent_type::TRANSACTIONAL_FILE:
+					case Vfs::Dirent_type::FILE:
+					case Vfs::Dirent_type::DEVICE:
 						return vfs_stat.size;
 					};
 					return 0ULL;

@@ -239,13 +239,13 @@ class Vfs_tar::File_system : public Vfs::File_system
 			auto dirent_type = [&] ()
 			{
 				switch (record.type()) {
-				case Record::TYPE_FILE:    return Dirent_type::CONTINUOUS_FILE;
+				case Record::TYPE_FILE:    return Dirent_type::FILE;
 				case Record::TYPE_SYMLINK: return Dirent_type::SYMLINK;
 				case Record::TYPE_DIR:     return Dirent_type::DIRECTORY;
 				};
 
 				warning("unhandled record type ", record.type(), " for ", node.name);
-				return Dirent_type::CONTINUOUS_FILE;
+				return Dirent_type::FILE;
 			};
 
 			dirent = {
@@ -574,7 +574,6 @@ class Vfs_tar::File_system : public Vfs::File_system
 					.size              = 0,
 					.type              = Dirent_type::DIRECTORY,
 					.rwx               = Node_rwx::rx(),
-					.device            = (addr_t)this,
 					.modification_time = { }
 				};
 				return Stat_result::OK;
@@ -585,7 +584,7 @@ class Vfs_tar::File_system : public Vfs::File_system
 			auto node_type = [&] ()
 			{
 				switch (record.type()) {
-				case Record::TYPE_FILE:     return Dirent_type::CONTINUOUS_FILE;
+				case Record::TYPE_FILE:     return Dirent_type::FILE;
 				case Record::TYPE_SYMLINK:  return Dirent_type::SYMLINK;
 				case Record::TYPE_DIR:      return Dirent_type::DIRECTORY;
 				};
@@ -603,7 +602,6 @@ class Vfs_tar::File_system : public Vfs::File_system
 				.rwx               = { .readable   = true,
 				                       .writeable  = false,
 				                       .executable = record.rwx().executable },
-				.device            = (addr_t)this,
 				.modification_time = timestamp_from_mtime(record.mtime())
 			};
 

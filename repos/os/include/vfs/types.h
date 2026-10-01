@@ -33,12 +33,7 @@ namespace Genode::Vfs {
 
 	struct Timestamp { uint64_t ms_since_1970; };
 
-	enum class Dirent_type {
-		DIRECTORY,
-		SYMLINK,
-		CONTINUOUS_FILE,
-		TRANSACTIONAL_FILE
-	};
+	enum class Dirent_type { DIRECTORY, SYMLINK, FILE, DEVICE };
 
 	struct Node_rwx
 	{
