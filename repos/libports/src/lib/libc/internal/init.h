@@ -104,7 +104,7 @@ namespace Libc {
 	/**
 	 * Socket support
 	 */
-	void init_socket(Genode::Allocator &, Monitor &, Fds &, Config const &);
+	void init_socket(Genode::Allocator &, Monitor &, Fds &, Fs &, Config const &);
 	void init_socket_operations(Genode::Allocator &, Fds &, Config const &);
 
 	/**

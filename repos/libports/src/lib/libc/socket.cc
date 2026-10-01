@@ -49,14 +49,16 @@
 static Genode::Allocator  *_kernel_heap_ptr;
 static Libc::Monitor      *_monitor_ptr;
 static Libc::Config const *_config_ptr;
+static Libc::Fs           *_fs_ptr;
 
 
 void Libc::init_socket(Genode::Allocator &kernel_heap, Monitor &monitor,
-                       Fds &fds, Config const &config)
+                       Fds &fds, Fs &fs, Config const &config)
 {
 	_kernel_heap_ptr = &kernel_heap;
 	_monitor_ptr     = &monitor;
 	_fds_ptr         = &fds;
+	_fs_ptr          = &fs;
 	_config_ptr      = &config;
 }
 
@@ -76,6 +78,16 @@ static Genode::Allocator &kernel_heap()
 	if (!_kernel_heap_ptr)
 		throw Missing_call_of_init_socket();
 	return *_kernel_heap_ptr;
+}
+
+
+static Libc::Fs &fs()
+{
+	struct Missing_call_of_init_socket : Genode::Exception { };
+	if (!_fs_ptr)
+		throw Missing_call_of_init_socket();
+
+	return *_fs_ptr;
 }
 
 
@@ -116,6 +128,9 @@ struct Libc::Socket : Noncopyable
 
 		enum State { UNCONNECTED, ACCEPT_ONLY, CONNECTING, CONNECTED, CONNECT_ABORTED };
 
+		enum File_type { DATA,   PEEK,  CONNECT, BIND,  LISTEN,
+		                 ACCEPT, LOCAL, REMOTE,  ERROR, MAX };
+
 	private:
 
 		/*
@@ -141,103 +156,64 @@ struct Libc::Socket : Noncopyable
 		Absolute_path const _path {
 			_read_socket_path().base(), _config_ptr->socket.string() };
 
-		enum Fd { DATA,   PEEK,  CONNECT, BIND,  LISTEN,
-		          ACCEPT, LOCAL, REMOTE,  ERROR, MAX };
 
-		struct
+		Open_file *_open_or_throw(char const *name, bool writeable) const
 		{
-			char const      *name;
-			int              num;
-			File_descriptor *file;
-		} _fd[Fd::MAX] = {
-			{ "data",    -1, nullptr }, { "peek",   -1, nullptr },
-			{ "connect", -1, nullptr }, { "bind",   -1, nullptr },
-			{ "listen",  -1, nullptr }, { "accept", -1, nullptr },
-			{ "local",   -1, nullptr }, { "remote", -1, nullptr },
-			{ "error",   -1, nullptr },
-		};
+			Absolute_path const path(name, _path.base());
 
+			return fs().open_file({.path = path.base(), .writeable = writeable}).convert<Open_file*>(
+				[&] (Open_file &of) {
+					return &of; },
+				[&] (Errno) {
+					error(__func__, ": ", name,
+					      " file not accessible at ", path,
+					      " errno=", errno);
+					throw New_socket_failed();
+					return nullptr; /* never reached */
+				});
+		}
+
+		Open_file *_open_file_ptr[File_type::MAX] = {
+			_open_or_throw("data",    true),
+			_open_or_throw("peek",    false),
+			_open_or_throw("connect", true),
+			_open_or_throw("bind",    true),
+			_open_or_throw("listen",  true),
+			_open_or_throw("accept",  false),
+			_open_or_throw("local",   true),
+			_open_or_throw("remote",  true),
+			_open_or_throw("error",   false), };
 
 		Proto const _proto;
 
 		State _state { UNCONNECTED };
 
-		template <typename FUNC>
-		void _fd_apply(FUNC const &fn)
-		{
-			if (_fd[DATA].num    != -1) fn(_fd[DATA].num);
-			if (_fd[CONNECT].num != -1) fn(_fd[CONNECT].num);
-			if (_fd[ACCEPT].num  != -1) fn(_fd[ACCEPT].num);
-		}
+		bool _read_ready(File_type type);
 
-		void _init_fd(Fd type, int flags)
-		{
-			Absolute_path file(_fd[type].name, _path.base());
-			int const fd = open(file.base(), flags|_fd_flags);
-			if (fd == -1) {
-				error(__func__, ": ", _fd[type].name,
-				      " file not accessible at ", file,
-				      " errno=", errno);
-				throw New_socket_failed();
-			}
-			_fd[type].num  = fd;
-			_fd[type].file = nullptr;
-			fds().with_space([&] (Fds::Space &space) {
-				space.apply<File_descriptor>({ addr_t(fd) },
-					[&] (File_descriptor &fd) { _fd[type].file = &fd; },
-					[&] { });
-			});
-		}
-
-		bool _fd_read_ready(Fd type)
-		{
-			if (!_fd[type].file) return false;
-
-			bool ret = false;
-			auto fn = [&] {
-				ret = Libc::read_ready_from_kernel(*_fd[type].file);
-				return Fn::COMPLETE;
-			};
-
-			if (Libc::Kernel::kernel().main_context() && Libc::Kernel::kernel().main_suspended()) {
-				fn();
-			} else {
-				monitor().monitor(fn);
-			}
-
-			return ret;
-		}
-
-		bool _fd_write_ready(Fd type)
-		{
-			if (_fd[type].file)
-				return Libc::write_ready_from_kernel(*_fd[type].file);
-			else
-				return false;
-		}
+		bool _write_ready(File_type type);
 
 	public:
 
+		int with_file(File_type type, auto const &fn)
+		{
+			if (_open_file_ptr[type])
+				return fn(*_open_file_ptr[type]);
+
+			return Errno(EINVAL);
+		}
+
 		Socket(Proto proto, int handle_fd)
 		: _handle_fd(handle_fd), _proto(proto)
-		{
-			_init_fd(Fd::DATA,    O_RDWR);
-			_init_fd(Fd::PEEK,    O_RDONLY);
-			_init_fd(Fd::CONNECT, O_RDWR);
-			_init_fd(Fd::BIND,    O_WRONLY);
-			_init_fd(Fd::LISTEN,  O_WRONLY);
-			_init_fd(Fd::ACCEPT,  O_RDONLY);
-			_init_fd(Fd::LOCAL,   O_RDWR);
-			_init_fd(Fd::REMOTE,  O_RDWR);
-			_init_fd(Fd::ERROR,   O_RDONLY);
-		}
+		{ }
 
 		~Socket()
 		{
-			for (unsigned i = 0; i < Fd::MAX; ++i) {
-				::close(_fd[i].num);
-				_fd[i].num = -1;
-				_fd[i].file = nullptr;
+			for (unsigned i = 0; i < File_type::MAX; ++i) {
+				with_file((File_type)i, [&] (Open_file &of) {
+					fs().destroy(of);
+					return 0;
+				});
+				_open_file_ptr[i] = nullptr;
 			}
 			::close(_handle_fd);
 		}
@@ -247,39 +223,12 @@ struct Libc::Socket : Noncopyable
 		Proto proto() const { return _proto; }
 
 		int fd_flags() const { return _fd_flags; }
-		void fd_flags(int flags)
-		{
-			_fd_flags = flags;
-			_fd_apply([flags] (int fd) { fcntl(fd, F_SETFL, flags); });
-		}
-
-		int data_fd()    { return _fd[Fd::DATA].num; }
-		int peek_fd()    { return _fd[Fd::PEEK].num; }
-		int connect_fd() { return _fd[Fd::CONNECT].num; }
-		int bind_fd()    { return _fd[Fd::BIND].num; }
-		int listen_fd()  { return _fd[Fd::LISTEN].num; }
-		int accept_fd()  { return _fd[Fd::ACCEPT].num; }
-		int local_fd()   { return _fd[Fd::LOCAL].num; }
-		int remote_fd()  { return _fd[Fd::REMOTE].num; }
+		void fd_flags(int flags) { _fd_flags = flags; }
 
 		/* request the appropriate fd to ensure the file is open */
-		bool connect_read_ready() { return _fd_read_ready(Fd::CONNECT); }
-		bool data_read_ready()    { return _fd_read_ready(Fd::DATA); }
-		bool accept_read_ready()  { return _fd_read_ready(Fd::ACCEPT); }
-
-		bool local_read_ready_from_kernel()
-		{
-			if (!_fd[Fd::LOCAL].file) return false;
-
-			return  Libc::read_ready_from_kernel(*_fd[Fd::LOCAL].file);
-		}
-
-		bool remote_read_ready_from_kernel()
-		{
-			if (!_fd[Fd::REMOTE].file) return false;
-
-			return  Libc::read_ready_from_kernel(*_fd[Fd::REMOTE].file);
-		}
+		bool connect_read_ready() { return _read_ready(File_type::CONNECT); }
+		bool data_read_ready()    { return _read_ready(File_type::DATA); }
+		bool accept_read_ready()  { return _read_ready(File_type::ACCEPT); }
 
 		void state(State state) { _state = state; }
 		State state() const     { return _state; }
@@ -294,7 +243,7 @@ struct Libc::Socket : Noncopyable
 			if (_state == CONNECTING)
 				return connect_read_ready();
 
-			return _fd_write_ready(Fd::DATA);
+			return _write_ready(File_type::DATA);
 		}
 
 		/*
@@ -304,10 +253,12 @@ struct Libc::Socket : Noncopyable
 		int read_connect_status()
 		{
 			char connect_status[32] = { 0 };
-			ssize_t connect_status_len;
-
-			connect_status_len = read(connect_fd(), connect_status,
-			                          sizeof(connect_status));
+			ssize_t connect_status_len = with_file(File_type::CONNECT,
+				[&] (Open_file &of) {
+					return fs().read(of, connect_status,
+				                       sizeof(connect_status),
+				                       fd_flags() & O_NONBLOCK);
+			});
 
 			if (connect_status_len <= 0) {
 				error("socket: reading from the connect file failed");
@@ -354,8 +305,7 @@ struct Libc::Socket : Noncopyable
 		Sockopt _tcp_keepidle  { _sockopt_dict, TCP_KEEPIDLE, "tcp_keepidle"  };
 		Sockopt _tcp_keepintvl { _sockopt_dict, TCP_KEEPINTVL,"tcp_keepintvl" };
 
-		template <typename FN>
-		int with_sockopt_fd(int optname, FN const &fn)
+		int with_sockopt_file(int optname, auto const &fn)
 		{
 			Absolute_path dir { "sockopts", _path.base() };
 
@@ -364,14 +314,16 @@ struct Libc::Socket : Noncopyable
 
 				Absolute_path file { opt.base(), dir.base() };
 
-				int fd = ::open(file.base(), O_RDWR);
-				if (fd < 0) return;
+				fs().open_file({ .path = file.string(), .writeable = true }).with_result(
+					[&] (Open_file &of) {
+						ssize_t n = fn(of);
+						fs().destroy(of);
 
-				ssize_t n = fn(fd);
+						if (n > 0) err = 0;
+					},
+					[&] (Errno) { }
+				);
 
-				::close(fd);
-
-				if (n > 0) err = 0;
 			}, []{ });
 
 			return err;
@@ -382,50 +334,91 @@ struct Libc::Socket : Noncopyable
 		{
 			char buf[64];
 
-			ssize_t bytes = pread(_fd[ERROR].num, buf, sizeof(buf), 0);
+			int genode_errno = with_file(File_type::ERROR, [&] (Open_file &of) {
+				fs().lseek(of, 0, 0);
+				ssize_t bytes = fs().read(of, buf, sizeof(buf), false);
 
-			Node node { Const_byte_range_ptr { buf, size_t(bytes) } };
-			int genode_errno = node.attribute_value("value", -1);
+				Node node { Const_byte_range_ptr { buf, size_t(bytes) } };
+				return node.attribute_value("value", -1);
+			});
 
 			errno = socket_errno(genode_errno);
 		}
 };
 
 
+bool Libc::Socket::_read_ready(File_type type)
+{
+	bool ret = false;
+	auto fn = [&] {
+		with_file(type, [&] (Open_file &of) {
+			ret = of.handle.read_ready() == Vfs::Read_ready_result::YES;
+			return 0;
+		});
+
+		return Fn::COMPLETE;
+	};
+
+	if (Libc::Kernel::kernel().main_context() && Libc::Kernel::kernel().main_suspended()) {
+		fn();
+	} else {
+		monitor().monitor(fn);
+	}
+
+	return ret;
+}
+
+
+bool Libc::Socket::_write_ready(File_type type)
+{
+	bool ret = false;
+	with_file(type, [&] (Open_file &of) {
+		ret = of.handle.write_ready() == Vfs::Write_ready_result::YES;
+		return 0;
+	});
+
+	return ret;
+}
+
+
 struct Libc::Socket::Sockaddr_functor
 {
+	Socket::File_type type;
 	Socket &socket;
 	bool const nonblocking;
 
-	Sockaddr_functor(Socket &socket, bool nonblocking)
-	: socket(socket), nonblocking(nonblocking) { }
+	Sockaddr_functor(Socket::File_type type, Socket &socket, bool nonblocking)
+	: type(type), socket(socket), nonblocking(nonblocking) { }
 
-	virtual bool read_ready_from_kernel() = 0;
-	virtual int fd() = 0;
+	bool read_ready_from_kernel()
+	{
+		bool ret = false;
+		socket.with_file(type, [&] (Open_file &of) {
+			ret = of.handle.read_ready() == Vfs::Read_ready_result::YES;
+			return 0;
+		});
+
+		return ret;
+	}
+
+	auto with_open_file(auto const &fn) {
+		return socket.with_file(type, [&] (Open_file &of) {
+			return fn(of); });
+	}
 };
 
 
 struct Libc::Socket::Remote_functor : Sockaddr_functor
 {
 	Remote_functor(Socket &socket, bool nonblocking)
-	: Sockaddr_functor(socket, nonblocking) { }
-
-	bool read_ready_from_kernel() override {
-		return socket.remote_read_ready_from_kernel(); }
-
-	int fd() override { return socket.remote_fd(); }
+	: Sockaddr_functor(Socket::File_type::REMOTE, socket, nonblocking) { }
 };
 
 
 struct Libc::Socket::Local_functor : Sockaddr_functor
 {
 	Local_functor(Socket &socket, bool nonblocking)
-	: Sockaddr_functor(socket, nonblocking) { }
-
-	bool read_ready_from_kernel() override {
-		return socket.local_read_ready_from_kernel(); }
-
-	int fd() override { return socket.local_fd(); }
+	: Sockaddr_functor(Socket::File_type::LOCAL, socket, nonblocking) { }
 };
 
 
@@ -565,7 +558,10 @@ static int read_sockaddr_in(Libc::Socket::Sockaddr_functor &func,
 	}
 
 	Socket::Sockaddr_string addr_string;
-	int const n = read(func.fd(), addr_string.base(), addr_string.capacity() - 1);
+	int const n = func.with_open_file([&] (Open_file &of) {
+		return fs().read(of, addr_string.base(), addr_string.capacity() - 1,
+		                 func.nonblocking);
+	});
 
 	if (n == -1) return Errno(errno);
 	/* 0 return value means "no packet resp. not connected" */
@@ -631,11 +627,16 @@ Libc::socket_accept(Socket &listen_socket, sockaddr *addr, socklen_t *addrlen)
 
 	char accept_buf[Socket::MAX_CONTROL_PATH_LEN];
 	{
-		int n = 0;
+		int n = -1;
 		/* XXX currently reading accept may return without new connection */
-		do {
-			n = read(listen_socket.accept_fd(), accept_buf, sizeof(accept_buf));
-		} while (n == 0);
+		listen_socket.with_file(Socket::File_type::ACCEPT, [&] (Open_file &of) {
+			do {
+				n = fs().read(of, accept_buf, sizeof(accept_buf),
+				              listen_socket.fd_flags() & O_NONBLOCK);
+			} while (n == 0);
+
+			return 0;
+		});
 
 		if (n == -1 && errno == EAGAIN)
 			return Errno { EAGAIN };
@@ -694,16 +695,20 @@ int Libc::socket_bind(Socket &socket, sockaddr const *addr, socklen_t addrlen)
 	}
 	catch (Socket::Address_conversion_failed) { return Errno(EINVAL); }
 
-	int const len = ::strlen(addr_string.base());
-	int const n   = write(socket.bind_fd(), addr_string.base(), len);
+	return socket.with_file(Socket::File_type::BIND, [&] (Open_file &of) {
+		int const len = ::strlen(addr_string.base());
+		int const n   = fs().write(of, addr_string.base(), len, false);
 
-	if (n != len) {
-		socket.socket_error();
-		return -1;
-	}
+		if (n != len) {
+			socket.socket_error();
+			return -1;
+		}
 
-	/* sync to block for write completion */
-	return fsync(socket.bind_fd());
+		/* sync to block for write completion */
+		fs().fsync(of);
+
+		return 0;
+	});
 }
 
 
@@ -719,7 +724,8 @@ int Libc::socket_try_connect(Socket &socket, sockaddr const *addr, socklen_t add
 
 			Socket::Sockaddr_string addr_string { };
 			int const len = ::strlen(addr_string.base());
-			int const n   = write(socket.connect_fd(), addr_string.base(), len);
+			int const n   = socket.with_file(Socket::File_type::CONNECT, [&] (Open_file &of) {
+				return fs().write(of, addr_string.base(), len, socket.fd_flags() & O_NONBLOCK); });
 
 			if (n != len) {
 				socket.socket_error();
@@ -749,7 +755,8 @@ int Libc::socket_try_connect(Socket &socket, sockaddr const *addr, socklen_t add
 			socket.state(Socket::CONNECTING);
 
 			int const len = ::strlen(addr_string.base());
-			int const n   = write(socket.connect_fd(), addr_string.base(), len);
+			int const n   = socket.with_file(Socket::File_type::CONNECT, [&] (Open_file &of) {
+				return fs().write(of, addr_string.base(), len, socket.fd_flags() & O_NONBLOCK); });
 
 			if (n != len) {
 				warning("socket_try_connect: write to connect_fd failed");
@@ -793,19 +800,22 @@ int Libc::socket_connect_timed_out(Socket &socket)
 int Libc::socket_listen(Socket &socket, int backlog)
 {
 	char buf[Socket::MAX_CONTROL_PATH_LEN];
-	int const len = ::snprintf(buf, sizeof(buf), "%d", backlog);
-	int const n   = write(socket.listen_fd(), buf, len);
-	if (n != len) {
-		socket.socket_error();
-		return -1;
-	}
 
-	/* sync to block for write completion */
-	int const res = fsync(socket.listen_fd());
-	if (res != 0) return res;
+	return socket.with_file(Socket::File_type::LISTEN, [&] (Open_file &of) {
+		int const len = ::snprintf(buf, sizeof(buf), "%d", backlog);
+		int const n   = fs().write(of, buf, len, false);
 
-	socket.state(Socket::ACCEPT_ONLY);
-	return 0;
+		if (n != len) {
+			socket.socket_error();
+			return -1;
+		}
+
+		/* sync to block for write completion */
+		fs().fsync(of);
+
+		socket.state(Socket::ACCEPT_ONLY);
+		return 0;
+	});
 }
 
 
@@ -835,36 +845,42 @@ static ssize_t do_recvfrom(Socket &socket,
 		if (res < 0) return res;
 	}
 
-	int data_fd = flags & MSG_PEEK ? socket.peek_fd() : socket.data_fd();
+	Socket::File_type const type = flags & MSG_PEEK ? Socket::File_type::PEEK
+	                                                : Socket::File_type::DATA;
+	bool          const nonblock = flags & MSG_PEEK ? false
+	                                                : socket.fd_flags() & O_NONBLOCK;
 
-	if (lseek(data_fd, 0, SEEK_SET) != 0)
-		return Errno(EINVAL);
+	return socket.with_file(type, [&] (Open_file &of) -> ssize_t {
+		if (fs().lseek(of, 0, SEEK_SET) != 0)
+			return Errno(EINVAL);
 
-	size_t out_sum = 0;
+		size_t out_sum = 0;
 
-	do {
-		ssize_t const result = read(data_fd,
-		                            (char *)buf + out_sum,
-		                            len - out_sum);
+		do {
+			ssize_t const result = fs().read(of,
+			                                 (char *)buf + out_sum,
+			                                 len - out_sum,
+			                                 nonblock);
 
-		if (result <= 0) { /* eof & error */
-			if (out_sum)
-				return out_sum;
+			if (result <= 0) { /* eof & error */
+				if (out_sum)
+					return out_sum;
 
-			/* update errno unless VFS-plugin returned EAGAIN */
-			if (errno != EAGAIN)
-				socket.socket_error();
+				/* update errno unless VFS-plugin returned EAGAIN */
+				if (errno != EAGAIN)
+					socket.socket_error();
 
-			if (result < 0) handle_wakeup_remote_peers(socket);
+				if (result < 0) handle_wakeup_remote_peers(socket);
 
-			return result;
-		}
+				return result;
+			}
 
-		out_sum += result;
-	} while ((flags & MSG_WAITALL) &&
-	         (out_sum < len));
+			out_sum += result;
+		} while ((flags & MSG_WAITALL) &&
+		         (out_sum < len));
 
-	return out_sum;
+		return out_sum;
+	});
 }
 
 
@@ -974,14 +990,17 @@ static ssize_t do_sendto(Socket &socket,
 			                                    port_string(*(sockaddr_in const *)dest_addr));
 
 			int const len = ::strlen(addr_string.base());
-			int const n   = write(socket.remote_fd(), addr_string.base(), len);
+			int const n   = socket.with_file(Socket::File_type::REMOTE, [&] (Open_file &of) {
+				return fs().write(of, addr_string.base(), len, false); });
 			if (n != len) return Errno(EIO);
 		}
 		catch (Socket::Address_conversion_failed) { return Errno(EINVAL); }
 	}
 
-	lseek(socket.data_fd(), 0, 0);
-	ssize_t out_len = write(socket.data_fd(), buf, len);
+	ssize_t out_len = socket.with_file(Socket::File_type::DATA, [&] (Open_file &of) {
+		fs().lseek(of, 0, 0);
+		return fs().write(of, buf, len, socket.fd_flags() & O_NONBLOCK);
+	});
 
 	/* update errno unless VFS-plugin returned EAGAIN */
 	if (out_len == -1 && errno != EAGAIN)
@@ -1019,8 +1038,8 @@ int Libc::socket_getsockopt(Socket &socket, int level, int optname,
 
 	auto read_sockopt = [&]()
 	{
-		int err = socket.with_sockopt_fd(optname, [&](int fd) {
-			ssize_t n =  ::read(fd, optval, *optlen);
+		int err = socket.with_sockopt_file(optname, [&] (Open_file &of) {
+			ssize_t n = fs().read(of, optval, *optlen, false);
 			*(unsigned *)optlen = n;
 			return n;
 		});
@@ -1094,8 +1113,8 @@ int Libc::socket_setsockopt(Socket &socket, int level, int optname,
 
 	auto write_sockopt = [&]()
 	{
-		int err = socket.with_sockopt_fd(optname, [&](int fd) {
-			return ::write(fd, optval, optlen); });
+		int err = socket.with_sockopt_file(optname, [&] (Open_file &of) {
+			return fs().write(of, optval, optlen, false); });
 
 		return err ? Errno(err) : 0;
 	};

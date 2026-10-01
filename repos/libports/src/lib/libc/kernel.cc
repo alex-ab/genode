@@ -538,7 +538,7 @@ Libc::Kernel::Kernel(Genode::Env &env, Genode::Allocator &heap)
 	init_time(*this, *this);
 	init_alarm(_timer_accessor, _signal);
 	init_poll(_signal, *this, _fds);
-	init_socket(_heap, *this, _fds, _config);
+	init_socket(_heap, *this, _fds, _fs, _config);
 	init_socket_operations(_heap, _fds, _config);
 
 	_with_libc_sub_config("passwd", [&] (Node const &passwd_config) {
