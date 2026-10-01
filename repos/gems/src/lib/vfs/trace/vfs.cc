@@ -335,6 +335,9 @@ struct Vfs_trace::File_system : Union_file_system, private Vfs::File_system::Fac
 	Policy_id         _policy_id = Trace::Connection::Alloc_policy_error::INVALID;
 	Trace_directory   _directory { _env.alloc() };
 
+	Value_file_system<bool, 6> _update_trace_subjects_fs {
+		*this, "update_trace_subjects", "false\n"};
+
 	void _install_null_policy()
 	{
 		using namespace Genode;
@@ -391,6 +394,9 @@ struct Vfs_trace::File_system : Union_file_system, private Vfs::File_system::Fac
 					return Error::DENIED;
 				});
 
+		if (_update_trace_subjects_fs.matches(node))
+			return { *this, { _update_trace_subjects_fs } };
+
 		return Error::DENIED;
 	}
 
@@ -416,11 +422,15 @@ struct Vfs_trace::File_system : Union_file_system, private Vfs::File_system::Fac
 
 	Const_byte_range_ptr _config(Trace_directory &directory)
 	{
+		_update_trace_subjects();
+
 		char  *buf      = _vfs_config_ram->local_addr<char>();
 		size_t buf_size = _vfs_config_ram->size();
 
 		while (Generator::generate({ buf, buf_size }, "composite",
-		       [&] (Generator &g) { directory.generate(g); }).failed()) {
+		       [&] (Generator &g) {
+			       g.named_node("value", "update_trace_subjects");
+			       directory.generate(g); }).failed()) {
 			/* limit reached */
 			if (!_resize_config_ram()) {
 				warning("VFS-trace node exceeds maximum buffer size (>2MB)");
@@ -462,8 +472,6 @@ struct Vfs_trace::File_system : Union_file_system, private Vfs::File_system::Fac
 
 		_install_null_policy();
 
-		_update_trace_subjects();
-
 		_vfs_config_ram.construct(_env.env().ram(), _env.env().rm(), 512 * 1024);
 	}
 
@@ -474,6 +482,17 @@ struct Vfs_trace::File_system : Union_file_system, private Vfs::File_system::Fac
 	Progress update(Node const &, Vfs::File_system::Factory &) override
 	{
 		return Union_file_system::update(Node(_config(_directory)), *this);
+	}
+
+	void notify_watchers(Span const &rel_path) override
+	{
+		if (rel_path.equals(Span::from_cstring("/update_trace_subjects"))) {
+
+			if (_update_trace_subjects_fs.value()) update(Node(), *this);
+			_update_trace_subjects_fs.value("false\n");
+		}
+
+		Union_file_system::notify_watchers(rel_path);
 	}
 };
 
