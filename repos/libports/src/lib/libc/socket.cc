@@ -116,9 +116,6 @@ struct Libc::Socket : Noncopyable
 
 		enum State { UNCONNECTED, ACCEPT_ONLY, CONNECTING, CONNECTED, CONNECT_ABORTED };
 
-		/* TODO remove */
-		struct Inaccessible { }; /* exception */
-
 	private:
 
 		/*
@@ -697,20 +694,16 @@ int Libc::socket_bind(Socket &socket, sockaddr const *addr, socklen_t addrlen)
 	}
 	catch (Socket::Address_conversion_failed) { return Errno(EINVAL); }
 
-	try {
-		int const len = ::strlen(addr_string.base());
-		int const n   = write(socket.bind_fd(), addr_string.base(), len);
+	int const len = ::strlen(addr_string.base());
+	int const n   = write(socket.bind_fd(), addr_string.base(), len);
 
-		if (n != len) {
-			socket.socket_error();
-			return -1;
-		}
-
-		/* sync to block for write completion */
-		return fsync(socket.bind_fd());
-	} catch (Socket::Inaccessible) {
-		return Errno(EINVAL);
+	if (n != len) {
+		socket.socket_error();
+		return -1;
 	}
+
+	/* sync to block for write completion */
+	return fsync(socket.bind_fd());
 }
 
 
@@ -844,38 +837,34 @@ static ssize_t do_recvfrom(Socket &socket,
 
 	int data_fd = flags & MSG_PEEK ? socket.peek_fd() : socket.data_fd();
 
-	try {
-		if (lseek(data_fd, 0, SEEK_SET) != 0)
-			return Errno(EINVAL);
-
-		size_t out_sum = 0;
-
-		do {
-			ssize_t const result = read(data_fd,
-			                            (char *)buf + out_sum,
-			                            len - out_sum);
-
-			if (result <= 0) { /* eof & error */
-				if (out_sum)
-					return out_sum;
-
-				/* update errno unless VFS-plugin returned EAGAIN */
-				if (errno != EAGAIN)
-					socket.socket_error();
-
-				if (result < 0) handle_wakeup_remote_peers(socket);
-
-				return result;
-			}
-
-			out_sum += result;
-		} while ((flags & MSG_WAITALL) &&
-		         (out_sum < len));
-
-		return out_sum;
-	} catch (Socket::Inaccessible) {
+	if (lseek(data_fd, 0, SEEK_SET) != 0)
 		return Errno(EINVAL);
-	}
+
+	size_t out_sum = 0;
+
+	do {
+		ssize_t const result = read(data_fd,
+		                            (char *)buf + out_sum,
+		                            len - out_sum);
+
+		if (result <= 0) { /* eof & error */
+			if (out_sum)
+				return out_sum;
+
+			/* update errno unless VFS-plugin returned EAGAIN */
+			if (errno != EAGAIN)
+				socket.socket_error();
+
+			if (result < 0) handle_wakeup_remote_peers(socket);
+
+			return result;
+		}
+
+		out_sum += result;
+	} while ((flags & MSG_WAITALL) &&
+	         (out_sum < len));
+
+	return out_sum;
 }
 
 
@@ -979,37 +968,32 @@ static ssize_t do_sendto(Socket &socket,
 
 	/* TODO ENOTCONN, EISCONN, EDESTADDRREQ */
 
-	try {
-		if (dest_addr && socket.proto() == Socket::Proto::UDP) {
-			try {
-				Socket::Sockaddr_string addr_string(host_string(*(sockaddr_in const *)dest_addr),
-				                                    port_string(*(sockaddr_in const *)dest_addr));
+	if (dest_addr && socket.proto() == Socket::Proto::UDP) {
+		try {
+			Socket::Sockaddr_string addr_string(host_string(*(sockaddr_in const *)dest_addr),
+			                                    port_string(*(sockaddr_in const *)dest_addr));
 
-				int const len = ::strlen(addr_string.base());
-				int const n   = write(socket.remote_fd(), addr_string.base(), len);
-				if (n != len) return Errno(EIO);
-			}
-			catch (Socket::Address_conversion_failed) { return Errno(EINVAL); }
+			int const len = ::strlen(addr_string.base());
+			int const n   = write(socket.remote_fd(), addr_string.base(), len);
+			if (n != len) return Errno(EIO);
 		}
-
-		lseek(socket.data_fd(), 0, 0);
-		ssize_t out_len = write(socket.data_fd(), buf, len);
-
-		/* update errno unless VFS-plugin returned EAGAIN */
-		if (out_len == -1 && errno != EAGAIN)
-			socket.socket_error();
-
-		/*
-		 * Non-blocking write stalled
-		 */
-		if ((out_len == -1) && (errno == EAGAIN))
-			handle_wakeup_remote_peers(socket);
-
-		return out_len;
-
-	} catch (Socket::Inaccessible) {
-		return Errno(EINVAL);
+		catch (Socket::Address_conversion_failed) { return Errno(EINVAL); }
 	}
+
+	lseek(socket.data_fd(), 0, 0);
+	ssize_t out_len = write(socket.data_fd(), buf, len);
+
+	/* update errno unless VFS-plugin returned EAGAIN */
+	if (out_len == -1 && errno != EAGAIN)
+		socket.socket_error();
+
+	/*
+	 * Non-blocking write stalled
+	 */
+	if ((out_len == -1) && (errno == EAGAIN))
+		handle_wakeup_remote_peers(socket);
+
+	return out_len;
 }
 
 
@@ -1337,23 +1321,19 @@ int Libc::socket_poll(Pollfd fds[], int nfds)
 
 			if (fds[pollfd_index].events & (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
 
-				try {
-					Socket *socket_ptr = fds[pollfd_index].fdo->socket_ptr;
-					if (socket_ptr && socket_ptr->read_ready()) {
-						*fds[pollfd_index].revents |= POLLIN;
-						fd_ready = true;
-					}
-				} catch (Socket::Inaccessible) { }
+				Socket *socket_ptr = fds[pollfd_index].fdo->socket_ptr;
+				if (socket_ptr && socket_ptr->read_ready()) {
+					*fds[pollfd_index].revents |= POLLIN;
+					fd_ready = true;
+				}
 			}
 
 			if (fds[pollfd_index].events & (POLLOUT | POLLWRNORM | POLLWRBAND)) {
-				try {
-					Socket *socket_ptr = fds[pollfd_index].fdo->socket_ptr;
-					if (socket_ptr && socket_ptr->write_ready()) {
-						*fds[pollfd_index].revents |= POLLOUT;
-						fd_ready = true;
-					}
-				} catch (Socket::Inaccessible) { }
+				Socket *socket_ptr = fds[pollfd_index].fdo->socket_ptr;
+				if (socket_ptr && socket_ptr->write_ready()) {
+					*fds[pollfd_index].revents |= POLLOUT;
+					fd_ready = true;
+				}
 			}
 
 			/* XXX POLLERR not supported */
