@@ -31,8 +31,8 @@ The plugin retrieves up to 2048 running components at load time.
 
 There is currently no support that dynamically adds or removes components once the
 plugin has been started. In order to update the file-system to the current state
-off the system the 'update_trace_subjects' file at the root of the file-system
+of the system the 'version' file at the root of the file-system
 can be used:
 
-:'update_trace_subjects': Write "true" to update the file-system with all
-  currently running components.
+:'version': Write version != current version in order to update the file-system,
+            and thus, collecting all currently running components.

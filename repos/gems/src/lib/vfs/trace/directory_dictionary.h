@@ -100,7 +100,7 @@ class Vfs_trace::Trace_node : public Dictionary::Element
 
 		void clear()
 		{
-			while(_dict.with_any_element([&] (Trace_node &node) {
+			while (_dict.with_any_element([&] (Trace_node &node) {
 				node.clear();
 				destroy(_alloc, &node);
 			})) { };

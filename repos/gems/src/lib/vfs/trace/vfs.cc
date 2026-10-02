@@ -34,6 +34,7 @@ namespace Vfs_trace {
 	struct File_system;
 	class  Subject;
 	class  Trace_buffer_file_system;
+	class  Version_file_system;
 }
 
 
@@ -326,6 +327,30 @@ struct Vfs_trace::Subject : Dir_file_system, private Vfs::File_system::Factory
 };
 
 
+class Vfs_trace::Version_file_system : public Value_file_system<unsigned>
+{
+	private:
+
+		unsigned _version { value() };
+
+	public:
+
+		using Value_file_system::Value_file_system;
+
+		bool version_changed()
+		{
+			Stat s { };
+			stat("", s);
+
+			if (s.size == 0 || value() == _version) return false;
+
+			value(++_version);
+
+			return true;
+		}
+};
+
+
 struct Vfs_trace::File_system : Union_file_system, private Vfs::File_system::Factory
 {
 	using Policy_id = Trace::Connection::Alloc_policy_result;
@@ -335,8 +360,7 @@ struct Vfs_trace::File_system : Union_file_system, private Vfs::File_system::Fac
 	Policy_id         _policy_id = Trace::Connection::Alloc_policy_error::INVALID;
 	Trace_directory   _directory { _env.alloc() };
 
-	Value_file_system<bool, 6> _update_trace_subjects_fs {
-		*this, "update_trace_subjects", "false\n"};
+	Version_file_system _version_fs { *this, "version", 1 };
 
 	void _install_null_policy()
 	{
@@ -394,8 +418,8 @@ struct Vfs_trace::File_system : Union_file_system, private Vfs::File_system::Fac
 					return Error::DENIED;
 				});
 
-		if (_update_trace_subjects_fs.matches(node))
-			return { *this, { _update_trace_subjects_fs } };
+		if (_version_fs.matches(node))
+			return { *this, { _version_fs } };
 
 		return Error::DENIED;
 	}
@@ -429,7 +453,7 @@ struct Vfs_trace::File_system : Union_file_system, private Vfs::File_system::Fac
 
 		while (Generator::generate({ buf, buf_size }, "composite",
 		       [&] (Generator &g) {
-			       g.named_node("value", "update_trace_subjects");
+			       g.named_node("value", "version");
 			       directory.generate(g); }).failed()) {
 			/* limit reached */
 			if (!_resize_config_ram()) {
@@ -486,10 +510,8 @@ struct Vfs_trace::File_system : Union_file_system, private Vfs::File_system::Fac
 
 	void notify_watchers(Span const &rel_path) override
 	{
-		if (rel_path.equals(Span::from_cstring("/update_trace_subjects"))) {
-
-			if (_update_trace_subjects_fs.value()) update(Node(), *this);
-			_update_trace_subjects_fs.value("false\n");
+		if (rel_path.equals(Span::from_cstring("/version"))) {
+			if (_version_fs.version_changed()) update(Node(), *this);
 		}
 
 		Union_file_system::notify_watchers(rel_path);
