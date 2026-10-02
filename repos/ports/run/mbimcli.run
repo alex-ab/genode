@@ -22,7 +22,9 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/zlib \
                   [depot_user]/src/libmbim/1.34.0-2026-04-22 \
                   [depot_user]/src/mbimcli/2026-04-22 \
-                  [depot_user]/src/glib/2.85.4-2026-04-22 \
+                  [depot_user]/src/libffi/3.8.0-206-09-25 \
+                  [depot_user]/src/pcre2/10.47-2026-09-25 \
+                  [depot_user]/src/glib/2.85.4-2026-04-22
 
 build { app/ping driver/usb_net }
 

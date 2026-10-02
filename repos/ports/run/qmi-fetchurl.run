@@ -36,6 +36,8 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/vfs_pipe \
                   [depot_user]/src/ffi \
                   [depot_user]/src/zlib \
+                  [depot_user]/src/libffi/3.8.0-206-09-25 \
+                  [depot_user]/src/pcre2/10.47-2026-09-25 \
                   [depot_user]/src/glib/2.85.4-2026-04-22 \
                   [depot_user]/src/libqmi/1.38.0-2026-04-22 \
                   [depot_user]/src/qmicli/2026-04-22
