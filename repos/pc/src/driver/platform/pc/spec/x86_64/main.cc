@@ -35,9 +35,34 @@ struct Driver::Main
 
 	Device_model & devices() { return _common.devices(); }
 
+	/**
+	 * Check whether kernel is cooperative regarding IOAPIC usage
+	 */
+	bool _iommu_useable() const
+	{
+		bool ret = false;
+		_common.platform_info().with_optional_sub_node("kernel",
+			[&] (Node const &n) {
+				ret = n.attribute_value("iommu_cooperative", false); });
+		return ret;
+	}
+
+	/**
+	 * Check whether kernel is cooperative regarding IOAPIC usage
+	 */
+	bool _ioapic_useable() const
+	{
+		bool ret = false;
+		_common.platform_info().with_optional_sub_node("kernel",
+			[&] (Node const &n) {
+				ret = n.attribute_value("ioapic_cooperative", false); });
+		return ret;
+	}
+
 	Intel::Io_mmu_factory _intel_iommu { _env, _common.sliced_heap(),
-	                                     devices()._io_mmu_factories };
-	Ioapic_factory _ioapic_factory { _env,
+	                                     devices()._io_mmu_factories,
+	                                     _iommu_useable() };
+	Ioapic_factory _ioapic_factory { _env, _ioapic_useable(),
 	                                 devices()._irq_controller_factories };
 
 	void _handle_config();
@@ -58,6 +83,12 @@ struct Driver::Main
 
 		devices().finalize_devices_preparation();
 		_common.announce_service();
+
+		if (!_iommu_useable())
+			warning("I/O MMU not useable, no kernel protocol available!");
+
+		if (!_ioapic_useable())
+			warning("I/O APIC not useable, no kernel protocol available!");
 	}
 };
 

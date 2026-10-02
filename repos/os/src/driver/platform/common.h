@@ -67,7 +67,7 @@ class Driver::Common : Device_reporter
 		Sliced_heap  & sliced_heap() { return _sliced_heap; }
 		Device_model & devices()     { return _devices;     }
 
-		Node platform_info() { return _platform_info.node(); }
+		Node platform_info() const { return _platform_info.node(); }
 
 		void announce_service();
 		void handle_config(Node const &);
@@ -113,7 +113,7 @@ bool Driver::Common::_kernel_io_mmu()
 {
 	bool iommu = false;
 	_platform_info.node().with_optional_sub_node("kernel", [&] (Node const &node) {
-		iommu = node.attribute_value("iommu", false); });
+		iommu = node.attribute_value("iommu_api", false); });
 
 	return iommu;
 }

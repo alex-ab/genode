@@ -162,6 +162,8 @@ void Platform::_init_platform_info()
 			g.attribute("name", "hw");
 			g.attribute("acpi", true);
 			g.attribute("msi",  true);
+			g.attribute("iommu_cooperative", "yes");
+			g.attribute("ioapic_cooperative", "yes");
 		});
 		g.node("board", [&] {
 			g.attribute("name", BOARD_NAME);

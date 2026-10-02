@@ -681,7 +681,9 @@ Core::Platform::Platform()
 					g.attribute("name", "nova");
 					g.attribute("acpi", true);
 					g.attribute("msi" , true);
-					g.attribute("iommu", hip.has_feature_iommu());
+					g.attribute("iommu_api", hip.has_feature_iommu());
+					g.attribute("iommu_cooperative", "yes");
+					g.attribute("ioapic_cooperative", "yes");
 				});
 				if (efi_sys_tab_phy) {
 					g.node("efi-system-table", [&] {

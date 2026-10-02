@@ -441,6 +441,7 @@ void Core::Platform::_init_rom_modules()
 					g.attribute("name", "sel4");
 					g.attribute("acpi", true);
 					g.attribute("msi" , true);
+					g.attribute("iommu_cooperative", "yes");
 				});
 				g.node("hardware", [&] {
 					g.node("features", [&] {

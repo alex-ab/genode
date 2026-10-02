@@ -104,18 +104,24 @@ class Driver::Ioapic_factory : public Driver::Irq_controller_factory
 {
 	private:
 
-		Genode::Env  &_env;
+		Genode::Env &_env;
+		bool const   _enabled;
 
 	public:
 
-		Ioapic_factory(Genode::Env &env, Registry<Irq_controller_factory> &registry)
-		: Driver::Irq_controller_factory(registry, Device::Type { "ioapic" }),
-		  _env(env)
+		Ioapic_factory(Genode::Env &env, bool const enabled,
+		               Registry<Irq_controller_factory> &registry)
+		:
+			Driver::Irq_controller_factory(registry, Device::Type { "ioapic" }),
+			_env(env), _enabled(enabled)
 		{ }
 
 		void create(Allocator &alloc, Registry<Irq_controller> &irq_controller_registry,
 		            Device const &device) override
 		{
+			if (!_enabled)
+				return;
+
 			using Range    = Device::Io_mem::Range;
 			using Property = Device::Property;
 

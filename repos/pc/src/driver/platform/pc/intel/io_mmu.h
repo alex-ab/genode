@@ -665,20 +665,27 @@ class Intel::Io_mmu_factory : public Driver::Io_mmu_factory
 
 		Tslab<Io_mmu::Domain, 4096-Sliced_heap::meta_data_size()> _domain_slab;
 
+		bool const _enabled;
+
 	public:
 
 		Io_mmu_factory(Genode::Env &env, Sliced_heap &md_alloc,
-		               Registry<Driver::Io_mmu_factory> &registry)
+		               Registry<Driver::Io_mmu_factory> &registry,
+		               bool const enabled)
 		:
 			Driver::Io_mmu_factory(registry, Device::Type { "intel_iommu" }),
 			_env(env),
 			_table_allocator(env.ram(), env.rm(), env.pd(), md_alloc),
-			_domain_slab(md_alloc)
+			_domain_slab(md_alloc),
+			_enabled(enabled)
 		{ }
 
 		void create(Allocator &alloc, Io_mmu_devices &io_mmu_devices,
 		            Device const &device, Device_model &devices) override
 		{
+			if (!_enabled)
+				return;
+
 			using Range = Device::Io_mem::Range;
 
 			unsigned irq_number { 0 };
