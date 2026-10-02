@@ -72,7 +72,7 @@ struct Usb_device
 	Allocator                  &_alloc;
 	Tslab<Interface::Urb, 4096> _iface_slab { _alloc };
 	Signal_context_capability   _handler_cap;
-	Usb::Connection             _session { _env };
+	Usb::Connection             _session { _env, _env.ep() };
 	Usb::Device                 _device  { _session, _alloc, _env.rm() };
 	libusb_speed                _speed { LIBUSB_SPEED_UNKNOWN };
 	unsigned                    _open { 0 };

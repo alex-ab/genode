@@ -454,7 +454,7 @@ struct Session
 	Env                      &_env;
 	Allocator                &_alloc;
 	Signal_context_capability _handler_cap;
-	Usb::Connection           _usb { _env };
+	Usb::Connection           _usb { _env, _env.ep() };
 	List_model<Device>        _model {};
 	Id_space<Device>          _space {};
 

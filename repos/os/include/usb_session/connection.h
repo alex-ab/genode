@@ -32,9 +32,10 @@ class Usb::Connection : public Genode::Connection<Session>, public Usb::Client
 		friend class Usb::Device;
 
 		Env                              &_env;
+		Entrypoint                       &_ep;
 		Rom_session_client                _rom     { devices_rom() };
 		Constructible<Attached_dataspace> _ds      {};
-		Io_signal_handler<Connection>     _handler { _env.ep(), *this,
+		Io_signal_handler<Connection>     _handler { _ep, *this,
 		                                             &Connection::_handle_io };
 
 		void _try_attach()
@@ -55,7 +56,7 @@ class Usb::Connection : public Genode::Connection<Session>, public Usb::Client
 				if (cap.valid())
 					return cap;
 
-				_env.ep().wait_and_dispatch_one_io_signal();
+				_ep.wait_and_dispatch_one_io_signal();
 			}
 		}
 
@@ -86,19 +87,21 @@ class Usb::Connection : public Genode::Connection<Session>, public Usb::Client
 			for (;;) {
 				if (Client::release_device(cap) == Release_result::OK)
 					return;
-				_env.ep().wait_and_dispatch_one_io_signal();
+
+				_ep.wait_and_dispatch_one_io_signal();
 			}
 		}
 
 	public:
 
-		Connection(Genode::Env    &env,
-		           Genode::size_t  ram_quota = RAM_QUOTA)
+		Connection(Genode::Env        &env,
+		           Genode::Entrypoint &ep,
+		           Genode::size_t      ram_quota = RAM_QUOTA)
 		:
 			Genode::Connection<Session>(env, Label(),
 			                            Ram_quota { ram_quota }, Args()),
 			Client(cap()),
-			_env(env)
+			_env(env), _ep(ep)
 		{
 			_try_attach();
 

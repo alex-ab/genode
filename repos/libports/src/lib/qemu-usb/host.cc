@@ -406,16 +406,16 @@ struct Session
 	Env                      &_env;
 	Allocator                &_alloc;
 	Signal_context_capability _handler_cap;
-	Usb::Connection           _usb { _env };
+	Usb::Connection           _usb;
 	List_model<Device>        _model {};
 	Id_space<Device>          _space {};
 	Registry<Urb>             _urb_registry {};
 
-	Session(Env &env, Allocator &alloc,
+	Session(Env &env, Allocator &alloc, Entrypoint &ep,
 	        Signal_context_capability io_handler_cap,
 	        Signal_context_capability rom_handler_cap)
 	:
-		_env(env), _alloc(alloc), _handler_cap(io_handler_cap)
+		_env(env), _usb(env, ep), _alloc(alloc), _handler_cap(io_handler_cap)
 	{
 		_usb.sigh(rom_handler_cap);
 	}
@@ -1045,7 +1045,7 @@ extern "C" void _type_init_usb_host_register_types(Entrypoint *ep,
 
 	Mutex::Guard guard(::_mutex);
 	usb_host_register_types();
-	_usb_session().construct(*env, *alloc, helper.io_handler,
+	_usb_session().construct(*env, *alloc, *ep, helper.io_handler,
 	                         helper.rom_handler);
 	usb_host_update_devices();
 }

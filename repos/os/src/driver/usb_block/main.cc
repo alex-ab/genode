@@ -88,7 +88,7 @@ class Usb::Block_driver
 		Entrypoint &_ep;
 		Allocator  &_alloc;
 
-		Connection _session { _env };
+		Connection _session { _env, _env.ep() };
 		Device     _device  { _session, _alloc, _env.rm() };
 
 		/*

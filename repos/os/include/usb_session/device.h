@@ -511,7 +511,7 @@ class Usb::Device
 		Env::Local_rm     &_rm;
 		Name         const _name { };
 
-		Io_signal_handler<Device> _handler { _session._env.ep(), *this,
+		Io_signal_handler<Device> _handler { _session._ep, *this,
 		                                     &Device::_handle_io };
 
 		Urb_handler<Device_session> _urb_handler;
@@ -533,7 +533,8 @@ class Usb::Device
 				auto result = call<Device_session::Rpc_release_interface>(cap);
 				if (result == Release_result::OK)
 					return;
-				_session._env.ep().wait_and_dispatch_one_io_signal();
+
+				_session._ep.wait_and_dispatch_one_io_signal();
 			}
 		}
 
