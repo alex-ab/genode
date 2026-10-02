@@ -48,11 +48,11 @@ namespace Libc {
 	int     socket_getsockopt(Socket &, int, int, void *, socklen_t *);
 	int     socket_setsockopt(Socket &, int, int, void const *, socklen_t);
 	int     socket_shutdown(Socket &, int);
-	int     socket_fcntl(Socket &, int, long);
+	int     socket_fcntl(Socket &, File_descriptor &, int, long);
 	ssize_t socket_read(Socket &, void *, ::size_t);
 	ssize_t socket_write(Socket &, const void *, ::size_t);
 	int     socket_poll(Pollfd fds[], int);
-	int     socket_ioctl(Socket &, unsigned long, char *);
+	int     socket_ioctl(Socket &, File_descriptor &, unsigned long, char *);
 
 	Socket_path socket_path(Socket const &);
 }

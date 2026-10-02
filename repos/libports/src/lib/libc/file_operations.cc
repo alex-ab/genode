@@ -512,7 +512,7 @@ __SYS_(int, fcntl, (int libc_fd, int cmd, ...),
 	va_start(ap, cmd);
 	res = with_fd(libc_fd, "fcntl", [&] (File_descriptor &fd) {
 		if (fd.socket_ptr)
-			return socket_fcntl(*fd.socket_ptr, cmd, va_arg(ap, long));
+			return socket_fcntl(*fd.socket_ptr, fd, cmd, va_arg(ap, long));
 		else
 			return _fcntl(fd, cmd, va_arg(ap, long));
 	});
@@ -626,7 +626,7 @@ __SYS_(int, ioctl, (int libc_fd, unsigned long request, char *argp),
 {
 	return with_fd(libc_fd, "ioctl", [&] (File_descriptor &fd) -> int {
 		if (fd.socket_ptr)
-			return socket_ioctl(*fd.socket_ptr, request, argp);
+			return socket_ioctl(*fd.socket_ptr, fd, request, argp);
 		else if (fd.open_file_ptr)
 			return fs().ioctl(fd, request, argp);
 		return Errno { EBADF };

@@ -139,7 +139,7 @@ struct Libc::Socket : Noncopyable
 		 * the socket in the socket FS.
 		 */
 		int const _handle_fd;
-		int       _fd_flags { 0 };
+		bool      _nonblock { false };
 
 		Absolute_path _read_socket_path()
 		{
@@ -222,8 +222,10 @@ struct Libc::Socket : Noncopyable
 
 		Proto proto() const { return _proto; }
 
-		int fd_flags() const { return _fd_flags; }
-		void fd_flags(int flags) { _fd_flags = flags; }
+		bool nonblock() const { return _nonblock; }
+
+		/* called from socket_fcntl() */
+		void apply_flags(int flags) { _nonblock = (flags & O_NONBLOCK); }
 
 		/* request the appropriate fd to ensure the file is open */
 		bool connect_read_ready() { return _read_ready(File_type::CONNECT); }
@@ -257,7 +259,7 @@ struct Libc::Socket : Noncopyable
 				[&] (Open_file &of) {
 					return fs().read(of, connect_status,
 				                       sizeof(connect_status),
-				                       fd_flags() & O_NONBLOCK);
+				                       nonblock());
 			});
 
 			if (connect_status_len <= 0) {
@@ -631,8 +633,7 @@ Libc::socket_accept(Socket &listen_socket, sockaddr *addr, socklen_t *addrlen)
 		/* XXX currently reading accept may return without new connection */
 		listen_socket.with_file(Socket::File_type::ACCEPT, [&] (Open_file &of) {
 			do {
-				n = fs().read(of, accept_buf, sizeof(accept_buf),
-				              listen_socket.fd_flags() & O_NONBLOCK);
+				n = fs().read(of, accept_buf, sizeof(accept_buf), listen_socket.nonblock());
 			} while (n == 0);
 
 			return 0;
@@ -665,9 +666,6 @@ Libc::socket_accept(Socket &listen_socket, sockaddr *addr, socklen_t *addrlen)
 				return Errno { ret };
 			}
 		}
-
-		/* inherit the O_NONBLOCK flag if set */
-		accept_socket.fd_flags(listen_socket.fd_flags());
 
 		return accept_socket;
 
@@ -725,7 +723,7 @@ int Libc::socket_try_connect(Socket &socket, sockaddr const *addr, socklen_t add
 			Socket::Sockaddr_string addr_string { };
 			int const len = ::strlen(addr_string.base());
 			int const n   = socket.with_file(Socket::File_type::CONNECT, [&] (Open_file &of) {
-				return fs().write(of, addr_string.base(), len, socket.fd_flags() & O_NONBLOCK); });
+				return fs().write(of, addr_string.base(), len, socket.nonblock()); });
 
 			if (n != len) {
 				socket.socket_error();
@@ -756,7 +754,7 @@ int Libc::socket_try_connect(Socket &socket, sockaddr const *addr, socklen_t add
 
 			int const len = ::strlen(addr_string.base());
 			int const n   = socket.with_file(Socket::File_type::CONNECT, [&] (Open_file &of) {
-				return fs().write(of, addr_string.base(), len, socket.fd_flags() & O_NONBLOCK); });
+				return fs().write(of, addr_string.base(), len, socket.nonblock()); });
 
 			if (n != len) {
 				warning("socket_try_connect: write to connect_fd failed");
@@ -827,7 +825,7 @@ int Libc::socket_listen(Socket &socket, int backlog)
  */
 static void handle_wakeup_remote_peers(Socket &socket)
 {
-	if (errno == EAGAIN && socket.fd_flags() & O_NONBLOCK)
+	if (errno == EAGAIN && socket.nonblock())
 		Libc::Kernel::kernel().wakeup_remote_peers();
 }
 
@@ -840,7 +838,7 @@ static ssize_t do_recvfrom(Socket &socket,
 	if (!len) return Errno(EINVAL);
 
 	if (src_addr) {
-		Socket::Remote_functor func(socket, socket.fd_flags() & O_NONBLOCK);
+		Socket::Remote_functor func(socket, socket.nonblock());
 		int const res = read_sockaddr_in(func, (sockaddr_in *)src_addr, src_addrlen);
 		if (res < 0) return res;
 	}
@@ -848,7 +846,7 @@ static ssize_t do_recvfrom(Socket &socket,
 	Socket::File_type const type = flags & MSG_PEEK ? Socket::File_type::PEEK
 	                                                : Socket::File_type::DATA;
 	bool          const nonblock = flags & MSG_PEEK ? false
-	                                                : socket.fd_flags() & O_NONBLOCK;
+	                                                : socket.nonblock();
 
 	return socket.with_file(type, [&] (Open_file &of) -> ssize_t {
 		if (fs().lseek(of, 0, SEEK_SET) != 0)
@@ -999,7 +997,7 @@ static ssize_t do_sendto(Socket &socket,
 
 	ssize_t out_len = socket.with_file(Socket::File_type::DATA, [&] (Open_file &of) {
 		fs().lseek(of, 0, 0);
-		return fs().write(of, buf, len, socket.fd_flags() & O_NONBLOCK);
+		return fs().write(of, buf, len, socket.nonblock());
 	});
 
 	/* update errno unless VFS-plugin returned EAGAIN */
@@ -1208,13 +1206,7 @@ Libc::Create_socket_result Libc::create_socket(int domain, int type, int protoco
 			error("failed to open new socket at ", path);
 			return Errno { EACCES };
 		}
-		Socket &socket = *new (kernel_heap()) Socket(proto, handle_fd);
-
-		int flags = 0;
-		if (type & SOCK_NONBLOCK) flags |= O_NONBLOCK;
-		if (type & SOCK_CLOEXEC)  flags |= O_CLOEXEC;
-		socket.fd_flags(flags);
-		return socket;
+		return *new (kernel_heap()) Socket(proto, handle_fd);
 
 	} catch (Socket::New_socket_failed) { return Errno { ENFILE }; }
 }
@@ -1283,19 +1275,29 @@ extern "C" int getifaddrs(struct ifaddrs **ifap)
 extern "C" void freeifaddrs(struct ifaddrs *) { }
 
 
-int Libc::socket_fcntl(Socket &socket, int cmd, long arg)
+int Libc::socket_fcntl(Socket &socket, File_descriptor &fd, int cmd, long arg)
 {
 	switch (cmd) {
 	case F_GETFD:
-		return socket.fd_flags();
+		return fd.cloexec ? FD_CLOEXEC : 0;
+
 	case F_SETFD:
-		socket.fd_flags(arg);
+		fd.cloexec = arg == FD_CLOEXEC;
 		return 0;
+
 	case F_GETFL:
-		return socket.fd_flags() | O_RDWR;
+		return fd.flags | O_RDWR;
+
 	case F_SETFL:
-		socket.fd_flags(arg);
+		socket.apply_flags(arg);
+
+		/* only O_NONBLOCK can be changed */
+		if (socket.nonblock())
+			fd.flags |= O_NONBLOCK;
+		else
+			fd.flags &= ~O_NONBLOCK;
 		return 0;
+
 	default:
 		error(__func__, " command ", cmd, " not supported on sockets");
 		return Errno(EINVAL);
@@ -1373,7 +1375,7 @@ int Libc::socket_poll(Pollfd fds[], int nfds)
 }
 
 
-int Libc::socket_ioctl(Socket &socket, unsigned long request, char *buf)
+int Libc::socket_ioctl(Socket &socket, File_descriptor &fd, unsigned long request, char *buf)
 {
 	if (request == FIONREAD) {
 		int *count = (int *)buf;
@@ -1395,10 +1397,10 @@ int Libc::socket_ioctl(Socket &socket, unsigned long request, char *buf)
 
 		int const enable = *(int *)buf;
 
-		int const old_flags = socket.fd_flags();
-		int const new_flags = enable ? (old_flags | O_NONBLOCK)
-		                             : (old_flags & ~O_NONBLOCK);
-		socket.fd_flags(new_flags);
+		int const new_flags = enable ? (fd.flags | O_NONBLOCK)
+		                             : (fd.flags & ~O_NONBLOCK);
+		fd.flags = new_flags;
+		socket.apply_flags(fd.flags);
 		return 0;
 	}
 

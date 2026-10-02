@@ -82,7 +82,7 @@ static auto with_socket(int libc_fd, FN const &fn)
 		if (!fd.socket_ptr)
 			return Errno(ENOTSOCK);
 
-		return fn(*fd.socket_ptr);
+		return fn(*fd.socket_ptr, fd);
 	});
 }
 
@@ -93,7 +93,7 @@ static auto with_socket(int libc_fd, FN const &fn)
 
 extern "C" int getpeername(int libc_fd, sockaddr *addr, socklen_t *addrlen)
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_getpeername(socket, addr, addrlen); });
 }
 
@@ -104,7 +104,7 @@ int _getpeername(int libc_fd, sockaddr *addr, socklen_t *addrlen);
 
 extern "C" int getsockname(int libc_fd, sockaddr *addr, socklen_t *addrlen)
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_getsockname(socket, addr, addrlen); });
 }
 
@@ -119,7 +119,7 @@ int _getsockname(int libc_fd, sockaddr *addr, socklen_t *addrlen);
 
 __SYS_(int, accept, (int libc_fd, sockaddr *addr, socklen_t *addrlen),
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &fd) {
 
 		auto const allocated_libc_id =
 			fds().with_alloc([&] (Fds::Bits &bits, Fds::Space &) {
@@ -130,9 +130,12 @@ __SYS_(int, accept, (int libc_fd, sockaddr *addr, socklen_t *addrlen),
 				return socket_accept(socket, addr, addrlen).convert<int>(
 					[&] (Socket &accept_socket) {
 						return fds().with_space([&] (Fds::Space &space) {
-							new (kernel_heap())
+							File_descriptor &fd = *new (kernel_heap())
 								File_descriptor(space, int(libc_id), accept_socket,
 							                    socket_path(accept_socket));
+
+							/* inherit the O_NONBLOCK flag if set */
+							socket_fcntl(accept_socket, fd, F_SETFL, fd.flags);
 							return int(libc_id);
 						});
 					},
@@ -155,7 +158,7 @@ __SYS_(int, accept4, (int libc_fd, struct sockaddr *addr, socklen_t *addrlen, in
 
 extern "C" int bind(int libc_fd, sockaddr const *addr, socklen_t addrlen)
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_bind(socket, addr, addrlen); });
 }
 
@@ -177,7 +180,7 @@ static int block_until_write_ready(int libc_fd, unsigned timeout_seconds)
 
 __SYS_(int, connect, (int libc_fd, sockaddr const *addr, socklen_t addrlen),
 {
-	int ret = with_socket(libc_fd, [&] (Socket &socket) {
+	int ret = with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_try_connect(socket, addr, addrlen); });
 
 	auto need_block = [&]
@@ -199,7 +202,7 @@ __SYS_(int, connect, (int libc_fd, sockaddr const *addr, socklen_t addrlen),
 		if (select_ret < 0)
 			break; /* errno has been set by select() */
 
-		ret = with_socket(libc_fd, [&] (Socket &socket) {
+		ret = with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 
 			if (select_ret == 0)
 				return socket_connect_timed_out(socket);
@@ -214,7 +217,7 @@ __SYS_(int, connect, (int libc_fd, sockaddr const *addr, socklen_t addrlen),
 
 extern "C" int listen(int libc_fd, int backlog)
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_listen(socket, backlog); });
 }
 
@@ -222,21 +225,21 @@ extern "C" int listen(int libc_fd, int backlog)
 __SYS_(ssize_t, recvfrom, (int libc_fd, void *buf, ::size_t len, int flags,
                            sockaddr *src_addr, socklen_t *src_addrlen),
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_recvfrom(socket, buf, len, flags, src_addr, src_addrlen); });
 })
 
 
 __SYS_(ssize_t, recv, (int libc_fd, void *buf, ::size_t len, int flags),
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_recv(socket, buf, len, flags); });
 })
 
 
 __SYS_(ssize_t, recvmsg, (int libc_fd, msghdr *msg, int flags),
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_recvmsg(socket, msg, flags); });
 })
 
@@ -244,14 +247,14 @@ __SYS_(ssize_t, recvmsg, (int libc_fd, msghdr *msg, int flags),
 __SYS_(ssize_t, sendto, (int libc_fd, void const *buf, ::size_t len, int flags,
                           sockaddr const *dest_addr, socklen_t dest_addrlen),
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_sendto(socket, buf, len, flags, dest_addr, dest_addrlen); });
 })
 
 
 extern "C" ssize_t send(int libc_fd, void const *buf, ::size_t len, int flags)
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_send(socket, buf, len, flags); });
 }
 
@@ -259,7 +262,7 @@ extern "C" ssize_t send(int libc_fd, void const *buf, ::size_t len, int flags)
 extern "C" int getsockopt(int libc_fd, int level, int optname,
                           void *optval, socklen_t *optlen)
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_getsockopt(socket, level, optname, optval, optlen); });
 }
 
@@ -272,7 +275,7 @@ int _getsockopt(int libc_fd, int level, int optname,
 extern "C" int setsockopt(int libc_fd, int level, int optname,
                           void const *optval, socklen_t optlen)
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_setsockopt(socket, level, optname, optval, optlen); });
 }
 
@@ -284,14 +287,14 @@ int _setsockopt(int libc_fd, int level, int optname,
 
 extern "C" int shutdown(int libc_fd, int how)
 {
-	return with_socket(libc_fd, [&] (Socket &socket) {
+	return with_socket(libc_fd, [&] (Socket &socket, File_descriptor &) {
 		return socket_shutdown(socket, how); });
 }
 
 
 __SYS_(int, socket, (int domain, int type, int protocol),
 {
-	if (_config_ptr->socket.length() <= 1)
+	if (config().socket.length() <= 1)
 		return Errno { ENOTSOCK };
 
 	auto allocated_libc_id = fds().with_alloc(
@@ -301,9 +304,13 @@ __SYS_(int, socket, (int domain, int type, int protocol),
 		return create_socket(domain, type, protocol).convert<int>(
 			[&] (Socket &new_socket) {
 				return fds().with_space([&] (Fds::Space &space) {
-					new (kernel_heap())
+					File_descriptor &fd = *new (kernel_heap())
 						File_descriptor(space, int(libc_id), new_socket,
 					                    socket_path(new_socket));
+					int flags = 0;
+					if (type & SOCK_NONBLOCK) flags |= O_NONBLOCK;
+					if (type & SOCK_CLOEXEC)  flags |= O_CLOEXEC;
+					socket_fcntl(new_socket, fd, F_SETFL, flags);
 					return int(libc_id);
 				});
 			},
