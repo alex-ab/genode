@@ -104,7 +104,7 @@ config
 + start timer | caps: 200 | ram: 1M
   + provides | + service Timer
 
-+ start drivers | caps: 1500 | ram: 64M | managing_system: yes
++ start drivers | caps: 2000 | ram: 64M | managing_system: yes
   + binary init
   + route
     + service Timer               | + child timer

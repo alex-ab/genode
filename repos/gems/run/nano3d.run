@@ -27,7 +27,7 @@ config
 
 + default | caps: 100 | ram: 1M
 
-+ start drivers | caps: 1500 | ram: 64M | managing_system: yes
++ start drivers | caps: 2000 | ram: 64M | managing_system: yes
   + binary init
   + route
     + service ROM | label: config | + parent | label: drivers.config

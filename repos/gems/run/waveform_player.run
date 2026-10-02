@@ -57,7 +57,7 @@ config | prio_levels: 4
     + service Report
   + config
 
-+ start drivers | caps: 1500 | ram: 64M | managing_system: yes | priority: -1
++ start drivers | caps: 2000 | ram: 64M | managing_system: yes | priority: -1
   + binary init
   + route
     + service ROM | label: config | + parent | label: drivers.config

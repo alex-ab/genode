@@ -146,7 +146,7 @@ proc qt5_start_nodes { } {
     + service ROM | label: numlock | + child wm_report_rom
     + any-service | + parent
 
-+ start drivers | caps: 1500 | ram: 64M | managing_system: yes
++ start drivers | caps: 2000 | ram: 64M | managing_system: yes
   + binary init
   + route
     + service ROM     | label: config                        | + parent                  | label: drivers.config

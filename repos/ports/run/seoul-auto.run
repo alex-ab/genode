@@ -217,7 +217,7 @@ config | verbose: no | prio_levels: 4
       + parent
       + any-child
 
-+ start usb_hid | priority: -2 | caps: 140 | ram: 11M
++ start usb_hid | priority: -2 | caps: 200 | ram: 11M
   + config | use_report: yes
   + route
     + service Report
