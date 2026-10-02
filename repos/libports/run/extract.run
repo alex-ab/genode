@@ -28,8 +28,8 @@ config
     | + dir extracted
     |   + ram
     | + dir dev
-    |   + log
-    |   + null
+    |   + device | + log
+    |   + device | + null
     + extract         | archive: /archived/test.tar.xz | to: /extracted
     + extract LICENSE | archive: /archived/LICENSE.xz  | to: /extracted
 -

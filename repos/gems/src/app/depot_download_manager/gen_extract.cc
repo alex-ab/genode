@@ -110,8 +110,8 @@ void Depot_download_manager::gen_extract_start_content(Generator           &g,
 			});
 			g.node("dir", [&] {
 				g.attribute("name", "dev");
-				g.node("log",  [&] { });
-				g.node("null", [&] { });
+				g.node("device", [&] { g.node("log");  });
+				g.node("device", [&] { g.node("null"); });
 			});
 		});
 

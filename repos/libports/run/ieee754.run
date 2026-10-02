@@ -25,25 +25,25 @@ config
 + start test1 | ram: 2144K
   + binary test-ieee754
   + config
-    + vfs | + dir dev | + log
+    + vfs | + dir dev | + device | + log
     + libc | stdout: /dev/log
 
 + start test2 | ram: 2144K
   + binary test-ieee754
   + config
-    + vfs | + dir dev | + log
+    + vfs | + dir dev | + device | + log
     + libc | stdout: /dev/log
 
 + start test3 | ram: 2144K
   + binary test-ieee754
   + config
-    + vfs | + dir dev | + log
+    + vfs | + dir dev | + device | + log
     + libc | stdout: /dev/log
 
 + start test4 | ram: 2144K
   + binary test-ieee754
   + config
-    + vfs | + dir dev | + log
+    + vfs | + dir dev | + device | + log
     + libc | stdout: /dev/log
 -
 }

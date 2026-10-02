@@ -25,7 +25,7 @@ config
   + binary vfs
   + provides | + service File_system
   + config
-    + vfs | + dir dev | + log | label: log
+    + vfs | + dir dev | + device | + log | label: log
     + default-policy | root: / | writeable: yes
 
 + start test | caps: 1000 | ram: 4M

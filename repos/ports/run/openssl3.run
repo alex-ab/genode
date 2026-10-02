@@ -85,10 +85,10 @@ config | verbose: yes | prio_levels: 2
       + tar openssl3.tar
       + dir dev
         + dir pipe | + pipe
-        + jitterentropy random
-        + null
-        + rtc
-        + zero
+        + device random | + jitterentropy
+        + device | + null
+        + device | + rtc
+        + device | + zero
       + dir socket | + lxip | dhcp: yes
     + policy         | label_prefix: vfs_rom -> | root: /
     + default-policy                            | root: / | writeable: yes
@@ -115,7 +115,7 @@ config | verbose: yes | prio_levels: 2
     + vfs
       + inline empty | :
       + fs
-      + dir dev | + log
+      + dir dev | + device | + log
     + arg | : openssl
     + arg | : s_client
     + arg | : -showcerts

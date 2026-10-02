@@ -75,7 +75,7 @@ runtime | ram: 300M | caps: 2500 | binary: init
     | |   |   + arg recv
     | |   |   + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     | |   |   + vfs
-    | |   |     + dir dev | + log
+    | |   |     + dir dev | + device | + log
     | |   |     + dir socket
     | |   |       + lwip | ip_addr: 192.168.1.1 | netmask: 255.255.255.0
     | |   + start send | ram: 32M
@@ -84,7 +84,7 @@ runtime | ram: 300M | caps: 2500 | binary: init
     | |       + arg send | : 192.168.1.1
     | |       + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     | |       + vfs
-    | |         + dir dev | + log
+    | |         + dir dev | + device | + log
     | |         + dir socket
     | |           + lwip | ip_addr: 192.168.1.2 | netmask: 255.255.255.0
     | |
@@ -130,7 +130,7 @@ runtime | ram: 300M | caps: 2500 | binary: init
     |     | | + arg recv
     |     | | + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     |     | | + vfs
-    |     | |   + dir dev | + log
+    |     | |   + dir dev | + device | + log
     |     | |   + fs
     |     | + route
     |     |   + service File_system | + child recv_fs
@@ -144,7 +144,7 @@ runtime | ram: 300M | caps: 2500 | binary: init
     |       | + arg send | : 192.168.1.1
     |       | + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     |       | + vfs
-    |       |   + dir dev | + log
+    |       |   + dir dev | + device | + log
     |       |   + fs
     |       + route
     |         + service File_system | + child send_fs

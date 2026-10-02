@@ -15,7 +15,7 @@ config
 
 + start test-pcg32 | ram: 4M | caps: 200
   + config
-    + vfs | + dir dev | + log
+    + vfs | + dir dev | + device | + log
     + libc | stdout: /dev/log
 -
 }

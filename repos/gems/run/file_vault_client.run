@@ -180,8 +180,8 @@ config
       |   | |   + dir share
       |   | |   + dir tmp  | + ram
       |   | |   + dir dev
-      |   | |     + zero
-      |   | |     + null
+      |   | |     + device | + zero
+      |   | |     + device | + null
       |   | |     + device | + terminal
       |   | |     + dir pipe | + pipe
       |   | |     + inline rtc | : 2018-01-01 00:01

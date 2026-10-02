@@ -40,8 +40,8 @@ runtime | ram: 32M | caps: 1000 | binary: init
     | + vfs
     |   + fs | label: procfs -> /
     |   + dir dev
-    |     + null
-    |     + log
+    |     + device | + null
+    |     + device | + log
     |     + symlink fd | target: /proc/self/fd
     |   + dir proc | + ram
     + route

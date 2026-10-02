@@ -99,8 +99,8 @@ config
     + libc | stdout: /dev/log | stderr: /dev/log
     + vfs
     | + dir dev
-    |   + log
-    |   + null
+    |   + device | + log
+    |   + device | + null
     | + dir templates | + fs | label: templates -> /
     | + dir test      | + fs | label: test -> /
     + arg test-file_writer
@@ -128,8 +128,8 @@ config
     + libc | stdout: /dev/log | stderr: /dev/log
     + vfs
     | + dir dev
-    |   + log
-    |   + null
+    |   + device | + log
+    |   + device | + null
     | + dir templates | + fs | label: templates -> /
     | + dir test      | + fs | label: test -> /
     + arg test-file_writer

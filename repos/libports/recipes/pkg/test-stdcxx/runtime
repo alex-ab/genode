@@ -13,6 +13,6 @@ runtime | ram: 10M | caps: 150 | binary: test-stdcxx
   + rom | label: test-stdcxx
 
 + config
-  + vfs | + dir dev | + log
+  + vfs | + dir dev | + device | + log
   + libc | stdout: /dev/log
 -

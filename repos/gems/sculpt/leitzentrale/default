@@ -131,7 +131,7 @@ config
   |   |     + decor | top: 6 | bottom: 6 | left: 6 | right: 6
   |   | + rom default.png
   |   + dir dev
-  |     + log
+  |     + device | + log
   |
   | + policy | label: log_view -> log              | decoration: yes | motion: 40
   | + policy | label: runtime_view -> settings     | decoration: no  | motion: 40

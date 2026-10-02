@@ -60,7 +60,7 @@ config
   |   |     + decor | top: 6 | bottom: 6 | left: 6 | right: 6
   |   | + rom default.png
   |   + dir dev
-  |     + log
+  |     + device | + log
   | + policy | label: log                  | decoration: yes | motion: 20
   | + policy | label: runtime_view -> main | decoration: no  | motion: 0
   | + policy | label: touch_keyboard       | decoration: no  | motion: 20

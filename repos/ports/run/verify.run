@@ -36,8 +36,8 @@ config
     | + rom pubkey
     | + tar test.tar
     | + dir dev
-    |   + log
-    |   + null
+    |   + device | + log
+    |   + device | + null
     + verify | path: expect_valid.txt   | pubkey: /nonexistent_pubkey
     + verify | path: expect_valid.txt   | pubkey: /dev/null
     + verify | path: expect_valid.txt   | pubkey: /pubkey

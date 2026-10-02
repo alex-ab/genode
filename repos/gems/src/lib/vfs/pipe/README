@@ -32,7 +32,7 @@ Here a sample scenario where stdin of a component is attached to a named pipe:
 !     + vfs
 !       + dir dev
 !         + dir pipe | + fs
-!         + log
+!         + device | + log
 
 The fifo named 'upstream' represents a named pipe file which can be opened with
 read-only or write-only flags.

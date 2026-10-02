@@ -38,6 +38,6 @@ runtime | ram: 32M | caps: 1000 | binary: init
       + write-read | size: 1M | buffer_size: 8K
       + vfs
       | + dir tmp | + fs
-      | + dir dev | + log
+      | + dir dev | + device | + log
       + libc | stdout: /dev/log | cwd: /tmp
 -

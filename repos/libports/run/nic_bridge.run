@@ -73,7 +73,7 @@ config
   + config | port: 80
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
-      + dir dev    | + log
+      + dir dev    | + device | + log
       + dir socket | + lwip | label: lwip | ip_addr: 10.0.2.55
                                           | netmask: 255.255.255.0
                                           | gateway: 10.0.2.1
@@ -87,7 +87,7 @@ config
   + config | port: 80
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
-      + dir dev    | + log
+      + dir dev    | + device | + log
       + dir socket | + lxip | label: lxip | ip_addr: 10.0.2.56
                                           | netmask: 255.255.255.0
                                           | gateway: 10.0.2.1
@@ -101,7 +101,7 @@ config
   + config | server_ip: 10.0.2.55 | server_port: 80
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
-      + dir dev    | + log
+      + dir dev    | + device | + log
       + dir socket | + lwip | dhcp: yes
 
 + start client_2 | ram: 32M
@@ -114,7 +114,7 @@ config
   + config | server_ip: 10.0.2.56 | server_port: 80
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
-      + dir dev    | + log
+      + dir dev    | + device | + log
       + dir socket | + lxip | dhcp: yes
 
 + start client_3 | ram: 32M
@@ -127,7 +127,7 @@ config
   + config | server_ip: 10.0.2.56 | server_port: 80
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
-      + dir dev    | + log
+      + dir dev    | + device | + log
       + dir socket | + lwip | dhcp: yes
 -
 }

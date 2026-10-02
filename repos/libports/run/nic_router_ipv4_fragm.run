@@ -112,7 +112,7 @@ config
   + config | port: 8000
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
-      + dir dev    | + log
+      + dir dev    | + device | + log
       + dir socket | + lwip | ip_addr: 10.0.3.100
                             | gateway: 10.0.3.1
                             | netmask: 255.255.255.0

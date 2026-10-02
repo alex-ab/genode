@@ -163,7 +163,7 @@ config
 + start scout | caps: 10000 | ram: 80M
   + config
     + libc | stdout: /dev/log | stderr: /dev/log
-    + vfs | + dir dev | + log
+    + vfs | + dir dev | + device | + log
 -
 }
 

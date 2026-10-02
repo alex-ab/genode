@@ -75,8 +75,8 @@ config
   | + arg -D
   | + vfs
   |   + dir dev
-  |     + log
-  |     + null
+  |     + device | + log
+  |     + device | + null
   |     + inline rtc | : 2018-01-01 00:01
   |   + dir socket | + lwip | dhcp: yes
   |   + tar genode_org.tar

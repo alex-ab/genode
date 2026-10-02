@@ -24,6 +24,6 @@ runtime | ram: 3M | caps: 200 | binary: test-expat
   + vfs
   | + inline config
   |   : <config> <test_tag test_attribute="test_value"/> </config>
-  | + dir dev | + log
+  | + dir dev | + device | + log
   + libc | stdout: /dev/log
 -

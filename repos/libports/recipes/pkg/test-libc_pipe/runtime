@@ -44,14 +44,14 @@ runtime | ram: 32M | caps: 1000 | binary: init
       | + binary test-libc_pipe
       | + config
       |   + vfs
-      |   | + dir dev  | + log
+      |   | + dir dev  | + device | + log
       |   | + dir pipe | + pipe
       |   + libc | stdout: /dev/log | stderr: /dev/log | pipe: /pipe
       + start libc_pipe_remote
         + binary test-libc_pipe
         + config
           + vfs
-          | + dir dev  | + log
+          | + dir dev  | + device | + log
           | + dir pipe | + fs
           + libc | stdout: /dev/log | stderr: /dev/log | pipe: /pipe
 -

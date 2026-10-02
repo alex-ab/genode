@@ -164,7 +164,7 @@ config
   |
   | + start test-monitor_gdb | caps: 300 | ram: 10M
   |   + config
-  |     + vfs | + dir dev | + log
+  |     + vfs | + dir dev | + device | + log
   |     + libc | stdout: /dev/log | stderr: /dev/log
   |   + route
   |     + service PD  | + local
@@ -205,7 +205,7 @@ config
   + config
   | + vfs
   |   + dir dev
-  |     + log
+  |     + device | + log
   |     + inline rtc | : 2018-01-01 00:01
   |     + device gdb | + terminal | label: gdb
   |     } [socat_uart_dev] {
@@ -230,7 +230,7 @@ config
   + config | ld_verbose: yes
   | + vfs
   |   + dir dev
-  |     + log
+  |     + device | + log
   |     + inline rtc | : 2023-01-01 00:01
   |     + device tty     | + terminal | label: tty
   |     + device monitor | + terminal | label: monitor

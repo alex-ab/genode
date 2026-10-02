@@ -62,7 +62,7 @@ config | verbose: no
   + config
   | + default-policy | filename: log
   | + vfs
-  |   + dir dev | + log
+  |   + dir dev | + device | + log
   |   + fs
   | + libc | stdout: /dev/log
   + route

@@ -15,6 +15,6 @@ runtime | ram: 12M | caps: 100 | binary: test-libc_vfs
   + write-read | size: 1M | buffer_size: 8K
   + vfs
   | + dir tmp | + ram
-  | + dir dev | + log
+  | + dir dev | + device | + log
   + libc | stdout: /dev/log | cwd: /tmp
 -

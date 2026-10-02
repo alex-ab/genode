@@ -73,8 +73,8 @@ config | verbose: yes
   |   |     + config
   |   |     | + vfs
   |   |     |   + dir dev
-  |   |     |     + log
-  |   |     |     + null
+  |   |     |     + device | + log
+  |   |     |     + device | + null
   |   |     |   + dir socket
   |   |     |     + } [ipstack] {
   |   |     |       | ip_addr:    10.0.2.3
@@ -107,8 +107,8 @@ config | verbose: yes
   + config | server_ip: 10.0.2.3
   | + vfs
   |   + dir dev
-  |     + log
-  |     + null
+  |     + device | + log
+  |     + device | + null
   |   + dir socket
   |     + } [ipstack] { | dhcp: yes
   | + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket

@@ -35,10 +35,10 @@ runtime | ram: 80M | caps: 1000 | binary: init
       | + tar bash-minimal.tar
       | + tar coreutils.tar
       | + dir dev
-      |   + zero
-      |   + null
-      |   + log
-      |   + rtc
+      |   + device | + zero
+      |   + device | + null
+      |   + device | + log
+      |   + device | + rtc
       | + dir pipe   | + pipe
       | + dir rw     | + fs | label: target -> /
       | + dir report | + fs | label: report -> /

@@ -28,11 +28,11 @@ runtime | ram: 8300M | caps: 2500 | binary: virtualbox7
   |      ld_verbose: yes
   + vfs
   | + dir dev
-  |   + log
-  |   + rtc
-  |   + null
-  |   + gpu
-  |   + zero
+  |   + device | + log
+  |   + device | + rtc
+  |   + device | + null
+  |   + device | + gpu
+  |   + device | + zero
   |   + oss dsp | min_ofrag_size: 8192 | min_ifrag_size: 8192
   | + dir pipe | + pipe
   | + dir shared | + fs | label: shared -> / | writeable: yes

@@ -92,11 +92,11 @@ config | verbose: yes
   |        | rng: /dev/random
   | + vfs
   |   + dir dev
-  |     + jitterentropy random
-  |     + jitterentropy urandom
-  |     + log
-  |     + null
-  |     + rtc
+  |     + device random  | + jitterentropy
+  |     + device urandom | + jitterentropy
+  |     + device | + log
+  |     + device | + null
+  |     + device | + rtc
   |   + dir etc
   |     + inline rsyslog.conf
   |       : module(load="imfile" PollingInterval="2")

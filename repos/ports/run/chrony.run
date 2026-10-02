@@ -132,11 +132,11 @@ config | verbose: yes | prio_levels: 2
   |        | socket: /socket | pipe: /pipe | rng: /dev/random
   | + vfs
   |   + dir dev
-  |     + jitterentropy random
-  |     + jitterentropy urandom
-  |     + log
-  |     + null
-  |     + rtc
+  |     + device random  | + jitterentropy
+  |     + device urandom | + jitterentropy
+  |     + device | + log
+  |     + device | + null
+  |     + device | + rtc
   |   + dir socket | + lxip | dhcp: yes
   |   + dir pipe | + pipe
   |   + dir etc

@@ -54,7 +54,7 @@ proc vfs_server_start_node { } { return [join [list {
   + config
     + policy | label_prefix: test-libc_vfs | root: / | writeable: yes
     + vfs
-      + dir dev | + log
+      + dir dev | + device | + log
       + } [vfs_server_vfs_fs_node] {
 } ] ""] }
 
@@ -102,7 +102,7 @@ config | verbose: yes
     + } [test_command] {
     + libc | stdout: /dev/log | stderr: /dev/log
     + vfs
-      + dir dev | + log
+      + dir dev | + device | + log
       + } [test_vfs_fs_node] {
 
 + start vfs_block | caps: 700 | ram: 80M

@@ -87,8 +87,8 @@ config
     + report | progress: yes
     + vfs
     | + dir dev
-    |   + log
-    |   + null
+    |   + device | + log
+    |   + device | + null
     |   + inline rtc    | : 2000-01-01 00:00
     |   + inline random | : 0123456789012345678901234567890123456789
     | + dir pipe | + pipe

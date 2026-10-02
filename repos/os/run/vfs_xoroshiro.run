@@ -51,10 +51,10 @@ config | verbose: yes
   | + libc | stdin: /dev/null | stdout: /dev/log | stderr: /dev/log | rtc: /dev/null
   | + vfs
   | | + dir dev
-  | |   + log
-  | |   + null
-  | |   + jitterentropy entropy
-  | |   + xoroshiro random | seed_path: /dev/entropy
+  | |   + device | + log
+  | |   + device | + null
+  | |   + device entropy | + jitterentropy
+  | |   + device random  | + xoroshiro | seed_path: /dev/entropy
   | + arg dd
   | + arg if=/dev/random
   | + arg of=/dev/null

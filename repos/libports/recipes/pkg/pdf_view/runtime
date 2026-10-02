@@ -23,5 +23,5 @@ runtime | ram: 64M | caps: 2000 | binary: pdf_view
   + libc | stdout: /dev/log | stderr: /dev/log
   + vfs
     + fs | writeable: no
-    + dir dev | + log
+    + dir dev | + device | + log
 -

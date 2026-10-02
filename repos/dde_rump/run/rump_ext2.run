@@ -68,7 +68,7 @@ config | verbose: yes
   + config
     + libc | stdout: /dev/log
     + vfs
-      + dir dev | | + log
+      + dir dev | + device | + log
       + fs
 -
 }

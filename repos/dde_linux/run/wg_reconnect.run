@@ -138,10 +138,10 @@ set server_init_config {
   |            | rtc:    /dev/rtc  | rng:    /dev/random | socket: /socket
   |     + vfs
   |       + dir dev
-  |         + jitterentropy random
-  |         + log
-  |         + null
-  |         + rtc
+  |         + device random | + jitterentropy
+  |         + device | + log
+  |         + device | + null
+  |         + device | + rtc
   |       + dir socket | + lwip | dhcp: yes
   |       + dir etc
   |         + dir lighttpd

@@ -111,11 +111,11 @@ config
   + config | ld_verbose: no
   | + vfs
   |   + dir dev
-  |     + jitterentropy random
-  |     + jitterentropy urandom
-  |     + log
-  |     + null
-  |     + rtc
+  |     + device random  | + jitterentropy
+  |     + device urandom | + jitterentropy
+  |     + device | + log
+  |     + device | + null
+  |     + device | + rtc
   |   + dir config | + ram
   |   + dir firmware | + tar wifi_firmware.tar
   | + libc | stdout: /dev/null | stderr: /dev/null | rtc: /dev/rtc

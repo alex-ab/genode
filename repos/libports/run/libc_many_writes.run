@@ -55,7 +55,7 @@ config
   + config
   | + vfs
   |   + dir rw  | + fs
-  |   + dir dev | + log
+  |   + dir dev | + device | + log
   | + libc | stdout: /dev/log | stderr: /dev/log
   | + arg test
   + route

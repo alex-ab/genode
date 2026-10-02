@@ -12,10 +12,10 @@ runtime | ram: 8M | caps: 200 | binary: lighttpd
   + arg | value: -D
   + vfs
   | + dir dev
-  |   + log
-  |   + null
-  |   + inline rtc | : 2024-03-05 00:01
-  |   + jitterentropy random
+  |   + device | + log
+  |   + device | + null
+  |   + inline rtc    | : 2024-03-05 00:01
+  |   + device random | + jitterentropy
   | + dir socket | + lwip | dhcp: yes
   | + dir etc
   |   + dir lighttpd

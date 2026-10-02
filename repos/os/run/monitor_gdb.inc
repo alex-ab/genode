@@ -105,7 +105,7 @@ if { [have_include power_on/qemu] } {
 		  + config
 		  | + policy | label_prefix: monitor | port: 5555
 		  | + vfs
-		  |   + dir dev    | + log
+		  |   + dir dev    | + device | + log
 		  |   + dir socket | + lwip | dhcp: yes
 		  |   + dir pipe   | + pipe
 		  | + libc | stdout: /dev/log | socket: /socket | pipe: /pipe
@@ -132,7 +132,7 @@ append config {
     + monitor | + policy | label: test-monitor_gdb | wait: yes | wx: yes
     + start test-monitor_gdb | caps: 300 | ram: 10M
     | + config
-    |   + vfs | + dir dev | + log
+    |   + vfs | + dir dev | + device | + log
     |   + libc | stdout: /dev/log | stderr: /dev/log
     | + route
     |   + service PD  | + local

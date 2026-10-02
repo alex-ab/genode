@@ -241,10 +241,10 @@ proc wifi_start_nodes { } { return [join [list {
   | + libc | stdout: /dev/null | stderr: /dev/log | rtc: /dev/rtc
   | + vfs
   |   + dir dev
-  |     + log
-  |     + null
-  |     + jitterentropy random
-  |     + jitterentropy urandom
+  |     + device | + log
+  |     + device | + null
+  |     + device random  | + jitterentropy
+  |     + device urandom | + jitterentropy
   |     + inline rtc | : 2018-01-01 00:01
   |   + dir firmware | + tar wifi_firmware.tar
   + route
@@ -403,7 +403,7 @@ config | verbose: yes | prio_levels: 4
   | + libc | stdout: /dev/log | stderr: /dev/log | rtc: /dev/rtc | socket: /socket
   | + vfs
   |   + dir dev
-  |     + log
+  |     + device | + log
   |     + inline rtc | : 2018-01-01 00:01
   |   + dir socket | + } [socket_fs_plugin] { | dhcp: yes
   + route

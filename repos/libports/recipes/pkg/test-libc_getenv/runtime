@@ -21,7 +21,7 @@ runtime | ram: 4M | caps: 100 | binary: test-libc_getenv
   + rom | label: posix.lib.so
 
 + config
-  + vfs | + dir dev | + log
+  + vfs | + dir dev | + device | + log
   + libc | stdout: /dev/log
   + arg | value: test-libc_getenv
   + arg | value: foo

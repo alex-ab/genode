@@ -69,7 +69,7 @@ runtime | ram: 64M | caps: 1000 | binary: init
       |       | | + dir dev
       |       | |   + fs | label: downstream -> /
       |       | |   + fs | label: upstream -> /
-      |       | |   + log
+      |       | |   + device | + log
       |       | + libc
       |       |        stdin:  /dev/upstream
       |       |        stdout: /dev/downstream
@@ -103,7 +103,7 @@ runtime | ram: 64M | caps: 1000 | binary: init
     | | + dir dev
     | |   + dir send-pipe    | + fs | label: in -> /
     | |   + dir receive-pipe | + fs | label: out -> /
-    | |   + log
+    | |   + device | + log
     | + libc | stdout: /dev/log | stderr: /dev/log
     + route
       + service File_system                 | + child vfs

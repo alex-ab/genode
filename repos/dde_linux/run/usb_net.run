@@ -80,7 +80,7 @@ config
 + start test-lwip_httpsrv | caps: 120 | ram: 6M
   + config
   | + vfs
-  |   + dir dev | + log
+  |   + dir dev | + device | + log
   |   + dir socket | + lwip | dhcp: yes
   | + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
   + route

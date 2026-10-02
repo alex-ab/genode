@@ -55,8 +55,8 @@ config | prio_levels: 2 | verbose: yes
   | + libc | stdout: /dev/log | stderr: /dev/log | rtc: /dev/rtc
   | + vfs
   |   + dir dev
-  |     + log
-  |     + rtc
+  |     + device | + log
+  |     + device | + rtc
   + route
     + service Rtc   | + child system_rtc
     + service Timer | + child timer

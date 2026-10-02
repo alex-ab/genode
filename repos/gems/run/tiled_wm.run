@@ -90,7 +90,7 @@ config
     + libc | stdout: /dev/log | stderr: /dev/log | pipe: /pipe | rtc: /dev/rtc
     + vfs
       + dir dev
-        + log
+        + device | + log
         + inline rtc | : 2018-01-01 00:01
       + dir pipe | + pipe
       + dir fs   | + ram
@@ -112,7 +112,7 @@ config
     + libc | stdout: /dev/log | stderr: /dev/log | pipe: /pipe | rtc: /dev/rtc
     + vfs
       + dir dev
-        + log
+        + device | + log
         + inline rtc | : 2018-01-01 00:01
       + dir pipe | + pipe
       + dir fs   | + ram
@@ -132,7 +132,7 @@ config
     + libc | stdout: /dev/log | stderr: /dev/log | pipe: /pipe | rtc: /dev/rtc
     + vfs
       + dir dev
-        + log
+        + device | + log
         + inline rtc | : 2018-01-01 00:01
       + dir pipe | + pipe
       + dir fs   | + ram
@@ -152,7 +152,7 @@ config
     + libc | stdout: /dev/log | stderr: /dev/log | pipe: /pipe | rtc: /dev/rtc
     + vfs
       + dir dev
-        + log
+        + device | + log
         + inline rtc | : 2018-01-01 00:01
       + dir pipe | + pipe
       + dir fs   | + ram
@@ -171,7 +171,7 @@ config
     + libc | stdout: /dev/log | stderr: /dev/log | pipe: /pipe | rtc: /dev/rtc
     + vfs
       + dir dev
-        + log
+        + device | + log
         + inline rtc | : 2018-01-01 00:01
       + dir pipe | + pipe
       + dir fs   | + ram

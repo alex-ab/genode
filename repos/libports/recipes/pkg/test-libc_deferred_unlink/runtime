@@ -14,7 +14,7 @@ runtime | ram: 4M | caps: 200 | binary: test-libc_deferred_unlink
 
 + config
   + vfs
-    + dir dev | + log
+    + dir dev | + device | + log
     + dir tmp | + ram
   + libc | stdout: /dev/log | stderr: /dev/log
 -

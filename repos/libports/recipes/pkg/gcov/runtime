@@ -31,7 +31,7 @@ runtime | ram: 16M | caps: 1000 | binary: init
       + arg --function-summaries
       + arg --demangled-names
       + vfs
-      | + dir dev | + log
+      | + dir dev | + device | + log
       | + fs | label: depot -> /
       | + fs | label: gcov_data -> /
       + libc | stdout: /dev/log | stderr: /dev/log

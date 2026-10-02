@@ -46,9 +46,9 @@ void Sculpt::gen_prepare_vfs_start(Generator &g)
 				g.append_quoted(script); });
 
 			gen_named_node(g, "dir", "dev", [&] {
-				g.node("null",  [&] {});
-				g.node("log",   [&] {});
-				g.node("zero",  [&] {});
+				g.node("device", [&] { g.node("null"); });
+				g.node("device", [&] { g.node("log");  });
+				g.node("device", [&] { g.node("zero"); });
 				gen_named_node(g, "inline", "rtc", [&] {
 					g.append_quoted("2018-01-01 00:01");
 				});

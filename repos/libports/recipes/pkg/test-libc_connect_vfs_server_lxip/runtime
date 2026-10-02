@@ -73,7 +73,7 @@ runtime | ram: 128M | caps: 1100 | binary: init
     + binary test-netty_tcp
     + config | port: 80 | read_write: yes | nonblock: false
     | + vfs
-    |   + dir dev    | + log
+    |   + dir dev    | + device | + log
     |   + dir socket | + fs
     |   + dir tmp    | + ram
     | + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
@@ -86,7 +86,7 @@ runtime | ram: 128M | caps: 1100 | binary: init
   + start test-libc_connect | ram: 4M
     + config
     | + vfs
-    |   + dir dev    | + log
+    |   + dir dev    | + device | + log
     |   + dir socket | + fs
     | + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     |          connect_timeout_sec: 1

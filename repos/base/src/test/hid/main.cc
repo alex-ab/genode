@@ -260,8 +260,8 @@ void Component::construct(Genode::Env &env)
 		"      .\n"
 		"      . pseudo devices used by libc\n"
 		"      .\n"
-		"      + log\n"
-		"      + rtc\n"
+		"      + device | + log\n"
+		"      + device | + rtc\n"
 		"-";
 		Node const node { { node_with_comments, strlen(node_with_comments) } };
 

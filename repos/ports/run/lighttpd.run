@@ -74,10 +74,10 @@ config
   | + arg -D
   | + vfs
   |   + dir dev
-  |     + log
-  |     + null
+  |     + device | + log
+  |     + device | + null
   |     + inline rtc | : 2000-01-01 00:00
-  |     + jitterentropy random
+  |     + device random | + jitterentropy
   |   + dir socket | + } [ip_stack] { | dhcp: yes
   |   + dir tmp | + ram
   |   + dir etc

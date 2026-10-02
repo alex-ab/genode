@@ -84,7 +84,7 @@ config
   | + default-policy | filename: log
   | + vfs
   |   + fs
-  |   + dir dev | + log
+  |   + dir dev | + device | + log
   | + libc | stdout: /dev/log
   + route
     + service File_system | + child ram_fs

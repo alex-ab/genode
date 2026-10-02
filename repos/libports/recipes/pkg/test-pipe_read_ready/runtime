@@ -42,7 +42,7 @@ runtime | ram: 32M | caps: 1000 | binary: init
     + binary test-pipe_read_ready_select
     + config
       + vfs
-      | + dir dev | + log
+      | + dir dev | + device | + log
       | + dir rw  | + fs
       + libc | stdin: /rw/fifo | stdout: /dev/log | stderr: /dev/log
 
@@ -51,9 +51,9 @@ runtime | ram: 32M | caps: 1000 | binary: init
     + config
       + vfs
       | + dir dev
-      | | + null
+      | | + device | + null
       | | + fs
-      | | + log
+      | | + device | + log
       | + dir rw
       |   + fs
       + libc | stdin: /dev/null | stdout: /rw/fifo | stderr: /dev/log

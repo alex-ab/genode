@@ -65,7 +65,7 @@ config
 + start test-libc_getaddrinfo | caps: 256 | ram: 16M
   + config
   | + vfs
-  |   + dir dev    | + log
+  |   + dir dev    | + device | + log
   |   + dir socket | + lwip | dhcp: yes
   | + libc | stdout: /dev/log | socket: /socket
   | + arg test-libc_getaddrinfo

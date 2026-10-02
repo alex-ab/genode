@@ -46,7 +46,7 @@ config | verbose: yes
     + libc | stdin: /dev/log | stdout: /dev/log | stderr: /dev/log
     + vfs
       + dir dev
-        + log
+        + device | + log
         + tap tap0 | mac: 02:02:00:00:00:20 | mode: uplink
 
 + start tap_nic_client | ram: 8M
@@ -55,7 +55,7 @@ config | verbose: yes
     + libc | stdin: /dev/log | stdout: /dev/log | stderr: /dev/log
     + vfs
       + dir dev
-        + log
+        + device | + log
         + tap tap0
 -
 }

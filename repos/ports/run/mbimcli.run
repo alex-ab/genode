@@ -101,7 +101,7 @@ config | verbose: yes
   | + network | apn: } [apn_name] { | user: } [apn_user] { | password: } [apn_password] { | pin: } [sim_pin] {
   | + vfs
   | | + dir dev
-  | | | + log
+  | | | + device | + log
   | | | + inline rtc
   | | | | : 2020-08-05 00:01
   | | | + dir pipe

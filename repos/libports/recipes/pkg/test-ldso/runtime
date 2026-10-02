@@ -109,6 +109,6 @@ runtime | ram: 3M | caps: 150 | binary: test-ldso
   + rom | label: test-ldso
 
 + config | ld_bind_now: no | ld_verbose: no
-  + vfs | + dir dev | + log
+  + vfs | + dir dev | + device | + log
   + libc | stdout: /dev/log
 -

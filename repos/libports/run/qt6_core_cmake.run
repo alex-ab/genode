@@ -35,7 +35,7 @@ config | verbose: yes
 + start test-qt_core_cmake | ram: 10M
   + config
     + vfs
-      + dir dev | + log
+      + dir dev | + device | + log
     + libc | stdout: /dev/log | stderr: /dev/log
 -
 }

@@ -96,9 +96,9 @@ config | verbose: yes
             | + dir tmp    | + ram
             | + dir pipe   | + pipe
             | + dir dev
-            |   + zero
-            |   + null
-            |   + log
+            |   + device | + zero
+            |   + device | + null
+            |   + device | + log
             |   + device | + terminal
             |   + inline rtc | : 2018-01-01 00:01
             |

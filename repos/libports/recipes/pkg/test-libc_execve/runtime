@@ -28,8 +28,8 @@ runtime | ram: 32M | caps: 1000 | binary: init
     | + libc | stdin: /dev/null | stdout: /dev/log | stderr: /dev/log
     | + vfs
     |   + dir dev
-    |     + null
-    |     + log
+    |     + device | + null
+    |     + device | + log
     |   + rom test-execve
     + route
       + service ROM | label: /test-execve | + parent | label: test-execve

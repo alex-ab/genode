@@ -22,11 +22,11 @@ platform.
 !+ config
 !  + vfs
 !    + dir dev
-!    | + jitterentropy random
-!    | + jitterentropy urandom
-!    | + log
-!    | + null
-!    | + rtc
+!    | + device random  | + jitterentropy
+!    | + device urandom | + jitterentropy
+!    | + device | + log
+!    | + device | + null
+!    | + device | + rtc
 !    + dir firmware | + tar wifi_firmware.tar
 !  + libc | stdout: /dev/log | stderr: /dev/null | rtc: /dev/rtc
 !+ route
@@ -46,11 +46,11 @@ following snippet illustrates the use of the driver on the PinePhone.
 !+ config
 !  + vfs
 !    + dir dev
-!    | + jitterentropy random
-!    | + jitterentropy urandom
-!    | + log
-!    | + null
-!    | + rtc
+!    | + device random  | + jitterentropy
+!    | + device urandom | + jitterentropy
+!    | + device | + log
+!    | + device | + null
+!    | + device | + rtc
 !    + dir firmware | + tar wifi_firmware.tar
 !  + libc | stdout: /dev/log | stderr: /dev/null | rtc: /dev/rtc
 !+ route

@@ -157,8 +157,8 @@ config
   | | + dir dev
   | | | + inline random | : 01234567890123456789
   | | | + inline rtc    | : 2019-07-04 12:00
-  | | | + log
-  | | | + null
+  | | | + device | + log
+  | | | + device | + null
   | | + dir socket | + lwip | dhcp: yes
   | | + dir vm     | + ram
   | + libc | stdout: /dev/log | stderr: /dev/log
@@ -280,8 +280,8 @@ config
   |   + dir dev
   |     + inline random | : 0123456789012345678901234567890123456789
   |     + inline rtc    | : 2000-01-01 00:00
-  |     + log
-  |     + null
+  |     + device | + log
+  |     + device | + null
   |   + dir socket | + lwip | dhcp: yes
   |   + dir etc
   |     + dir lighttpd

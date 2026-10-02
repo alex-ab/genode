@@ -25,8 +25,8 @@ config
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
       + dir dev
-        + log
-        + null
+        + device | + log
+        + device | + null
 -
 }
 

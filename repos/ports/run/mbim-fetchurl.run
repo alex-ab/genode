@@ -116,7 +116,7 @@ config
   | + network | apn: } [apn_name] { | user: } [apn_user] { | password: } [apn_password] { | pin: } [sim_pin] {
   | + vfs
   | | + dir dev
-  | | | + log
+  | | | + device | + log
   | | | + inline rtc
   | | | | : 2020-08-05 00:01
   | | | + dir pipe
@@ -136,8 +136,8 @@ config
   | + report | progress: yes
   | + vfs
   | | + dir dev
-  | | | + log
-  | | | + null
+  | | | + device | + log
+  | | | + device | + null
   | | | + inline rtc
   | | | | : 2000-01-01 00:00
   | | | + inline random

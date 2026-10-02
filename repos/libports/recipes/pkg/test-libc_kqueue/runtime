@@ -16,7 +16,7 @@ runtime | ram: 3M | caps: 200 | binary: test-libc_kqueue
 + config
   + vfs
     + dir dev
-      + log
+      + device | + log
       + inline rtc
         : 2019-08-20 15:01
   + libc | stdout: /dev/log | stderr: /dev/log | rtc: /dev/rtc

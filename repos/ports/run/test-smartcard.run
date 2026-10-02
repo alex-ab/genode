@@ -75,7 +75,7 @@ config
     | + dir dev
     |   + inline rtc | : 2018-01-01 00:01
     |   + libusb
-    |   + log
+    |   + device | + log
     | + dir pipe | + pipe
     | + dir ifd-ccid.bundle
     |   + dir Contents

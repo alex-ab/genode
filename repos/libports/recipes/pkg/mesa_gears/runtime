@@ -27,7 +27,7 @@ runtime | ram: 52M | caps: 400 | binary: gears
   + env GALLIUM_HUD | : fps
   + vfs
     + dir dev
-      + log
+      + device | + log
+      + device | + gpu
       + inline rtc | : 2000-01-01 00:00
-      + gpu
 -

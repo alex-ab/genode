@@ -205,7 +205,7 @@ config
   | + libc | stderr: /dev/log
   | + vfs
   |   + tar menu_view_style.tar
-  |   + dir dev  | + log
+  |   + dir dev  | + device | + log
   |   + dir font | + fs | label: font -> /
   | + dialog dialog | xpos: 200 | ypos: 150
   | + dialog fixed_dialog | xpos: 400 | ypos: 50 | width: 400

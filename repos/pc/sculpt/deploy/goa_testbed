@@ -24,8 +24,8 @@ deploy | info: Goa testbed
     |      background_color: #333955
     + vfs
     | + dir dev
-    |   + log
-    |   + rtc
+    |   + device | + log
+    |   + device | + rtc
     + libc | stdout: /dev/log | rtc: /dev/rtc
     + label | : Goa Testbed
     + label | rom: VERSION

@@ -161,9 +161,9 @@ config | prio_levels: 4
   + config | vbox_file: vbox7_genode_usb_hid_raw.vbox | vm_name: TestVM | xhci: yes
     + vfs
       + dir dev
-        + log
+        + device | + log
         + device | + terminal
-        + null
+        + device | + null
         + inline rtc | : 2022-08-10 00:01
       + dir pipe | + pipe
       + rom usb_hid_raw.iso

@@ -105,10 +105,10 @@ config
   |   + dir tmp | + ram
   |   + dir dev
   |     + inline rtc | : 2018-01-01 00:01
-  |     + log
-  |     + null
+  |     + device | + log
+  |     + device | + null
   |     + device | + terminal
-  |     + zero
+  |     + device | + zero
   |   + dir pipe
   |     + pipe
   | + policy | label_prefix: vfs_rom | root: /

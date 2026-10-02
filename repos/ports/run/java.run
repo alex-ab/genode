@@ -47,8 +47,8 @@ config
   | + vfs | rtc: /dev/rtc
   |   + dir dev
   |     + inline rtc | : 2000-01-01 00:00
-  |     + log
-  |     + null
+  |     + device | + log
+  |     + device | + null
   |   + dir bin | + rom java
   |   + dir lib
   |     + rom java.lib.so

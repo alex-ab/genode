@@ -256,10 +256,8 @@ void Sandboxed_runtime::Menu_view_state::gen_start_node(Generator &g, Views cons
 			g.node("vfs", [&] () {
 				g.node("tar", [&] () {
 					g.attribute("name", "menu_view_style.tar"); });
-				g.node("dir", [&] () {
-					g.attribute("name", "dev");
-					g.node("log", [&] () { });
-				});
+				g.named_node("dir", "dev", [&] {
+					g.node("device", [&] { g.node("log"); }); });
 				g.node("dir", [&] () {
 					g.attribute("name", "font");
 					g.node("fs", [&] () {

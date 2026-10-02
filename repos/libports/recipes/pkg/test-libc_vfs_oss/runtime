@@ -17,6 +17,6 @@ runtime | ram: 3M | caps: 100 | binary: test-oss
   + libc | stdout: /dev/log | stderr: /dev/log
   + vfs
     + dir dev
-      + log
+      + device | + log
       + oss dsp
 -

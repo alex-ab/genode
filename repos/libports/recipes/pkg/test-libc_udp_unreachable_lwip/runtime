@@ -42,7 +42,7 @@ runtime | ram: 50M | caps: 500 | binary: init
   + start test-libc_udp_unreachable | caps: 300 | ram: 10M
     + config
       + vfs
-      | + dir dev | | + log
+      | + dir dev | + device | + log
       | + dir socket
       |   + lwip | ip_addr: 10.0.2.55 | netmask: 255.255.255.0
       + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket

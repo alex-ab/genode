@@ -40,7 +40,7 @@ proc client_start { name prot ip_addr gateway netmask nic srv_port srv_ip } {
 		  + config | server_ip: } $srv_ip { | server_port: } $srv_port {
 		    + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
 		    + vfs
-		      + dir dev    | + log
+		      + dir dev    | + device | + log
 		      + dir socket | + } $vfs_ip {
 	}
 
@@ -62,7 +62,7 @@ proc server_start { name prot ip_addr gateway netmask nic port } {
 		  + config | port: } $port {
 		    + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
 		    + vfs
-		      + dir dev    | + log
+		      + dir dev    | + device | + log
 		      + dir socket | + lwip | ip_addr: } $ip_addr {
 		                              gateway: } $gateway {
 		                              netmask: } $netmask {

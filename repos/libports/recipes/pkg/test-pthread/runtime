@@ -17,7 +17,7 @@ runtime | ram: 64M | caps: 600 | binary: test-pthread
 + config
   + vfs
   | + dir dev
-  |   + log
+  |   + device | + log
   |   + inline rtc
   |     : 2025-03-03 09:16
   + libc | stdout: /dev/log | rtc: /dev/rtc

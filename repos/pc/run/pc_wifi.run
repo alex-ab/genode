@@ -128,8 +128,8 @@ config | verbose: yes | prio_levels: 2
   + config
   | + vfs
   |   + dir dev
-  |     + log
-  |     + null
+  |     + device | + log
+  |     + device | + null
   |   + dir socket | + lwip | dhcp: yes
   | + libc | stdout: /dev/null | stderr: /dev/log | socket: /socket
   + route
@@ -205,11 +205,11 @@ config | verbose: yes | prio_levels: 2
   | + libc | stdout: /dev/log | stderr: /dev/log | rtc: /dev/rtc | rng: /dev/urandom
   | + vfs
   |   + dir dev
-  |     + jitterentropy random
-  |     + jitterentropy urandom
-  |     + log
-  |     + null
-  |     + rtc
+  |     + device random  | + jitterentropy
+  |     + device urandom | + jitterentropy
+  |     + device | + log
+  |     + device | + null
+  |     + device | + rtc
   |   + dir firmware | + tar wifi_firmware.tar
   + route
     + service ROM    | label: wifi_config       | + child config_rom

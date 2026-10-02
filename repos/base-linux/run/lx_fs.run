@@ -34,7 +34,7 @@ config
   + config
     + vfs
       + fs
-      + dir dev | + log
+      + dir dev | + device | + log
     + libc | stdout: /dev/log
 -
 }

@@ -21,7 +21,7 @@ runtime | ram: 32M | caps: 500 | binary: test-fork
     + fd | id: 3 | path: /seek_test | readable: yes | seek: 5
   + vfs
     + dir dev
-      + null
-      + log
+      + device | + null
+      + device | + log
     + inline seek_test | : 0123456789
 -

@@ -26,7 +26,7 @@ config
 
 + start test-libc_with_libc | ram: 4M
   + config
-    + vfs | + dir dev | + log
+    + vfs | + dir dev | + device | + log
     + libc | stdout: /dev/log
 -
 }

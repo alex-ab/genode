@@ -71,7 +71,7 @@ config | verbose: yes
   + config
   | + policy | label_prefix: test-terminal_echo | port: 8888
   | + vfs
-  |   + dir dev    | + log
+  |   + dir dev    | + device | + log
   |   + dir socket | + lwip | dhcp: yes
   |   + dir pipe   | + pipe
   | + libc | stdout: /dev/log | socket: /socket | pipe: /pipe

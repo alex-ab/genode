@@ -86,7 +86,7 @@ config | verbose: yes | prio_levels: 2
 + start test-lwip_httpsrv | caps: 130 | ram: 8M | priority: -1
   + config
   | + vfs
-  |   + dir dev    | + log
+  |   + dir dev    | + device | + log
   |   + dir socket | + lwip | dhcp: yes
   | + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
   + route

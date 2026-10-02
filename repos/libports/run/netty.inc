@@ -154,7 +154,7 @@ if {[protocol] == "tcp"} { append config {
   + config | ld_verbose: yes | port: 80 | read_write: no | nonblock: true
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
-      + dir dev    | + log
+      + dir dev    | + device | + log
       + dir socket | + fs
       + dir tmp    | + ram
 + start netty-server-8080 | ram: 4M
@@ -162,7 +162,7 @@ if {[protocol] == "tcp"} { append config {
   + config | ld_verbose: yes | mode: server | port: 8080 | nonblock: false
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
-      + dir dev    | + log
+      + dir dev    | + device | + log
       + dir socket | + fs
       + dir tmp    | + ram
 x start netty-client-A | ram: 4M
@@ -170,7 +170,7 @@ x start netty-client-A | ram: 4M
   + config | ld_verbose: yes | mode: client | ip: 10.0.3.1 | port: 80
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
-      + dir dev    | + log
+      + dir dev    | + device | + log
       + dir socket | + fs
       + dir tmp    | + ram}
 
@@ -180,7 +180,7 @@ x start netty-client-A | ram: 4M
   + config | ld_verbose: yes | port: 7 | read_write: no | nonblock: true
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
-      + dir dev    | + log
+      + dir dev    | + device | + log
       + dir socket | + fs
       + dir tmp    | + ram
 + start netty-server-7070 | ram: 4M
@@ -188,7 +188,7 @@ x start netty-client-A | ram: 4M
   + config | ld_verbose: yes | mode: server | port: 7070 | nonblock: false
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
-      + dir dev    | + log
+      + dir dev    | + device | + log
       + dir socket | + fs
       + dir tmp    | + ram
 x start netty-client-A | ram: 4M
@@ -196,7 +196,7 @@ x start netty-client-A | ram: 4M
   + config | ld_verbose: yes | mode: client | ip: 10.0.3.1 | port: 7
     + libc | stdout: /dev/log | stderr: /dev/log | socket: /socket
     + vfs
-      + dir dev    | + log
+      + dir dev    | + device | + log
       + dir socket | + fs
       + dir tmp    | + ram}
 }

@@ -3,7 +3,7 @@ config
 + libc | stderr: /dev/log
 + vfs
   + tar menu_view_style.tar
-  + dir dev  | + log
+  + dir dev  | + device | + log
   + dir font | + fs | label: font -> /
 + dialog main
 -

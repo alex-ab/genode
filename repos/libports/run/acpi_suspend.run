@@ -512,8 +512,8 @@ proc gpu_client { } {
   + config
   | + vfs
   | | + dir dev
-  | | | + log
-  | | | + gpu
+  | | | + device | + log
+  | | | + device | + gpu
   | | + dir data
   | |   + tar glmark2_assets.tar
   | + libc | stdout: /dev/log | stderr: /dev/log
@@ -576,11 +576,11 @@ proc wifi_config { } {
   |           | |      rng:    /dev/urandom
   |           | + vfs
   |           |   + dir dev
-  |           |   | + log
-  |           |   | + null
-  |           |   | + rtc
-  |           |   | + jitterentropy random
-  |           |   | + jitterentropy urandom
+  |           |   | + device | + log
+  |           |   | + device | + null
+  |           |   | + device | + rtc
+  |           |   | + device random  | + jitterentropy
+  |           |   | + device urandom | + jitterentropy
   |           |   + dir firmware
   |           |     + tar wifi_firmware.tar
   |           + route

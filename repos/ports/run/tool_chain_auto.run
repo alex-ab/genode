@@ -136,8 +136,8 @@ config | verbose: yes
   + config
     + vfs} [mounted_tar_archives] {
     | + dir dev
-    |   + zero
-    |   + log
+    |   + device | + zero
+    |   + device | + log
     |   + inline rtc | : 2030-01-01 00:01
     | + dir pipe | + pipe
     | + dir home
@@ -171,7 +171,7 @@ config | verbose: yes
   |        | + stack | size: 256K
   | + vfs
   |   + fs | buffer_size: 2M
-  |   + dir dev | + null
+  |   + dir dev | + device | + null
   | + env HOME | : /home
   | + env PATH | : /bin
   | + arg /bin/bash

@@ -126,8 +126,8 @@ namespace File_vault {
 						gen_named_node(g, "inline", "rtc", [&] {
 							g.append_quoted("2018-01-01 00:01");
 						});
-						g.node("null", [&] {});
-						g.node("log", [&] {});
+						g.node("device", [&] { g.node("null"); });
+						g.node("device", [&] { g.node("log");  });
 					});
 				});
 				gen_arg(g, "mkfs.ext2");
@@ -160,8 +160,8 @@ namespace File_vault {
 						gen_named_node(g, "inline", "rtc", [&] {
 							g.append_quoted("2018-01-01 00:01");
 						});
-						g.node("null", [&] {});
-						g.node("log", [&] {});
+						g.node("device", [&] { g.node("null"); });
+						g.node("device", [&] { g.node("log");  });
 					});
 				});
 				gen_arg(g, "fsck.ext2");
@@ -193,8 +193,8 @@ namespace File_vault {
 						});
 						gen_named_node(g, "inline", "rtc", [&] {
 							g.append_quoted("2018-01-01 00:01"); });
-						g.node("null", [&] {});
-						g.node("log", [&] {});
+						g.node("device", [&] { g.node("null"); });
+						g.node("device", [&] { g.node("log");  });
 					});
 				});
 				gen_arg(g, "resize2fs");
@@ -344,7 +344,7 @@ namespace File_vault {
 				});
 				g.node("vfs", [&] {
 					gen_named_node(g, "dir", "dev", [&] {
-						g.node("log", [] { }); });
+						g.node("device", [&] { g.node("log"); }); });
 					gen_named_node(g, "dir", "tresor", [&] {
 						g.node("fs", [&] { g.attribute("writeable", "yes"); }); });
 				});

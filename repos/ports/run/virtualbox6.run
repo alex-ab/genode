@@ -231,10 +231,10 @@ append config {
     | + pthread | placement: single-cpu
     + vfs
       + dir dev
-      | + log
-      | + rtc
-      | + null
-      | + zero
+      | + device | + log
+      | + device | + rtc
+      | + device | + null
+      | + device | + zero
       + dir pipe
         + pipe}
 

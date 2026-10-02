@@ -183,12 +183,12 @@ option
   |        | rng: /dev/urandom
   | + vfs
   |   + dir dev
-  |     + null
-  |     + zero
-  |     + log
-  |     + null
-  |     + jitterentropy random
-  |     + jitterentropy urandom
+  |     + device | + null
+  |     + device | + zero
+  |     + device | + log
+  |     + device | + null
+  |     + device random  | + jitterentropy
+  |     + device urandom | + jitterentropy
   |     + inline rtc | : 2018-01-01 00:01
   |   + dir firmware
   |     + tar pc_wifi_firmware.tar

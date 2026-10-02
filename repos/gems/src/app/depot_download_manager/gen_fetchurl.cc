@@ -45,8 +45,8 @@ void Depot_download_manager::gen_fetchurl_start_content(Generator &g,
 			});
 			g.node("dir", [&] {
 				g.attribute("name", "dev");
-				g.node("log",  [&] { });
-				g.node("null", [&] { });
+				g.node("device", [&] { g.node("log");  });
+				g.node("device", [&] { g.node("null"); });
 				g.node("inline", [&] {
 					g.attribute("name", "rtc");
 					String<64> date("2000-01-01 00:00");

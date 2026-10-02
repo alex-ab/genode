@@ -48,8 +48,8 @@ void Sculpt::gen_e2fs_child_content(Generator            &g,
 				gen_named_node(g, "inline", "rtc", [&] {
 					g.append_quoted("2018-01-01 00:01");
 				});
-				g.node("null", [&] {});
-				g.node("log",  [&] {});
+				g.node("device", [&] { g.node("null"); });
+				g.node("device", [&] { g.node("log");  });
 			});
 		});
 		gen_args_fn(g);

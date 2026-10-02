@@ -6,7 +6,7 @@ redirects the terminal input and output to a file.
 !   + policy | label_prefix: client2 | filename: file.dat | io_buffer_size: 4K
 !   + libc | stdout: /dev/log
 !   + vfs
-!     + dir dev | + log
+!     + dir dev | + device | + log
 !     + fs
 
 To keep things simple, a client can only open one file at the moment.

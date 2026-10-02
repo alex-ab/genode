@@ -111,8 +111,8 @@ config
   |     + libc | stdin: /dev/null | stdout: /dev/log | stderr: /dev/log
   |     + vfs
   |     | + dir dev
-  |     |   + log
-  |     |   + null
+  |     |   + device | + log
+  |     |   + device | + null
   |     + arg /bin/sleep | : 0.5
   | + start /bin/rm | caps: 500
   |   + config
@@ -120,16 +120,16 @@ config
   |     + vfs
   |     | + dir fs | + fs | writeable: yes
   |     | + dir dev
-  |     |   + log
-  |     |   + null
+  |     |   + device | + log
+  |     |   + device | + null
   |     + arg /bin/rm | : /fs/items/2
   | + start /bin/sleep | caps: 500
   |   + config
   |     + libc | stdin: /dev/null | stdout: /dev/log | stderr: /dev/log
   |     + vfs
   |     | + dir dev
-  |     |   + log
-  |     |   + null
+  |     |   + device | + log
+  |     |   + device | + null
   |     + arg /bin/sleep | : 0.5
   | + start /bin/cp | caps: 500
   |   + config
@@ -137,8 +137,8 @@ config
   |     + vfs
   |     | + dir fs | + fs | writeable: yes
   |     | + dir dev
-  |     |   + log
-  |     |   + null
+  |     |   + device | + log
+  |     |   + device | + null
   |     + arg /bin/cp
   |     + arg /fs/4
   |     + arg /fs/items/
@@ -147,8 +147,8 @@ config
   |     + libc | stdin: /dev/null | stdout: /dev/log | stderr: /dev/log
   |     + vfs
   |     | + dir dev
-  |     |   + log
-  |     |   + null
+  |     |   + device | + log
+  |     |   + device | + null
   |     + arg /bin/sleep | : 0.5
   | + start /bin/bash | caps: 500
   |   + config
@@ -156,8 +156,8 @@ config
   |     + vfs
   |     | + dir fs | + fs | writeable: yes
   |     | + dir dev
-  |     |   + log
-  |     |   + null
+  |     |   + device | + log
+  |     |   + device | + null
   |     + arg /bin/bash
   |     + arg -c | : echo updated > /fs/items/3
   | + start /bin/bash | caps: 500
@@ -166,8 +166,8 @@ config
   |     + vfs
   |     | + dir fs | + fs | writeable: yes
   |     | + dir dev
-  |     |   + log
-  |     |   + null
+  |     |   + device | + log
+  |     |   + device | + null
   |     + arg /bin/bash
   |     + arg -c | : echo updated > /fs/items/3
   | + start /bin/sleep | caps: 500
@@ -175,8 +175,8 @@ config
   |     + libc | stdin: /dev/null | stdout: /dev/log | stderr: /dev/log
   |     + vfs
   |     | + dir dev
-  |     |   + log
-  |     |   + null
+  |     |   + device | + log
+  |     |   + device | + null
   |     + arg /bin/sleep | : 0.5
   + route
     + service File_system                 | + child vfs

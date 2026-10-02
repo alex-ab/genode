@@ -65,9 +65,9 @@ config | verbose: yes
   | + vfs
   |   + ram
   |   + dir dev
-  |     + rtc
-  |     + log
-  |     + null
+  |     + device | + rtc
+  |     + device | + log
+  |     + device | + null
   | + libc | stdout: /dev/log | stderr: /dev/log | rtc: /dev/rtc
   + route
     + service Rtc   | + child system_rtc

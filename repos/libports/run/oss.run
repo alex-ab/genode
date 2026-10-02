@@ -83,7 +83,7 @@ config
   + config
   | + vfs
   |   + dir dev
-  |     + log
+  |     + device | + log
   |     + legacy_oss dsp
   | + libc | stdout: /dev/log | stderr: /dev/log
   + route

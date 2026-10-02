@@ -16,8 +16,8 @@ multiple archives one at a time:
 !   | + dir download | + fs | label: download -> /
 !   | + dir content  | + fs | label: content -> / | writeable: yes
 !   | + dir dev
-!   |   + log
-!   |   + null
+!   |   + device | + log
+!   |   + device | + null
 !   + extract | archive: /download/foo.zip | to: /content/foo123/ | strip: 1
 !   + extract | archive: /download/bar.zip | to: /content/bar/    | strip: 1
 !   + extract README | archive: /download/README.xz | to: /content/

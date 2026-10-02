@@ -95,7 +95,7 @@ runtime | binary: init | caps: 900 | ram: 64M
             |     + vfs
             |       + dir pipe | + pipe
             |       + dir dev
-            |         + log
+            |         + device | + log
             |         + inline rtc | : 2018-01-01 00:01
             |         + libusb
 
