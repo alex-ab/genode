@@ -267,9 +267,11 @@ void Libc::Kernel::_init_file_descriptors()
 
 				bool const rd = fd.attribute_value("readable",  false);
 				bool const wr = fd.attribute_value("writeable", false);
+				bool const nb = fd.attribute_value("nonblocking", false);
 
-				unsigned const flags = rd ? (wr ? O_RDWR : O_RDONLY)
-				                          : (wr ? O_WRONLY : 0);
+				unsigned const accmode = rd ? (wr ? O_RDWR : O_RDONLY)
+				                            : (wr ? O_WRONLY : 0);
+				unsigned const flags   = (nb ? O_NONBLOCK : 0) | accmode;
 
 				if (!fd.has_attribute("path")) {
 					if (fd.attribute_value("type", String<8>()) == "kqueue")

@@ -153,6 +153,9 @@ static void generate_open_fds(Genode::Generator &g, Libc::Fs &fs, Libc::Fds &fds
 				if (((fd.flags & O_ACCMODE) != O_RDONLY))
 					g.attribute("writeable", "yes");
 
+				if (fd.flags & O_NONBLOCK)
+					g.attribute("nonblocking", "yes");
+
 				if (fd.open_file_ptr) {
 					::off_t const seek = fs.lseek(*fd.open_file_ptr, 0, SEEK_CUR);
 					if (seek)
