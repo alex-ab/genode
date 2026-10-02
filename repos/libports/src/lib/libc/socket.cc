@@ -91,6 +91,16 @@ static Libc::Fs &fs()
 }
 
 
+static Libc::Config const &config()
+{
+	struct Missing_call_of_init_socket : Genode::Exception { };
+	if (!_config_ptr)
+		throw Missing_call_of_init_socket();
+
+	return *_config_ptr;
+}
+
+
 namespace { using Fn = Libc::Monitor::Function_result; }
 
 
@@ -134,18 +144,18 @@ struct Libc::Socket : Noncopyable
 	private:
 
 		/*
-		 * This is the file descriptor representing the socket and must be held
-		 * open until the socket is closed. The file content is the location of
-		 * the socket in the socket FS.
+		 * This is the file handle representing the socket and must be held
+		 * open until the socket is closed. The file content is the location
+		 * of the socket in the socket FS.
 		 */
-		int const _handle_fd;
-		bool      _nonblock { false };
+		Open_file &_open_file;
+		bool       _nonblock { false };
 
 		Absolute_path _read_socket_path()
 		{
 			Absolute_path path;
-			int const n = read(_handle_fd, path.base(),
-			                   Absolute_path::capacity()-1);
+			int const n = fs().read(_open_file, path.base(),
+			                        Absolute_path::capacity()-1, false);
 			if (n == -1 || !n || n >= (int)Absolute_path::capacity() - 1)
 				throw New_socket_failed();
 			*(path.base()+n) = '\0';
@@ -154,7 +164,7 @@ struct Libc::Socket : Noncopyable
 		}
 
 		Absolute_path const _path {
-			_read_socket_path().base(), _config_ptr->socket.string() };
+			_read_socket_path().base(), config().socket.string() };
 
 
 		Open_file *_open_or_throw(char const *name, bool writeable) const
@@ -202,8 +212,8 @@ struct Libc::Socket : Noncopyable
 			return Errno(EINVAL);
 		}
 
-		Socket(Proto proto, int handle_fd)
-		: _handle_fd(handle_fd), _proto(proto)
+		Socket(Proto proto, Open_file &of)
+		: _open_file(of), _proto(proto)
 		{ }
 
 		~Socket()
@@ -215,7 +225,7 @@ struct Libc::Socket : Noncopyable
 				});
 				_open_file_ptr[i] = nullptr;
 			}
-			::close(_handle_fd);
+			fs().destroy(_open_file);
 		}
 
 		Absolute_path path() const { return _path; }
@@ -649,14 +659,17 @@ Libc::socket_accept(Socket &listen_socket, sockaddr *addr, socklen_t *addrlen)
 	Socket::Absolute_path path { listen_socket.path() };
 	path.append("/accept_socket");
 
-	int handle_fd = ::open(path.base(), O_RDONLY);
-	if (handle_fd < 0) {
-		error("failed to open accept socket at ", path);
-		return Errno { EACCES };
-	}
+	Open_file *open_file_ptr =
+		fs().open_file({ .path = path.string(), .writeable = false}).convert<Open_file*>(
+			[] (Open_file &of) { return &of; },
+			[] (Errno)         { return nullptr; });
+
+	if (!open_file_ptr)
+		return Errno(errno);
 
 	try {
-		Socket &accept_socket = *new (kernel_heap()) Socket(listen_socket.proto(), handle_fd);
+		Socket &accept_socket =
+			*new (kernel_heap()) Socket(listen_socket.proto(), *open_file_ptr);
 
 		if (addr && addrlen) {
 			Socket::Remote_functor func(accept_socket, false);
@@ -670,7 +683,7 @@ Libc::socket_accept(Socket &listen_socket, sockaddr *addr, socklen_t *addrlen)
 		return accept_socket;
 
 	} catch (Socket::New_socket_failed) {
-		close(handle_fd);
+		fs().destroy(*open_file_ptr);
 		return Errno { ENFILE };
 	}
 }
@@ -1171,7 +1184,7 @@ int Libc::socket_shutdown(Socket &socket, int how)
 
 Libc::Create_socket_result Libc::create_socket(int domain, int type, int protocol)
 {
-	Socket::Absolute_path path(_config_ptr->socket.string());
+	Socket::Absolute_path path(config().socket.string());
 
 	if (path == "") {
 		error(__func__, ": socket fs not mounted");
@@ -1194,21 +1207,27 @@ Libc::Create_socket_result Libc::create_socket(int domain, int type, int protoco
 	/* socket is ensured to be TCP or UDP */
 	using Proto = Socket::Proto;
 	Proto proto = (sock_type == SOCK_STREAM) ? Proto::TCP : Proto::UDP;
+	switch (proto) {
+	case Proto::TCP: path.append("/tcp"); break;
+	case Proto::UDP: path.append("/udp"); break;
+	}
+
+	path.append("/new_socket");
+	Open_file *open_file_ptr =
+		fs().open_file({ .path = path.string(), .writeable = false}).convert<Open_file*>(
+			[] (Open_file &of) { return &of; },
+			[] (Errno)         { return nullptr; });
+
+	if (!open_file_ptr)
+		return Errno(errno);
+
 	try {
-		switch (proto) {
-		case Proto::TCP: path.append("/tcp"); break;
-		case Proto::UDP: path.append("/udp"); break;
-		}
+		return *new (kernel_heap()) Socket(proto, *open_file_ptr);
 
-		path.append("/new_socket");
-		int handle_fd = ::open(path.base(), O_RDONLY);
-		if (handle_fd < 0) {
-			error("failed to open new socket at ", path);
-			return Errno { EACCES };
-		}
-		return *new (kernel_heap()) Socket(proto, handle_fd);
-
-	} catch (Socket::New_socket_failed) { return Errno { ENFILE }; }
+	} catch (Socket::New_socket_failed) {
+		fs().destroy(*open_file_ptr);
+		return Errno { ENFILE };
+	}
 }
 
 
@@ -1262,7 +1281,7 @@ extern "C" int getifaddrs(struct ifaddrs **ifap)
 
 	using Absolute_path = Socket::Absolute_path;
 
-	Absolute_path const root(_config_ptr->socket.string());
+	Absolute_path const root(config().socket.string());
 
 	if (read_ifaddr_file(address, Absolute_path("address", root.base())))
 		return -1;
