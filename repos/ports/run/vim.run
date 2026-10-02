@@ -128,7 +128,7 @@ config | verbose: yes
     + vfs
       + tar vim.tar
       + dir dev
-        + terminal
+        + device | + terminal
         + inline rtc | : 2018-01-01 00:01
 
 + start vfs_rom | ram: 5M

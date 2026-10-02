@@ -31,7 +31,7 @@ config
   + config
   | + libc | stdin: /report/log | stdout: /dev/terminal
   | + vfs
-  |   + dir dev    | + terminal
+  |   + dir dev    | + device | + terminal
   |   + dir report | + fs | label: report -> /
   + route
     + service File_system | + parent | identity: report

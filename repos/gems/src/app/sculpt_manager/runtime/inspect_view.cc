@@ -68,9 +68,9 @@ static void gen_vfs_start(Generator &g,
 			gen_named_node(g, "tar", "hid.tar");
 
 			gen_named_node(g, "dir", "dev", [&] {
-				g.node("null",      [&] {});
-				g.node("zero",      [&] {});
-				g.node("terminal",  [&] {});
+				g.node("null");
+				g.node("zero");
+				g.node("device", [&] { g.node("terminal"); });
 				gen_named_node(g, "inline", "rtc", [&] {
 					g.append_quoted("2018-01-01 00:01");
 				});

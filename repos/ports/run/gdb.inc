@@ -107,7 +107,7 @@ proc nic_start_nodes { } { return {
 
 if {[socat_uart]} { proc nic_start_nodes { } { } }
 
-proc socat_uart_dev { } { if {[socat_uart]}  { return "+ terminal uart | label: uart" } }
+proc socat_uart_dev { } { if {[socat_uart]}  { return "+ device uart | + terminal | label: uart" } }
 proc socat_tcpip    { } { if {![socat_uart]} { return "+ lwip | dhcp: yes" } }
 
 proc socat_last_arg { } {
@@ -207,7 +207,7 @@ config
   |   + dir dev
   |     + log
   |     + inline rtc | : 2018-01-01 00:01
-  |     + terminal gdb | label: gdb
+  |     + device gdb | + terminal | label: gdb
   |     } [socat_uart_dev] {
   |   + dir socket | } [socat_tcpip] {
   |   + fs
@@ -232,8 +232,8 @@ config
   |   + dir dev
   |     + log
   |     + inline rtc | : 2023-01-01 00:01
-  |     + terminal tty | label: tty
-  |     + terminal monitor | label: monitor
+  |     + device tty     | + terminal | label: tty
+  |     + device monitor | + terminal | label: monitor
   |   + dir pipe | + pipe
   |   + tar gdb_run_debug.tar
   |   + fs

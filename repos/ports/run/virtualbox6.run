@@ -239,7 +239,7 @@ append config {
         + pipe}
 
 append_if [expr $use_serial] config {
-      + dir dev | + terminal}
+      + dir dev | + device | + terminal}
 
 append config {
       + rom test.iso

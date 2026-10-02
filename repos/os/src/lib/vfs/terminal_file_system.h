@@ -51,15 +51,13 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 
 	private:
 
-		Entrypoint &_ep;
-
-		Vfs::Env::User &_vfs_user;
+		Vfs::Env &_env;
 
 		Terminal::Connection &_terminal;
 
-		Interrupt_handler &_interrupt_handler;
-
 		bool const _raw;
+
+		Interrupt_handler &_interrupt_handler;
 
 		enum { READ_BUFFER_SIZE = 4000 };
 
@@ -156,7 +154,7 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 		File_channels _file_channels { };
 
 		Io_signal_handler<Data_file_system> _read_avail_handler {
-			_ep, *this, &Data_file_system::_handle_read_avail };
+			_env.env().ep(), *this, &Data_file_system::_handle_read_avail };
 
 		void _handle_read_avail()
 		{
@@ -183,33 +181,28 @@ class Vfs_terminal::Data_file_system : public Single_file_system
 				}
 			});
 
-			_vfs_user.wakeup_vfs_user();
+			_env.user().wakeup_vfs_user();
 		}
 
 	public:
 
 		Data_file_system(Parent_fs            &parent_fs,
-		                 Entrypoint           &ep,
-		                 Vfs::Env::User       &vfs_user,
+		                 Vfs::Env             &env,
 		                 Terminal::Connection &terminal,
-		                 Name           const &name,
 		                 Interrupt_handler    &interrupt_handler,
 		                 bool                  raw)
 		:
 			Single_file_system(parent_fs, {
-				.ident = { { "data ", name } },
-				.name  = name,
+				.ident = { { "data" } },
+				.name  = "data",
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
-			_ep(ep), _vfs_user(vfs_user), _terminal(terminal),
-			_interrupt_handler(interrupt_handler),
-			_raw(raw)
+			_env(env), _terminal(terminal), _raw(raw),
+			_interrupt_handler(interrupt_handler)
 		{
 			/* register for read-avail notification */
 			_terminal.read_avail_sigh(_read_avail_handler);
 		}
-
-		static const char *name() { return "data"; }
 
 		Open_result open(char const *path, Open_attr attr, Allocator &alloc) override
 		{
@@ -237,15 +230,13 @@ struct Vfs_terminal::File_system : Union_file_system,
 
 	Name const _name;
 
-	Genode::Env &_env;
+	Vfs::Env &_env;
 
-	Vfs::Env::User &_vfs_user;
-
-	Terminal::Connection _terminal { _env, _label.string() };
+	Terminal::Connection _terminal { _env.env(), _label.string() };
 
 	bool const _raw;
 
-	Data_file_system _data_fs { *this, _env.ep(), _vfs_user, _terminal, _name, *this, _raw };
+	Data_file_system _data_fs { *this, _env, _terminal, *this, _raw };
 
 	struct Info
 	{
@@ -270,15 +261,13 @@ struct Vfs_terminal::File_system : Union_file_system,
 	 */
 	unsigned _interrupts = 0;
 
-	Dir_file_system _dot_dir_fs;
-
-	Readonly_value_file_system<Info>     _info_fs       { _dot_dir_fs, "info",       Info{} };
-	Readonly_value_file_system<unsigned> _rows_fs       { _dot_dir_fs, "rows",       0 };
-	Readonly_value_file_system<unsigned> _columns_fs    { _dot_dir_fs, "columns",    0 };
-	Readonly_value_file_system<unsigned> _interrupts_fs { _dot_dir_fs, "interrupts", _interrupts };
+	Readonly_value_file_system<Info>     _info_fs       { *this, "info",       Info{} };
+	Readonly_value_file_system<unsigned> _rows_fs       { *this, "rows",       0 };
+	Readonly_value_file_system<unsigned> _columns_fs    { *this, "columns",    0 };
+	Readonly_value_file_system<unsigned> _interrupts_fs { *this, "interrupts", _interrupts };
 
 	Io_signal_handler<File_system> _size_changed_handler {
-		_env.ep(), *this, &File_system::_handle_size_changed };
+		_env.env().ep(), *this, &File_system::_handle_size_changed };
 
 	void _handle_size_changed()
 	{
@@ -305,7 +294,6 @@ struct Vfs_terminal::File_system : Union_file_system,
 
 	Instance::Attempt create(Vfs::Env &, Parent_fs &, Node const &node) override
 	{
-		if (_dot_dir_fs   .matches(node)) return { *this, { _dot_dir_fs    } };
 		if (_data_fs      .matches(node)) return { *this, { _data_fs       } };
 		if (_info_fs      .matches(node)) return { *this, { _info_fs       } };
 		if (_rows_fs      .matches(node)) return { *this, { _rows_fs       } };
@@ -317,37 +305,13 @@ struct Vfs_terminal::File_system : Union_file_system,
 
 	void _free(Instance &) override { };
 
-	using Config = String<200>;
-	static Config _config(Vfs_terminal::Name const &name)
-	{
-		char buf[Config::capacity()] { };
-
-		Generator::generate({ buf, sizeof(buf) }, "compound",
-			[&] (Generator &g) {
-				g.named_node("data", name);
-				g.named_node("dir", Dir_file_system::Name(".", name), [&] {
-					g.named_node("readonly_value", "info");
-					g.named_node("readonly_value", "rows");
-					g.named_node("readonly_value", "columns");
-					g.named_node("readonly_value", "interrupts");
-				});
-
-		}).with_error([] (Buffer_error) {
-			warning("VFS-terminal compound exceeds maximum buffer size");
-		});
-
-		return Config(Cstring(buf));
-	}
-
-	File_system(Vfs::Env &vfs_env, Parent_fs &parent_fs, Node const &node)
+	File_system(Vfs::Env &env, Parent_fs &parent_fs, Node const &node)
 	:
-		Union_file_system(vfs_env, parent_fs, Ident::from_node(node)),
+		Union_file_system(env, parent_fs, Ident::from_node(node)),
 		_label(node.attribute_value("label", Label(""))),
 		_name(name(node)),
-		_env(vfs_env.env()),
-		_vfs_user(vfs_env.user()),
-		_raw(node.attribute_value("raw", false)),
-		_dot_dir_fs(vfs_env, *this, Dir_file_system::Name(".", _name))
+		_env(env),
+		_raw(node.attribute_value("raw", false))
 	{
 		_terminal.size_changed_sigh(_size_changed_handler);
 		_handle_size_changed();
@@ -355,14 +319,26 @@ struct Vfs_terminal::File_system : Union_file_system,
 
 	~File_system()
 	{
-		_dot_dir_fs.update(Node(), *this);
 		Union_file_system::update(Node(), *this);
 	}
 
 	Progress update(Node const &, Vfs::File_system::Factory &) override
 	{
-		return _config(_name).with_span([&] (Span const &s) {
-			return Union_file_system::update(Node(s), *this); });
+		Generated_node config(_env.alloc(), 1024, "compound", [&] (Generator &g) {
+			g.node("data");
+			g.named_node("readonly_value", "info");
+			g.named_node("readonly_value", "rows");
+			g.named_node("readonly_value", "columns");
+			g.named_node("readonly_value", "interrupts");
+		});
+
+		Progress result { };
+		config.node.with_result(
+			[&] (Node const &node) {
+				result = Union_file_system::update(node, *this); },
+			[&] (Buffer_error) {
+				warning("vfs_terminal: config '", _name, "' exceeds max capacity"); });
+		return result;
 	}
 
 	static constexpr auto BUILTIN_FS_TYPE = "terminal";

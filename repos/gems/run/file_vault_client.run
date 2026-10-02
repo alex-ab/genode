@@ -182,7 +182,7 @@ config
       |   | |   + dir dev
       |   | |     + zero
       |   | |     + null
-      |   | |     + terminal
+      |   | |     + device | + terminal
       |   | |     + dir pipe | + pipe
       |   | |     + inline rtc | : 2018-01-01 00:01
       |   | | + policy | label_prefix: fs_rom | root: /

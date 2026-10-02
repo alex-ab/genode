@@ -162,7 +162,7 @@ config | prio_levels: 4
     + vfs
       + dir dev
         + log
-        + terminal
+        + device | + terminal
         + null
         + inline rtc | : 2022-08-10 00:01
       + dir pipe | + pipe

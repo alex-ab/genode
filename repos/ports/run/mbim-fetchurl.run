@@ -121,7 +121,7 @@ config
   | | | | : 2020-08-05 00:01
   | | | + dir pipe
   | | | | + pipe
-  | | | + terminal cdc-wdm0 | raw: yes
+  | | | + device cdc-wdm0 | + terminal | raw: yes
   | | + ram
   | + libc | stdout: /dev/log | stderr: /dev/log
   |        | rtc:    /dev/rtc | pipe:   /dev/pipe

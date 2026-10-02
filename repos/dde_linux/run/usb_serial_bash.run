@@ -107,7 +107,7 @@ config
   |     + inline rtc | : 2018-01-01 00:01
   |     + log
   |     + null
-  |     + terminal
+  |     + device | + terminal
   |     + zero
   |   + dir pipe
   |     + pipe

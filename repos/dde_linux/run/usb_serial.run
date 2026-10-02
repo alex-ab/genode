@@ -167,7 +167,7 @@ config
       |       + vfs
       |         + fs
       |         + terminal
-      |       + libc | stdin: /log | stdout: /terminal
+      |       + libc | stdin: /log | stdout: /terminal/data
       + sleep | milliseconds: 3600000
 
 + start dump_log | caps: 1500 | ram: 8M
