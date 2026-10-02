@@ -90,6 +90,7 @@ usb_block
 usb_hid_raw
 usb_hid_reconnect
 vbox6_genode_usb_hid_raw
+vbox7_genode_usb_hid_raw
 verify
 vfs_cfg
 vfs_import
