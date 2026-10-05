@@ -317,7 +317,11 @@ struct Vfs_trace::Subject : Dir_file_system, private Vfs::File_system::Factory
 			Dir_file_system::update(Node(s), *this); });
 	}
 
-	~Subject() { Dir_file_system::update(Node(), *this); }
+	~Subject()
+	{
+		detach_channels(Span::from_cstring("/"));
+		Dir_file_system::update(Node(), *this);
+	}
 
 	Progress update(Node const &node, Vfs::File_system::Factory &) override
 	{
