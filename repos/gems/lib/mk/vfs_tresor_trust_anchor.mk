@@ -1,4 +1,4 @@
-OPENSSL_DIR := $(call select_from_ports,openssl)
+OPENSSL_DIR := $(call select_from_ports,openssl-minimal)
 
 SRC_CC += vfs.cc
 SRC_CC += aes_256.cc
@@ -8,7 +8,7 @@ INC_DIR += $(REP_DIR)/src/lib/vfs/tresor_trust_anchor
 INC_DIR += $(REP_DIR)/src/lib/tresor/include
 INC_DIR += $(OPENSSL_DIR)/include
 
-LIBS += libcrypto1
+LIBS += libcrypto-minimal
 
 vpath % $(REP_DIR)/src/lib/vfs/tresor_trust_anchor
 

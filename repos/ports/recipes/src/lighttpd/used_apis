@@ -1,5 +1,5 @@
 libc
 pcre
 posix
-openssl
+openssl-minimal
 zlib

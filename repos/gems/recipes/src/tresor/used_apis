@@ -2,7 +2,7 @@ aes_cbc_4k
 base
 block_session
 libc
-openssl
+openssl-minimal
 os
 so
 vfs

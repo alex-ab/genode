@@ -65,10 +65,9 @@ lappend depot_archives [depot_user]/src/dynamic_rom
 lappend depot_archives [depot_user]/src/fetchurl
 lappend depot_archives [depot_user]/src/init
 lappend depot_archives [depot_user]/src/libc
-lappend depot_archives [depot_user]/src/openssl
+lappend depot_archives [depot_user]/src/openssl-minimal
 lappend depot_archives [depot_user]/src/lighttpd
 lappend depot_archives [depot_user]/src/nic_router
-lappend depot_archives [depot_user]/src/openssl
 lappend depot_archives [depot_user]/src/pcre
 lappend depot_archives [depot_user]/src/posix
 lappend depot_archives [depot_user]/src/report_rom

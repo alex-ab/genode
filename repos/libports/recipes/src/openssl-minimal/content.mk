@@ -1,17 +1,17 @@
 MIRROR_FROM_REP_DIR := \
-	lib/mk/libcrypto1.inc \
-	lib/mk/spec/arm/libcrypto1.mk \
-	lib/mk/spec/arm_64/libcrypto1.mk \
-	lib/mk/spec/x86_32/libcrypto1.mk \
-	lib/mk/spec/x86_64/libcrypto1.mk \
-	lib/mk/libssl1.mk
+	lib/mk/libcrypto-minimal.inc \
+	lib/mk/spec/arm/libcrypto-minimal.mk \
+	lib/mk/spec/arm_64/libcrypto-minimal.mk \
+	lib/mk/spec/x86_32/libcrypto-minimal.mk \
+	lib/mk/spec/x86_64/libcrypto-minimal.mk \
+	lib/mk/libssl-minimal.mk
 
 content: $(MIRROR_FROM_REP_DIR)
 
 $(MIRROR_FROM_REP_DIR):
 	$(mirror_from_rep_dir)
 
-PORT_DIR := $(call port_dir,$(REP_DIR)/ports/openssl)
+PORT_DIR := $(call port_dir,$(REP_DIR)/ports/openssl-minimal)
 
 content: src/lib/openssl
 

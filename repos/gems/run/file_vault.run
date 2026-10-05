@@ -24,7 +24,7 @@ lappend archives \
 	[depot_user]/src/tresor \
 	[depot_user]/src/vfs_block \
 	[depot_user]/src/vfs \
-	[depot_user]/src/openssl \
+	[depot_user]/src/openssl-minimal \
 	[depot_user]/src/fs_tool \
 	[depot_user]/src/fs_utils \
 	[depot_user]/src/posix \

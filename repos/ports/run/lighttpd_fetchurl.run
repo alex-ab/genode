@@ -23,7 +23,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/lighttpd \
                   [depot_user]/src/fetchurl \
                   [depot_user]/src/curl \
-                  [depot_user]/src/openssl \
+                  [depot_user]/src/openssl-minimal \
                   [depot_user]/src/pcre \
                   [depot_user]/src/posix \
                   [depot_user]/src/vfs \

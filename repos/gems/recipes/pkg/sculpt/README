@@ -1739,7 +1739,7 @@ be prepared. The following command prepares all of them at once:
 !      acpica bash coreutils curl dde_bsd dde_rump e2fsprogs-lib \
 !      expat gdb gmp gnupg grub2 jitterentropy jpeg libarchive libc \
 !      libdrm libgcrypt libiconv libnl libpng libusb libuvc \
-!      libyuv linux linux-firmware mesa ncurses nova openssl qemu-usb \
+!      libyuv linux linux-firmware mesa ncurses nova openssl-minimal qemu-usb \
 !      stb stdcxx sticks_blue_backdrop tcl ttf-bitstream-vera vim \
 !      virtualbox6 wpa_supplicant x86emu xz zlib
 

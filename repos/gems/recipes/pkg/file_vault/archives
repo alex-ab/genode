@@ -6,7 +6,7 @@ _/src/tresor
 _/src/vfs_block
 _/src/vfs_jitterentropy
 _/src/vfs
-_/src/openssl
+_/src/openssl-minimal
 _/src/fs_tool
 _/src/fs_utils
 _/src/posix

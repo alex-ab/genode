@@ -31,7 +31,7 @@ SRC_S = \
 	sha/asm/sha512-armv4.S \
 	# end of SRC_S
 
-OPENSSL_DIR := $(call select_from_ports,openssl)
+OPENSSL_DIR := $(call select_from_ports,openssl-minimal)
 
 vpath %.S $(OPENSSL_DIR)/src/lib/openssl/crypto
 
@@ -41,6 +41,6 @@ else
 	vpath armcap_genode.c $(REP_DIR)/src/lib/openssl/crypto/spec/arm
 endif
 
-include $(REP_DIR)/lib/mk/libcrypto1.inc
+include $(REP_DIR)/lib/mk/libcrypto-minimal.inc
 
 CC_CXX_WARN_STRICT =

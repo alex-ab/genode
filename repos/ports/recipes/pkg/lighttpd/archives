@@ -1,6 +1,6 @@
 _/src/libc
 _/src/lighttpd
-_/src/openssl
+_/src/openssl-minimal
 _/src/pcre
 _/src/posix
 _/src/vfs

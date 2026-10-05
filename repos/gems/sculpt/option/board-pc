@@ -198,13 +198,13 @@ option
     + uplink                        | + child network  | label: wifi
     + report                        | + child report
     + rom wifi_config               | + child model    | label: child/wifi
-    + rom libcrypto1.lib.so         | + parent
+    + rom libcrypto-minimal.lib.so  | + parent
     + rom vfs.lib.so                | + parent
     + rom libc.lib.so               | + parent
     + rom libm.lib.so               | + parent
     + rom libnl.lib.so              | + parent
     + rom vfs_jitterentropy.lib.so  | + parent
-    + rom libssl1.lib.so            | + parent
+    + rom libssl-minimal.lib.so     | + parent
     + rom wifi.lib.so               | + parent | label: pc_wifi.lib.so
     + rom pc_wifi_firmware.tar      | + parent
     + rom wpa_driver_nl80211.lib.so | + parent

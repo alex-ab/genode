@@ -5,7 +5,7 @@ SRC_CC  := main.cc wpa.cc access_firmware.cc
 LIBS    := base wifi
 LIBS    += libc
 LIBS    += wpa_supplicant
-LIBS    += libcrypto1 libssl1
+LIBS    += libcrypto-minimal libssl-minimal
 LIBS    += libnl wpa_driver_nl80211
 
 INC_DIR += $(PRG_DIR)

@@ -22,7 +22,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/init \
                   [depot_user]/src/libc \
                   [depot_user]/src/nic_router \
-                  [depot_user]/src/openssl \
+                  [depot_user]/src/openssl-minimal \
                   [depot_user]/src/report_rom \
                   [depot_user]/src/vfs \
                   [depot_user]/src/vfs_[ip_stack] \

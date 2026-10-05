@@ -1,4 +1,4 @@
-OPENSSL_PORT_DIR := $(call select_from_ports,openssl)
+OPENSSL_PORT_DIR := $(call select_from_ports,openssl-minimal)
 LIB_SRC_DIR      := $(OPENSSL_PORT_DIR)/src/lib/openssl
 
 SHARED_LIB = yes

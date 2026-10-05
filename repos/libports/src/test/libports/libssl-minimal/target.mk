@@ -1,5 +1,5 @@
-TARGET = test-libssl1
-LIBS   = libc libssl1
+TARGET = test-libssl-minimal
+LIBS   = libc libssl-minimal
 SRC_CC = main.cc
 
 vpath main.cc $(PRG_DIR)/..
