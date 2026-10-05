@@ -97,6 +97,7 @@ ret_type name args \
 
 
 DUMMY(int   , -1, chroot, (const char *))
+DUMMY(int   , -1, clock_getres, (clockid_t, struct timespec *))
 DUMMY(int   , -1, cpuset_getaffinity, (cpulevel_t, cpuwhich_t, id_t, size_t, cpuset_t *))
 DUMMY(char *,  0, crypt, (const char *, const char *))
 DUMMY(DB *  ,  0, dbopen, (const char *, int, int, DBTYPE, const void *))
