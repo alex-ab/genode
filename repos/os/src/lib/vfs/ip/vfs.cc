@@ -221,7 +221,7 @@ struct Vfs_ip::Directory : Vfs_ip::Node
 
 	virtual Open_result open(File_system &fs, char const *, Open_attr, Allocator &) = 0;
 
-	virtual long read(Byte_range_ptr const &, file_size seek_offset) = 0;
+	virtual Dir_channel::Read_dir_result read(Dir_channel::At, Dirent_range_ptr const &) = 0;
 };
 
 
@@ -371,12 +371,9 @@ struct Vfs_ip::Ip_dir_channel : Vfs::Dir_channel
 
 	void destruct() override { destroy(_alloc, this); }
 
-	Read_result read(At const at, Byte_range_ptr const &dst) override
+	Read_dir_result read_dir(At at, Dirent_range_ptr const &dst) override
 	{
-		long const res = _dir.read(dst, at.pos);
-		if (res < 0)
-			return Read_error::DENIED;
-		return res;
+		return _dir.read(at, dst);
 	}
 };
 
@@ -916,10 +913,10 @@ class Vfs_ip::Ip_sockopt_dir : public Vfs_ip::Directory
 			return _sockopt_fs.open(path, attr, alloc);
 		}
 
-		long read(Byte_range_ptr const &, file_size) override
+		Dir_channel::Read_dir_result read(Dir_channel::At, Dirent_range_ptr const &) override
 		{
 			error(__PRETTY_FUNCTION__, " called not implemented");
-			return 0;
+			return Dir_channel::Read_dir_end();
 		}
 
 		unsigned num_dirent() override
@@ -1098,17 +1095,12 @@ class Vfs_ip::Ip_socket_dir final : public Socket_dir
 
 		unsigned num_dirent() override { return _num_nodes() + 1; }
 
-		long read(Byte_range_ptr const &dst,
-		          file_size seek_offset) override
+		Dir_channel::Read_dir_result read(Dir_channel::At at, Dirent_range_ptr const &dst) override
 		{
-			using Dirent = Vfs::File_system::Dirent;
+			if (dst.num_entries < 1)
+				return Dir_channel::Read_dir_error::DENIED;
 
-			if (dst.num_bytes < sizeof(Dirent))
-				return -1;
-
-			size_t index = size_t(seek_offset / sizeof(Dirent));
-
-			Dirent &out = *(Dirent*)dst.start;
+			unsigned index = at.pos;
 
 			Vfs_ip::Node *node = nullptr;
 			for (Vfs_ip::File *n : _files) {
@@ -1120,17 +1112,15 @@ class Vfs_ip::Ip_socket_dir final : public Socket_dir
 					--index;
 				}
 			}
-			if (!node) {
-				out = { };
-				return -1;
-			}
+			if (!node)
+				return Dir_channel::Read_dir_end();
 
-			out = {
+			dst.start[0] = {
 				.type = Dirent_type::DEVICE,
 				.rwx  = Node_rwx::rw(),
 				.name = { node->name() } };
 
-			return sizeof(Dirent);
+			return 1;
 		}
 
 		Ip_socket_dir(const Ip_socket_dir&) = delete;
@@ -1394,16 +1384,12 @@ class Vfs_ip::Protocol_dir_impl : public Protocol_dir
 
 		unsigned num_dirent() override { return _num_nodes(); }
 
-		long read(Byte_range_ptr const &dst, file_size seek_offset) override
+		Dir_channel::Read_dir_result read(Dir_channel::At at, Dirent_range_ptr const &dst) override
 		{
-			using Dirent = Vfs::File_system::Dirent;
+			if (dst.num_entries < 1)
+				return Dir_channel::Read_dir_error::DENIED;
 
-			if (dst.num_bytes < sizeof(Dirent))
-				return -1;
-
-			size_t index = size_t(seek_offset / sizeof(Dirent));
-
-			Dirent &out = *(Dirent*)dst.start;
+			unsigned index = at.pos;
 
 			Vfs_ip::Node *node = nullptr;
 			for (Vfs_ip::Node *n : _nodes) {
@@ -1415,10 +1401,8 @@ class Vfs_ip::Protocol_dir_impl : public Protocol_dir
 					--index;
 				}
 			}
-			if (!node) {
-				out = { };
-				return -1;
-			}
+			if (!node)
+				return Dir_channel::Read_dir_end();
 
 			Dirent_type const type = dynamic_cast<Vfs_ip::Directory*>(node)
 			                       ? Dirent_type::DIRECTORY
@@ -1428,12 +1412,12 @@ class Vfs_ip::Protocol_dir_impl : public Protocol_dir
 			                   ? Node_rwx::rwx()
 			                   : Node_rwx::rw();
 
-			out = {
+			dst.start[0] = {
 				.type = type,
 				.rwx  = rwx,
 				.name = { node->name() } };
 
-			return sizeof(Dirent);
+			return 1;
 		}
 
 		Vfs_ip::Node *child(char const *) override { return nullptr; }
@@ -1696,12 +1680,12 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 			return Open_error::DENIED;
 		}
 
-		long read(Byte_range_ptr const &dst, file_size seek_offset) override
+		Dir_channel::Read_dir_result read(Dir_channel::At at, Dirent_range_ptr const &dst) override
 		{
-			if (dst.num_bytes < sizeof(Dirent))
-				return -1;
+			if (dst.num_entries < 1)
+				return Dir_channel::Read_dir_error::DENIED;
 
-			file_size const index = seek_offset / sizeof(Dirent);
+			unsigned const index = at.pos;
 
 			struct Entry
 			{
@@ -1725,15 +1709,13 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 
 			Entry const &entry = entries[index];
 
-			Dirent &out = *(Dirent*)dst.start;
-
-			out = {
+			dst.start[0] = {
 				.type = entry.type,
 				.rwx  = entry.type == Dirent_type::DIRECTORY
 				      ? Node_rwx::rwx() : Node_rwx::rw(),
 				.name = { entry.name }
 			};
-			return sizeof(Dirent);
+			return 1;
 		}
 
 		Vfs_ip::Node *child(char const *) override { return nullptr; }

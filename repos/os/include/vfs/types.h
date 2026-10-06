@@ -62,6 +62,44 @@ namespace Genode::Vfs {
 		                                 .executable = true }; }
 	};
 
+	struct Dirent
+	{
+		struct Name
+		{
+			enum { MAX_LEN = 128 };
+			char buf[MAX_LEN] { };
+
+			Name() { };
+			Name(char const *name) { copy_cstring(buf, name, sizeof(buf)); }
+		};
+
+		Dirent_type type;
+		Node_rwx    rwx;
+		Name        name;
+
+		/**
+		 * Sanitize dirent members
+		 *
+		 * This method must be called after receiving a 'Dirent' as
+		 * a plain data copy.
+		 */
+		void sanitize()
+		{
+			/* enforce null termination */
+			name.buf[Name::MAX_LEN - 1] = 0;
+		}
+	};
+
+	struct Dirent_range_ptr : Noncopyable
+	{
+		struct {
+			Dirent * const start;
+			unsigned const num_entries;
+		};
+
+		Dirent_range_ptr(Dirent *start, unsigned n) : start(start), num_entries(n) { }
+	};
+
 	namespace File
 	{
 		enum class Read  { NOTHING, ANYWHERE };
@@ -132,6 +170,12 @@ namespace Genode::Vfs {
 	using Read_result = Attempt<size_t, Read_error>;
 
 	struct Read_eof : Read_result { Read_eof() : Read_result(0) { }; };
+
+	enum class Read_dir_error { RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
+
+	using Read_dir_result = Attempt<unsigned, Read_dir_error>;
+
+	struct Read_dir_end : Read_dir_result { Read_dir_end() : Read_dir_result(0) { }; };
 
 	enum class Resize_result { OK, RETRY, DENIED, OUT_OF_RAM, OUT_OF_CAPS };
 
@@ -365,23 +409,25 @@ struct Genode::Vfs::File_channel : Noncopyable, Interface
 
 struct Genode::Vfs::Dir_channel : Interface, Noncopyable
 {
-	enum class Read_error { RETRY, DENIED };
+	enum class Read_dir_error { RETRY, DENIED };
 
-	using Read_result = Attempt<size_t, Read_error>;
+	using Read_dir_result = Attempt<unsigned, Read_dir_error>;
 
-	struct Read_eof : Read_result { Read_eof() : Read_result(0) { }; };
+	struct Read_dir_end : Read_dir_result { Read_dir_end() : Read_dir_result(0) { }; };
+
+	struct At { unsigned pos; };
 
 	/**
 	 * Initiate or complete read of directory entries
 	 *
-	 * On success, the method returns the number of read bytes.
-	 * If zero, the end of file is reached.
+	 * On success, the method returns the number of read directory entries.
+	 * If zero, the end of the directory is reached.
 	 *
 	 * \return Read_error::RETRY  if the read operation is not yet
 	 *                            complete and must by tried again once
 	 *                            external I/O has progressed
 	 */
-	virtual Read_result read(At, Byte_range_ptr const &dst) = 0;
+	virtual Read_dir_result read_dir(At, Dirent_range_ptr const &dst) = 0;
 
 	virtual void destruct() = 0;
 };

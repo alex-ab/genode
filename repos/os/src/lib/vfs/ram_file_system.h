@@ -109,7 +109,7 @@ struct Vfs_ram::Dir_channel : Vfs::Dir_channel
 
 	void destruct() override { destroy(_alloc, this); }
 
-	inline Read_result read(At, Byte_range_ptr const &) override;
+	inline Read_dir_result read_dir(At, Dirent_range_ptr const &) override;
 };
 
 
@@ -372,21 +372,16 @@ class Vfs_ram::Directory : public Vfs_ram::Node
 
 		size_t length() override { return _count; }
 
-		Dir_channel::Read_result read_dir(Byte_range_ptr const &dst, Seek const seek)
+		Dir_channel::Read_dir_result read_dir(Dir_channel::At at, Dirent_range_ptr const &dst)
 		{
-			using Dirent = Vfs::File_system::Dirent;
-
-			if (dst.num_bytes < sizeof(Dirent))
-				return Dir_channel::Read_error::DENIED;
-
-			size_t index = seek.value / sizeof(Dirent);
-
-			Dirent &out = *(Dirent*)dst.start;
+			if (dst.num_entries < 1)
+				return Dir_channel::Read_dir_error::DENIED;
 
 			Node *node_ptr = _entries.first();
+			size_t index = at.pos;
 			if (node_ptr) node_ptr = node_ptr->index(index);
 			if (!node_ptr)
-				return Dir_channel::Read_eof();
+				return Dir_channel::Read_dir_end();
 
 			Node &node = *node_ptr;
 
@@ -397,12 +392,12 @@ class Vfs_ram::Directory : public Vfs_ram::Node
 				return Dirent_type::FILE;
 			};
 
-			out = {
+			dst.start[0] = {
 				.type = dirent_type(),
 				.rwx  = node.rwx(),
 				.name = { node.name() }
 			};
-			return sizeof(Dirent);
+			return 1;
 		}
 };
 
@@ -855,9 +850,9 @@ Vfs_ram::File_channel::Resize_result Vfs_ram::File_channel::resize(file_size len
 }
 
 
-Genode::Vfs::Dir_channel::Read_result Vfs_ram::Dir_channel::read(At at, Byte_range_ptr const &dst)
+Genode::Vfs::Dir_channel::Read_dir_result Vfs_ram::Dir_channel::read_dir(At at, Dirent_range_ptr const &dst)
 {
-	return _dir.read_dir(dst, Seek { size_t(at.pos) });
+	return _dir.read_dir(at, dst);
 }
 
 

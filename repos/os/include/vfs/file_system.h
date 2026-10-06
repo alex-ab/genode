@@ -141,34 +141,6 @@ struct Genode::Vfs::File_system : Interface, Noncopyable
 		(void)path; return Stat_result::DENIED;
 	}
 
-	struct Dirent
-	{
-		struct Name
-		{
-			enum { MAX_LEN = 128 };
-			char buf[MAX_LEN] { };
-
-			Name() { };
-			Name(char const *name) { copy_cstring(buf, name, sizeof(buf)); }
-		};
-
-		Dirent_type type;
-		Node_rwx    rwx;
-		Name        name;
-
-		/**
-		 * Sanitize dirent members
-		 *
-		 * This method must be called after receiving a 'Dirent' as
-		 * a plain data copy.
-		 */
-		void sanitize()
-		{
-			/* enforce null termination */
-			name.buf[Name::MAX_LEN - 1] = 0;
-		}
-	};
-
 	/**
 	 * Create directory
 	 *

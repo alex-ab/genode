@@ -571,41 +571,43 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 			enum { DIRENT_SIZE = sizeof(::File_system::Directory_entry) };
 
-			Read_result read(At const at, Byte_range_ptr const &dst) override
+			Read_dir_result read_dir(At const at, Dirent_range_ptr const &dst) override
 			{
-				if (dst.num_bytes < sizeof(Dirent))
-					return Read_error::DENIED;
-
-				if (at.pos % sizeof(Dirent)) /* must be aligned to 'Dirent' */
-					return Read_error::DENIED;
+				if (dst.num_entries < 1)
+					return Read_dir_error::DENIED;
 
 				using ::File_system::Directory_entry;
 
 				Directory_entry entry { };
 				Byte_range_ptr entry_bytes((char *)(&entry), DIRENT_SIZE);
-				Read_result const read_result =
-					_read<Read_result, Read_error>(_fs, file_handle(),
-					                               _queued_read_state,
-					                               _queued_read_packet,
-					                               at, entry_bytes);
 
-				return read_result.convert<Read_result>(
-					[&] (size_t num_bytes) -> Read_result {
+				File_channel::Read_result const read_result =
+					_read<File_channel::Read_result, File_channel::Read_error>(
+						_fs, file_handle(),
+						_queued_read_state, _queued_read_packet,
+						{ at.pos*DIRENT_SIZE }, entry_bytes);
 
+				return read_result.convert<Read_dir_result>(
+					[&] (size_t num_bytes) -> Read_dir_result {
 						if (num_bytes < DIRENT_SIZE)
-							return Read_eof();
+							return Read_dir_end();
 
 						entry.sanitize();
 
-						Dirent &out = *(Dirent*)dst.start;
-						out = Dirent {
+						dst.start[0] = Dirent {
 							.type = _dirent_type(entry.type),
 							.rwx  = _node_rwx(entry.rwx),
 							.name = { entry.name.buf }
 						};
-						return sizeof(Dirent);
+						return 1;
 					},
-					[&] (Read_error e) { return e; });
+					[&] (File_channel::Read_error e) {
+						switch (e) {
+						case File_channel::Read_error::RETRY:  return Read_dir_error::RETRY;
+						case File_channel::Read_error::DENIED: break;
+						}
+						return Read_dir_error::DENIED;
+					});
 			}
 
 			/**

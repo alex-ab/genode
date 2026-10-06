@@ -46,22 +46,20 @@ class Vfs_symlink::File_system : public Single_file_system
 
 			void destruct() override { destroy(_alloc, this); }
 
-			Read_result read(At const at, Byte_range_ptr const &dst) override
+			Read_dir_result read_dir(At const at, Dirent_range_ptr const &dst) override
 			{
-				if (dst.num_bytes < sizeof(Dirent))
-					return Read_error::DENIED;
+				if (dst.num_entries < 1)
+					return Read_dir_error::DENIED;
 
-				file_size index = at.pos / sizeof(Dirent);
-				if (index > 0)
-					return Read_eof();
+				if (at.pos > 0)
+					return Read_dir_end();
 
-				Dirent &out = *(Dirent*)dst.start;
-				out = {
+				dst.start[0] = {
 					.type = Dirent_type::SYMLINK,
 					.rwx  = Node_rwx::ro(),
 					.name = { _fs.Single_file_system::name.string.string() }
 				};
-				return sizeof(Dirent);
+				return 1;
 			}
 		};
 

@@ -63,6 +63,15 @@ namespace Vfs_server {
 			else
 				warning("payload ptr unexpectedly not defined");
 		}
+
+		void with_dirents(Packet_descriptor const &packet, auto const &fn)
+		{
+			if (_ptr || packet.length() == 0)
+				fn(Vfs::Dirent_range_ptr((Dirent *)_ptr,
+				                         unsigned(packet.length()/sizeof(Dirent))));
+			else
+				warning("payload ptr unexpectedly not defined");
+		}
 	};
 
 	/**
@@ -761,7 +770,6 @@ struct Vfs_server::Directory : Io_node
 
 		Vfs::Dir_handle _handle;
 
-		using Vfs_dirent = Vfs::File_system::Dirent;
 		using Fs_dirent  = ::File_system::Directory_entry;
 
 		bool _position_and_length_aligned_with_dirent_size()
@@ -778,7 +786,7 @@ struct Vfs_server::Directory : Io_node
 			return true;
 		}
 
-		static Fs_dirent _convert_dirent(Vfs_dirent from, Policy const policy)
+		static Fs_dirent _convert_dirent(Vfs::Dirent from, Policy const policy)
 		{
 			from.sanitize();
 
@@ -815,30 +823,16 @@ struct Vfs_server::Directory : Io_node
 		/**
 		 * Convert VFS directory entry to FS directory entry in place in the
 		 * payload buffer
-		 *
-		 * \return  size of converted data in bytes
 		 */
-		size_t _convert_vfs_dirents_to_fs_dirents(Byte_range_ptr const &buf)
+		void _convert_vfs_dirents_to_fs_dirents(Vfs::Dirent_range_ptr const &range)
 		{
-			static_assert(sizeof(Vfs_dirent) == sizeof(Fs_dirent));
+			static_assert(sizeof(Vfs::Dirent) == sizeof(Fs_dirent));
 
-			size_t const step = sizeof(Fs_dirent);
-
-			size_t converted_length = 0;
-
-			for (file_size offset = 0; offset + step <= buf.num_bytes; offset += step) {
-
-				char * const ptr = buf.start + offset;
-
-				Vfs_dirent &vfs_dirent = *(Vfs_dirent *)(ptr);
-				Fs_dirent  &fs_dirent  = *(Fs_dirent  *)(ptr);
-
+			for (unsigned i = 0; i < range.num_entries; i++) {
+				Vfs::Dirent &vfs_dirent = range.start[i];
+				Fs_dirent   &fs_dirent  = *(Fs_dirent *)&vfs_dirent;
 				fs_dirent = _convert_dirent(vfs_dirent, _policy);
-
-				converted_length += step;
 			}
-
-			return converted_length;
 		}
 
 	public:
@@ -851,9 +845,9 @@ struct Vfs_server::Directory : Io_node
 			_handle(env.dir_handles(), env.fs(), alloc, path)
 		{
 			/* trigger channel allocation to avoid out of ram/caps during read */
-			_handle.read(At { }, { nullptr, 0 }).with_error([&] (Read_error e) {
-				if (e == Read_error::OUT_OF_RAM)  throw Out_of_ram();
-				if (e == Read_error::OUT_OF_CAPS) throw Out_of_caps();
+			_handle.read_dir({ }, { nullptr, 0 }).with_error([&] (Read_dir_error e) {
+				if (e == Read_dir_error::OUT_OF_RAM)  throw Out_of_ram();
+				if (e == Read_dir_error::OUT_OF_CAPS) throw Out_of_caps();
 			});
 		}
 
@@ -915,15 +909,15 @@ struct Vfs_server::Directory : Io_node
 		void execute_job() override
 		{
 			if (_packet.operation() == Packet_descriptor::READ)
-				_payload_ptr.with_bytes(_packet, [&] (Byte_range_ptr const &dst) {
-					_handle.read(At { _packet.position() }, dst).with_result(
-						[&] (size_t num_bytes) {
-							Byte_range_ptr bytes { dst.start, num_bytes };
-							size_t n = _convert_vfs_dirents_to_fs_dirents(bytes);
-							_ack_successful_packet(n, _payload_ptr);
+				_payload_ptr.with_dirents(_packet, [&] (Dirent_range_ptr const &dst) {
+					Vfs::Dir_handle::At at { unsigned(_packet.position()/sizeof(Dirent)) };
+					_handle.read_dir(at, dst).with_result(
+						[&] (unsigned num_entries) {
+							_convert_vfs_dirents_to_fs_dirents({ dst.start, num_entries });
+							_ack_successful_packet(num_entries*sizeof(Dirent), _payload_ptr);
 						},
-						[&] (Read_error e) {
-							if (e != Read_error::RETRY)
+						[&] (Read_dir_error e) {
+							if (e != Read_dir_error::RETRY)
 								_ack_failed_packet(_payload_ptr);
 						});
 				});

@@ -61,7 +61,7 @@ namespace Libc {
 
 		Vfs::Dir_handle handle;
 
-		uint64_t pos = 0; /* read position */
+		unsigned pos = 0; /* read position */
 
 		Open_dir(Vfs::Env &env, Path const &path)
 		:

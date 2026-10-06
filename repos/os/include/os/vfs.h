@@ -54,7 +54,7 @@ struct Genode::Directory : Noncopyable, Interface
 		{
 			private:
 
-				Vfs::File_system::Dirent _dirent { };
+				Vfs::Dirent _dirent { };
 
 				friend class Directory;
 
@@ -80,7 +80,7 @@ struct Genode::Directory : Noncopyable, Interface
 					print(out, ")");
 				}
 
-				using Name = String<Vfs::File_system::Dirent::Name::MAX_LEN>;
+				using Name = String<Vfs::Dirent::Name::MAX_LEN>;
 
 				Name name() const { return Name(Cstring(_dirent.name.buf)); }
 
@@ -154,27 +154,18 @@ struct Genode::Directory : Noncopyable, Interface
 		{
 			Entry entry;
 
-			Vfs::Read_result read_result = 0;
+			Vfs::Read_dir_result result = 0;
 			for (;;) {
-				Byte_range_ptr const dst { (char*)&entry._dirent,
-				                            sizeof(entry._dirent) };
-				Vfs::At const at { .pos = i*sizeof(entry._dirent) };
-
-				read_result = _handle.read(at, dst);
-				if (read_result != Vfs::Read_error::RETRY)
+				result = _handle.read_dir({ .pos = i }, { &entry._dirent, 1 });
+				if (result != Vfs::Read_dir_error::RETRY)
 					break;
 
 				_io.commit_and_wait();
 			}
 
-			bool const ok = read_result.convert<bool>(
-				[&] (size_t num_bytes) {
-					if ((num_bytes > 0) && (num_bytes < sizeof(entry._dirent)))
-						warning("failed to access dir entry ", i, " of '", _path, "'");
-
-					return (num_bytes == sizeof(entry._dirent));
-				},
-				[&] (Vfs::Read_error) { return false; });
+			bool const ok = result.convert<bool>(
+				[&] (unsigned num_entries) { return num_entries == 1; },
+				[&] (Vfs::Read_dir_error)  { return false; });
 
 			if (ok)
 				return fn(static_cast<Entry const &>(entry));

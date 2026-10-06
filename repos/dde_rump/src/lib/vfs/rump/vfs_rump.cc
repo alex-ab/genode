@@ -216,8 +216,8 @@ class Vfs_rump::File_system : public Vfs::File_system
 
 			Attr const _attr;
 
-			Read_result _finish_read(char const *path,
-			                         struct ::dirent *dent, Dirent &vfs_dir)
+			Read_dir_result _finish_read(char const *path,
+			                             struct ::dirent *dent, Dirent &vfs_dir)
 			{
 				/*
 				 * We cannot use 'd_type' member of 'dirent' here since the EXT2
@@ -234,7 +234,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 				                || (S_ISFIFO(s.st_mode));
 
 				if (!valid)
-					return Read_eof();
+					return Read_dir_end();
 
 				auto dirent_type = [] (unsigned mode)
 				{
@@ -252,7 +252,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 					.rwx  = rwx,
 					.name = { dent->d_name }
 				};
-				return sizeof(Dirent);
+				return 1;
 			}
 
 			Rump_dir_channel(Allocator &alloc, Attr attr)
@@ -264,14 +264,10 @@ class Vfs_rump::File_system : public Vfs::File_system
 
 			void destruct() override { destroy(_alloc, this); }
 
-			Read_result read(At const at, Byte_range_ptr const &dst) override
+			Read_dir_result read_dir(At const at, Dirent_range_ptr const &dst) override
 			{
-				if (dst.num_bytes < sizeof(Dirent))
-					return Read_error::DENIED;
-
-				size_t const index = size_t(at.pos / sizeof(Dirent));
-
-				Dirent *vfs_dir = (Dirent*)dst.start;
+				if (dst.num_entries < 1)
+					return Read_dir_error::DENIED;
 
 				rump_sys_lseek(_attr.fd, 0, SEEK_SET);
 
@@ -288,16 +284,15 @@ class Vfs_rump::File_system : public Vfs::File_system
 					{
 						dent = (::dirent *)current;
 						if (strcmp(".", dent->d_name) && strcmp("..", dent->d_name)) {
-							if (fileno++ == index) {
+							if (fileno++ == at.pos) {
 								Path newpath(dent->d_name, _attr.path.base());
-								return _finish_read(newpath.base(), dent, *vfs_dir);
+								return _finish_read(newpath.base(), dent, dst.start[0]);
 							}
 						}
 					}
 				} while (bytes > 0);
 
-				*vfs_dir = Dirent();
-				return sizeof(Dirent);
+				return Read_dir_end();
 			}
 		};
 

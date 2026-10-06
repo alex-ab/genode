@@ -77,22 +77,20 @@ struct Vfs_device::File_system : Union_file_system, private Vfs::File_system::Fa
 
 			void destruct() override { destroy(_alloc, this); }
 
-			Read_result read(At const at, Byte_range_ptr const &dst) override
+			Read_dir_result read_dir(At const at, Dirent_range_ptr const &dst) override
 			{
-				if (dst.num_bytes < sizeof(Dirent))
-					return Read_error::DENIED;
+				if (dst.num_entries < 1)
+					return Read_dir_error::DENIED;
 
-				file_size const index = at.pos / sizeof(Dirent);
-				if (index > 0)
-					return Read_eof();
+				if (at.pos > 0)
+					return Read_dir_end();
 
-				Dirent &out = *(Dirent*)dst.start;
-				out = {
+				dst.start[0] = {
 					.type = Dirent_type::DEVICE,
 					.rwx  = _fs._rwx,
 					.name = { _fs._name.string() }
 				};
-				return sizeof(Dirent);
+				return 1;
 			}
 		};
 
@@ -234,17 +232,16 @@ struct Vfs_device::File_system : Union_file_system, private Vfs::File_system::Fa
 		if (_data_file_name.length() <= 1)
 			_dot_dir_fs.opendir(_dot_dir_path("").string(), _env.alloc()).with_result(
 				[&] (Vfs::Dir_channel &ch) {
-					using Error = Vfs::Dir_channel::Read_error;
-					Dirent dirent { };
-					Byte_range_ptr dst { (char *)&dirent, sizeof(dirent) };
-					Vfs::Dir_channel::Read_result result = Error::RETRY;
+					using Error = Vfs::Dir_channel::Read_dir_error;
+					Dirent dirents[1] { };
+					Vfs::Dir_channel::Read_dir_result result = Error::RETRY;
 					for (;;) {
-						result = ch.read({ }, dst);
+						result = ch.read_dir({ }, { dirents, 1 });
 						if (result != Error::RETRY) break;
 						_env.io().commit_and_wait();
 					}
 					result.with_result(
-						[&] (size_t) { _data_file_name = Cstring(dirent.name.buf); },
+						[&] (size_t) { _data_file_name = Cstring(dirents[0].name.buf); },
 						[&] (Error)  { });
 					ch.destruct();
 				},

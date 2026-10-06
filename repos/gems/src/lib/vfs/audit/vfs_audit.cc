@@ -199,18 +199,18 @@ class Vfs_audit::File_system : public Vfs::File_system
 				destroy(_alloc, this);
 			}
 
-			Read_result read(At const at, Byte_range_ptr const &dst) override
+			Read_dir_result read_dir(At const at, Dirent_range_ptr const &dst) override
 			{
-				return audited.read(at, dst).convert<Read_result>(
-					[&] (size_t num_bytes) {
-						_log("completed read from ", path, " ", num_bytes);
-						return num_bytes;
+				return audited.read_dir(at, dst).convert<Read_dir_result>(
+					[&] (unsigned num_entries) {
+						_log("completed read dir from ", path, " ", num_entries);
+						return num_entries;
 					},
-					[&] (Read_error e) {
-						if (e == Read_error::RETRY)
-							_log("read needs retry for ", path);
+					[&] (Read_dir_error e) {
+						if (e == Read_dir_error::RETRY)
+							_log("read dir needs retry for ", path);
 						else
-							_log("read error ", (int)e, " for ", path);
+							_log("read dir error ", (int)e, " for ", path);
 						return e;
 					});
 			}

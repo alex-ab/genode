@@ -34,6 +34,8 @@ class Genode::Vfs::Dir_handle : Noncopyable
 
 		Path const path;
 
+		using At = Dir_channel::At;
+
 	private:
 
 		Dir_handles &_handles;
@@ -76,39 +78,39 @@ class Genode::Vfs::Dir_handle : Noncopyable
 		/**
 		 * Initiate or complete read of directory entries
 		 *
-		 * On success, the method returns the number of read bytes.
+		 * On success, the method returns the number of read directory entries.
 		 * If zero, the end of the directory is reached.
 		 *
 		 * \return Read_error::RETRY  if the read operation is not yet
 		 *                            complete and must by tried again once
 		 *                            external I/O has progressed
 		 */
-		inline Read_result read(At at, Byte_range_ptr const &dst);
+		inline Read_dir_result read_dir(At at, Dirent_range_ptr const &dst);
 };
 
 
 
-Genode::Vfs::Read_result
-Genode::Vfs::Dir_handle::read(At at, Byte_range_ptr const &dst)
+Genode::Vfs::Read_dir_result
+Genode::Vfs::Dir_handle::read_dir(At at, Dirent_range_ptr const &dst)
 {
-	Read_result result = Read_error::DENIED;
+	Read_dir_result result = Read_dir_error::DENIED;
 
 	if (!_channel_ptr)
 		_root_dir.opendir(path.string(), _alloc).with_result(
 			[&] (Dir_channel  &c) { _channel_ptr = &c; },
-			[&] (Opendir_error e) { result = converted_error<Read_error>(e); });
+			[&] (Opendir_error e) { result = converted_error<Read_dir_error>(e); });
 
 	if (!_channel_ptr)
 		return result;
 
-	return _channel_ptr->read(at, dst).convert<Read_result>(
-		[&] (size_t num_bytes) { return num_bytes; },
-		[&] (Dir_channel::Read_error e) {
+	return _channel_ptr->read_dir(at, dst).convert<Read_dir_result>(
+		[&] (unsigned num_entries) { return num_entries; },
+		[&] (Dir_channel::Read_dir_error e) {
 			switch (e) {
-			case Dir_channel::Read_error::RETRY: return Read_error::RETRY;
-			case Dir_channel::Read_error::DENIED: break;
+			case Dir_channel::Read_dir_error::RETRY: return Read_dir_error::RETRY;
+			case Dir_channel::Read_dir_error::DENIED: break;
 			}
-			return Read_error::DENIED;
+			return Read_dir_error::DENIED;
 		});
 }
 

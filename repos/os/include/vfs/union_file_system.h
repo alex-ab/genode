@@ -101,16 +101,16 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 
 			Child_channels _child_channels { };
 
-			Read_result _read_of_file_systems(At const at, Byte_range_ptr const &dst)
+			Read_dir_result _read_dir_of_file_systems(At const at, Dirent_range_ptr const &dst)
 			{
-				size_t index = size_t(at.pos / sizeof(Dirent));
+				unsigned index = at.pos;
 
 				/* base of composite directory index */
-				size_t base = 0;
+				unsigned base = 0;
 
 				bool done = false;
 
-				Read_result result = Read_eof(); /* if no fs matches 'index' */
+				Read_dir_result result = Read_dir_end(); /* if no fs matches 'index' */
 
 				_child_channels.for_each([&] (Child_channel_element const &e) {
 
@@ -131,7 +131,7 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 						/* seek to file-system local index */
 						index = index - base;
 
-						result = e.channel.read(At { index*sizeof(Dirent) }, dst);
+						result = e.channel.read_dir(At { index }, dst);
 						done = true;
 					}
 
@@ -156,12 +156,12 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 				destroy(_alloc, this);
 			}
 
-			Read_result read(At const at, Byte_range_ptr const &dst) override
+			Read_dir_result read_dir(At const at, Dirent_range_ptr const &dst) override
 			{
-				if (dst.num_bytes < sizeof(Dirent))
-					return Read_error::DENIED;
+				if (dst.num_entries < 1)
+					return Read_dir_error::DENIED;
 
-				return _read_of_file_systems(at, dst);
+				return _read_dir_of_file_systems(at, dst);
 			}
 		};
 

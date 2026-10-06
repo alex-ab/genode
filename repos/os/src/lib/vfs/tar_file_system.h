@@ -199,20 +199,16 @@ class Vfs_tar::File_system : public Vfs::File_system
 
 		void destruct() override { destroy(_alloc, this); }
 
-		Read_result read(At const at, Byte_range_ptr const &dst) override
+		Read_dir_result read_dir(At const at, Dirent_range_ptr const &dst) override
 		{
-			if (dst.num_bytes < sizeof(Dirent))
-				return Read_error::DENIED;
+			if (dst.num_entries < 1)
+				return Read_dir_error::DENIED;
 
-			Dirent &dirent = *(Dirent*)dst.start;
-
-			unsigned const index = unsigned(at.pos / sizeof(Dirent));
-
-			Node const *node_ptr = _node.lookup_child(index);
+			Node const *node_ptr = _node.lookup_child(at.pos);
 
 			if (!node_ptr) {
-				dirent = Dirent { };
-				return Read_eof();
+				dst.start[0] = { };
+				return Read_dir_end();
 			}
 
 			Node const &node = *node_ptr;
@@ -226,12 +222,12 @@ class Vfs_tar::File_system : public Vfs::File_system
 
 			/* if no record exists, assume it is a directory */
 			if (!record_ptr) {
-				dirent = {
+				dst.start[0] = {
 					.type = Dirent_type::DIRECTORY,
 					.rwx  = Node_rwx::rx(),
 					.name = { node.name }
 				};
-				return sizeof(Dirent);
+				return 1;
 			}
 
 			Record const &record = *record_ptr;
@@ -248,14 +244,14 @@ class Vfs_tar::File_system : public Vfs::File_system
 				return Dirent_type::FILE;
 			};
 
-			dirent = {
+			dst.start[0] = {
 				.type = dirent_type(),
 				.rwx  = { .readable   = true,
 				          .writeable  = false,
 				          .executable = record.rwx().executable },
 				.name = { node.name }
 			};
-			return sizeof(Dirent);
+			return 1;
 		}
 	};
 

@@ -453,18 +453,15 @@ struct Unlink_test : public Stress_test
 		vfs.opendir(path, alloc).with_result(
 			[&] (Vfs::Dir_channel &channel) {
 
-				Vfs::File_system::Dirent dirent { };
+				Vfs::Dirent dirent { };
 				for (unsigned i = vfs.num_dirent(path); i;) {
 					--i;
 
-					Byte_range_ptr const dst { (char*)&dirent, sizeof(dirent) };
-					Vfs::At        const at  { i*sizeof(dirent) };
-
-					Vfs::Dir_channel::Read_result result = Vfs::Dir_channel::Read_error::DENIED;
+					Vfs::Dir_channel::Read_dir_result result = Vfs::Dir_channel::Read_dir_error::DENIED;
 
 					for (;;) {
-						result = channel.read(at, dst);
-						if (result != Vfs::Dir_channel::Read_error::RETRY)
+						result = channel.read_dir({ i }, { &dirent, 1 });
+						if (result != Vfs::Dir_channel::Read_dir_error::RETRY)
 							break;
 						_io.commit_and_wait();
 					}

@@ -595,23 +595,19 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 		return -1;
 	}
 
-	using Result = Vfs::Read_result;
-	using Dirent = Vfs::File_system::Dirent;
-
-	Dirent dirent_out;
-	Result result = Vfs::Read_error::DENIED;
+	Vfs::Dirent vfs_dirent { };
+	Vfs::Read_dir_result result = Vfs::Read_dir_error::DENIED;
 
 	_monitor.monitor([&] {
 
-		Byte_range_ptr const dst { (char *)&dirent_out, sizeof(Dirent) };
-		result = od.handle.read({ .pos = od.pos }, dst);
+		result = od.handle.read_dir({ .pos = od.pos }, { &vfs_dirent, 1 });
 
-		return result == Vfs::Read_error::RETRY ? Fn::INCOMPLETE : Fn::COMPLETE;
+		return result == Vfs::Read_dir_error::RETRY ? Fn::INCOMPLETE : Fn::COMPLETE;
 	});
 
 	bool const ok = result.convert<bool>(
-		[&] (size_t num_bytes) { return num_bytes >= sizeof(Dirent); },
-		[&] (Vfs::Read_error)  { return false; });
+		[&] (unsigned num_entries) { return num_entries >= 1; },
+		[&] (Vfs::Read_dir_error)  { return false; });
 
 	if (!ok)
 		return 0;
@@ -634,16 +630,16 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 	dirent &dirent = *(struct dirent *)buf;
 	dirent = { };
 
-	Genode::copy_cstring(dirent.d_name, dirent_out.name.buf, sizeof(dirent.d_name));
+	Genode::copy_cstring(dirent.d_name, vfs_dirent.name.buf, sizeof(dirent.d_name));
 
 	Open_dir::Path const entry_path { od.handle.path, "/", Cstring(dirent.d_name) };
 
-	dirent.d_type   = dirent_type(dirent_out.type);
+	dirent.d_type   = dirent_type(vfs_dirent.type);
 	dirent.d_fileno = pseudo_inode_from_path(entry_path.string());
 	dirent.d_reclen = sizeof(struct dirent);
 	dirent.d_namlen = Genode::strlen(dirent.d_name);
 
-	od.pos += sizeof(Vfs::File_system::Dirent);
+	od.pos += 1;
 	*basep += sizeof(struct dirent);
 
 	return sizeof(struct dirent);

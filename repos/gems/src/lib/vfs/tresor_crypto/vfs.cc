@@ -415,10 +415,10 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 
 			bool const _root_dir;
 
-			Read_result _query_keys(size_t index, Dirent &out)
+			Read_dir_result _query_keys(size_t index, Dirent &out)
 			{
 				if (index >= _key_reg.number_of_keys())
-					return Read_eof();
+					return Read_dir_end();
 
 				try {
 					Key_file_system const &fs = _key_reg.by_index((unsigned)index);
@@ -429,24 +429,24 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 						.rwx  = Node_rwx::rx(),
 						.name = { name.string() },
 					};
-					return sizeof(Dirent);
+					return 1;
 
 				} catch (Key_registry::Invalid_index) { }
 
-				return Read_error::DENIED;
+				return Read_dir_error::DENIED;
 			}
 
-			Read_result _query_root(size_t index, Dirent &out)
+			Read_dir_result _query_root(size_t index, Dirent &out)
 			{
 				if (index > 0)
-					return Read_eof();
+					return Read_dir_end();
 
 				out = {
 					.type = Dirent_type::DIRECTORY,
 					.rwx  = Node_rwx::rx(),
 					.name = { "keys" }
 				};
-				return sizeof(Dirent);
+				return 1;
 			}
 
 			Dir_channel(Allocator &alloc, Key_registry const &key_reg, bool root_dir)
@@ -456,23 +456,19 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 
 			void destruct() override { destroy(_alloc, this); }
 
-			Read_result read(At const at, Byte_range_ptr const &dst) override
+			Read_dir_result read_dir(At const at, Dirent_range_ptr const &dst) override
 			{
-				if (dst.num_bytes < sizeof(Dirent))
-					return Read_error::DENIED;
-
-				size_t const index = size_t(at.pos / sizeof(Dirent));
-
-				Dirent &out = *(Dirent*)dst.start;
+				if (dst.num_entries < 1)
+					return Read_dir_error::DENIED;
 
 				if (!_root_dir) {
 
 					/* opended as "/<name>" */
-					return _query_keys(index, out);
+					return _query_keys(at.pos, dst.start[0]);
 
 				} else {
 					/* opened as "/" */
-					return _query_root(index, out);
+					return _query_root(at.pos, dst.start[0]);
 				}
 			}
 		};

@@ -90,23 +90,21 @@ class Genode::Vfs::Single_file_system : public File_system
 
 			void destruct() override { destroy(_alloc, this); }
 
-			Read_result read(At const at, Byte_range_ptr const &dst) override
+			Read_dir_result read_dir(At const at, Dirent_range_ptr const &dst) override
 			{
-				if (dst.num_bytes < sizeof(Dirent))
-					return Read_error::DENIED;
+				if (dst.num_entries < 1)
+					return Read_dir_error::DENIED;
 
-				file_size const index = at.pos / sizeof(Dirent);
-				if (index > 0)
-					return Read_eof();
+				if (at.pos > 0)
+					return Read_dir_end();
 
-				Dirent &out = *(Dirent*)dst.start;
-				out = {
+				dst.start[0] = {
 					.type = (_fs.rwx.w == File::Write::TRANSACTIONAL)
 					        ? Dirent_type::DEVICE : Dirent_type::FILE,
 					.rwx  = _fs._node_rwx(),
 					.name = { _fs.name.string.string() }
 				};
-				return sizeof(Dirent);
+				return 1;
 			}
 		};
 
