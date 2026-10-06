@@ -4,7 +4,7 @@ QT5_PORT_LIBS  = libQt5Core libQt5Gui libQt5Network libQt5Widgets
 QT5_PORT_LIBS += libQt5Qml libQt5QmlModels libQt5Quick
 QT5_PORT_LIBS += libQt5Svg
 
-LIBS = qt5_qmake libc libm mesa stdcxx
+LIBS = qt5_qmake libc libm mesa-minimal stdcxx
 
 INSTALL_LIBS = lib/libQt5VirtualKeyboard.lib.so \
                plugins/platforminputcontexts/libqtvirtualkeyboardplugin.lib.so \

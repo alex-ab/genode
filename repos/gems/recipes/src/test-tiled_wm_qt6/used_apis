@@ -1,6 +1,6 @@
 base
 libc
-mesa
+mesa-minimal
 os
 qoost
 qt6_base

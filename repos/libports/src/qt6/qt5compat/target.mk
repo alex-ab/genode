@@ -11,7 +11,7 @@ QT6_PORT_LIBS  = libQt6Core libQt6Gui libQt6Network libQt6OpenGL
 QT6_PORT_LIBS += libQt6Qml libQt6QmlMeta libQt6QmlModels libQt6QmlWorkerScript libQt6Quick
 QT6_PORT_LIBS += libQt6ShaderTools
 
-LIBS = qt6_cmake ldso_so_support libc libm egl mesa qt6_component stdcxx
+LIBS = qt6_cmake ldso_so_support libc libm egl-minimal mesa-minimal qt6_component stdcxx
 
 INSTALL_LIBS = lib/libQt6Core5Compat.lib.so
 

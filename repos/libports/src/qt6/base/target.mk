@@ -7,7 +7,7 @@ QT6_BASE_PORT_DIR := $(call select_from_ports,qt6_base)
 QT6_BASE_DIR       = $(QT6_BASE_PORT_DIR)/src/lib/qt6_base
 endif
 
-LIBS = qt6_cmake ldso_so_support libc libm stdcxx qt6_component egl mesa base qoost
+LIBS = qt6_cmake ldso_so_support libc libm stdcxx qt6_component egl-minimal mesa-minimal base qoost
 
 INSTALL_LIBS = lib/libQt6Concurrent.lib.so \
                lib/libQt6Core.lib.so \

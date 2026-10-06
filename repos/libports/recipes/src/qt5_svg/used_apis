@@ -1,5 +1,5 @@
 base
 libc
-mesa
+mesa-minimal
 qt5_base
 stdcxx

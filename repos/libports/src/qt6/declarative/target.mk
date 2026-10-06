@@ -9,7 +9,7 @@ endif
 
 QT6_PORT_LIBS = libQt6Core libQt6Gui libQt6OpenGL libQt6Network libQt6Sql libQt6Svg libQt6Test libQt6Widgets
 
-LIBS = qt6_cmake ldso_so_support libc libm mesa egl qt6_component stdcxx
+LIBS = qt6_cmake ldso_so_support libc libm mesa-minimal egl-minimal qt6_component stdcxx
 
 INSTALL_LIBS = lib/libQt6LabsAnimation.lib.so \
                lib/libQt6LabsFolderListModel.lib.so \

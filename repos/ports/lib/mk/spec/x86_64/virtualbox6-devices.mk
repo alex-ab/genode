@@ -1,6 +1,6 @@
 include $(REP_DIR)/lib/mk/virtualbox6-common.inc
 
-LIBS += stdcxx mesa egl virtualbox6-shaderlib
+LIBS += stdcxx mesa-minimal egl-minimal virtualbox6-shaderlib
 
 SRC_CC += Devices/Audio/AudioHlp.cpp
 SRC_CC += Devices/Audio/AudioMixBuffer.cpp

@@ -1,5 +1,5 @@
 TARGET = triangle_gl
-LIBS   = base libm libc egl mesa
+LIBS   = base libm libc egl-minimal mesa-minimal
 
 SRC_C  = eglut.c main.c
 SRC_CC = eglut_genode.cc

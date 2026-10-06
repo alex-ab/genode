@@ -13,4 +13,4 @@ QT6_PORT_LIBS = libQt6Core \
                 libQt6Gui \
                 libQt6Widgets
 
-LIBS = qt6_cmake libc libm qt6_component stdcxx mesa egl
+LIBS = qt6_cmake libc libm qt6_component stdcxx mesa-minimal egl-minimal

@@ -1,6 +1,6 @@
 QT6_PORT_LIBS = libQt6Core libQt6Gui libQt6Widgets
 
-LIBS = qt6_qmake base libc libm mesa stdcxx qoost
+LIBS = qt6_qmake base libc libm mesa-minimal stdcxx qoost
 
 QT6_COMPONENT_LIB_SO =
 

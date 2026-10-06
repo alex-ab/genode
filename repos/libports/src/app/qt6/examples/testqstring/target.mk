@@ -11,4 +11,4 @@ QMAKE_TARGET_BINARIES = tutorial1
 
 QT6_PORT_LIBS = libQt6Core libQt6Gui libQt6Test libQt6Widgets
 
-LIBS = qt6_qmake libc libm mesa qt6_component stdcxx
+LIBS = qt6_qmake libc libm mesa-minimal qt6_component stdcxx

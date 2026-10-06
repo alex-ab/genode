@@ -1,6 +1,6 @@
 QT5_PORT_LIBS = libQt5Core libQt5Gui libQt5Widgets
 
-LIBS = qt5_qmake base libc libm mesa stdcxx qoost
+LIBS = qt5_qmake base libc libm mesa-minimal stdcxx qoost
 
 QT5_COMPONENT_LIB_SO =
 

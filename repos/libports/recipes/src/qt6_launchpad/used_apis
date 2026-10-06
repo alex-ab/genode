@@ -1,6 +1,6 @@
 base
 libc
-mesa
+mesa-minimal
 os
 qt6_base
 qt6_component

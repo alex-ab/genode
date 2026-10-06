@@ -9,7 +9,7 @@ endif
 
 QT6_PORT_LIBS = libQt6Core libQt6Gui
 
-LIBS = qt6_cmake ldso_so_support libc libm egl mesa qt6_component stdcxx
+LIBS = qt6_cmake ldso_so_support libc libm egl-minimal mesa-minimal qt6_component stdcxx
 
 INSTALL_LIBS = lib/libQt6ShaderTools.lib.so
 

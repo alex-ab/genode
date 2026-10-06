@@ -2,7 +2,7 @@ TARGET = qt5_declarative.qmake_target
 
 QT5_PORT_LIBS = libQt5Core libQt5Gui libQt5Network libQt5Sql libQt5Test libQt5Widgets
 
-LIBS = qt5_qmake ldso_so_support libc libm mesa stdcxx
+LIBS = qt5_qmake ldso_so_support libc libm mesa-minimal stdcxx
 
 INSTALL_LIBS = lib/libQt5Qml.lib.so \
                lib/libQt5QmlModels.lib.so \

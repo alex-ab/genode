@@ -1,4 +1,4 @@
-MESA_PORT_DIR := $(call select_from_ports,mesa)
+MESA_PORT_DIR := $(call select_from_ports,mesa-minimal)
 MESA_SRC_DIR  := $(MESA_PORT_DIR)/src/lib/mesa
 MESA_GEN_DIR  := $(MESA_PORT_DIR)/generated
 LIB_DIR       := $(REP_DIR)/src/lib/mesa

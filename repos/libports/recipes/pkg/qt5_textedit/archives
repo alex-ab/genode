@@ -5,7 +5,7 @@ _/src/jpeg
 _/src/libc
 _/src/libdrm
 _/src/libpng
-_/src/mesa
+_/src/mesa-minimal
 _/src/qt5_base
 _/src/stdcxx
 _/src/vfs

@@ -1,5 +1,5 @@
 SHARED_LIB = yes
-LIBS       = libc egl libdrm
+LIBS       = libc egl-minimal libdrm
 
 include $(REP_DIR)/lib/mk/mesa-common.inc
 

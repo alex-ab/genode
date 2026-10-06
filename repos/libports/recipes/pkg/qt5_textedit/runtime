@@ -10,10 +10,10 @@ runtime | ram: 64M | caps: 500 | binary: textedit | config: textedit.config
   + timer
 
 + content
-  + rom | label: egl.lib.so             | . common for Qt GUI applications...
+  + rom | label: egl-minimal.lib.so             | . common for Qt GUI applications...
   + rom | label: expat.lib.so
   + rom | label: freetype.lib.so
-  + rom | label: glapi.lib.so
+  + rom | label: glapi-minimal.lib.so
   + rom | label: jpeg.lib.so
   + rom | label: libQt5Core.lib.so
   + rom | label: libQt5Gui.lib.so
@@ -21,7 +21,7 @@ runtime | ram: 64M | caps: 500 | binary: textedit | config: textedit.config
   + rom | label: libm.lib.so
   + rom | label: libpng.lib.so
   + rom | label: libqgenode.lib.so
-  + rom | label: mesa.lib.so
+  + rom | label: mesa-minimal.lib.so
   + rom | label: libdrm.lib.so
   + rom | label: qt5_dejavusans.tar
   + rom | label: qt5_libqgenode.tar

@@ -11,4 +11,4 @@ QMAKE_TARGET_BINARIES = openglwindow
 
 QT6_PORT_LIBS = libQt6Core libQt6Gui libQt6OpenGL
 
-LIBS = qt6_qmake libc libm mesa qt6_component stdcxx
+LIBS = qt6_qmake libc libm mesa-minimal qt6_component stdcxx

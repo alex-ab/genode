@@ -1,6 +1,6 @@
 TARGET = qt5_base.qmake_target
 
-LIBS = qt5_qmake base ldso_so_support libc libm stdcxx qt5_component egl mesa qoost
+LIBS = qt5_qmake base ldso_so_support libc libm stdcxx qt5_component egl-minimal mesa-minimal qoost
 
 INSTALL_LIBS = lib/libQt5Core.lib.so \
                lib/libQt5Gui.lib.so \

@@ -9,7 +9,7 @@ CC_OPT += -DGALLIUM_ETNAVIV
 LIBS   += lima
 CC_OPT += -DGALLIUM_LIMA
 
-include $(REP_DIR)/lib/mk/mesa.inc
+include $(REP_DIR)/lib/mk/mesa-minimal.inc
 
 # use etnaviv_drmif.h from mesa DRM backend
 INC_DIR += $(MESA_SRC_DIR)/src/etnaviv

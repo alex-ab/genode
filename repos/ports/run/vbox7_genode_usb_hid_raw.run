@@ -25,7 +25,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/libiconv \
                   [depot_user]/src/libyuv \
                   [depot_user]/src/log_terminal \
-                  [depot_user]/src/mesa \
+                  [depot_user]/src/mesa-minimal \
                   [depot_user]/src/nitpicker \
                   [depot_user]/src/pc_usb_host \
                   [depot_user]/src/pci_decode \

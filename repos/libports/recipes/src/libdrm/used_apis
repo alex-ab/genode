@@ -2,4 +2,4 @@ base
 gpu_session
 libc
 vfs_gpu
-mesa
+mesa-minimal

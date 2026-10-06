@@ -4,7 +4,7 @@ QMAKE_TARGET_BINARIES = qt_launchpad
 
 QT6_PORT_LIBS += libQt6Core libQt6Gui libQt6Widgets
 
-LIBS = qt6_qmake base libc libm mesa stdcxx launchpad
+LIBS = qt6_qmake base libc libm mesa-minimal stdcxx launchpad
 
 QT6_COMPONENT_LIB_SO =
 

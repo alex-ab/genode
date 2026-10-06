@@ -3,7 +3,7 @@ TARGET = qt5_quickcontrols2.qmake_target
 QT5_PORT_LIBS += libQt5Core libQt5Gui libQt5Network libQt5Widgets
 QT5_PORT_LIBS += libQt5Qml libQt5QmlModels libQt5Quick
 
-LIBS = qt5_qmake libc libm mesa stdcxx
+LIBS = qt5_qmake libc libm mesa-minimal stdcxx
 
 INSTALL_LIBS = lib/libQt5QuickControls2.lib.so \
                lib/libQt5QuickTemplates2.lib.so \

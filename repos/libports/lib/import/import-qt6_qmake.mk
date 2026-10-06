@@ -76,12 +76,12 @@ ifeq ($(CONTRIB_DIR),)
 GENODE_QMAKE_INCDIR_OPENGL = $(call select_from_repositories,include/GL)/..
 GENODE_QMAKE_INCDIR_EGL = $(call select_from_repositories,include/EGL)/..
 else
-GENODE_QMAKE_INCDIR_OPENGL := $(call select_from_ports,mesa)/include
-GENODE_QMAKE_INCDIR_EGL := $(call select_from_ports,mesa)/include
+GENODE_QMAKE_INCDIR_OPENGL := $(call select_from_ports,mesa-minimal)/include
+GENODE_QMAKE_INCDIR_EGL := $(call select_from_ports,mesa-minimal)/include
 endif
 
-GENODE_QMAKE_LIBS_OPENGL = $(CURDIR)/build_dependencies/lib/mesa.lib.so
-GENODE_QMAKE_LIBS_EGL = $(CURDIR)/build_dependencies/lib/egl.lib.so
+GENODE_QMAKE_LIBS_OPENGL = $(CURDIR)/build_dependencies/lib/mesa-minimal.lib.so
+GENODE_QMAKE_LIBS_EGL = $(CURDIR)/build_dependencies/lib/egl-minimal.lib.so
 
 #
 # export variables for qmake.conf
@@ -136,8 +136,8 @@ qmake_prepared.tag: env.sh \
                     build_dependencies/lib/libQt6Core.so.6 \
                     build_dependencies/lib/libc.lib.so \
                     build_dependencies/lib/libm.lib.so \
-                    build_dependencies/lib/egl.lib.so \
-                    build_dependencies/lib/mesa.lib.so \
+                    build_dependencies/lib/egl-minimal.lib.so \
+                    build_dependencies/lib/mesa-minimal.lib.so \
                     build_dependencies/lib/qt6_component.lib.so \
                     build_dependencies/lib/stdcxx.lib.so \
                     build_dependencies/lib/ldso_so_support.lib.a \

@@ -67,10 +67,10 @@ GENODE_CMAKE_LFLAGS_SHLIB += \
 ifeq ($(CONTRIB_DIR),)
 GENODE_CMAKE_GL_INCDIRS = $(call select_from_repositories,include/GL)/..
 else
-GENODE_CMAKE_GL_INCDIRS := $(call select_from_ports,mesa)/include
+GENODE_CMAKE_GL_INCDIRS := $(call select_from_ports,mesa-minimal)/include
 endif
 
-GENODE_CMAKE_OPENGL_LIBS = $(CURDIR)/build_dependencies/lib/mesa.lib.so
+GENODE_CMAKE_OPENGL_LIBS = $(CURDIR)/build_dependencies/lib/mesa-minimal.lib.so
 
 #
 # prepare a directory named 'build_dependencies' where CMake can find needed files
@@ -92,8 +92,8 @@ cmake_prepared.tag: \
                     build_dependencies/lib/cmake \
                     build_dependencies/lib/libc.lib.so \
                     build_dependencies/lib/libm.lib.so \
-                    build_dependencies/lib/egl.lib.so \
-                    build_dependencies/lib/mesa.lib.so \
+                    build_dependencies/lib/egl-minimal.lib.so \
+                    build_dependencies/lib/mesa-minimal.lib.so \
                     build_dependencies/lib/qt5_component.lib.so \
                     build_dependencies/lib/stdcxx.lib.so \
                     build_dependencies/lib/ldso_so_support.lib.a \

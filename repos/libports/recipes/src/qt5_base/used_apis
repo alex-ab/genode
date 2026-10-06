@@ -5,7 +5,7 @@ framebuffer_session
 gui_session
 input_session
 libc
-mesa
+mesa-minimal
 os
 qoost
 qt5_component

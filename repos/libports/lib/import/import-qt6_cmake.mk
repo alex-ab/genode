@@ -82,8 +82,8 @@ cmake_prepared.tag: \
                     build_dependencies/lib/cmake \
                     build_dependencies/lib/libc.lib.so \
                     build_dependencies/lib/libm.lib.so \
-                    build_dependencies/lib/egl.lib.so \
-                    build_dependencies/lib/mesa.lib.so \
+                    build_dependencies/lib/egl-minimal.lib.so \
+                    build_dependencies/lib/mesa-minimal.lib.so \
                     build_dependencies/lib/qt6_component.lib.so \
                     build_dependencies/lib/stdcxx.lib.so \
                     build_dependencies/lib/ldso_so_support.lib.a \

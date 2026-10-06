@@ -1,14 +1,14 @@
-MIRROR_FROM_REP_DIR := lib/import/import-mesa.mk \
-                       lib/import/import-mesa_api.mk \
-                       lib/symbols/egl \
-                       lib/symbols/mesa
+MIRROR_FROM_REP_DIR := lib/import/import-mesa-minimal.mk \
+                       lib/import/import-mesa_api-minimal.mk \
+                       lib/symbols/egl-minimal \
+                       lib/symbols/mesa-minimal
 
 content: $(MIRROR_FROM_REP_DIR)
 
 $(MIRROR_FROM_REP_DIR):
 	$(mirror_from_rep_dir)
 
-PORT_DIR := $(call port_dir,$(REP_DIR)/ports/mesa)
+PORT_DIR := $(call port_dir,$(REP_DIR)/ports/mesa-minimal)
 
 content: include
 

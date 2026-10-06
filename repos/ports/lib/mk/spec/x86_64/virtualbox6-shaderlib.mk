@@ -1,7 +1,7 @@
 include $(REP_DIR)/lib/mk/virtualbox6-common.inc
 
 SHARED_LIB = yes
-LIBS       = stdcxx mesa
+LIBS       = stdcxx mesa-minimal
 
 SRC_C  += Devices/Graphics/shaderlib/directx.c
 SRC_C  += Devices/Graphics/shaderlib/glsl_shader.c

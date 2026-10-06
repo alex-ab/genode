@@ -2,7 +2,7 @@ TARGET = qt5_svg.qmake_target
 
 QT5_PORT_LIBS = libQt5Core libQt5Gui libQt5Widgets
 
-LIBS = qt5_qmake libc libm mesa stdcxx
+LIBS = qt5_qmake libc libm mesa-minimal stdcxx
 
 INSTALL_LIBS = lib/libQt5Svg.lib.so \
                plugins/imageformats/libqsvg.lib.so

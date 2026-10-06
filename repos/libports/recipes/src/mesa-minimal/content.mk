@@ -2,19 +2,19 @@ all: content
 	rm -rf generated/.git
 
 MIRROR_FROM_REP_DIR := \
-                       lib/mk/egl.mk \
+                       lib/mk/egl-minimal.mk \
                        lib/mk/mesa_gpu-softpipe.mk \
                        lib/mk/iris_gen.inc \
                        lib/mk/isl_gen.inc \
-                       lib/mk/glapi.mk \
-                       lib/mk/mesa.inc \
-                       lib/mk/mesa.mk \
-                       lib/mk/mesa_api.mk \
+                       lib/mk/glapi-minimal.mk \
+                       lib/mk/mesa-minimal.inc \
+                       lib/mk/mesa-minimal.mk \
+                       lib/mk/mesa_api-minimal.mk \
                        lib/mk/mesa-common.inc \
                        lib/mk/softpipe.mk \
                        lib/mk/spec/arm_v8/etnaviv.mk \
                        lib/mk/spec/arm_v8/lima.mk \
-                       lib/mk/spec/arm_v8/mesa.mk \
+                       lib/mk/spec/arm_v8/mesa-minimal.mk \
                        lib/mk/spec/arm_v8/mesa_gpu-etnaviv.mk \
                        lib/mk/spec/arm_v8/mesa_gpu-lima.mk \
                        lib/mk/spec/x86/mesa_gpu-iris.mk \
@@ -31,7 +31,7 @@ MIRROR_FROM_REP_DIR := \
                        lib/mk/spec/x86/isl_gen200.mk \
                        lib/mk/spec/x86/isl_gen80.mk \
                        lib/mk/spec/x86/isl_gen90.mk \
-                       lib/mk/spec/x86_64/mesa.mk \
+                       lib/mk/spec/x86_64/mesa-minimal.mk \
                        src/lib/mesa
 
 content: $(MIRROR_FROM_REP_DIR)
@@ -39,7 +39,7 @@ content: $(MIRROR_FROM_REP_DIR)
 $(MIRROR_FROM_REP_DIR):
 	$(mirror_from_rep_dir)
 
-PORT_DIR := $(call port_dir,$(REP_DIR)/ports/mesa)
+PORT_DIR := $(call port_dir,$(REP_DIR)/ports/mesa-minimal)
 
 MIRROR_FROM_PORT_DIR := src/lib/mesa/src generated
 

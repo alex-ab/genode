@@ -1,5 +1,5 @@
 SHARED_LIB = yes
-LIBS       = libc egl softpipe
+LIBS       = libc egl-minimal softpipe
 
 include $(REP_DIR)/lib/mk/mesa-common.inc
 

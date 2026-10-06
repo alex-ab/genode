@@ -9,7 +9,7 @@ import_from_depot [depot_user]/pkg/[drivers_interactive_pkg] \
                   [depot_user]/src/init \
                   [depot_user]/src/libdrm \
                   [depot_user]/src/libc \
-                  [depot_user]/src/mesa \
+                  [depot_user]/src/mesa-minimal \
                   [depot_user]/src/nitpicker \
                   [depot_user]/src/qt6_base \
                   [depot_user]/src/report_rom \

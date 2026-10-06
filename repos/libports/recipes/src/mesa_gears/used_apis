@@ -2,6 +2,6 @@ base
 os
 framebuffer_session
 input_session
-mesa
+mesa-minimal
 gui_session
 libc

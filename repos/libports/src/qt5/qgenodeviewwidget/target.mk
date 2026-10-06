@@ -4,7 +4,7 @@ QMAKE_TARGET_BINARIES = libqgenodeviewwidget.lib.so
 
 QT5_PORT_LIBS = libQt5Core libQt5Gui libQt5Widgets
 
-LIBS = qt5_qmake libc libm mesa qoost stdcxx
+LIBS = qt5_qmake libc libm mesa-minimal qoost stdcxx
 
 build_dependencies/include/qgenodeviewwidget: build_dependencies/include
 	ln -snf $(call select_from_repositories,include/qgenodeviewwidget) $@
