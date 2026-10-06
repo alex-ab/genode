@@ -32,6 +32,8 @@ class Vfs_inline::File_system : public Single_file_system
 {
 	private:
 
+		Allocator &_alloc;
+
 		struct Buffered_data
 		{
 			using Allocated = Memory::Constrained_allocator::Result;
@@ -105,7 +107,8 @@ class Vfs_inline::File_system : public Single_file_system
 			{ }
 		};
 
-		Buffered_data const _data;
+		Constructible<Buffered_node> _node { };
+		Constructible<Buffered_data> _data { };
 
 		struct File_channel : Vfs::File_channel
 		{
@@ -145,8 +148,22 @@ class Vfs_inline::File_system : public Single_file_system
 					.x = true
 				}
 			}),
-			_data(env.alloc(), config)
+			_alloc(env.alloc())
 		{ }
+
+		Progress update(Node const &node, Factory &) override
+		{
+			Progress result { };
+			if (!_node.constructed() || _node->differs_from(node)) {
+				_node.construct(_alloc, node);
+
+				if (node.num_bytes()) _data.construct(_alloc, node);
+				else                  _data.destruct();
+
+				result = PROGRESSED;
+			}
+			return result;
+		}
 
 		Open_result open(char const *path, Open_attr, Allocator &alloc) override
 		{
@@ -162,9 +179,10 @@ class Vfs_inline::File_system : public Single_file_system
 		{
 			Stat_result const result = Single_file_system::stat(path, out);
 
-			out.size = _data.num_bytes.convert<size_t>(
-				[] (size_t n)     { return n; },
-				[] (Buffer_error) { return 0ul; });
+			if (_data.constructed())
+				out.size = _data->num_bytes.convert<size_t>(
+					[] (size_t n)     { return n; },
+					[] (Buffer_error) { return 0ul; });
 
 			return result;
 		}
@@ -179,21 +197,23 @@ Vfs_inline::File_system::File_channel::read(At const at, Byte_range_ptr const &d
 	Read_result result = Read_eof();
 
 	/* file read limit is the size of the node content */
-	_fs._data.with_bytes([&] (char const *data_start, size_t const data_num_bytes) {
+	if (_fs._data.constructed())
+		_fs._data->with_bytes([&] (char const *start, size_t const num_bytes) {
 
-		/* maximum read position, clamped to dataspace size */
-		size_t const end_pos = min(size_t(dst.num_bytes + at.pos), data_num_bytes);
+			/* maximum read position, clamped to dataspace size */
+			size_t const end_pos = min(size_t(dst.num_bytes + at.pos), num_bytes);
 
-		/* check if end of file is reached */
-		if (at.pos >= end_pos)
-			return;
+			/* check if end of file is reached */
+			if (at.pos >= end_pos)
+				return;
 
-		size_t const n = size_t(end_pos - at.pos);
+			size_t const n = size_t(end_pos - at.pos);
 
-		/* copy-out bytes from ROM dataspace */
-		memcpy(dst.start, data_start + at.pos, n);
-		result = n;
-	});
+			/* copy-out bytes from ROM dataspace */
+			memcpy(dst.start, start + at.pos, n);
+			result = n;
+		});
+
 	return result;
 }
 
