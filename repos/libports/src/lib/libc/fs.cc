@@ -686,20 +686,7 @@ static Ioctl_result ioctl_tio(Libc::Fs &fs, Libc::File_descriptor &fd,
 
 	} else if (request == TIOCGETA) {
 
-		bool terminal = false;
-
-		fs._monitor.monitor([&] {
-			with_info(fs, fd, [&] (Node const &info) {
-				if (info.type() == "terminal")
-					terminal = true;
-			});
-
-			return Fn::COMPLETE;
-		});
-
-		/* handle '/dev/log' like a terminal for stdout line-buffering */
-
-		if (terminal || (fd.path == "/dev/log")) {
+		if (fs.directory_exists(fd.ioctl_dir().string())) {
 			::termios *termios = (::termios *)argp;
 
 			termios->c_iflag = 0;
