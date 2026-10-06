@@ -174,7 +174,7 @@ class Core::Vm_session_component
 
 				sigh_cap = handler;
 
-				unsigned const cpu = location.xpos();
+				unsigned const cpu = Core::Platform::kernel_cpu_idx(location);
 
 				kobj.create(cpu, (void *)&hw_state,
 				            Capability_space::capid(handler), id);

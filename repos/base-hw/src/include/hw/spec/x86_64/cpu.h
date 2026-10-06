@@ -623,6 +623,11 @@ struct Hw::X86_64_cpu
 			struct Shift_count : Bitfield<0, 5> { };
 		};
 
+		struct Ebx : Genode::Register<32>
+		{
+			struct Next_level_num_lp : Bitfield<0, 16> { };
+		};
+
 		struct Ecx : Genode::Register<32>
 		{
 			struct Level_num   : Bitfield<0, 8> { };
@@ -634,6 +639,9 @@ struct Hw::X86_64_cpu
 
 		Genode::size_t shift_count() const {
 			return Eax::Shift_count::get(Cpuid_leaf<ID>::eax); }
+
+		Genode::size_t logical_processors() const {
+			return Ebx::Next_level_num_lp::get(Cpuid_leaf<ID>::ebx); }
 
 		Domain_type domain_type() const
 		{

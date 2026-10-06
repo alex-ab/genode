@@ -34,9 +34,9 @@ class Hw_system_control : public Core::System_control
 		{
 			Rpc_entrypoint ep;
 			System_control_component obj {};
-			int const cpu;
+			Affinity::Location const location;
 
-			Per_cpu(Registry<Per_cpu> &, Runtime &, int);
+			Per_cpu(Registry<Per_cpu> &, Runtime &, Affinity::Location);
 		};
 
 		Registry<Per_cpu> _registry {};
@@ -135,12 +135,12 @@ State System_control_component::system_control(State const &request)
 
 
 Hw_system_control::Per_cpu::Per_cpu(Registry<Per_cpu> &registry,
-                                    Runtime &runtime, int idx)
+                                    Runtime &runtime,
+                                    Affinity::Location location)
 :
 	Registry<Per_cpu>::Element(registry, *this),
-	ep(runtime, "system_control", Thread::Stack_size{12*1024},
-	   Affinity::Location{idx, 0}),
-	cpu(idx)
+	ep(runtime, "system_control", Thread::Stack_size{12*1024}, location),
+	location(location)
 {
 	ep.manage(&obj);
 }
@@ -150,8 +150,9 @@ Hw_system_control::Hw_system_control(Runtime &runtime, Allocator &alloc)
 :
 	_alloc(alloc)
 {
-	for (int i = 0; i < (int)platform().affinity_space().total(); i++)
-		_alloc.create(_registry, runtime, i).with_result(
+	auto space = platform().affinity_space();
+	for (int i = 0; i < (int)space.total(); i++)
+		_alloc.create(_registry, runtime, space.location_of_index(i)).with_result(
 			[] (auto &a) { a.deallocate = false; },
 			[&] (auto) {
 				error("Could not create system control ep for cpu ", i);
@@ -173,7 +174,10 @@ Hw_system_control::control_cap(Affinity::Location const location) const
 	Capability<Pd_session::System_control> result {};
 
 	_registry.for_each([&] (auto &per_cpu) {
-		if (location.xpos() == per_cpu.cpu) result = per_cpu.obj.cap(); });
+		if (location.xpos() == per_cpu.location.xpos() &&
+		    location.ypos() == per_cpu.location.ypos())
+			result = per_cpu.obj.cap();
+	});
 
 	return result;
 }

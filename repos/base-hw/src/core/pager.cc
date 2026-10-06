@@ -23,17 +23,6 @@
 
 using namespace Core;
 
-static unsigned _nr_of_cpus = 0;
-static void    *_pager_thread_memory = nullptr;
-
-
-void Core::init_pager_thread_per_cpu_memory(unsigned const cpus, void * mem)
-{
-	_nr_of_cpus = cpus;
-	_pager_thread_memory = mem;
-}
-
-
 void Core::init_page_fault_handling(Rpc_entrypoint &) { }
 
 
@@ -199,12 +188,14 @@ void Pager_entrypoint::dissolve(Pager_object &o)
 
 Pager_capability Pager_entrypoint::manage(Pager_object &o)
 {
-	unsigned const cpu = o.location().xpos();
-	if (cpu >= _cpus)
-		error("Invalid location of pager object ", cpu);
-	else
-		_threads[cpu].with_native_thread([&] (Native_thread &nt) {
-			o.start_paging(_threads[cpu]._kobj, *nt.platform_thread); });
+	if (!o.location().within(_affinity_space)) {
+		error("Invalid location of pager object");
+		return Pager_capability();
+	}
+
+	unsigned const cpu = Platform::kernel_cpu_idx(o.location());
+	_threads[cpu].with_native_thread([&] (Native_thread &nt) {
+		o.start_paging(_threads[cpu]._kobj, *nt.platform_thread); });
 
 	return reinterpret_cap_cast<Pager_object>(o.cap());
 }
@@ -212,9 +203,10 @@ Pager_capability Pager_entrypoint::manage(Pager_object &o)
 
 Pager_entrypoint::Pager_entrypoint(Runtime &runtime, Rpc_cap_factory &)
 :
-	_cpus(_nr_of_cpus),
-	_threads((Thread*)_pager_thread_memory)
+	_affinity_space(platform().affinity_space()),
+	_threads((Thread*)platform().core_mem_alloc().alloc(sizeof(Thread)*_affinity_space.total()))
 {
-	for (unsigned i = 0; i < _cpus; i++)
-		construct_at<Thread>((void*)&_threads[i], runtime, Affinity::Location(i, 0));
+	for (unsigned i = 0; i < _affinity_space.total(); i++)
+		construct_at<Thread>((void*)&_threads[i], runtime,
+		                      _affinity_space.location_of_index(i));
 }

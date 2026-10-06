@@ -189,11 +189,15 @@ void Platform::_init_platform_info()
 }
 
 
+unsigned Core::Platform::affinity_space_y = 1;
+
+
 Platform::Platform()
 :
 	_io_mem_alloc(&core_mem_alloc()),
 	_io_port_alloc(&core_mem_alloc()),
-	_irq_alloc(&core_mem_alloc())
+	_irq_alloc(&core_mem_alloc()),
+	_cpus(_boot_info().cpus/affinity_space_y, affinity_space_y)
 {
 	struct Kernel_resource : Exception { };
 
@@ -263,17 +267,13 @@ Platform::Platform()
 			[&] (Alloc_error) { });
 	}
 
-	unsigned const cpus = _boot_info().cpus;
-	size_t size = cpus * sizeof(Pager_entrypoint::Thread);
-	init_pager_thread_per_cpu_memory(cpus, _core_mem_alloc.alloc(size));
-
 	class Idle_thread_trace_source : public  Trace::Source::Info_accessor,
 	                                 private Trace::Control,
 	                                 private Trace::Source
 	{
 		private:
 
-			Affinity::Location const _affinity;
+			Affinity::Location const _location;
 
 		public:
 
@@ -284,30 +284,28 @@ Platform::Platform()
 			{
 				Trace::Execution_time execution_time {
 					Kernel::main_read_idle_thread_execution_time(
-						_affinity.xpos()), 0 };
+						kernel_cpu_idx(_location)), 0 };
 
 				return { Session_label("kernel"), "idle",
-				         execution_time, _affinity };
+				         execution_time, _location };
 			}
 
 			Idle_thread_trace_source(Trace::Source_registry &registry,
-			                         Affinity::Location affinity)
+			                         Affinity::Location location)
 			:
 				Trace::Control { },
 				Trace::Source  { *this, *this },
-				_affinity      { affinity }
+				_location(location)
 			{
 				registry.insert(this);
 			}
 	};
 
 	/* create trace sources for idle threads */
-	for (unsigned cpu_idx = 0; cpu_idx < _boot_info().cpus; cpu_idx++) {
-
+	for (unsigned cpu_idx = 0; cpu_idx < _cpus.total(); cpu_idx++)
 		new (core_mem_alloc())
-			Idle_thread_trace_source(
-				Trace::sources(), Affinity::Location(cpu_idx, 0));
-	}
+			Idle_thread_trace_source(Trace::sources(),
+			                         _cpus.location_of_index(cpu_idx));
 
 	/* reserve Pd ID zero for kernel/core */
 	_pd_id_alloc.alloc().with_result(

@@ -62,6 +62,7 @@ class Core::Platform : public Platform_generic
 		Phys_allocator     _irq_alloc;          /* IRQ allocator          */
 		Rom_fs             _rom_fs         { }; /* ROM file system        */
 		Pd_id_allocator    _pd_id_alloc    { };
+		Affinity::Space    _cpus;
 
 		static Hw::Boot_info<Board::Boot_info> const &_boot_info();
 		static Hw::Memory_region_array const &_core_virt_regions();
@@ -141,6 +142,17 @@ class Core::Platform : public Platform_generic
 		static Hw::Page_table_allocator &core_page_table_allocator();
 
 		/**
+		 * Returns the y-dimension of the affinity space
+		 */
+		static unsigned affinity_space_y;
+
+		/**
+		 * Returns the linear cpu index used in kernel scope for a given location
+		 */
+		static unsigned kernel_cpu_idx(Affinity::Location location) {
+			return location.xpos() * affinity_space_y + location.ypos(); }
+
+		/**
 		 * Determine size of a core local mapping required for a
 		 * Core_local_rm::_free().
 		 */
@@ -177,7 +189,7 @@ class Core::Platform : public Platform_generic
 		Address_space &core_pd() { ASSERT_NEVER_CALLED; }
 
 		Affinity::Space affinity_space() const override {
-			return Affinity::Space(_boot_info().cpus); }
+			return _cpus; }
 
 		/*
 		 * The system-wide maximum number of capabilities is constrained

@@ -15,6 +15,7 @@
 #include <kernel/cpu.h>
 #include <kernel/thread.h>
 #include <kernel/pd.h>
+#include <platform.h>
 
 extern int __idt;
 extern int __idt_end;
@@ -446,6 +447,14 @@ Cpu::Cpu()
 		size_t bits = cpuid.shift_count() - shift;
 		topology[i] = (cpuid.x2apic_id() >> shift) & ((1 << bits) - 1);
 		shift = cpuid.shift_count();
+
+		/*
+		 * If SMT is available increase the vertical affinity space
+		 */
+		if (cpuid.domain_type() == Domain_type::THREAD &&
+		    cpuid.logical_processors() > 1)
+			Core::Platform::affinity_space_y = 2;
+
 		return true;
 	};
 

@@ -72,9 +72,9 @@ Platform_thread::Platform_thread(Platform_pd              &pd,
 	_utcb(ep, ram, local_rm),
 	_group_id(_priority_to_group(priority)),
 	_main_thread(!pd._thread_associated),
-	_location(location),
+	_location(location.xpos(), location.ypos()), /* limit width/height to 1 */
 	_kobj(_kobj.CALLED_FROM_CORE, pd.kernel_pd(),
-	      _location.xpos(), _group_id, _label.string())
+	      Platform::kernel_cpu_idx(_location), _group_id, _label.string())
 {
 	_utcb.ds.with_result([&] (auto &) {
 		_address_space = pd.weak_ptr();
@@ -232,8 +232,9 @@ Core_platform_thread::Core_platform_thread(Label const &label,
 :
 	_label(label),
 	_utcb(utcb),
-	_location(location),
-	_kobj(_kobj.CALLED_FROM_CORE, _location.xpos(), _label.string())
+	_location(location.xpos(), location.ypos()), /* limit width/height to 1 */
+	_kobj(_kobj.CALLED_FROM_CORE, Platform::kernel_cpu_idx(_location),
+	      _label.string())
 {
 	/*
 	 * All non-core threads use the typical dataspace/rm_session

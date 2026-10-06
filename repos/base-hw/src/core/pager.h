@@ -55,8 +55,6 @@ namespace Core {
 	using Pager_capability = Capability<Pager_object>;
 
 	extern void init_page_fault_handling(Rpc_entrypoint &);
-
-	void init_pager_thread_per_cpu_memory(unsigned const cpus, void * mem);
 }
 
 
@@ -244,8 +242,9 @@ class Core::Pager_entrypoint
 				void entry() override;
 		};
 
-		unsigned const _cpus;
-		Thread        *_threads;
+		Affinity::Space const _affinity_space;
+
+		Thread *_threads;
 
 	public:
 
