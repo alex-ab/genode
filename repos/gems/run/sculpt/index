@@ -30,7 +30,7 @@ index
   + pkg | path: test-capture | info: test for displaying a capture session
 
 + index Virtual machines | arch: x86_64
-  + pkg | path: vbox6 | info: VBox6 for running Linux
+  + pkg | path: vbox7 | info: VBox7 for running Linux
 
 + index Mesa 3D
   + pkg | path: mesa_gpu-cpu   | info: software-rendering driver
