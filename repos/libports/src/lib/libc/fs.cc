@@ -1714,8 +1714,14 @@ ssize_t Libc::Fs::readlink(const char *link_path, char *buf, ::size_t buf_size)
 		return Fn::COMPLETE;
 	});
 
-	if (!succeeded)
+	if (!succeeded) {
+		struct stat stat_buf;
+		if (stat(link_path, stat_buf) == -1)
+			return -1;
+		if (!S_ISLNK(stat_buf.st_mode))
+			return Errno(EINVAL);
 		return Errno(result_errno);
+	}
 
 	return out_count;
 }
