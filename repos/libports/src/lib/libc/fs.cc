@@ -595,54 +595,57 @@ ssize_t Libc::Fs::getdirentries(Open_dir &od, char *buf, size_t nbytes, off_t *b
 		return -1;
 	}
 
-	Vfs::Dirent vfs_dirent { };
+	/* limit batch size to constrain array allocation on the stack */
+	unsigned const max_entries = min(16ul, nbytes/sizeof(struct dirent));
+
+	Vfs::Dirent vfs_dirents[max_entries] { };
 	Vfs::Read_dir_result result = Vfs::Read_dir_error::DENIED;
 
 	_monitor.monitor([&] {
 
-		result = od.handle.read_dir({ .pos = od.pos }, { &vfs_dirent, 1 });
+		result = od.handle.read_dir({ .pos = od.pos }, { vfs_dirents, max_entries });
 
 		return result == Vfs::Read_dir_error::RETRY ? Fn::INCOMPLETE : Fn::COMPLETE;
 	});
 
-	bool const ok = result.convert<bool>(
-		[&] (unsigned num_entries) { return num_entries >= 1; },
-		[&] (Vfs::Read_dir_error)  { return false; });
-
-	if (!ok)
-		return 0;
-
 	/*
 	 * Convert dirent structure from VFS to libc
 	 */
-
-	auto dirent_type = [] (Vfs::Dirent_type type)
+	auto convert_entry = [&] (Vfs::Dirent const &src, dirent &dst)
 	{
-		switch (type) {
-		case Vfs::Dirent_type::DIRECTORY: return DT_DIR;
-		case Vfs::Dirent_type::FILE:      return DT_REG;
-		case Vfs::Dirent_type::DEVICE:    return DT_CHR;
-		case Vfs::Dirent_type::SYMLINK:   return DT_LNK;
-		}
-		return DT_UNKNOWN;
+		auto dirent_type = [] (Vfs::Dirent_type type)
+		{
+			switch (type) {
+			case Vfs::Dirent_type::DIRECTORY: return DT_DIR;
+			case Vfs::Dirent_type::FILE:      return DT_REG;
+			case Vfs::Dirent_type::DEVICE:    return DT_CHR;
+			case Vfs::Dirent_type::SYMLINK:   return DT_LNK;
+			}
+			return DT_UNKNOWN;
+		};
+
+		Open_dir::Path const entry_path { od.handle.path, "/", Cstring(dst.d_name) };
+
+		dst = { };
+		Genode::copy_cstring(dst.d_name, src.name.buf, sizeof(dst.d_name));
+		dst.d_type   = dirent_type(src.type);
+		dst.d_fileno = pseudo_inode_from_path(entry_path.string());
+		dst.d_reclen = sizeof(struct dirent);
+		dst.d_namlen = Genode::strlen(dst.d_name);
 	};
 
-	dirent &dirent = *(struct dirent *)buf;
-	dirent = { };
+	return result.convert<ssize_t>(
+		[&] (unsigned num_entries) {
 
-	Genode::copy_cstring(dirent.d_name, vfs_dirent.name.buf, sizeof(dirent.d_name));
+			for (unsigned i = 0; i < num_entries; i++)
+				convert_entry(vfs_dirents[i], *(dirent *)(buf + i*sizeof(dirent)));
 
-	Open_dir::Path const entry_path { od.handle.path, "/", Cstring(dirent.d_name) };
+			od.pos += num_entries;
+			*basep += num_entries*sizeof(struct dirent);
 
-	dirent.d_type   = dirent_type(vfs_dirent.type);
-	dirent.d_fileno = pseudo_inode_from_path(entry_path.string());
-	dirent.d_reclen = sizeof(struct dirent);
-	dirent.d_namlen = Genode::strlen(dirent.d_name);
-
-	od.pos += 1;
-	*basep += sizeof(struct dirent);
-
-	return sizeof(struct dirent);
+			return ssize_t(num_entries*sizeof(struct dirent));
+		},
+		[&] (Vfs::Read_dir_error) { return 0; });
 }
 
 
