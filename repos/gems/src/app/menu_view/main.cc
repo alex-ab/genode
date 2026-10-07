@@ -189,7 +189,7 @@ void Menu_view::Main::_handle_config()
 	/* re-assign font pointers in labels (needed due to font style change) */
 	if (!_styles.up_to_date()) {
 		_dialogs.for_each([&] (Dialog &dialog) {
-			dialog.enforce_font_sytle_change(); });
+			dialog.enforce_font_style_change(); });
 
 		_styles.flush_outdated_styles();
 	}

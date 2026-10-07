@@ -254,7 +254,7 @@ struct Menu_view::Dialog : List_model<Dialog>::Element
 			_redraw_scheduled = true;
 	}
 
-	void enforce_font_sytle_change()
+	void enforce_font_style_change()
 	{
 		_handle_dialog();
 
