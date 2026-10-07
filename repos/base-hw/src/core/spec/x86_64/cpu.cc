@@ -468,6 +468,9 @@ Cpu::Cpu()
 			break;
 	}
 
+	/* Initialize TSC AUX with individual value per cpu */
+	Cpu::Ia32_tsc_aux::write((Cpu::Ia32_tsc_aux::access_t)_id.value);
+
 	if (!cpuid_1.xsave() || !cpuid_d_0.valid())
 		return;
 
