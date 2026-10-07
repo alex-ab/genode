@@ -606,7 +606,8 @@ void Generator::_node(char const *name, Node_fn::Ft const &fn)
 		_node_state = { .indent      = { _node_state.indent.level + 1 },
 		                .attr_offset = _out_buffer.used(),
 		                .has_attr    = false,
-		                .quote       = { } };
+		                .quote       = { ":", false, false },
+		                .doc         = { ".", false, false }, };
 
 		struct Guard
 		{
@@ -682,13 +683,13 @@ void Generator::_copy(Node const &node)
 }
 
 
-void Generator::_start_quoted_line()
+void Generator::_start_prefixed_line(Node_state::Prefixed &prefixed)
 {
-	Node_state::Quote &quote = _node_state.quote;
-
 	if (_tabular_ptr) {
+		bool const any_prefix_started = _node_state.quote.started
+		                              | _node_state.doc.started;
 		Tabular const &tabular = *_tabular_ptr;
-		if (quote.started) {
+		if (any_prefix_started) {
 			Spaces align { tabular.leading_spaces_before_sibling_node() };
 			print(_out_buffer, "\n", align, "| ");
 		} else /* attach first line to preceeding node */ {
@@ -698,37 +699,47 @@ void Generator::_start_quoted_line()
 	} else {
 		print(_out_buffer, "\n", _node_state.indent);
 	}
-	print(_out_buffer, ":"); /* omit trailing space for empty line */
+	print(_out_buffer, prefixed.prefix); /* omit trailing space for empty line */
 
-	quote.started   = true;
-	quote.line_used = false;
+	prefixed.started   = true;
+	prefixed.line_used = false;
 }
 
 
-void Generator::_append_quoted(Span const &s)
+void Generator::_append_prefixed(Span const &s, Node_state::Prefixed &prefixed)
 {
 	/* suppress printing in table-layout gathering phase */
 	if (_tabular_ptr && _tabular_ptr->phase == Tabular::Phase::GATHER_LAYOUT)
 		return;
 
-	Node_state::Quote &quote = _node_state.quote;
-
-	if (!quote.started) _start_quoted_line();
+	if (!prefixed.started) _start_prefixed_line(prefixed);
 
 	bool first = true;
 	s.split('\n', [&] (Span const &fragment) {
 
 		/* subsequent fragments are always preceeded by a newline */
-		if (!first) _start_quoted_line();
+		if (!first) _start_prefixed_line(prefixed);
 
 		/* append content to current line */
 		if (fragment.num_bytes) {
-			if (!quote.line_used) {
+			if (!prefixed.line_used) {
 				print(_out_buffer, " ");
-				quote.line_used = true;
+				prefixed.line_used = true;
 			}
 			print(_out_buffer, Cstring { fragment.start, fragment.num_bytes });
 		}
 		first = false;
 	});
+}
+
+
+void Generator::_append_quoted(Span const &s)
+{
+	_append_prefixed(s, _node_state.quote);
+}
+
+
+void Generator::_append_doc(Span const &s)
+{
+	_append_prefixed(s, _node_state.doc);
 }

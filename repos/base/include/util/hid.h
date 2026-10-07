@@ -552,7 +552,11 @@ class Genode::Generator : Noncopyable
 			size_t attr_offset;
 			bool   has_attr;
 
-			struct Quote { bool started, line_used; } quote;
+			struct Prefixed
+			{
+				char const *prefix;
+				bool started, line_used;
+			} quote, doc;
 		};
 
 		Node_state _node_state { };
@@ -575,7 +579,9 @@ class Genode::Generator : Noncopyable
 		void _print_node_type(Span const &);
 		void _node(char const *, Node_fn::Ft const &);
 		void _copy(Node const &);
-		void _start_quoted_line();
+		void _start_prefixed_line(Node_state::Prefixed &);
+		void _append_prefixed(Span const &, Node_state::Prefixed &);
+		void _append_doc(Span const &);
 		void _append_quoted(Span const &);
 
 		[[nodiscard]] bool _try_append_quoted(auto const &node)
@@ -687,6 +693,21 @@ class Genode::Generator : Noncopyable
 		void attribute(char const *name, double value)
 		{
 			attribute(name, String<64>(value));
+		}
+
+		/**
+		 * Node documentation
+		 *
+		 * This method must not be followed by calls of 'attribute'.
+		 */
+		void doc(char const *s, size_t len) { _append_doc({ s, len }); }
+
+		void doc(char const *str) { doc(str, strlen(str)); }
+
+		template <size_t N>
+		void doc(String<N> const &s)
+		{
+			s.with_span([&] (Span const &s) { doc(s.start, s.num_bytes); });
 		}
 
 		/**
