@@ -216,8 +216,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 
 			Attr const _attr;
 
-			Read_dir_result _finish_read(char const *path,
-			                             struct ::dirent *dent, Dirent &vfs_dir)
+			bool _finish_read(char const *path, struct ::dirent &dent, Dirent &vfs_dir)
 			{
 				/*
 				 * We cannot use 'd_type' member of 'dirent' here since the EXT2
@@ -234,7 +233,7 @@ class Vfs_rump::File_system : public Vfs::File_system
 				                || (S_ISFIFO(s.st_mode));
 
 				if (!valid)
-					return Read_dir_end();
+					return false;
 
 				auto dirent_type = [] (unsigned mode)
 				{
@@ -250,9 +249,9 @@ class Vfs_rump::File_system : public Vfs::File_system
 				vfs_dir = {
 					.type = dirent_type(s.st_mode),
 					.rwx  = rwx,
-					.name = { dent->d_name }
+					.name = { dent.d_name }
 				};
-				return 1;
+				return true;
 			}
 
 			Rump_dir_channel(Allocator &alloc, Attr attr)
@@ -274,23 +273,28 @@ class Vfs_rump::File_system : public Vfs::File_system
 				int bytes;
 				unsigned fileno = 0;
 				char *buf  = _buffer();
-				struct ::dirent *dent = nullptr;
 				do {
 					bytes = rump_sys_getdents(_attr.fd, buf, BUFFER_SIZE);
 					void *current, *end;
 					for (current = buf, end = &buf[bytes];
-					     current < end;
+					     (current < end) && (fileno < at.pos + dst.num_entries);
 					     current = _DIRENT_NEXT((::dirent *)current))
 					{
-						dent = (::dirent *)current;
-						if (strcmp(".", dent->d_name) && strcmp("..", dent->d_name)) {
-							if (fileno++ == at.pos) {
-								Path newpath(dent->d_name, _attr.path.base());
-								return _finish_read(newpath.base(), dent, dst.start[0]);
+						::dirent &from = *(::dirent *)current;
+						if (strcmp(".", from.d_name) && strcmp("..", from.d_name)) {
+							if (fileno >= at.pos) {
+								Dirent &to = dst.start[fileno - at.pos];
+								Path newpath(from.d_name, _attr.path.base());
+								if (!_finish_read(newpath.base(), from, to))
+									break;
 							}
+							fileno++;
 						}
 					}
 				} while (bytes > 0);
+
+				if (fileno >= at.pos)
+					return fileno - at.pos;
 
 				return Read_dir_end();
 			}

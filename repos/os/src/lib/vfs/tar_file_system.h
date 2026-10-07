@@ -204,54 +204,56 @@ class Vfs_tar::File_system : public Vfs::File_system
 			if (dst.num_entries < 1)
 				return Read_dir_error::DENIED;
 
-			Node const *node_ptr = _node.lookup_child(at.pos);
+			unsigned read_entries = 0;
 
-			if (!node_ptr) {
-				dst.start[0] = { };
-				return Read_dir_end();
-			}
+			for (; read_entries < dst.num_entries; read_entries++) {
 
-			Node const &node = *node_ptr;
+				Node const *node_ptr = _node.lookup_child(at.pos + read_entries);
+				if (!node_ptr)
+					break;
 
-			Record const *record_ptr = node.record;
+				Node const &node = *node_ptr;
 
-			while (record_ptr && (record_ptr->type() == Record::TYPE_HARDLINK)) {
-				Node const *target = _fs.dereference(record_ptr->linked_name());
-				record_ptr = target ? target->record : 0;
-			}
+				Record const *record_ptr = node.record;
 
-			/* if no record exists, assume it is a directory */
-			if (!record_ptr) {
-				dst.start[0] = {
-					.type = Dirent_type::DIRECTORY,
-					.rwx  = Node_rwx::rx(),
+				while (record_ptr && (record_ptr->type() == Record::TYPE_HARDLINK)) {
+					Node const *target = _fs.dereference(record_ptr->linked_name());
+					record_ptr = target ? target->record : 0;
+				}
+
+				/* if no record exists, assume it is a directory */
+				if (!record_ptr) {
+					dst.start[read_entries] = {
+						.type = Dirent_type::DIRECTORY,
+						.rwx  = Node_rwx::rx(),
+						.name = { node.name }
+					};
+					continue;
+				}
+
+				Record const &record = *record_ptr;
+
+				auto dirent_type = [&] ()
+				{
+					switch (record.type()) {
+					case Record::TYPE_FILE:    return Dirent_type::FILE;
+					case Record::TYPE_SYMLINK: return Dirent_type::SYMLINK;
+					case Record::TYPE_DIR:     return Dirent_type::DIRECTORY;
+					};
+
+					warning("unhandled record type ", record.type(), " for ", node.name);
+					return Dirent_type::FILE;
+				};
+
+				dst.start[read_entries] = {
+					.type = dirent_type(),
+					.rwx  = { .readable   = true,
+					          .writeable  = false,
+					          .executable = record.rwx().executable },
 					.name = { node.name }
 				};
-				return 1;
 			}
-
-			Record const &record = *record_ptr;
-
-			auto dirent_type = [&] ()
-			{
-				switch (record.type()) {
-				case Record::TYPE_FILE:    return Dirent_type::FILE;
-				case Record::TYPE_SYMLINK: return Dirent_type::SYMLINK;
-				case Record::TYPE_DIR:     return Dirent_type::DIRECTORY;
-				};
-
-				warning("unhandled record type ", record.type(), " for ", node.name);
-				return Dirent_type::FILE;
-			};
-
-			dst.start[0] = {
-				.type = dirent_type(),
-				.rwx  = { .readable   = true,
-				          .writeable  = false,
-				          .executable = record.rwx().executable },
-				.name = { node.name }
-			};
-			return 1;
+			return read_entries;
 		}
 	};
 

@@ -569,37 +569,38 @@ class Vfs_fs::File_system : public Vfs::File_system, private Remote_io
 
 			void destruct() override {destroy(_alloc, this); }
 
-			enum { DIRENT_SIZE = sizeof(::File_system::Directory_entry) };
+			static_assert(sizeof(Dirent) == sizeof(::File_system::Directory_entry));
 
 			Read_dir_result read_dir(At const at, Dirent_range_ptr const &dst) override
 			{
 				if (dst.num_entries < 1)
 					return Read_dir_error::DENIED;
 
-				using ::File_system::Directory_entry;
-
-				Directory_entry entry { };
-				Byte_range_ptr entry_bytes((char *)(&entry), DIRENT_SIZE);
+				Byte_range_ptr bytes((char *)dst.start, dst.num_entries*sizeof(Dirent));
 
 				File_channel::Read_result const read_result =
 					_read<File_channel::Read_result, File_channel::Read_error>(
 						_fs, file_handle(),
 						_queued_read_state, _queued_read_packet,
-						{ at.pos*DIRENT_SIZE }, entry_bytes);
+						{ at.pos*sizeof(Dirent) }, bytes);
 
 				return read_result.convert<Read_dir_result>(
 					[&] (size_t num_bytes) -> Read_dir_result {
-						if (num_bytes < DIRENT_SIZE)
-							return Read_dir_end();
 
-						entry.sanitize();
+						unsigned const num_entries = unsigned(num_bytes/sizeof(Dirent));
+						for (unsigned i = 0; i < num_entries; i++) {
 
-						dst.start[0] = Dirent {
-							.type = _dirent_type(entry.type),
-							.rwx  = _node_rwx(entry.rwx),
-							.name = { entry.name.buf }
-						};
-						return 1;
+							using Entry = ::File_system::Directory_entry;
+							Entry entry = (Entry &)dst.start[i];
+							entry.sanitize();
+
+							dst.start[i] = {
+								.type = _dirent_type(entry.type),
+								.rwx  = _node_rwx(entry.rwx),
+								.name = { entry.name.buf }
+							};
+						}
+						return num_entries;
 					},
 					[&] (File_channel::Read_error e) {
 						switch (e) {

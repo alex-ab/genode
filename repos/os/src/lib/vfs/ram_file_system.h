@@ -377,27 +377,31 @@ class Vfs_ram::Directory : public Vfs_ram::Node
 			if (dst.num_entries < 1)
 				return Dir_channel::Read_dir_error::DENIED;
 
-			Node *node_ptr = _entries.first();
-			size_t index = at.pos;
-			if (node_ptr) node_ptr = node_ptr->index(index);
-			if (!node_ptr)
-				return Dir_channel::Read_dir_end();
+			unsigned read_entries = 0;
+			for (; read_entries < dst.num_entries; read_entries++) {
 
-			Node &node = *node_ptr;
+				size_t index = at.pos + read_entries;
+				Node *node_ptr = _entries.first();
+				if (node_ptr) node_ptr = node_ptr->index(index);
+				if (!node_ptr)
+					break;
 
-			auto dirent_type = [&] ()
-			{
-				if (dynamic_cast<Directory *>(node_ptr)) return Dirent_type::DIRECTORY;
-				if (dynamic_cast<Symlink   *>(node_ptr)) return Dirent_type::SYMLINK;
-				return Dirent_type::FILE;
-			};
+				Node &node = *node_ptr;
 
-			dst.start[0] = {
-				.type = dirent_type(),
-				.rwx  = node.rwx(),
-				.name = { node.name() }
-			};
-			return 1;
+				auto dirent_type = [&] ()
+				{
+					if (dynamic_cast<Directory *>(node_ptr)) return Dirent_type::DIRECTORY;
+					if (dynamic_cast<Symlink   *>(node_ptr)) return Dirent_type::SYMLINK;
+					return Dirent_type::FILE;
+				};
+
+				dst.start[read_entries] = {
+					.type = dirent_type(),
+					.rwx  = node.rwx(),
+					.name = { node.name() }
+				};
+			}
+			return read_entries;
 		}
 };
 

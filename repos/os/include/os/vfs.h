@@ -199,15 +199,30 @@ struct Genode::Directory : Noncopyable, Interface
 
 		void for_each_entry(auto const &fn)
 		{
-			for (unsigned i = 0;; i++) {
+			unsigned const max_entries = 16;
+			Vfs::Dirent dirents[max_entries] { };
+			bool done = false;
+			unsigned pos = 0;
+			Entry entry { };
 
-				bool const ok = _with_entry(i,
-					[&] (Entry const &e) { fn(e); return true; },
-					[&] () -> bool       {        return false; });
-
-				if (!ok)
-					break;
-			}
+			do {
+				Vfs::Read_dir_result result = 0;
+				for (;;) {
+					result = _handle.read_dir({ .pos = pos }, { dirents, max_entries });
+					if (result != Vfs::Read_dir_error::RETRY) break;
+					_io.commit_and_wait();
+				}
+				result.with_result(
+					[&] (unsigned num_entries) {
+						for (unsigned i = 0; i < num_entries; i++) {
+							entry._dirent = dirents[i];
+							fn(entry);
+						}
+						pos += num_entries;
+						done = (num_entries == 0);
+					},
+					[&] (Vfs::Read_dir_error)  { done = true; });
+			} while (!done);
 		}
 
 		auto with_first_entry(auto const &fn,

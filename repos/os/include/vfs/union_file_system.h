@@ -85,11 +85,13 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 			{
 				File_system &fs;
 				Vfs::Dir_channel &channel;
+				unsigned const num_dirent;
 
 				Child_channel_element(Child_channels &channels, File_system &fs,
-				                      Vfs::Dir_channel &channel)
+				                      Vfs::Dir_channel &channel, unsigned num_dirent)
 				:
-					Child_channels::Element(channels, *this), fs(fs), channel(channel)
+					Child_channels::Element(channels, *this),
+					fs(fs), channel(channel), num_dirent(num_dirent)
 				{ }
 			};
 
@@ -117,16 +119,10 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 					if (done) return; /* skip through */
 
 					/*
-					 * Determine number of matching directory entries within
-					 * the current file system.
-					 */
-					unsigned const fs_num_dirent = e.fs.num_dirent(_path.string());
-
-					/*
-					 * Query directory entry if index lies with the file
+					 * Query directory entry if index lies within the file
 					 * system.
 					 */
-					if (index - base < fs_num_dirent) {
+					if (index - base < e.num_dirent) {
 
 						/* seek to file-system local index */
 						index = index - base;
@@ -136,7 +132,7 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 					}
 
 					/* adjust base index for next file system */
-					base += fs_num_dirent;
+					base += e.num_dirent;
 				});
 				return result;
 			}
@@ -329,7 +325,8 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 						try {
 							new (dir_channel._alloc)
 								Dir_channel::Child_channel_element(
-									dir_channel._child_channels, fs, c);
+									dir_channel._child_channels, fs, c,
+									fs.num_dirent(dir_channel._path.string()));
 							at_least_one_ok = true;
 						}
 						catch (Out_of_ram)  { error = Opendir_error::OUT_OF_RAM;  }
