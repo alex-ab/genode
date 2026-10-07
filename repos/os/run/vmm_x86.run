@@ -260,7 +260,7 @@ if {$test_rdtscp} {
 	unify_output {\[init -> vmm\] vcpu 1 : [0-9]+} "vcpu 1 : XX"
 	unify_output {\[init -> vmm\] vcpu 2 : [0-9]+} "vcpu 2 : XX"
 	unify_output {\[init -> vmm\] vcpu 3 : [0-9]+} "vcpu 3 : XX"
-	set output [lsort -stride 13 -index 1 $output]
+	set output [lsort -stride 12 -index 1 $output]
 	unify_output "vcpu" "\nvcpu"
 	set output_rdtscp $output
 }
@@ -272,10 +272,10 @@ if {$test_rdtscp} {
 	puts ""
 	set output $output_rdtscp
 	compare_output_to {
-	vcpu 0 : XX. vm exit - rdtscp cx guest=0xaffe0000 host=0x0 dx 0xff00
-	vcpu 1 : XX. vm exit - rdtscp cx guest=0xaffe0001 host=0x0 dx 0xff00
-	vcpu 2 : XX. vm exit - rdtscp cx guest=0xaffe0002 host=0x1 dx 0xff00
-	vcpu 3 : XX. vm exit - rdtscp cx guest=0xaffe0003 host=0x1 dx 0xff00
+	vcpu 0 : XX. vm exit - rdtscp cx guest=0xaffe0000 dx 0xff00
+	vcpu 1 : XX. vm exit - rdtscp cx guest=0xaffe0001 dx 0xff00
+	vcpu 2 : XX. vm exit - rdtscp cx guest=0xaffe0002 dx 0xff00
+	vcpu 3 : XX. vm exit - rdtscp cx guest=0xaffe0003 dx 0xff00
 	}
 }
 

@@ -79,6 +79,8 @@ class Vmm::Vcpu
 		Vcpu_handler<Vcpu>   _handler;
 		Vm_connection::Vcpu  _vcpu;
 
+		uint32_t _tsc_aux_host { 0 };
+
 		/* some status information to steer the test */
 		enum class State {
 			INITIAL,
@@ -453,9 +455,12 @@ void Vmm::Vcpu::_handle_vcpu_exit()
 
 		if (_hlt_count == 0) {
 			uint32_t const tsc_aux_host = rdtscp();
+			if (tsc_aux_host != _tsc_aux_host)
+				error("vcpu ", _id, " : TSC_AUX host value ", tsc_aux_host,
+				      " differs from expected value ", _tsc_aux_host);
 
 			log("vcpu ", _id, " : ", _exit_count, ". vm exit -  rdtscp cx"
-			    " guest=", Hex(state.cx.value()), " host=", Hex(tsc_aux_host),
+			    " guest=", Hex(state.cx.value()),
 			    " dx ", Hex(state.dx.value()>>16));
 		}
 
@@ -568,6 +573,9 @@ void Vmm::Vcpu::_cpu_init(Vcpu_state &state)
 	 */
 	state.tsc_aux.charge((0xaffeU << 16) | _id);
 	state.tsc_offset.charge(0xff00ULL << 48);
+
+	/* read initial TSC_AUX valueto compare it later */
+	_tsc_aux_host = rdtscp();
 }
 
 
