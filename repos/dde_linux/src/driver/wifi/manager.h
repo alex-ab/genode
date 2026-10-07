@@ -1432,7 +1432,7 @@ struct Wifi::Manager : Wifi::Rfkill_notification_handler
 		bool log_level_set() const {
 			return log_level.length() > 1; }
 
-		using Bgscan = Genode::String<16>;
+		using Bgscan = Genode::String<32>;
 		Bgscan bgscan { "" };
 
 		bool bgscan_changed(Config const &cfg) const {
