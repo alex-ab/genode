@@ -131,10 +131,8 @@ struct Vfs_ram_log::File_system : Single_file_system
 			return *new (alloc)
 				File_channel(alloc, { .writeable = attr.writeable }, *this);
 		}
-		catch (Genode::Out_of_ram)        { return Open_error::OUT_OF_RAM; }
-		catch (Genode::Out_of_caps)       { return Open_error::OUT_OF_CAPS; }
-		/* handled non-existing path */
-		catch (Genode::File::Open_failed) { return Open_error::DENIED; }
+		catch (Genode::Out_of_ram)  { return Open_error::OUT_OF_RAM; }
+		catch (Genode::Out_of_caps) { return Open_error::OUT_OF_CAPS; }
 	}
 
 	Stat_result stat(char const *path, Stat &out) override
