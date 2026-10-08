@@ -78,7 +78,7 @@ struct Vfs_ram_log::File_system : Single_file_system
 			size_t out_count = 0;
 			for (size_t i = 0; i < dst.num_bytes; i++) {
 
-				auto const byte = _ram_log._buffer.byte_at(at.pos);
+				auto const byte = _ram_log._buffer.byte_at(at.pos + i);
 				if (byte.failed())
 					break;
 
