@@ -1220,7 +1220,7 @@ struct Sculpt::Main : Input_event_handler,
 
 	void _handle_init_config(Node const &init_config)
 	{
-		if (_cached_init_config.update_from_node(init_config).stalled())
+		if (_cached_init_config.update_from_node(init_config, _storage._selected_target).stalled())
 			return;
 
 		bool download_added = false;

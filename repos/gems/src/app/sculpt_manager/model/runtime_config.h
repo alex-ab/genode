@@ -162,9 +162,18 @@ class Sculpt::Runtime_config
 
 			Start_name primary_dependency { };
 
-			bool selected    = false,
-			     tcb         = false,
-			     tcb_updated = false;
+			struct State
+			{
+				bool selected, tcb, tcb_updated, dependent_updated;
+
+				/*
+				 * Next node on the dependency path towards a currently
+				 * selected server.
+				 */
+				Start_name dependent;
+			};
+
+			State state { };
 
 			struct Dep : List_model<Dep>::Element
 			{
@@ -186,7 +195,7 @@ class Sculpt::Runtime_config
 			/* dependencies on other child components */
 			List_model<Dep> deps { };
 
-			void reset_selection() { selected = tcb = tcb_updated = false; }
+			void reset_selection() { state = { }; }
 
 			void for_each_secondary_dep(auto const &fn) const
 			{
@@ -342,19 +351,100 @@ class Sculpt::Runtime_config
 
 		Start_name _selected { };
 
+		void _update_tcb(Storage_target const &storage_target)
+		{
+			_components.for_each([&] (Component &child) {
+
+				child.state = { };
+
+				if (_selected == child.name) {
+					child.state.selected  = true;
+					child.state.tcb       = true;
+					child.state.dependent = child.name; /* depend on itself, must by valid */
+				}
+			});
+
+			/*
+			 * Update the TCB flags of the selected child's transitive
+			 * dependencies.
+			 */
+			for (;;) {
+
+				/*
+				 * Search child that belongs to TCB but its dependencies
+				 * have not been added to the TCB yet.
+				 */
+				Start_name name_of_updated { };
+				_components.for_each([&] (Component &child) {
+					if (!name_of_updated.valid() &&  child.state.tcb
+					                             && !child.state.tcb_updated) {
+						name_of_updated = child.name;
+						child.state.tcb_updated = true; /* skip in next iteration */
+					}
+				});
+				if (!name_of_updated.valid())
+					break;
+
+				/* tag all dependencies as part of the TCB */
+				for_each_dependency(name_of_updated, [&] (Start_name dep) {
+
+					if (dep == "default_fs_rw")
+						dep = storage_target.fs();
+
+					if (!hidden_from_graph(dep))
+						_components.for_each([&] (Component &child) {
+							if (child.name == dep)
+								child.state.tcb = true; });
+				});
+			}
+
+			/*
+			 * Update the 'dependent' path of each component towards the child.
+			 */
+			for (;;) {
+
+				/* pick dependent server not yet visited */
+				Start_name server { };
+				_components.for_each([&] (Component &child) {
+					if (!server.valid() &&  child.state.dependent.length() > 1
+					                    && !child.state.dependent_updated) {
+						server = child.name;
+						child.state.dependent_updated = true; /* skip in next iteration */
+					}
+				});
+				if (!server.valid())
+					break;
+
+				_components.for_each([&] (Component &child) {
+					child.deps.for_each([&] (Component::Dep const &dep) {
+
+						Start_name to_name = dep.to_name;
+						if (to_name == "default_fs_rw")
+							to_name = storage_target.fs();
+
+						if (!hidden_from_graph(to_name))
+							if (to_name == server)
+								child.state.dependent = server;
+					});
+				});
+			}
+		}
+
 	public:
 
 		Runtime_config(Allocator &alloc) : _alloc(alloc) { }
 
-		Progress update_from_node(Node const &config)
+		Progress update_from_node(Node const &config, Storage_target const &storage_target)
 		{
 			Progress result = STALLED;
 			_num_stalled = 0;
+			bool created_or_destroyed = false;
 			_components.update_from_node(config,
 
 				/* create */
 				[&] (Node const &node) -> Component & {
 					result = PROGRESSED;
+					created_or_destroyed = true;
 					return *new (_alloc)
 						Component(node.attribute_value("name", Start_name()),
 						          _graph_ids,
@@ -371,6 +461,7 @@ class Sculpt::Runtime_config
 					e.update_provides_from_node(_alloc, Node());
 
 					destroy(_alloc, &e);
+					created_or_destroyed = true;
 					result = PROGRESSED;
 				},
 
@@ -381,6 +472,9 @@ class Sculpt::Runtime_config
 						result = PROGRESSED;
 				}
 			);
+
+			if (created_or_destroyed)
+				_update_tcb(storage_target);
 			return result;
 		}
 
@@ -486,48 +580,10 @@ class Sculpt::Runtime_config
 			}
 
 			_components.for_each([&] (Component &child) {
-				child.selected    = (child.name == name) && !child.selected;
-				child.tcb         = child.selected;
-				child.tcb_updated = false;
+				if ((child.name == name) && !child.state.selected)
+					_selected = name; });
 
-				if (child.selected)
-					_selected = name;
-			});
-
-			/*
-			 * Update the TCB flag of the selected child's transitive
-			 * dependencies.
-			 */
-			for (;;) {
-
-				Start_name name_of_updated { };
-
-				/*
-				 * Search child that belongs to TCB but its dependencies
-				 * have not been added to the TCB yet.
-				 */
-				_components.for_each([&] (Component &child) {
-					if (!name_of_updated.valid() && child.tcb && !child.tcb_updated) {
-						name_of_updated = child.name;
-						child.tcb_updated = true; /* skip in next iteration */
-					}
-				});
-
-				if (!name_of_updated.valid())
-					break;
-
-				/* tag all dependencies as part of the TCB */
-				for_each_dependency(name_of_updated, [&] (Start_name dep) {
-
-					if (dep == "default_fs_rw")
-						dep = storage_target.fs();
-
-					if (!hidden_from_graph(dep))
-						_components.for_each([&] (Component &child) {
-							if (child.name == dep)
-								child.tcb = true; });
-				});
-			}
+			_update_tcb(storage_target);
 		}
 
 		Start_name selected() const { return _selected; }

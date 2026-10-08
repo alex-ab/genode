@@ -216,7 +216,7 @@ void Graph::view(Scope<Depgraph> &s, Action const &action) const
 		if (Runtime_config::hidden_from_graph(name))
 			return;
 
-		bool const unimportant = any_selected && !component.tcb;
+		bool const unimportant = any_selected && !component.state.tcb;
 
 		/* basic categories, like GUI */
 		Dialog::Id primary_dep = Id { component.primary_dependency };
@@ -235,7 +235,7 @@ void Graph::view(Scope<Depgraph> &s, Action const &action) const
 
 		_view_node(s, component.graph_id,
 			{
-				.selected    = component.selected,
+				.selected    = component.state.selected,
 				.important   = !unimportant,
 				.alert       = alert,
 				.primary_dep = primary_dep,
@@ -256,28 +256,31 @@ void Graph::view(Scope<Depgraph> &s, Action const &action) const
 
 	_runtime_config.for_each_component([&] (Component const &component) {
 
-		bool const show_details = component.tcb;
+		auto gen_dep = [&] (Start_name dep_name)
+		{
+			if (Runtime_config::hidden_from_graph(dep_name))
+				return;
 
-		if (show_details) {
-			component.for_each_secondary_dep([&] (Start_name dep_name) {
+			if (dep_name == "default_fs_rw")
+				dep_name = _selected_target.fs();
 
-				if (Runtime_config::hidden_from_graph(dep_name))
-					return;
+			Dialog::Id dep_id { dep_name };
 
-				if (dep_name == "default_fs_rw")
-					dep_name = _selected_target.fs();
+			_runtime_config.with_graph_id(dep_name, [&] (Dialog::Id const &id) {
+				dep_id = id; });
 
-				Dialog::Id dep_id { dep_name };
-
-				_runtime_config.with_graph_id(dep_name, [&] (Dialog::Id const &id) {
-					dep_id = id; });
-
-				s.node("dep", [&] {
-					s.attribute("node", component.graph_id.value);
-					s.attribute("on",   dep_id.value);
-				});
+			s.node("dep", [&] {
+				s.attribute("node", component.graph_id.value);
+				s.attribute("on",   dep_id.value);
 			});
-		}
+		};
+
+		if (component.state.tcb)
+			component.for_each_secondary_dep([&] (Start_name dep_name) {
+				gen_dep(dep_name); });
+
+		if (component.state.dependent.length() > 1)
+			gen_dep(component.state.dependent);
 	});
 }
 
