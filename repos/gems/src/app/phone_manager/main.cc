@@ -449,6 +449,7 @@ struct Sculpt::Main : Input_event_handler,
 		disable_if_unused("mobile",     Target::MOBILE);
 		disable_if_unused("modem_diag", Target::MOBILE);
 		disable_if_unused("usb",        Target::MOBILE);
+		disable_if_unused("usb_host",   Target::MOBILE);
 
 		auto enable_if_targeted = [&] (auto const &name, Target driver)
 		{
@@ -462,6 +463,7 @@ struct Sculpt::Main : Input_event_handler,
 		enable_if_targeted("mobile",     Target::MOBILE);
 		enable_if_targeted("modem_diag", Target::MOBILE);
 		enable_if_targeted("usb",        Target::MOBILE);
+		enable_if_targeted("usb_host",   Target::MOBILE);
 	}
 
 	/**
