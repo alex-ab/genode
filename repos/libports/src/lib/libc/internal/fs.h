@@ -34,6 +34,7 @@ namespace Libc {
 	struct Monitor;
 	struct Config;
 	struct Current_real_time;
+	struct Procfs;
 
 	struct Open_file : Noncopyable
 	{
@@ -84,6 +85,7 @@ struct Libc::Fs
 	Vfs::Env                         &_vfs_env;
 	Vfs::File_system                 &_vfs;
 	Directory                        &_root_dir;
+	Procfs                           &_procfs;
 
 	using off_t  = ::off_t;
 	using size_t = ::size_t;
@@ -91,11 +93,22 @@ struct Libc::Fs
 
 	int     access  (char const *, int);
 	int     stat    (char const *, struct stat &);
-	int     mkdir   (char const *, mode_t);
+	int     mkdir   (char const *at, char const *name, mode_t);
 	ssize_t readlink(char const *, char *, size_t);
 	int     rename  (char const *, char const *);
 	int     symlink (char const *, char const *);
 	int     unlink  (char const *);
+
+	using Target_path   = String<Vfs::MAX_PATH_LEN>;
+
+	struct Deref_symlink_too_long { };
+	using Deref_symlink_result = Attempt<Target_path, Deref_symlink_too_long>;
+	static Deref_symlink_result deref_symlink(Target_path const &, Vfs::Follow_result,
+	                                          Target_path const &);
+
+	enum class Follow_error { TOO_LONG, LOOP };
+	using Follow_result = Attempt<Target_path, Follow_error>;
+	Follow_result follow_symlinks(char const *);
 
 	static int poll(Monitor &, Pollfd fds[], int nfds);
 

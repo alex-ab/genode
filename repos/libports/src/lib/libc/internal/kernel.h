@@ -209,7 +209,8 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 			._kernel_heap      = _heap,
 			._vfs_env          = _vfs_root,
 			._vfs              = _vfs_root.fs(),
-			._root_dir         = _root_dir
+			._root_dir         = _root_dir,
+			._procfs           = _procfs
 		};
 
 		Procfs _procfs { _fs, _config };

@@ -313,11 +313,12 @@ static Libc::Reset_atexit      *_reset_atexit_ptr;
 static Libc::Reset_malloc_heap *_reset_malloc_heap_ptr;
 static Libc::Binary_name       *_binary_name_ptr;
 static Libc::Fds               *_fds_ptr;
+static Libc::Fs                *_fs_ptr;
 
 
 void Libc::init_execve(Genode::Env &env, Genode::Allocator &alloc, void *user_stack_ptr,
                        Reset_atexit &reset_atexit, Reset_malloc_heap &reset_malloc_heap,
-                       Binary_name &binary_name, Fds &fds)
+                       Binary_name &binary_name, Fds &fds, Fs &fs)
 {
 	_env_ptr               = &env;
 	_alloc_ptr             = &alloc;
@@ -326,6 +327,7 @@ void Libc::init_execve(Genode::Env &env, Genode::Allocator &alloc, void *user_st
 	_reset_malloc_heap_ptr = &reset_malloc_heap;
 	_binary_name_ptr       = &binary_name;
 	_fds_ptr               = &fds;
+	_fs_ptr                = &fs;
 
 	Dynamic_linker::keep(env, "libc.lib.so");
 	Dynamic_linker::keep(env, "libm.lib.so");
@@ -374,7 +376,7 @@ extern "C" int execve(char const *filename,
 	/*
 	 * Resolve path of the executable and handle shebang arguments
 	 */
-	Libc::Absolute_path resolved_path;
+	Libc::File_descriptor::Path resolved_path;
 
 	Libc::Interpreter::Path path(filename);
 
@@ -385,7 +387,15 @@ extern "C" int execve(char const *filename,
 
 	for (unsigned i = 0; i < MAX_INTERPRETER_NESTING_LEVELS; i++) {
 
-		if (Libc::resolve_symlinks(path.string(), resolved_path).failed()) {
+		if (_fs_ptr) {
+			/* ensure leading slash */
+			Libc::Absolute_path const abs_path { path.string() };
+			_fs_ptr->follow_symlinks(abs_path.string()).with_result(
+				[&] (auto const &p) { resolved_path = p; },
+				[&] (Libc::Fs::Follow_error) { });
+		}
+
+		if (resolved_path.length() <= 1) {
 			warning("execve: executable binary '", filename, "' does not exist");
 			return Libc::Errno(ENOENT);
 		}

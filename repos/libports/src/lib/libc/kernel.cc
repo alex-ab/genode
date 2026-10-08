@@ -67,8 +67,6 @@ void Libc::Kernel::reset_malloc_heap()
 
 void Libc::Kernel::_init_file_descriptors()
 {
-	using Path_element_token = Genode::Token<Vfs::Scanner_policy_path_element>;
-
 	/* guard used to print an offending libc config when leaving the scope */
 	struct Diag_guard
 	{
@@ -81,108 +79,42 @@ void Libc::Kernel::_init_file_descriptors()
 
 	} diag_guard { *this };
 
-	auto resolve_symlinks = [&] (Absolute_path next_iteration_working_path,
-	                             Absolute_path &resolved_path) -> Symlink_resolve_result
+	using Path = Fs::Target_path;
+
+	auto follow_symlinks = [&] (Path path) -> Fs::Follow_result
 	{
-		char path_element[PATH_MAX];
-		char symlink_target[PATH_MAX];
+		Fs::Follow_result result = Fs::Follow_error { };
 
-		Absolute_path current_iteration_working_path;
+		unsigned follow_limit = 10;
 
-		enum { FOLLOW_LIMIT = 10 };
-		int follow_count = 0;
-		bool symlink_resolved_in_this_iteration;
-		do {
-			if (follow_count++ == FOLLOW_LIMIT) {
-				errno = ELOOP;
-				return Symlink_resolve_error();
+		for (bool done = false; !done && follow_limit; follow_limit--) {
+
+			char target[Vfs::MAX_PATH_LEN] { };
+			Vfs::Follow_result follow = Vfs::Follow_error::RETRY;
+			for (;;) {
+				follow = _vfs_root.fs().follow(path.string(), { target, sizeof(target) });
+				if (follow != Vfs::Follow_error::RETRY) break;
+				_vfs_root.io().commit();
 			}
 
-			current_iteration_working_path = next_iteration_working_path;
+			result = Fs::deref_symlink(path.string(), follow, Cstring(target))
+				.convert<Fs::Follow_result>(
+					[&] (Fs::Target_path const &p)   { return p; },
+					[&] (Fs::Deref_symlink_too_long) { return Fs::Follow_error::TOO_LONG; });
+			if (result.failed())
+				break;
 
-			next_iteration_working_path.import("");
-			symlink_resolved_in_this_iteration = false;
+			result.with_result(
+				[&] (Path const &resolved) {
+					done = (path == resolved);
+					path = resolved;
+				},
+				[&] (Fs::Follow_error) { done = true; });
+		}
 
-			Path_element_token t(current_iteration_working_path.base());
+		if (follow_limit == 0) errno = ELOOP;
 
-			while (t) {
-				if (t.type() != Path_element_token::IDENT) {
-						t = t.next();
-						continue;
-				}
-
-				t.string(path_element, sizeof(path_element));
-
-				try {
-					next_iteration_working_path.append_element(path_element);
-				} catch (Path_base::Path_too_long) {
-					errno = ENAMETOOLONG;
-					return Symlink_resolve_error();
-				}
-
-				/*
-				 * If a symlink has been resolved in this iteration, the remaining
-				 * path elements get added and a new iteration starts.
-				 */
-				if (!symlink_resolved_in_this_iteration) {
-					struct stat stat_buf;
-					int res = _fs.stat_from_kernel(next_iteration_working_path.base(), stat_buf);
-					if (res == -1) {
-						return Symlink_resolve_error();
-					}
-					if (S_ISLNK(stat_buf.st_mode)) {
-						res = readlink(next_iteration_working_path.base(),
-						               symlink_target, sizeof(symlink_target) - 1);
-						if (res < 1)
-							return Symlink_resolve_error();
-
-						/* zero terminate target */
-						symlink_target[res] = 0;
-
-						if (symlink_target[0] == '/')
-							/* absolute target */
-							next_iteration_working_path.import(symlink_target, _cwd.string());
-						else {
-							/* relative target */
-							next_iteration_working_path.strip_last_element();
-							try {
-								next_iteration_working_path.append_element(symlink_target);
-							} catch (Path_base::Path_too_long) {
-								errno = ENAMETOOLONG;
-								return Symlink_resolve_error();
-							}
-						}
-						symlink_resolved_in_this_iteration = true;
-					}
-				}
-
-				t = t.next();
-			}
-
-		} while (symlink_resolved_in_this_iteration);
-
-		resolved_path = next_iteration_working_path;
-		resolved_path.remove_trailing('/');
-
-		return Ok();
-	};
-
-	using Path = String<Vfs::MAX_PATH_LEN>;
-
-	struct Absolute_path_resolve_error { };
-	using Absolute_path_resolve_result = Attempt<Ok, Absolute_path_resolve_error>;
-
-	auto resolve_absolute_path = [&] (Path const &path, Absolute_path &abs_path) -> Absolute_path_resolve_result
-	{
-		Absolute_path abs_dir(path.string(),   _cwd.string()); abs_dir.strip_last_element();
-		Absolute_path dir_entry(path.string(), _cwd.string()); dir_entry.keep_only_last_element();
-
-		try {
-			if (resolve_symlinks(abs_dir, abs_path).failed())
-				return Absolute_path_resolve_error();
-			abs_path.append_element(dir_entry.string());
-			return Ok();
-		} catch (Path_base::Path_too_long) { return Absolute_path_resolve_error(); }
+		return result;
 	};
 
 	auto init_fd = [&] (Node const &node, char const *attr,
@@ -191,14 +123,17 @@ void Libc::Kernel::_init_file_descriptors()
 		if (!node.has_attribute(attr))
 			return;
 
-		Path const attr_value { node.attribute_value(attr, Path()) };
-
-		Absolute_path path { };
-
-		if (resolve_absolute_path(attr_value, path).failed()) {
-			warning("failed to resolve path for ", attr, ": ", attr_value.string());
-			diag_guard.show = true;
-			return;
+		Path path { node.attribute_value(attr, Path()) };
+		{
+			Fs::Follow_result result = follow_symlinks(path);
+			if (result.failed()) {
+				warning("failed to resolve path for ", attr, ": ", path);
+				diag_guard.show = true;
+				return;
+			}
+			result.with_result(
+				[&] (Path const &p) { path = p; },
+				[&] (Fs::Follow_error) { });
 		}
 
 		struct stat out_stat { };
@@ -533,7 +468,7 @@ Libc::Kernel::Kernel(Genode::Env &env, Genode::Allocator &heap)
 
 	init_fork(_env, _fs, _fds, _libc_env, _heap, *_malloc_heap, _config.pid,
 	          _config.uid, _config.gid, *this, _signal, _binary_name);
-	init_execve(_env, _heap, _user_stack, *this, *this, _binary_name, _fds);
+	init_execve(_env, _heap, _user_stack, *this, *this, _binary_name, _fds, _fs);
 	init_sleep(*this);
 	init_file_operations(*this, _fds, _fs, _config, _procfs);
 	init_pread_pwrite(_fds);

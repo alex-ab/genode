@@ -46,6 +46,7 @@ extern "C" {
 #include <internal/errno.h>
 #include <internal/monitor.h>
 #include <internal/current_time.h>
+#include <internal/procfs.h>
 
 namespace { using Fn = Libc::Monitor::Function_result; }
 
@@ -371,40 +372,44 @@ int Libc::Fs::fstat(Open_dir &od, struct stat &buf)
 }
 
 
-int Libc::Fs::mkdir(const char *path, mode_t mode)
+int Libc::Fs::mkdir(char const *at, char const *name, mode_t mode)
 {
-	int result = -1;
-	int result_errno = 0;
+	return with_joined<int>(at, name, [&] (char const *path) -> int {
 
-	Vfs::Timestamp const mtime = timestamp_now(*this);
+		Vfs::Timestamp const mtime = timestamp_now(*this);
 
-	bool first = true;
-	_monitor.monitor([&] {
+		bool succeeded = false;
+		bool first     = true;
 
-		/* text for confict only once */
-		if (first && _root_dir.entry_exists(path)) {
-			result_errno = EEXIST;
+		_monitor.monitor([&] {
+
+			/* text for confict only once */
+			if (first && _root_dir.entry_exists(path)) {
+				errno = EEXIST;
+				return Fn::COMPLETE;
+			}
+			first = false;
+
+			Vfs::Mkdir_result mkdir_result = _vfs.mkdir(path, mtime);
+			if (mkdir_result == Vfs::Mkdir_result::RETRY)
+				return Fn::INCOMPLETE;
+
+			if (mkdir_result == Vfs::Mkdir_result::CREATED
+			 || mkdir_result == Vfs::Mkdir_result::UPDATED)
+				succeeded = true;
+			else
+				errno = EPERM;
+
 			return Fn::COMPLETE;
-		}
-		first = false;
+		});
+		if (succeeded)
+			return 0;
 
-		Vfs::Mkdir_result mkdir_result = _vfs.mkdir(path, mtime);
-		if (mkdir_result == Vfs::Mkdir_result::RETRY)
-			return Fn::INCOMPLETE;
+		if (!directory_exists(at))
+			return Errno(ENOENT);
 
-		if (mkdir_result == Vfs::Mkdir_result::CREATED
-		 || mkdir_result == Vfs::Mkdir_result::UPDATED)
-			result = 0;
-		else
-			result_errno = EPERM;
-
-		return Fn::COMPLETE;
+		return -1;
 	});
-
-	if (result == -1)
-		errno = result_errno;
-
-	return result;
 }
 
 
@@ -1778,6 +1783,101 @@ int Libc::Fs::rename(char const *from_path, char const *to_path)
 		return Errno(result_errno);
 
 	return 0;
+}
+
+
+Libc::Fs::Deref_symlink_result Libc::Fs::deref_symlink(Target_path        const &path,
+                                                       Vfs::Follow_result const  follow,
+                                                       Target_path        const &target)
+{
+	Deref_symlink_result const result = follow.convert<Deref_symlink_result>(
+		[&] (Vfs::Path_elem elem) -> Deref_symlink_result {
+			return path.with_span([&] (Span const &path) -> Deref_symlink_result {
+
+				Target_path resolved { };
+
+				if (target.string()[0] == '/') {
+					resolved = target;
+
+				} else {
+					/* replace symlink element by (relative) link target */
+					unsigned i = 0;
+					Vfs::for_each_path_elem(path, [&] (Span const &s) {
+						if (i++ < elem.index)
+							resolved = { resolved, "/", s }; });
+					resolved = { resolved, "/", target };
+				}
+
+				/* append path elements following the symlink element */
+				unsigned i = 0;
+				Vfs::for_each_path_elem(path, [&] (Span const &s) {
+					if (i++ > elem.index)
+						resolved = { resolved, "/", s }; });
+
+				if (resolved.length() == resolved.capacity())
+					return Deref_symlink_too_long();
+
+				return resolved;
+			});
+		},
+		[&] (Vfs::Follow_error) -> Deref_symlink_result { return path; });
+
+	return result.convert<Deref_symlink_result>(
+		[&] (auto const &p) -> Deref_symlink_result {
+
+			/* canonicalize */
+			try {
+				Target_path target { Absolute_path(p.string()).string() };
+				if (target.length() == target.capacity())
+					return Deref_symlink_too_long();
+				return target;
+			} catch (...) { return Deref_symlink_too_long(); }
+		},
+		[&] (Deref_symlink_too_long e) { return e; });
+};
+
+
+Libc::Fs::Follow_result Libc::Fs::follow_symlinks(char const *path_cstring)
+{
+	Follow_result result = Follow_error { };
+
+	unsigned follow_limit = 10;
+
+	Target_path path { path_cstring };
+
+	_monitor.monitor([&] {
+
+		for (; follow_limit; follow_limit--) {
+
+			char target[Vfs::MAX_PATH_LEN] { };
+
+			path = _procfs.resolve_proc_self(path).string();
+
+			Vfs::Follow_result const follow = _vfs.follow(path.string(), { target, sizeof(target) });
+			if (follow == Vfs::Follow_error::RETRY)
+				return Fn::INCOMPLETE;
+
+			bool const done = deref_symlink(path.string(), follow, Cstring(target)).convert<bool>(
+				[&] (Target_path const &resolved) {
+					if (path == resolved) {
+						result = path;
+						return true;
+					}
+					path = resolved; /* keep iterating using the new path */
+					return false;
+				},
+				[&] (Deref_symlink_too_long) {
+					result = Follow_error::TOO_LONG;
+					return true;
+				});
+
+			if (done)
+				return Fn::COMPLETE;
+		}
+		result = Follow_error::LOOP;
+		return Fn::COMPLETE;
+	});
+	return result;
 }
 
 

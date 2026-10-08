@@ -127,148 +127,86 @@ static Libc::Cwd_path &cwd()
 }
 
 
-using Path_element_token = Token<Vfs::Scanner_policy_path_element>;
-
-
-/*
- * Resolve a symbolic link.
- *
- * Only the last element of the given absolute path gets resolved and it is
- * expected to be a symbolic link.
- */
-static Symlink_resolve_result _resolve_symlink(Absolute_path const &path,
-                                               Absolute_path &resolved_path)
+static int invalid_path_cstring(char const *path_cstring)
 {
-	char symlink_target[PATH_MAX];
-	Absolute_path tmp_resolved_path;
-	int res;
+	if (!path_cstring)
+		return Errno(EFAULT);
 
-	res = fs().readlink(path.base(), symlink_target, sizeof(symlink_target));
-	if (res < 1)
-		return Symlink_resolve_error();
+	if (path_cstring[0] == '\0')
+		return Errno(ENOENT);
 
-	if (res == PATH_MAX) {
-		errno = ENAMETOOLONG;
-		return Symlink_resolve_error();
-	}
-
-	/* zero terminate target */
-	symlink_target[res] = 0;
-
-	try {
-		if (symlink_target[0] == '/')
-			/* absolute target */
-			tmp_resolved_path.import(symlink_target, cwd().string());
-		else {
-			/* relative target */
-			tmp_resolved_path = path;
-			tmp_resolved_path.strip_last_element();
-			tmp_resolved_path.append_element(symlink_target);
-		}
-	} catch (Path_base::Path_too_long) {
-		errno = ENAMETOOLONG;
-		return Symlink_resolve_error();
-	}
-
-	resolved_path = procfs().resolve_proc_self(tmp_resolved_path);
-
-	return Ok();
+	return 0;
 }
 
 
-/**
- * Resolve symbolic links in a given absolute path
- */
-Symlink_resolve_result Libc::resolve_symlinks(char const *path, Absolute_path &resolved_path)
+template <typename RET>
+static RET with_abs_path(char const *path, auto const &fn)
 {
-	Absolute_path current_iteration_working_path;
-	Absolute_path next_iteration_working_path(path, cwd().string());
+	if (invalid_path_cstring(path))
+		return -1;
 
-	enum { FOLLOW_LIMIT = 10 };
-	int follow_count = 0;
-	bool symlink_resolved_in_this_iteration;
-	do {
-		if (follow_count++ == FOLLOW_LIMIT) {
-			errno = ELOOP;
-			return Symlink_resolve_error();
-		}
+	/* apply current working directory */
+	Absolute_path abs_path(path, cwd().string());
 
-		current_iteration_working_path = next_iteration_working_path;
+	/* redirect /proc/self to /proc/<pid> */
+	abs_path = procfs().resolve_proc_self(abs_path.string());
 
-		next_iteration_working_path.import("");
-		symlink_resolved_in_this_iteration = false;
-
-		Path_element_token t(current_iteration_working_path.base());
-
-		while (t) {
-			if (t.type() != Path_element_token::IDENT) {
-					t = t.next();
-					continue;
+	return fs().follow_symlinks(abs_path.string()).convert<RET>(
+		[&] (Fs::Target_path const &p) { return fn(p.string()); },
+		[&] (Fs::Follow_error e) {
+			switch (e) {
+			case Fs::Follow_error::TOO_LONG: return Errno(ENAMETOOLONG);
+			case Fs::Follow_error::LOOP:     break;
 			}
-
-			char path_element[PATH_MAX];
-
-			t.string(path_element, sizeof(path_element));
-
-			try {
-				next_iteration_working_path.append_element(path_element);
-			} catch (Path_base::Path_too_long) {
-				errno = ENAMETOOLONG;
-				return Symlink_resolve_error();
-			}
-
-			/*
-			 * If a symlink has been resolved in this iteration, the remaining
-			 * path elements get added and a new iteration starts.
-			 */
-			if (!symlink_resolved_in_this_iteration) {
-				struct stat stat_buf;
-				int res = fs().stat(next_iteration_working_path.base(), stat_buf);
-				if (res == -1)
-					return Symlink_resolve_error();
-				if (S_ISLNK(stat_buf.st_mode)) {
-					if (_resolve_symlink(next_iteration_working_path,
-					                     next_iteration_working_path).failed())
-						return Symlink_resolve_error();
-					symlink_resolved_in_this_iteration = true;
-				}
-			}
-
-			t = t.next();
-		}
-
-	} while (symlink_resolved_in_this_iteration);
-
-	resolved_path = next_iteration_working_path;
-	resolved_path.remove_trailing('/');
-
-	return Ok();
+			return Errno(ELOOP);
+		});
 }
 
 
-static Symlink_resolve_result resolve_symlinks_except_last_element(char const *path, Absolute_path &resolved_path)
+template <typename RET, size_t N>
+static RET with_abs_path(String<N> const &path, auto const &fn)
 {
-	Absolute_path absolute_path_without_last_element(path, cwd().string());
-	absolute_path_without_last_element.strip_last_element();
+	return with_abs_path<RET>(path.string(), fn);
+}
 
-	if (resolve_symlinks(absolute_path_without_last_element.base(), resolved_path).failed())
-		return Symlink_resolve_error();
 
-	/* append last element to resolved path */
+template <typename RET>
+static RET with_abs_compound_last(char const *path_cstring, auto const &fn)
+{
+	Absolute_path const path(path_cstring, cwd().string());
 
-	Absolute_path absolute_path_last_element(path, cwd().string());
-	absolute_path_last_element.keep_only_last_element();
-	/* the last element can have a trailing "/" if 'path' is "." */
-	absolute_path_last_element.remove_trailing('/');
+	Absolute_path compound_path = path;
+	compound_path.strip_last_element();
 
-	try {
-		resolved_path.append_element(absolute_path_last_element.base());
-	} catch (Path_base::Path_too_long) {
-		errno = ENAMETOOLONG;
-		return Symlink_resolve_error();
-	}
+	return with_abs_path<RET>(compound_path.string(), [&] (char const *compound_path) {
 
-	return Ok();
+		Absolute_path last_element = path;
+		last_element.keep_only_last_element();
+		/* the last element can have a trailing "/" if 'path' is "." */
+		last_element.remove_trailing('/');
+
+		/* skip leading '/' of last_element */
+		char const * const last = last_element.string()[0] == '/'
+		                        ? last_element.string() + 1 : "";
+
+		return fn(compound_path, last);
+	});
+}
+
+
+template <typename RET, size_t N>
+static RET with_abs_compound_last(String<N> const &path, auto const &fn)
+{
+	return with_abs_compound_last<RET>(path.string(), fn);
+}
+
+
+template <typename RET>
+static RET without_trailing_slash(char const *p, auto const &fn)
+{
+	Absolute_path abs_path { p };
+	abs_path.remove_trailing('/');
+	return fn(abs_path.string());
 }
 
 
@@ -278,32 +216,15 @@ static Symlink_resolve_result resolve_symlinks_except_last_element(char const *p
 
 extern "C" int access(const char *path, int amode)
 {
-	if (!path)
-		return Errno(EFAULT);
-
-	if (path[0] == '\0')
-		return Errno(ENOENT);
-
-	Absolute_path       resolved_path;
-	Absolute_path const abs_path(path, cwd().string());
-
-	if (resolve_symlinks(procfs().resolve_proc_self(abs_path).string(),
-	                     resolved_path).failed()) {
-		errno = ENOENT;
-		return -1;
-	}
-
-	return fs().access(resolved_path.base(), amode);
+	return with_abs_path<int>(path, [&] (char const *path) {
+		return fs().access(path, amode); });
 }
 
 
 extern "C" int chdir(const char *path)
 {
-	if (!path)
-		return Errno(EFAULT);
-
-	if (path[0] == '\0')
-		return Errno(ENOENT);
+	if (invalid_path_cstring(path))
+		return -1;
 
 	struct stat stat_buf;
 	if ((stat(path, &stat_buf) == -1) ||
@@ -551,11 +472,8 @@ __SYS_(int, fstat, (int libc_fd, struct stat *buf),
 
 __SYS_(int, fstatat, (int libc_fd, char const *path, struct stat *buf, int flags),
 {
-	if (!path)
-		return Errno(EFAULT);
-
-	if (path[0] == '\0')
-		return Errno(ENOENT);
+	if (invalid_path_cstring(path))
+		return -1;
 
 	if (*path == '/') {
 		if (flags & AT_SYMLINK_NOFOLLOW)
@@ -650,41 +568,16 @@ __SYS_(::off_t, lseek, (int libc_fd, ::off_t offset, int whence),
 
 extern "C" int lstat(const char *path, struct stat *buf)
 {
-	if (!path)
-		return Errno(EFAULT);
-
-	if (path[0] == '\0')
-		return Errno(ENOENT);
-
-	Absolute_path       resolved_path;
-	Absolute_path const abs_path(path, cwd().string());
-
-	if (resolve_symlinks_except_last_element(procfs().resolve_proc_self(abs_path).string(),
-	                                         resolved_path).failed())
-		return -1;
-
-	resolved_path.remove_trailing('/');
-
-	return fs().stat(resolved_path.base(), *buf);
+	return with_abs_compound_last<int>(path, [&] (char const *c, char const *l) {
+		return with_joined<int>(c, l, [&] (char const *path) {
+			return fs().stat(path, *buf); }); });
 }
 
 
 extern "C" int mkdir(const char *path, mode_t mode)
 {
-	if (!path)
-		return Errno(EFAULT);
-
-	if (path[0] == '\0')
-		return Errno(ENOENT);
-
-	Absolute_path resolved_path;
-
-	if (resolve_symlinks_except_last_element(path, resolved_path).failed())
-		return -1;
-
-	resolved_path.remove_trailing('/');
-
-	return fs().mkdir(resolved_path.base(), mode);
+	return with_abs_compound_last<int>(path, [&] (char const *c, char const *l) {
+		return fs().mkdir(c, l, mode); });
 }
 
 
@@ -820,89 +713,37 @@ static int _open(Libc::Fds::Bits &bits, Libc::Fds::Space &space,
 }
 
 
-__SYS_(int, open, (const char *pathname, int flags, ...),
+__SYS_(int, open, (const char *path_cstring, int flags, ...),
 {
-	if (!pathname)
-		return Errno(EFAULT);
-
-	if (pathname[0] == '\0')
-		return Errno(ENOENT);
-
-	if ((flags & O_CREAT) && (flags & O_EXCL) && (access(pathname, F_OK) == 0))
+	if ((flags & O_CREAT) && (flags & O_EXCL) && (access(path_cstring, F_OK) == 0))
 		return Errno(EEXIST);
 
-	Absolute_path next_iteration_working_path;
-	Absolute_path resolved_path;
+	File_descriptor::Path path { path_cstring };
 
-	try {
-		next_iteration_working_path.import(pathname, cwd().string());
-	} catch (Absolute_path::Path_too_long) {
-		return Errno(ENAMETOOLONG);
+	{
+		int ret = 0;
+		if (flags & O_NOFOLLOW)
+			ret = with_abs_compound_last<int>(path, [&] (char const *c, char const *l) {
+				return with_joined<int>(c, l, [&] (char const *p) {
+					path = p;
+					return 0; }); });
+		else
+			ret = with_abs_path<int>(path, [&] (char const *p) {
+				return without_trailing_slash<int>(p, [&] (char const *p) {
+					path = p;
+					return 0; }); });
+		if (ret)
+			return -1; /* errno set by 'with_abs_path' */
 	}
 
-	next_iteration_working_path = procfs().resolve_proc_self(next_iteration_working_path);
-
-	enum { FOLLOW_LIMIT = 10 };
-	int follow_count = 0;
-	bool leaf_symlink_resolved_in_this_iteration = false;
-
-	do {
-
-		Absolute_path current_iteration_working_path;
-		Absolute_path partially_resolved_path;
-
-		if (follow_count++ == FOLLOW_LIMIT)
-			return Errno(ELOOP);
-
-		leaf_symlink_resolved_in_this_iteration = false;
-
-		current_iteration_working_path = next_iteration_working_path;
-
-		if (resolve_symlinks_except_last_element(current_iteration_working_path.base(),
-		                                         partially_resolved_path).failed())
+	if (!(flags & O_CREAT) || (flags & O_NOFOLLOW)) {
+		struct stat stat_buf { };
+		bool const exists = (fs().stat(path.string(), stat_buf) == 0);
+		if (!(flags & O_CREAT) && !exists)
 			return -1;
-
-		/* determine type of last element */
-
-		struct stat stat_buf;
-		int res = fs().stat(partially_resolved_path.base(), stat_buf);
-
-		if (res == 0) {
-
-			if (S_ISLNK(stat_buf.st_mode)) {
-
-				if (flags & O_NOFOLLOW)
-					return Errno(ELOOP);
-
-				/* resolve last element and start over */
-
-				if (_resolve_symlink(partially_resolved_path,
-				                     next_iteration_working_path).failed())
-					return -1;
-
-				leaf_symlink_resolved_in_this_iteration = true;
-
-			} else {
-				resolved_path = partially_resolved_path;
-				break;
-			}
-
-		} else {
-
-			/* stat() failed */
-
-			if (errno == ENOENT) {
-				if (!(flags & O_CREAT))
-					return -1;
-				else
-					resolved_path = partially_resolved_path;
-			} else
-				return -1;
-		}
-
-	} while (leaf_symlink_resolved_in_this_iteration);
-
-	File_descriptor::Path const path { resolved_path.string() };
+		if ((flags & O_NOFOLLOW) && exists && (S_ISLNK(stat_buf.st_mode)))
+			return Errno(ELOOP);
+	}
 
 	return fds().with_alloc([&] (Fds::Bits &bits, Fds::Space &space) {
 		return bits.alloc().convert<int>(
@@ -918,21 +759,16 @@ __SYS_(int, open, (const char *pathname, int flags, ...),
 
 __SYS_(int, openat, (int libc_fd, const char *path, int flags, ...),
 {
-	if (!path)
-		return Errno(EFAULT);
-
-	if (path[0] == '\0')
-		return Errno(ENOENT);
+	if (invalid_path_cstring(path))
+		return -1;
 
 	va_list ap;
 	va_start(ap, flags);
 	mode_t mode = va_arg(ap, unsigned);
 	va_end(ap);
 
-
-	if (*path == '/') {
+	if (*path == '/')
 		return open(path, flags, mode);
-	}
 
 	Absolute_path abs_path;
 
@@ -1040,142 +876,75 @@ __SYS_(ssize_t, read, (int libc_fd, void *buf, ::size_t count),
 
 extern "C" ssize_t readlink(const char *path, char *buf, ::size_t bufsiz)
 {
-	if (!path)
-		return Errno(EFAULT);
-
-	if (path[0] == '\0')
-		return Errno(ENOENT);
-
-	Absolute_path       resolved_path;
-	Absolute_path const abs_path(path, cwd().string());
-
-	if (resolve_symlinks_except_last_element(
-				procfs().resolve_proc_self(abs_path).string(), resolved_path).failed())
-		return -1;
-
-	return fs().readlink(resolved_path.base(), buf, bufsiz);
+	return with_abs_compound_last<ssize_t>(path, [&] (char const *compound, char const *last) {
+		return with_joined<ssize_t>(compound, last, [&] (char const *path) {
+			return fs().readlink(path, buf, bufsiz); }); });
 }
 
 
 extern "C" int rename(const char *oldpath, const char *newpath)
 {
-	if (!oldpath || !newpath)
-		return Errno(EFAULT);
-
-	if ((oldpath[0] == '\0') || (newpath[0] == '\0'))
-		return Errno(ENOENT);
-
-	Absolute_path resolved_oldpath, resolved_newpath;
-
-	if (resolve_symlinks_except_last_element(oldpath, resolved_oldpath).failed())
-		return -1;
-
-	if (resolve_symlinks_except_last_element(newpath, resolved_newpath).failed())
-		return -1;
-
-	resolved_oldpath.remove_trailing('/');
-	resolved_newpath.remove_trailing('/');
-
-	return fs().rename(resolved_oldpath.base(), resolved_newpath.base());
+	return with_abs_compound_last<int>(oldpath, [&] (char const *c, char const *l) {
+		return with_joined<int>(c, l, [&] (char const *oldpath) {
+			return with_abs_compound_last<int>(newpath, [&] (char const *c, char const *l) {
+				return with_joined<int>(c, l, [&] (char const *newpath) {
+					return fs().rename(oldpath, newpath); }); }); }); });
 }
 
 
 extern "C" int rmdir(const char *path)
 {
-	if (!path)
-		return Errno(EFAULT);
+	return with_abs_compound_last<int>(path, [&] (char const *c, char const *l) {
+		return with_joined<int>(c, l, [&] (char const *path) -> int {
 
-	if (path[0] == '\0')
-		return Errno(ENOENT);
+			struct stat stat_buf { };
+			if (fs().stat(path, stat_buf) == -1)
+				return -1;
 
-	Absolute_path resolved_path;
+			if (!S_ISDIR(stat_buf.st_mode))
+				return Errno(ENOTDIR);
 
-	if (resolve_symlinks_except_last_element(path, resolved_path).failed())
-		return -1;
-
-	resolved_path.remove_trailing('/');
-
-	struct stat stat_buf { };
-
-	if (stat(resolved_path.base(), &stat_buf) == -1)
-		return -1;
-
-	if (!S_ISDIR(stat_buf.st_mode)) {
-		errno = ENOTDIR;
-		return -1;
-	}
-
-	return fs().unlink(resolved_path.base());
+			return fs().unlink(path);
+		});
+	});
 }
 
 
 extern "C" int stat(const char *path, struct stat *buf)
 {
-	if (!path || !buf)
-		return Errno(EFAULT);
-
-	if (path[0] == '\0')
-		return Errno(ENOENT);
-
-	Absolute_path       resolved_path;
-	Absolute_path const abs_path(path, cwd().string());
-
-	if (resolve_symlinks(procfs().resolve_proc_self(abs_path).string(),
-	                     resolved_path).failed())
-		return -1;
-
-	resolved_path.remove_trailing('/');
-
-	return fs().stat(resolved_path.base(), *buf);
+	return with_abs_path<int>(path, [&] (char const *path) {
+		return without_trailing_slash<int>(path, [&] (char const *path) {
+			return fs().stat(path, *buf); }); });
 }
 
 
-extern "C" int symlink(const char *oldpath, const char *newpath)
+extern "C" int symlink(const char *target, const char *linkpath)
 {
-	if (!oldpath || !newpath)
-		return Errno(EFAULT);
-
-	if ((oldpath[0] == '\0') || (newpath[0] == '\0'))
-		return Errno(ENOENT);
-
-	Absolute_path       resolved_path;
-	Absolute_path const abs_newpath(newpath, cwd().string());
-
-	if (resolve_symlinks_except_last_element(
-				procfs().resolve_proc_self(abs_newpath).string(), resolved_path).failed())
+	if (invalid_path_cstring(target))
 		return -1;
 
-	return fs().symlink(oldpath, resolved_path.base());
+	return with_abs_compound_last<int>(linkpath, [&] (char const *c, char const *l) {
+		return with_joined<int>(c, l, [&] (char const *linkpath) {
+			return fs().symlink(target, linkpath); }); });
 }
 
 
 extern "C" int unlink(const char *path)
 {
-	if (!path)
-		return Errno(EFAULT);
-
-	if (path[0] == '\0')
-		return Errno(ENOENT);
-
-	Absolute_path resolved_path;
-
-	if (resolve_symlinks_except_last_element(path, resolved_path).failed())
-		return -1;
-
-	return fs().unlink(resolved_path.base());
+	return with_abs_compound_last<int>(path, [&] (char const *c, char const *l) {
+		return with_joined<int>(c, l, [&] (char const *path) {
+			return fs().unlink(path); }); });
 }
 
 
 __SYS_(ssize_t, write, (int libc_fd, const void *buf, ::size_t count),
 {
 	return with_fd(libc_fd, "write", [&] (File_descriptor &fd) -> ssize_t {
-		if (fd.open_dir_ptr) {
+		if (fd.open_dir_ptr)
 			return int(Errno(EISDIR));
-		}
 
-		else if (fd.socket_ptr) {
+		else if (fd.socket_ptr)
 			return socket_write(*fd.socket_ptr, buf, count);
-		}
 
 		else if (fd.open_file_ptr) {
 			if ((fd.flags != -1) && (fd.flags & O_APPEND))

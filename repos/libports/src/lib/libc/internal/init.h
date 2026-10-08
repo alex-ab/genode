@@ -137,7 +137,7 @@ namespace Libc {
 	 */
 	void init_execve(Genode::Env &, Genode::Allocator &, void *user_stack,
 	                 Reset_atexit &, Reset_malloc_heap &, Binary_name &,
-	                 Fds &);
+	                 Fds &, Fs &);
 
 	/**
 	 * Signal handling
