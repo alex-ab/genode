@@ -645,6 +645,12 @@ class Vfs_tresor_crypto::Keys_file_system : public Vfs::File_system, public Vfs:
 
 			return false;
 		}
+
+		Follow_result follow(char const *path, Byte_range_ptr const &) override
+		{
+			return dir_entry_exists(path) ? Follow_error::NO_SYMLINK
+			                              : Follow_error::DENIED;
+		}
 };
 
 

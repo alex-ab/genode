@@ -132,6 +132,11 @@ struct Vfs_import::File_system : Vfs::File_system
 
 		_done = true;
 	}
+
+	Follow_result follow(char const *, Byte_range_ptr const &) override
+	{
+		return Follow_error::DENIED;
+	}
 };
 
 

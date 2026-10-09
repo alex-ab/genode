@@ -158,6 +158,12 @@ class Genode::Vfs::Single_file_system : public File_system
 			return Stat_result::OK;
 		}
 
+		Follow_result follow(char const *path, Byte_range_ptr const &) override
+		{
+			return _single_file(path) ? Follow_error::NO_SYMLINK
+			                          : Follow_error::DENIED;
+		}
+
 		unsigned num_dirent(char const *path) override
 		{
 			if (_root(path))

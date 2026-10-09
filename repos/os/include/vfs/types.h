@@ -159,6 +159,13 @@ namespace Genode::Vfs {
 		return { path.start, n };
 	}
 
+	static inline Span without_leading_slash(Span const &path)
+	{
+		size_t i = 0;
+		for (; i < path.num_bytes && path.start[i] == '/'; i++);
+		return { path.start + i, path.num_bytes - i };
+	}
+
 	static inline Span without_last_path_elem(Span const &path)
 	{
 		size_t n = path.num_bytes;

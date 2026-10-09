@@ -63,6 +63,12 @@ class Vfs_symlink::File_system : public Single_file_system
 			}
 		};
 
+		bool _matches(Span const &path) const
+		{
+			return name.string.with_span([&] (Span const &name) {
+				return without_leading_slash(path).starts_with(name); });
+		}
+
 	public:
 
 		File_system(Vfs::Env &, Parent_fs &parent_fs, Node const &config)
@@ -89,7 +95,7 @@ class Vfs_symlink::File_system : public Single_file_system
 
 		Follow_result follow(char const *path, Byte_range_ptr const &dst) override
 		{
-			if (!_single_file(path))
+			if (!_matches(Span::from_cstring(path)))
 				return Follow_error::DENIED;
 
 			_target.with_span([&] (Span const &src) {

@@ -148,6 +148,14 @@ struct Vfs_device::File_system : Union_file_system, private Vfs::File_system::Fa
 			}
 			return Stat_result::DENIED;
 		}
+
+		Follow_result follow(char const *path, Byte_range_ptr const &dst) override
+		{
+			if (_matches(path))
+				return Follow_error::NO_SYMLINK;
+
+			return _fs._dot_dir_fs.follow(_fs._data_file_path().string(), dst);
+		}
 	};
 
 	Device_file_system _device_fs { *this };

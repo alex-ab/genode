@@ -465,6 +465,12 @@ class Vfs_pipe::File_system : public Vfs::File_system
 
 			return result;
 		}
+
+		Follow_result follow(char const *path, Byte_range_ptr const &) override
+		{
+			return dir_entry_exists(path) ? Follow_error::NO_SYMLINK
+			                              : Follow_error::DENIED;
+		}
 };
 
 
@@ -569,6 +575,14 @@ class Vfs_pipe::Pipe_file_system : public Vfs_pipe::File_system
 				return true;
 
 			return File_system::dir_entry_exists(cpath);
+		}
+
+		Follow_result follow(char const *cpath, Byte_range_ptr const &) override
+		{
+			if (Path { cpath } == "/new") return Follow_error::NO_SYMLINK;
+
+			return _valid_path(cpath) ? Follow_error::NO_SYMLINK
+			                          : Follow_error::DENIED;
 		}
 };
 

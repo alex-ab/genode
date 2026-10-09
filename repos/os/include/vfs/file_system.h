@@ -186,10 +186,7 @@ struct Genode::Vfs::File_system : Interface, Noncopyable
 	 * If a symlink was deferenced, the 'dst' buffer contains the symlink's
 	 * target, including a null termination.
 	 */
-	virtual Follow_result follow(char const *path, Byte_range_ptr const &dst)
-	{
-		(void)path; (void)dst;return Follow_error::DENIED;
-	}
+	virtual Follow_result follow(char const *path, Byte_range_ptr const &dst) = 0;
 
 	virtual Unlink_result unlink(char const *path)
 	{

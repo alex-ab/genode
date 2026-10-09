@@ -1827,6 +1827,12 @@ class Vfs_ip::Ip_file_system : public  Vfs::File_system,
 				return _udp_dir.unlink(&path[3]);
 			return Unlink_result::DENIED;
 		}
+
+		Follow_result follow(char const *path, Byte_range_ptr const &) override
+		{
+			return _lookup(path) ? Follow_error::NO_SYMLINK
+			                     : Follow_error::DENIED;
+		}
 };
 
 

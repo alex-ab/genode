@@ -438,12 +438,16 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 		Follow_result follow(char const *path, Byte_range_ptr const &dst) override
 		{
 			if (_top_dir(path))
-				return Path_elem { 0 };
+				return Follow_error::NO_SYMLINK;
 
 			Follow_result result = Follow_error::DENIED;
 			_for_each_fs([&] (Fs &fs) {
-				if (result == Follow_error::DENIED || result == Follow_error::NO_SYMLINK)
-					result = fs.follow(path, dst); });
+				if (result == Follow_error::DENIED || result == Follow_error::NO_SYMLINK) {
+					Follow_result r = fs.follow(path, dst);
+					if (r.ok() || result == Follow_error::DENIED)
+						result = r;
+				}
+			});
 			return result;
 		}
 

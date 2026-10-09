@@ -315,9 +315,9 @@ class Genode::Vfs::Dir_file_system : public File_system, public Parent_fs
 		Follow_result follow(char const *path, Byte_range_ptr const &dst) override
 		{
 			if (_slash(path))
-				return Path_elem { 0 };
+				return Follow_error::NO_SYMLINK;
 
-			return _with_sub_path(path,
+			return _with_sub_dir_path(path,
 				[&] (auto const &path) {
 					return _union.follow(path, dst).template convert<Follow_result>(
 						[&] (Path_elem elem) { return Path_elem { elem.index + 1 }; },
