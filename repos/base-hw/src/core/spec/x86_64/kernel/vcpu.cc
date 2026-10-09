@@ -43,7 +43,20 @@ Vcpu::Vcpu(Cpu                    &cpu,
 	_vcpu_context(id.id, state, cpu) { }
 
 
-Vcpu::~Vcpu() { }
+Vcpu::~Vcpu()
+{
+	if (&_cpu().current_context() != this)
+		return;
+
+	bool const xsave_avail = _vcpu_context.regs->fpu_context().xstate_support
+	                         != Cpu::Xstate_support::LEGACY;
+
+	if (xsave_avail) Cpu::Xcr0::write(_cpu().xcr0);
+
+	_vcpu_context.regs->fpu_context().save();
+
+	Cpu::Ia32_tsc_aux::write((Cpu::Ia32_tsc_aux::access_t)_cpu().id().value);
+}
 
 
 void Vcpu::run()
