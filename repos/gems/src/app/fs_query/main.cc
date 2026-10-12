@@ -146,6 +146,7 @@ struct Fs_query::Watched_directory
 		_alloc(alloc), _rel_path(rel_path), _dir(other, rel_path), _action(action),
 		_watch_handler(other, rel_path, *this, &Watched_directory::_io_handle_watch)
 	{
+		(void)_watch_handler.watch();
 		_dir.for_each_entry([&] (Directory::Entry const &entry) {
 
 			bool const file = (entry.type() == Vfs::Dirent_type::FILE)
