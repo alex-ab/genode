@@ -42,9 +42,22 @@
  * The elements are ordered according to the order of sub nodes.
  *
  * The list model is a container owning the elements. Before destructing a
- * list model, its elements must be removed by calling 'update' with an emtpy
+ * list model, its elements must be removed by calling 'update' with an empty
  * 'Node()' as argument, which results in the call of 'destroy_fn' for each
  * element.
+ *
+ * In cases where the construction of an item may fail, the model update can
+ * be canceled by letting the 'create_fn' functor return 'Error::CANCELED' of
+ * type 'List_model<ELEM>::Create_result', e.g.,
+ *
+ * !   [&] (Node const &node) -> List_model<Item>::Create_result {
+ * !     ...
+ * !     return List_model<Item>::Error::CANCELED;
+ * !   }
+ *
+ * Note that a cancelled model update leaves the model in a state that is not
+ * consistent with the node argument. Consistency is re-established once
+ * another call of 'update_from_node' completes without cancellation.
  */
 
 /*
@@ -74,6 +87,9 @@ class Genode::List_model : Noncopyable
 		List<ELEM> _elements { };
 
 	public:
+
+		enum class Error { CANCELED };
+		using Create_result = Unique_attempt<ELEM &, Error>;
 
 		struct Update_policy;
 
@@ -172,7 +188,49 @@ void Genode::List_model<ELEM>::update_from_node(auto const &node,
 
 	ELEM *last_updated = nullptr; /* used for appending to 'updated_list' */
 
+	struct Guard
+	{
+		List<ELEM> &_elements;
+		List<ELEM> &_updated_list;
+		decltype(destroy_fn) const &_destroy_fn;
+		bool complete_without_exception = false;
+
+		~Guard()
+		{
+			if (!complete_without_exception) {
+				/*
+				 * Cancel the update when an 'Error::CANCELED' or an exception
+				 * has occurred during 'create_fn'. Retain the unvisited
+				 * elements but leave the remaining model out of date.
+				 */
+				while (ELEM *e = _elements.first()) {
+					_elements.remove(e);
+					_updated_list.insert(e);
+				}
+			}
+
+			/* remove stale elements */
+			ELEM *next = nullptr;
+			for (ELEM *e = _elements.first(); e; e = next) {
+				next = e->_next();
+				_destroy_fn(*e);
+			}
+
+			/* use 'updated_list' list as new data model */
+			_elements = _updated_list;
+		}
+	} guard {
+		._elements     = _elements,
+		._updated_list = updated_list,
+		._destroy_fn   = destroy_fn
+	};
+
+	bool canceled = false;
+
 	node.for_each_sub_node([&] (auto const &sub_node) {
+
+		if (canceled)
+			return;
 
 		/* skip nodes that are unrelated to the data model */
 		if (!ELEM::type_matches(sub_node))
@@ -194,10 +252,16 @@ void Genode::List_model<ELEM>::update_from_node(auto const &node,
 			curr = curr->_next();
 
 		/* consume existing element or create new one */
-		if (curr)
+		if (curr) {
 			_elements.remove(curr);
-		else
-			curr = &create_fn(sub_node);
+		} else {
+			Create_result result = create_fn(sub_node);
+			result.with_result([&] (ELEM &e) { curr = &e; },
+			                   [&] (Error)   { canceled = true; });
+		}
+
+		if (canceled)
+			return;
 
 		/* append current element to 'updated_list' */
 		updated_list.insert(curr, last_updated);
@@ -206,15 +270,8 @@ void Genode::List_model<ELEM>::update_from_node(auto const &node,
 		update_fn(*curr, sub_node);
 	});
 
-	/* remove stale elements */
-	ELEM *next = nullptr;
-	for (ELEM *e = _elements.first(); e; e = next) {
-		next = e->_next();
-		destroy_fn(*e);
-	}
-
-	/* use 'updated_list' list new data model */
-	_elements = updated_list;
+	if (!canceled)
+		guard.complete_without_exception = true;
 }
 
 #endif /* _INCLUDE__UTIL__LIST_MODEL_H_ */

@@ -1,0 +1,12 @@
+runtime | ram: 32M | caps: 1000 | binary: test-list_model
+
++ fail | after_seconds: 10
++ succeed
+  : --- finished list-model test ---
+
++ content
+  + rom | label: ld.lib.so
+  + rom | label: test-list_model
+
++ config
+-

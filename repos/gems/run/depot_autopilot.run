@@ -690,6 +690,7 @@ set default_test_pkgs {
 	test-libc_vfs_fs
 	test-libc_vfs_fs_chained
 	test-libc_vfs_ram
+	test-list_model
 	test-log
 	test-mmio
 	test-new_delete
