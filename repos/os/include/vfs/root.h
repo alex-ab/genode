@@ -79,9 +79,10 @@ class Genode::Vfs::Root : public Env, private Env::Io, private Env::User
 
 			void notify_watchers(Span const &path) override
 			{
+				Span const path_without_trailing_slash = without_trailing_slash(path);
 				_root._watch_handles.for_each([&] (Watch_handle const &handle) {
 					handle.path.with_span([&] (Span const &s) {
-						if (s.equals(path))
+						if (without_trailing_slash(s).equals(path_without_trailing_slash))
 							handle.handler.io_handle_watch(); }); });
 			}
 
