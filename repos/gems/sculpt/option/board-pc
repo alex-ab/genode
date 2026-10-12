@@ -140,7 +140,7 @@ option
     + rom system | + child model    | label: system
     + report     | + child report
 
-+ child nvme | binary: nvme | ram: 8M | caps: 100 | priority: media | enabled: discover
++ child nvme | binary: nvme | ram: 8M | caps: 120 | priority: media | enabled: discover
   + managed | max_ram: 32M | max_caps: 500
   + provides
     + block
@@ -158,6 +158,7 @@ option
   . Enabled/disabled by the sculpt manager according to the presence of
   . USB-HID devices.
   .
+  + managed | max_ram: 16M | max_caps: 500
   + config | capslock_led: rom | numlock_led: rom
   + connect
     + usb          | + child usb
