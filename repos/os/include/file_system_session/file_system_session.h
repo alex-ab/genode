@@ -373,6 +373,7 @@ struct File_system::Session : public Genode::Session
 	 *
 	 * \throw Lookup_failed    path lookup failed because one element
 	 *                         of 'path' does not exist
+	 * \throw Name_too_long    'path' is too long
 	 * \throw Out_of_ram       server cannot allocate metadata
 	 * \throw Out_of_caps
 	 */
@@ -384,7 +385,8 @@ struct File_system::Session : public Genode::Session
 	 * When changes are made to the node at this path a CONTENT_CHANGED
 	 * packet will be sent from the server to the client.
 	 *
-	 * \throw Out_of_ram         server cannot allocate metadata
+	 * \throw Name_too_long    'path' is too long
+	 * \throw Out_of_ram       server cannot allocate metadata
 	 * \throw Out_of_caps
 	 *
 	 * The returned node handle is used to identify notification packets.
@@ -480,10 +482,11 @@ struct File_system::Session : public Genode::Session
 	                                  Out_of_ram, Out_of_caps, Permission_denied),
 	                 Path const &, bool);
 	GENODE_RPC_THROW(Rpc_node, Node_handle, node,
-	                 GENODE_TYPE_LIST(Lookup_failed, Out_of_ram, Out_of_caps),
+	                 GENODE_TYPE_LIST(Lookup_failed, Name_too_long, Out_of_ram,
+	                                  Out_of_caps),
 	                 Path const &);
 	GENODE_RPC_THROW(Rpc_watch, Watch_handle, watch,
-	                 GENODE_TYPE_LIST(Out_of_ram, Out_of_caps),
+	                 GENODE_TYPE_LIST(Name_too_long, Out_of_ram, Out_of_caps),
 	                 Path const &);
 	GENODE_RPC_THROW(Rpc_close, void, close,
 	                 GENODE_TYPE_LIST(Invalid_handle),
