@@ -588,10 +588,14 @@ class Vfs_server::Session_component : private Session_resources,
 			_assert_valid_path(path_str);
 
 			/* re-root the path */
-			Path const sub_path(path_str + 1, _root_path.base());
-			path_str = sub_path.base();
-			if (sub_path != "/" && !_vfs_env.fs().dir_entry_exists(path_str))
-				throw Lookup_failed();
+			try {
+				Path const sub_path(path_str + 1, _root_path.base());
+				path_str = sub_path.base();
+				if (sub_path != "/" && !_vfs_env.fs().dir_entry_exists(path_str))
+					throw Lookup_failed();
+			} catch (Path::Path_too_long) {
+				throw Name_too_long();
+			}
 
 			Node_base &node = *new (_alloc) Node_base(_node_space, path_str);
 
@@ -606,8 +610,12 @@ class Vfs_server::Session_component : private Session_resources,
 				return Watch_handle { ~0ul };
 
 			/* re-root the path */
-			Path const sub_path(path_str + 1, _root_path.base());
-			path_str = sub_path.base();
+			try {
+				Path const sub_path(path_str + 1, _root_path.base());
+				path_str = sub_path.base();
+			} catch (Path::Path_too_long) {
+				throw Name_too_long();
+			}
 
 			Watch_node &node = *new (_alloc)
 				Watch_node(_node_space, _vfs_env, path_str, *this);
