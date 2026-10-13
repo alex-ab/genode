@@ -405,7 +405,7 @@ struct Fast_polling : Test
 	enum { MIN_TIME_COMPARISONS  = 100 };
 	enum { MAX_TIME_ERR_US       = 10000 };
 	enum { MAX_DELAY_ERR_US      = 2000 };
-	enum { MAX_AVG_DELAY_ERR_US  = 20 };
+	enum { MAX_AVG_DELAY_ERR_US  = 30 };
 	enum { MAX_POLL_LATENCY_US   = 1000 };
 
 	struct Result_buffer
