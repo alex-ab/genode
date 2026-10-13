@@ -103,7 +103,8 @@ class Genode::Local_clock
 		Constructible<Data_point> _last_sync { };
 		Remote_clock              _interpolated_clock { 0 };
 		Stats                     _stats { };
-		unsigned                  _errors_logged { 0 };
+		unsigned                  _errors_logged  { 0 };
+		bool                      _warning_logged { false };
 
 		uint64_t                  _num_predicted    { 0 };
 		uint64_t                  _num_interpolated { 0 };
@@ -154,12 +155,13 @@ class Genode::Local_clock
 
 			/*
 			 * We assume that we are able to interpolate at least 20% of all
-			 * calls. Otherwise, let's print a message.
+			 * calls. Otherwise, let's print a message once.
 			 */
-			if (_stats.count > 20 && _num_interpolated * 100 / _num_predicted < 20) {
+			if (!_warning_logged &&
+			    _stats.count > 50 && _num_interpolated * 100 / _num_predicted < 20) {
 				warning("Local_clock: interpolation is ineffective. " \
-				        "This might be caused by TSC instability.");
-				_errors_logged++;
+				        "This might be caused by TSC instability or long timeout intervals.");
+				_warning_logged = true;
 			}
 
 			/* take new data point */
