@@ -31,7 +31,26 @@ struct Depot_deploy::Option : List_model<Option>::Element
 
 	using Name = Option_name;
 
-	Name const name;
+	struct Attr
+	{
+		Name name;
+		bool required;
+
+		static Attr from_node(Node const &node)
+		{
+			return { .name     = node.attribute_value("name",     Name()),
+			         .required = node.attribute_value("required", false) };
+		}
+
+		bool operator == (Attr const &other) const
+		{
+			return other.name == name && other.required == required;
+		}
+	};
+
+	Attr const attr;
+
+	bool _applied = false;
 
 	struct Action : Interface
 	{
@@ -48,9 +67,12 @@ struct Depot_deploy::Option : List_model<Option>::Element
 
 		Signal_handler<Watched_rom> _handler;
 
+		bool defined = false;
+
 		void _handle()
 		{
 			_ds.update();
+			defined = _ds.node().type() == "option";
 			_action.deploy_option_changed(_name, _ds.node());
 		}
 
@@ -67,17 +89,17 @@ struct Depot_deploy::Option : List_model<Option>::Element
 
 	Constructible<Watched_rom> _watched_rom { };
 
-	static Name node_name(Node const &node)
-	{
-		return node.attribute_value("name", Name());
-	}
-
-	Option(Name const &name) : name(name) { };
+	Option(Attr const &attr) : attr(attr) { };
 
 	void watch(Env &env, Action &action)
 	{
 		if (!_watched_rom.constructed())
-			_watched_rom.construct(env, name, action);
+			_watched_rom.construct(env, attr.name, action);
+	}
+
+	bool defined() const
+	{
+		return _watched_rom.constructed() && _watched_rom->defined;
 	}
 
 	/*
@@ -87,6 +109,12 @@ struct Depot_deploy::Option : List_model<Option>::Element
 	               Allocator &alloc, Node const &option)
 	{
 		Progress result = STALLED;
+
+		/* detect initial application of an option without any content as progress */
+		bool const orig_applied = _applied;
+		_applied = type_matches(option);
+		if (orig_applied != _applied)
+			result = PROGRESSED;
 
 		if (Child::update_from_node(children, child_dict, alloc, option).progressed)
 			result = PROGRESSED;
@@ -100,7 +128,7 @@ struct Depot_deploy::Option : List_model<Option>::Element
 	/**
 	 * List_model::Element
 	 */
-	bool matches(Node const &node) const { return node_name(node) == name; }
+	bool matches(Node const &node) const { return attr == Attr::from_node(node); }
 
 	/**
 	 * List_model::Element

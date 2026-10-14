@@ -89,8 +89,9 @@ struct Depot_deploy::Main : Option::Action
 	void _update_runtime_and_query()
 	{
 		/* generate init config containing all configured start nodes */
-		_runtime_reporter.generate([&] (Generator &g) {
-			_gen_runtime(g, _config.node()); });
+		if (_children.all_required_options_defined())
+			_runtime_reporter.generate([&] (Generator &g) {
+				_gen_runtime(g, _config.node()); });
 
 		/* update query for blueprints of all unconfigured start nodes */
 		if (_attr.arch.valid()) {
@@ -107,7 +108,13 @@ struct Depot_deploy::Main : Option::Action
 	{
 		_deploy.update();
 
-		if (_children.apply_deploy(_deploy.node()).progressed) {
+		Node const node = _deploy.node();
+
+		/* prevent import of (intermediate) invalid states */
+		if (node.type() != "deploy")
+			return;
+
+		if (_children.apply_deploy(node).progressed) {
 
 			/* a new option may have appeared in the deploy config */
 			_children.watch_options(_env, *this);

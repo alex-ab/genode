@@ -99,7 +99,7 @@ class Depot_deploy::Children
 				/* create */
 				[&] (Node const &node) -> Option & {
 					result = PROGRESSED;
-					return *new (_alloc) Option(Option::node_name(node)); },
+					return *new (_alloc) Option(Option::Attr::from_node(node)); },
 
 				/* destroy */
 				[&] (Option &option) {
@@ -149,11 +149,20 @@ class Depot_deploy::Children
 		{
 			Progress result = STALLED;
 			_options.for_each([&] (Option &option) {
-				if (option.name == name)
+				if (option.attr.name == name)
 					result = option.apply(_child_dict, _alias_dict, _alloc, config); });
 
 			if (result.progressed) _update_deps();
 
+			return result;
+		}
+
+		bool all_required_options_defined() const
+		{
+			bool result = true;
+			_options.for_each([&] (Option const &option) {
+				if (option.attr.required && !option.defined())
+					result = false; });
 			return result;
 		}
 
@@ -186,7 +195,7 @@ class Depot_deploy::Children
 			_options.for_each([&] (Option const &option) {
 				option.children.for_each([&] (Child const &child) {
 					if (!child.duplicate && cond_fn(child.name))
-						child.gen_start_node(g, option.name, global); }); });
+						child.gen_start_node(g, option.attr.name, global); }); });
 
 			_for_each_alias([&] (Alias const &alias) {
 				g.node("alias", [&] {
