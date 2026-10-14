@@ -508,7 +508,7 @@ struct Sculpt::Main : Input_event_handler,
 	void _with_usb_devices(auto const &fn) const
 	{
 		_usb_devices.with_node([&] (Node const &node) {
-			fn({ .present = _runtime_state.present_in_runtime("usb"), .report = node }); });
+			fn({ .present = _runtime_state.present_in_runtime("usb_host"), .report = node }); });
 	}
 
 	Storage _storage { _env, _heap, *this };
