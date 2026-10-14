@@ -89,7 +89,7 @@ struct Sculpt::Storage_device
 	}
 
 	/**
-	 * Trigger the rediscovery of the device, e.g., after partitioning of after
+	 * Trigger the rediscovery of the device, e.g., after partitioning or after
 	 * formatting the whole device.
 	 */
 	void rediscover()
