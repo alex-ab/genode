@@ -124,6 +124,11 @@ class Depot_deploy::Child : public Duplicate_checked,
 
 		Depot_rom_server _custom_depot_rom { };
 
+		Depot_rom_server _depot_rom(Depot_rom_server const &default_depot_rom) const
+		{
+			return _custom_depot_rom.length() > 1 ? _custom_depot_rom : default_depot_rom;
+		}
+
 		bool _enabled = true;
 
 		/*
@@ -202,11 +207,20 @@ class Depot_deploy::Child : public Duplicate_checked,
 		inline void _gen_start_node(Generator &, Node const &,
 		                            Option_name const &, Global const &) const;
 
-		void _for_each_dep_status(Child_dict const &child_dict,
-		                          Alias_dict const &alias_dict, auto const &fn) const
+		void _for_each_dep_status(Child_dict       const &child_dict,
+		                          Alias_dict       const &alias_dict,
+		                          Depot_rom_server const &default_depot_rom,
+		                          auto const &fn) const
 		{
 			auto for_each_dep = [&] (auto const &fn)
 			{
+				/* a child deployed from a pkg depends on the depot-rom server */
+				if (_pkg != Pkg::NONE && default_depot_rom.length() > 1) {
+					Name const depot_rom = _depot_rom(default_depot_rom);
+					String<200> conn { "rom | + child ", depot_rom, "\n-" };
+					conn.with_span([&] (Span const &s) {
+						fn(depot_rom, Node(s)); });
+				}
 				_with_node(_child_node, [&] (Node const &child) {
 					child.with_optional_sub_node("connect", [&] (Node const &connect) {
 						connect.for_each_sub_node([&] (Node const &connection) {
@@ -405,14 +419,15 @@ class Depot_deploy::Child : public Duplicate_checked,
 
 		void reset_deps() { _deps = Deps::UNKNOWN; }
 
-		Progress update_deps(Child_dict const &child_dict, Alias_dict const &alias_dict)
+		Progress update_deps(Child_dict const &child_dict, Alias_dict const &alias_dict,
+		                     Depot_rom_server const &default_depot_rom)
 		{
 			if (_deps_satisfied())
 				return STALLED;
 
 			Deps const orig_deps = _deps;
 			_deps = Deps::READY;
-			_for_each_dep_status(child_dict, alias_dict,
+			_for_each_dep_status(child_dict, alias_dict, default_depot_rom,
 				[&] (Deps const &deps, Name const &, Node const &) {
 					/* missing is stronger than stalled */
 					if (_deps == Deps::MISSING) return;
@@ -557,7 +572,7 @@ void Depot_deploy::Child::_gen_start_node(Generator         &g,
 
 				if (_deps == Deps::MISSING || _deps == Deps::STALLED)
 					g.tabular_node("deps", [&] {
-						_for_each_dep_status(global.child_dict, global.alias_dict,
+						_for_each_dep_status(global.child_dict, global.alias_dict, global.default_depot_rom,
 							[&] (Deps const &deps, Name const &, Node const &conn) {
 								if (deps == Deps::MISSING) gen_missing_dep("missing_server", conn);
 								if (deps == Deps::STALLED) gen_missing_dep("stalled_server", conn);
@@ -639,9 +654,7 @@ void Depot_deploy::Child::_gen_start_node(Generator         &g,
 				g.node("service", [&] { g.attribute("name", "VM");  g.node("local"); });
 			}
 
-			_gen_routes(g, global, child,
-			            _custom_depot_rom.length() > 1 ? _custom_depot_rom
-			                                           : global.default_depot_rom);
+			_gen_routes(g, global, child, _depot_rom(global.default_depot_rom));
 		});
 	});
 }

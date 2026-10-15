@@ -116,6 +116,8 @@ struct Depot_deploy::Main : Option::Action
 
 		if (_children.apply_deploy(node).progressed) {
 
+			_children.update_deps(_attr.depot_rom);
+
 			/* a new option may have appeared in the deploy config */
 			_children.watch_options(_env, *this);
 
@@ -139,8 +141,10 @@ struct Depot_deploy::Main : Option::Action
 	{
 		_blueprint.update();
 
-		if (_children.apply_blueprint(_blueprint.node()).progressed)
+		if (_children.apply_blueprint(_blueprint.node()).progressed) {
+			_children.update_deps(_attr.depot_rom);
 			_update_runtime_and_query();
+		}
 	}
 
 	void _handle_config()
@@ -168,8 +172,10 @@ struct Depot_deploy::Main : Option::Action
 	 */
 	void deploy_option_changed(Option::Name const &name, Node const &config) override
 	{
-		if (_children.apply_option(name, config).progressed)
+		if (_children.apply_option(name, config).progressed) {
+			_children.update_deps(_attr.depot_rom);
 			_handle_config();
+		}
 	}
 
 	void _gen_runtime(Generator &g, Node const &config) const

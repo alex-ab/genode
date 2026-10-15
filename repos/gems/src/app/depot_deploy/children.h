@@ -66,23 +66,23 @@ class Depot_deploy::Children
 
 		Resource::Types const _resource_types { };
 
-		void _update_deps()
+	public:
+
+		Children(Allocator &alloc) : _alloc(alloc) { }
+
+		void update_deps(Depot_rom_server const &default_depot_rom)
 		{
 			_for_each_child([&] (Child &child) { child.reset_deps(); });
 
 			for (;;) { /* iterate until all inter-dependencies are settled */
 				Progress progress = STALLED;
 				_for_each_child([&] (Child &child) {
-					if (child.update_deps(_child_dict, _alias_dict).progressed)
+					if (child.update_deps(_child_dict, _alias_dict, default_depot_rom).progressed)
 						progress = PROGRESSED; });
 				if (progress.stalled())
 					break;
 			}
 		}
-
-	public:
-
-		Children(Allocator &alloc) : _alloc(alloc) { }
 
 		Progress apply_deploy(Node const &deploy)
 		{
@@ -110,9 +110,6 @@ class Depot_deploy::Children
 				/* update */
 				[&] (Option &, Node const &) { }
 			);
-
-			if (result.progressed) _update_deps();
-
 			return result;
 		}
 
@@ -124,8 +121,6 @@ class Depot_deploy::Children
 				_for_each_child([&] (Child &child) {
 					if (child.apply_blueprint(_alloc, pkg).progressed)
 						result = PROGRESSED; }); });
-
-			if (result.progressed) _update_deps();
 
 			return result;
 		}
@@ -151,8 +146,6 @@ class Depot_deploy::Children
 			_options.for_each([&] (Option &option) {
 				if (option.attr.name == name)
 					result = option.apply(_child_dict, _alias_dict, _alloc, config); });
-
-			if (result.progressed) _update_deps();
 
 			return result;
 		}
