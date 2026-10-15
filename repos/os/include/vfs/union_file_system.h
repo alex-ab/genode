@@ -292,10 +292,21 @@ class Genode::Vfs::Union_file_system : public File_system, public Parent_fs
 						[&] (File_channel &c) { channel_ptr = &c; },
 						[&] (Open_error e)    { error = e; });
 			});
-			if (channel_ptr)
-				return *channel_ptr;
+			if (!channel_ptr)
+				return error;
 
-			return error;
+			/*
+			 * Reflect the attempt to open a read-only channel for writing.
+			 * This can happen when a file is present on a RAM and ROM fs
+			 * mounted as siblings. Depending on the mount order, the file may
+			 * be read-only or writeable. Deny the request for a writable
+			 * channel if the read-only fs took precedence.
+			 */
+			if (attr.writeable && !channel_ptr->writeable) {
+				channel_ptr->destruct();
+				return Open_error::DENIED;
+			}
+			return *channel_ptr;
 		}
 
 		using Open_composite_dirs_result = Attempt<Ok, Opendir_error>;
