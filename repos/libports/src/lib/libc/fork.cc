@@ -235,8 +235,7 @@ void Libc::Child_config::_generate(Generator &g, Node const &config, Fs &fs, Fds
 	/* copy non-libc config as is */
 	config.for_each_sub_node([&] (Node const &node) {
 		if (node.type() != "libc")
-			if (!g.append_node(node, Generator::Max_depth { 20 }))
-				warning("fork: config too deeply nested"); });
+			g.append_node(node); });
 }
 
 

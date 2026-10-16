@@ -94,7 +94,7 @@ class Genode::Hid_edit : Noncopyable
 			/* whenever query does not apply, copy content as is */
 			if (!match) {
 				g.node_attributes(from);
-				(void)g.append_node_content(from, Generator::Max_depth { 20 });
+				g.append_node_content(from);
 				return;
 			}
 
@@ -212,7 +212,7 @@ class Genode::Hid_edit : Noncopyable
 					g.attribute(tag.string(), fn(orig));
 				}
 
-				(void)g.append_node_content(from, Generator::Max_depth { 20 });
+				g.append_node_content(from);
 			});
 		}
 
@@ -264,7 +264,7 @@ class Genode::Hid_edit : Noncopyable
 						if (selected(node))
 							fn(node, g);
 						else
-							(void)g.append_node(node, Generator::Max_depth { 20 }); });
+							g.append_node(node); });
 				});
 			});
 		}
@@ -288,7 +288,7 @@ class Genode::Hid_edit : Noncopyable
 			_filter(query, [&] (Node const &, Node const &from, Generator &g) {
 				g.node_attributes(from);
 				from.for_each_sub_node([&] (Node const &node) {
-					(void)g.append_node(node, Generator::Max_depth { 20 }); });
+					g.append_node(node); });
 				fn(g);
 			});
 		}

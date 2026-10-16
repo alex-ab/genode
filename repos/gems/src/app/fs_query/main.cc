@@ -78,8 +78,7 @@ struct Fs_query::Watched_file
 		content.node([&] (Node const &node) {
 			if (!node.has_type("empty")) {
 				g.attribute("xml", "yes");
-				if (!g.append_node(node, Generator::Max_depth { 20 }))
-					warning("content of '", _name, "' is too deeply nested");
+				g.append_node(node);
 				content_is_sub_node = true;
 			}
 		});

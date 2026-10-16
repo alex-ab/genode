@@ -700,7 +700,7 @@ void Window_layouter::Main::_gen_rules_with_frontmost_screen(Target::Name const 
 			bool display_declared = false;
 			rules.for_each_sub_node("display", [&] (Node const &display) {
 				display_declared = true;
-				(void)g.append_node(display, { 5 }); });
+				g.append_node(display); });
 		});
 
 		_target_list.gen_screens(g, screen);

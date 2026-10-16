@@ -346,9 +346,7 @@ class Sandbox::Child : Child_policy, Routed_service::Wakeup
 					_child._start_node->with_optional_sub_node("config",
 						[&] (Node const &config) {
 							g.node_attributes(config);
-							Generator::Max_depth const max_depth { 20 };
-							if (!g.append_node_content(config, max_depth))
-								warning(_child.name(), ": config structure exceeds max depth");
+							g.append_node_content(config);
 						});
 					return Ok();
 				}).convert<Result>([&] (size_t)         { return Ok(); },

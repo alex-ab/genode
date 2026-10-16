@@ -263,7 +263,7 @@ class Window_layouter::Target_list
 					if (screen_name != name)
 						return;
 				}
-				(void)g.append_node(screen, Generator::Max_depth { 20 });
+				g.append_node(screen);
 			});
 
 			if (!screen_name.valid())
@@ -274,7 +274,7 @@ class Window_layouter::Target_list
 				if (screen_name == name)
 					return;
 
-				(void)g.append_node(screen, Generator::Max_depth { 20 });
+				g.append_node(screen);
 			});
 		}
 

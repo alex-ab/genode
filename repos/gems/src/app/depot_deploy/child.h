@@ -23,8 +23,6 @@
 
 namespace Depot_deploy {
 
-	static constexpr Generator::Max_depth MAX_NODE_DEPTH = { 20 };
-
 	struct Child;
 	struct Alias;
 
@@ -200,8 +198,7 @@ class Depot_deploy::Child : public Duplicate_checked,
 		{
 			from_node.with_optional_sub_node(sub_node_type.string(),
 				[&] (Node const &sub_node) {
-					if (!g.append_node(sub_node, MAX_NODE_DEPTH))
-						warning("sub node exceeds max depth: ", from_node); });
+					g.append_node(sub_node); });
 		}
 
 		inline void _gen_start_node(Generator &, Node const &,

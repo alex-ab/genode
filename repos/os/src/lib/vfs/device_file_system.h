@@ -211,7 +211,7 @@ struct Vfs_device::File_system : Union_file_system, private Vfs::File_system::Fa
 			if (_name.length() > 1) {
 				g.named_node("device", _name);
 				g.named_node("dir", Dir_file_system::Name(".", _name), [&] {
-					(void)g.append_node_content(node, { 10 }); });
+					g.append_node_content(node); });
 			}
 		});
 

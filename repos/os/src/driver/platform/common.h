@@ -154,7 +154,7 @@ void Driver::Common::handle_config(Node const &config)
 	if (_cfg_reporter.constructed())
 		_cfg_reporter->generate([&] (Generator &g) {
 			g.node_attributes(config);
-			(void)g.append_node_content(config, Generator::Max_depth { 20 }); });
+			g.append_node_content(config); });
 }
 
 

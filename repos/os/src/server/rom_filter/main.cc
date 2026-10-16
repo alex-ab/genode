@@ -213,8 +213,7 @@ void Rom_filter::Main::_generate_node(Node const &node, Generator &g) const
 				_generate_node(node, g); });
 		}
 		else if (node.has_type("inline")) {
-			if (!g.append_node_content(node, Generator::Max_depth { 20 }))
-				warning("node is too deeply nested: ", node);
+			g.append_node_content(node);
 		}
 		else if (node.has_type("input")) {
 

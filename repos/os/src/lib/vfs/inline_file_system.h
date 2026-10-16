@@ -68,8 +68,7 @@ class Vfs_inline::File_system : public Single_file_system
 					return Generator::generate(dst, content.type(),
 						[&] (Generator &g) {
 							g.node_attributes(content);
-							if (!g.append_node_content(content, { 20 }))
-								warning("inline fs too deeply nested: ", content);
+							g.append_node_content(content);
 						});
 				}, [&] () -> Num_bytes { /* checked above */ return 0ul; });
 			}

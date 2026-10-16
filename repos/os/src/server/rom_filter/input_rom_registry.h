@@ -334,12 +334,8 @@ class Rom_filter::Input_rom_registry
 			_with_input_by_name(input_name, [&] (Input const &input) {
 				input.with_node(
 					[&] (Node const &node) {
-						Generator::Max_depth const max_depth { 20 };
-						bool const ok = skip_toplevel
-						              ? g.append_node_content(node, max_depth)
-						              : g.append_node        (node, max_depth);
-						if (!ok)
-							warning("node too deeply nested: ", node);
+						if (skip_toplevel) g.append_node_content(node);
+						else               g.append_node        (node);
 					},
 					[&] { }
 				);

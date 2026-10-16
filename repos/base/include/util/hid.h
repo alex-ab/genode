@@ -735,31 +735,6 @@ class Genode::Generator : Noncopyable
 				          attr.value.start, attr.value.num_bytes); });
 		}
 
-		struct Max_depth { unsigned value; };
-
-		/**
-		 * Append content of node
-		 *
-		 * The content can either be quoted content or sub nodes but not a mix
-		 * of both.
-		 *
-		 * \return false if node structure exceeds 'max_depth'
-		 */
-		[[nodiscard]] bool append_node_content(auto const &node, Max_depth max_depth)
-		{
-			if (!max_depth.value)
-				return false;
-
-			if (_try_append_quoted(node))
-				return true;
-
-			bool ok = true;
-			node.for_each_sub_node([&] (auto const &sub_node) {
-				if (ok)
-					ok = append_node(sub_node, { max_depth.value - 1 }); });
-			return ok;
-		}
-
 		/**
 		 * Append content of HID node
 		 *
@@ -773,21 +748,6 @@ class Genode::Generator : Noncopyable
 
 			node.for_each_sub_node([&] (Node const &sub_node) {
 				append_node(sub_node); });
-		}
-
-		/**
-		 * Append a copy of node
-		 *
-		 * \return false if node structure exceeds 'max_depth'
-		 */
-		[[nodiscard]] bool append_node(auto const &node, Max_depth max_depth)
-		{
-			bool result = true;
-			this->node(node.type().string(), [&] {
-				node_attributes(node);
-				result = append_node_content(node, max_depth);
-			});
-			return result;
 		}
 
 		/**

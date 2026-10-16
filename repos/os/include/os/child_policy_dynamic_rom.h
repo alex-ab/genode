@@ -140,8 +140,7 @@ class Genode::Child_policy_dynamic_rom_file : public Rpc_object<Rom_session>,
 			_with_reallocated(node.num_bytes(), [&] (Byte_range_ptr const &dst) {
 				Generator::generate(dst, node.type(), [&] (Generator &g) {
 					g.node_attributes(node);
-					if (!g.append_node_content(node, Generator::Max_depth { 20 }))
-						warning("unable to load deeply nested config node");
+					g.append_node_content(node);
 				}).with_error([&] (Buffer_error) {
 					warning("unable to load config node");
 				});

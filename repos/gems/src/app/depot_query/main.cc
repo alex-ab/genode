@@ -180,11 +180,8 @@ void Depot_query::Main::_query_blueprint(Directory::Path const &pkg_path, Genera
 
 			with_env_node([&] (Node const &env_node) {
 				_gen_rom_path_nodes(g, env_node, pkg_path, node);
-
 				_gen_inherited_rom_path_nodes(g, env_node, pkg_path, Recursion_limit{8});
-
-				if (!g.append_node(node, Generator::Max_depth { 20 }))
-					warning("pkg runtime of '", pkg_path, "' too deeply nested");
+				g.append_node(node);
 			});
 		});
 	});

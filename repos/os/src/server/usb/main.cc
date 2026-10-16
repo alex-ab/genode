@@ -89,7 +89,7 @@ void Usb::Main::_handle_config()
 	if (_config_reporter.constructed())
 		_config_reporter->generate([&] (Generator &g) {
 			g.node_attributes(_config.node());
-			(void)g.append_node_content(_config.node(), { 20 });
+			g.append_node_content(_config.node());
 		});
 
 	/*

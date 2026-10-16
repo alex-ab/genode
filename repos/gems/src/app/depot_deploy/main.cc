@@ -192,14 +192,13 @@ struct Depot_deploy::Main : Option::Action
 
 		config.with_sub_node("static",
 			[&] (Node const &static_config) {
-				if (!g.append_node_content(static_config, MAX_NODE_DEPTH))
-					warning("config too deeply nested: ", static_config); },
+				g.append_node_content(static_config); },
 			[&] { warning("config lacks 'static' node"); });
 
 		auto copy_nodes = [&] (auto const &node_type)
 		{
 			config.for_each_sub_node(node_type, [&] (Node const &node) {
-				(void)g.append_node(node, Generator::Max_depth { 2 }); });
+				g.append_node(node); });
 		};
 
 		copy_nodes("report");

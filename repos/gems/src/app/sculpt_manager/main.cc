@@ -551,7 +551,7 @@ struct Sculpt::Main : Input_event_handler,
 			/* copy user-provided rules */
 			config.for_each_sub_node("policy", [&] (Node const &policy) {
 				if (!policy.attribute_value("generated", false))
-					(void)g.append_node(policy, Generator::Max_depth { 5 }); });
+					g.append_node(policy); });
 
 			/* wildcard for USB clients with no policy yet */
 			g.node("default-policy", [&] { });
@@ -2058,7 +2058,7 @@ struct Sculpt::Main : Input_event_handler,
 						g.node("default-policy", [&] { });
 					});
 				} else {
-					(void)g.append_node(sub_node, Generator::Max_depth { 5 });
+					(void)g.append_node(sub_node);
 				}
 			});
 		});

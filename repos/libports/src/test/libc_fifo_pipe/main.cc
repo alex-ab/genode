@@ -164,9 +164,8 @@ class Test_fifo_pipe::Test
 		{
 			_init_config.generate([&rom, iteration] (Generator &g) {
 				rom.node().for_each_sub_node([&] (Node const &node) {
-					Generator::Max_depth const max_depth { 20 };
 					if (node.type() != "start") {
-						(void)g.append_node(node, max_depth);
+						g.append_node(node);
 					} else {
 						auto const name { node.attribute_value("name", Genode::String<128> { }) };
 						auto const ram  { node.attribute_value("ram",  Genode::String<128> { }) };
@@ -174,7 +173,7 @@ class Test_fifo_pipe::Test
 							g.attribute("name", name);
 							g.attribute("ram",  ram);
 							g.attribute("version", iteration);
-							(void)g.append_node_content(node, max_depth);
+							g.append_node_content(node);
 						});
 					}
 				});

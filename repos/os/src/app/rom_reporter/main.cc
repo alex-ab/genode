@@ -57,8 +57,7 @@ struct Rom_reporter::Rom_module
 
 		_reporter->generate([&] (Generator &g) {
 			g.node_attributes(node);
-			if (!g.append_node_content(node, Generator::Max_depth { 20 }))
-				warning("ROM '", _label, "' is too deeply nested");
+			g.append_node_content(node);
 		});
 	}
 

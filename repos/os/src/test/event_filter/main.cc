@@ -366,7 +366,7 @@ struct Test::Main : Input_from_filter::Event_handler
 	{
 		reporter.generate([&] (Generator &g) {
 			node.for_each_sub_node([&] (Node const &content) {
-				(void)g.append_node(content, { 20 }); }); });
+				g.append_node(content); }); });
 	}
 
 	bool _check_shortcut_report(Node const &expected, Node const &report)

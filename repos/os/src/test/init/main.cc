@@ -220,7 +220,7 @@ struct Test::Main : Log_message_handler
 				g.attribute("version", version);
 
 			node.for_each_sub_node([&] (Node const &sub_node) {
-				(void)g.append_node(sub_node, { 20 }); }); });
+				g.append_node(sub_node); }); });
 	}
 
 	unsigned const _num_steps = (unsigned)_config.node().num_sub_nodes();

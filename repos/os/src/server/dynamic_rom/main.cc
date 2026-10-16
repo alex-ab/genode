@@ -187,8 +187,7 @@ class Dynamic_rom::Session_component : public Rpc_object<Genode::Rom_session>
 					auto const r = Generator::generate(dst, content.type(),
 						[&] (Generator &g) {
 							g.node_attributes(content);
-							if (!g.append_node_content(content, { 20 }))
-								warning("step is too deeply nested: ", step_node);
+							g.append_node_content(content);
 						});
 					if (r.failed())
 						warning("failed to generate data for step: ", step_node);
