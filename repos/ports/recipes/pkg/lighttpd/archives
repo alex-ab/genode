@@ -6,4 +6,5 @@ _/src/posix
 _/src/vfs
 _/src/vfs_jitterentropy
 _/src/vfs_lwip
+_/src/vfs_xoroshiro
 _/src/zlib
