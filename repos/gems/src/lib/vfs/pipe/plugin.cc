@@ -74,18 +74,17 @@ struct Vfs_pipe::File_channel : Vfs::File_channel, private File_channels::Elemen
 	bool write_ready() const override;
 	void notify_read_ready() override;
 
-	void destruct() override { destroy(_alloc, this); }
+	void destruct() override;
 };
 
 
 struct Vfs_pipe::Pipe
 {
-	Genode::Env    &env;
-	Vfs::Env::User &vfs_user;
-	Allocator      &alloc;
+	Vfs::Env &_env;
 
-	Pipe_space::Element  space_elem;
-	Pipe_buffer          buffer { };
+	Pipe_space::Element space_elem;
+
+	Pipe_buffer buffer { };
 
 	File_channels file_channels { };
 
@@ -94,23 +93,16 @@ struct Vfs_pipe::Pipe
 	unsigned num_writers = 0;
 	bool waiting_for_writers = true;
 
-	Io_signal_handler<Pipe> _read_notify_handler { env.ep(), *this, &Pipe::notify_read };
+	Io_signal_handler<Pipe> _read_notify_handler { _env.env().ep(), *this, &Pipe::notify_read };
 
 	bool new_channel_active = true;
 
-	Pipe(Genode::Env &env, Vfs::Env::User &vfs_user,
-	     Allocator &alloc, Pipe_space &space)
-	:
-		env(env), vfs_user(vfs_user), alloc(alloc), space_elem(*this, space)
-	{ }
+	Pipe(Vfs::Env &env, Pipe_space &space) : _env(env), space_elem(*this, space) { }
 
 	~Pipe() = default;
 
 	using Name = String<8>;
-	Name name() const
-	{
-		return Name(space_elem.id().value);
-	}
+	Name name() const { return Name(space_elem.id().value); }
 
 	void notify_read()
 	{
@@ -123,27 +115,16 @@ struct Vfs_pipe::Pipe
 		_read_notify_handler.local_submit();
 	}
 
-	void submit_write_signal()
+	void submit_write_signal() { _env.user().wakeup_vfs_user(); }
+
+	unsigned num_file_channels() const
 	{
-		vfs_user.wakeup_vfs_user();
+		unsigned n = 0;
+		file_channels.for_each([&] (File_channel const &) { n++; });
+		return n;
 	}
 
-	/**
-	 * Check if pipe is referenced, if not, destroy
-	 */
-	void cleanup()
-	{
-		bool alive = new_channel_active;
-		if (!alive)
-			file_channels.for_each([&alive] (File_channel &) { alive = true; });
-		if (!alive)
-			destroy(alloc, this);
-	}
-
-	/**
-	 * Remove "/new" channel reference
-	 */
-	void remove_new_channel() { new_channel_active = false; }
+	void destruct() { destroy(_env.alloc(), this); }
 
 	/**
 	 * Detach a channel
@@ -202,7 +183,7 @@ struct Vfs_pipe::Pipe
 		}
 
 		if (out > 0) {
-			vfs_user.wakeup_vfs_user();
+			_env.user().wakeup_vfs_user();
 			notify_read();
 		}
 
@@ -230,7 +211,7 @@ struct Vfs_pipe::Pipe
 
 		/* new pipe space may unblock the writer */
 		if (out > 0)
-			vfs_user.wakeup_vfs_user();
+			_env.user().wakeup_vfs_user();
 
 		return out;
 	}
@@ -250,7 +231,16 @@ Vfs_pipe::File_channel::~File_channel()
 		pipe.waiting_for_writers = false;
 	}
 	pipe.remove(*this);
-	pipe.cleanup();
+}
+
+
+void Vfs_pipe::File_channel::destruct()
+{
+	Pipe &p = pipe; /* don't access 'pipe' after destroy */
+	destroy(_alloc, this);
+
+	if (!p.new_channel_active && p.num_file_channels() == 0)
+		p.destruct();
 }
 
 
@@ -296,20 +286,18 @@ struct Vfs_pipe::New_file_channel : Vfs::File_channel
 	Allocator &_alloc;
 	Pipe      &pipe;
 
-	New_file_channel(Allocator  &alloc,
-	                 Vfs::Env   &env,
-	                 Attr        attr,
+	New_file_channel(Allocator &alloc, Vfs::Env &env, Attr attr,
 	                 Pipe_space &pipe_space)
 	:
-		Vfs::File_channel(attr),
-		_alloc(alloc),
-		pipe(*(new (env.alloc()) Pipe(env.env(), env.user(), alloc, pipe_space)))
+		Vfs::File_channel(attr), _alloc(alloc),
+		pipe(*(new (env.alloc()) Pipe(env, pipe_space)))
 	{ }
 
 	~New_file_channel()
 	{
-		pipe.remove_new_channel();
-		pipe.cleanup();
+		pipe.new_channel_active = false;
+		if (pipe.num_file_channels() == 0)
+			pipe.destruct();
 	}
 
 	Read_result read(At, Byte_range_ptr const &dst) override
@@ -333,7 +321,7 @@ class Vfs_pipe::File_system : public Vfs::File_system
 {
 	protected:
 
-		Vfs::Env  &_env;
+		Vfs::Env &_env;
 
 		Pipe_space _pipe_space { };
 
@@ -679,8 +667,7 @@ class Vfs_pipe::Fifo_file_system : public Vfs_pipe::File_system
 			config.for_each_sub_node("fifo", [&env, this] (Node const &fifo) {
 				Path const path { fifo.attribute_value("name", String<MAX_PATH_LEN>()) };
 
-				Pipe &pipe = *new (env.alloc())
-					Pipe(env.env(), env.user(), env.alloc(), _pipe_space);
+				Pipe &pipe = *new (env.alloc()) Pipe(env, _pipe_space);
 				new (env.alloc())
 					Fifo_item(_items, path, pipe.space_elem.id());
 			});
