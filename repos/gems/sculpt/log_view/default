@@ -15,8 +15,8 @@ config
   + config
   | + initial | width: 400 | height: 400
   | + palette
-  |   + color | index: 0 | value: #2f3953
-  |   + color | index: 8 | value: #2f3953
+  |   + color 0 | fg: #2f3953
+  |   + color 8 | fg: #2f3953
   | + vfs
   |   + rom VeraMono.ttf
   |   + dir font

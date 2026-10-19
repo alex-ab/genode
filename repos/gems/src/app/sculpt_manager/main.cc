@@ -2626,8 +2626,8 @@ void Sculpt::Main::_handle_gui_mode()
 
 				auto gen_color = [&] (unsigned index, Color color) {
 					g.node("color", [&] {
-						g.attribute("index", index);
-						g.attribute("value", String<16>(color)); });
+						g.attribute("name", index);
+						g.attribute("fg", String<16>(color)); });
 				};
 
 				Color const background = Color::rgb(0x1c, 0x22, 0x32);

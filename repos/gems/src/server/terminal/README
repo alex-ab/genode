@@ -21,8 +21,16 @@ colors and index 8-15 to bright (bold) colors.
 ! + config
 !   ...
 !   + palette
-!     + color | index: 0 | value: #000000 | . black is real black
-!     + color | index: 8 | value: #101010 | . bright black stands out a bit
+!     + color 0 | fg: #000000 | . black is real black
+!     + color 8 | fg: #101010 | . bright black stands out a bit
+
+By default, the background color is a slightly dimmed version of the 'fg' color.
+Alternatively, it can be explicitly specified as 'bg' attribute.
+
+In the presence of multiple palette nodes, each palette is applied in the
+order of configuration. This way, multiple palettes can be stacked where each
+layer of customization can be enabled/disabled by toggling a node's +/x
+anchor.
 
 
 Clipboard support
