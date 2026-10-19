@@ -1602,6 +1602,20 @@ append help_msg $short_usage_msg {
       Sets the attributes 'caps' and 'ram' of the 'start' node named
       'vfs' to the values 100 and 16M respectively.
 
+    hid [-i] incr <attr-def> <input-file>
+
+      A variant of the 'set' command that increments the attribute
+      value(s) instead of replacing them. Increments can be negative
+      and can have a fractional part separated by '.'. Non-number
+      portions of existing attribute values are preserved.
+
+      Example:
+
+      $ hid incr 'config | + start vfs | : ram: 8' <input-file>
+
+      If the original 'ram' attribute value was '16M', the command
+      would change it to '24M'.
+
     hid [-i] remove <node-path>
 
       Remove the node(s) specified by the <node-path>.
@@ -1724,6 +1738,7 @@ set command_info(min_args,subnodes) 3
 set command_info(min_args,get)      3
 set command_info(min_args,remove)   3
 set command_info(min_args,set)      3
+set command_info(min_args,incr)     3
 set command_info(min_args,enable)   3
 set command_info(min_args,disable)  3
 set command_info(min_args,check)    2
@@ -1885,6 +1900,56 @@ with_command set {
 					lappend result_attrs [list "?" $prespace [attr_tag   $new_attr] \
 					                                     " " [attr_value $new_attr] ""] }
 			}
+			set filtered_hid [lreplace $filtered_hid 6 6 $result_attrs]
+		}]
+	}
+}
+
+
+with_command incr {
+
+	with_node_query_and_args query_hid incr_attrs {
+
+		# satisfy invariant that each attribute is preceeded by space (prespace)
+		set incr_attrs " $incr_attrs"
+
+		set ctx(incr_attrs) [hid_attributes [import_hid $incr_attrs false]]
+
+		$print_hid_fn $out_fd [hid_filter ctx $query_hid $input_hid filtered_hid {
+
+			set orig_attrs [hid_attributes $filtered_hid]
+			set incr_attrs  $ctx(incr_attrs)
+			set result_attrs  {}
+			set applied_attrs {}
+
+			foreach attr $orig_attrs {
+				foreach incr_attr $incr_attrs {
+					if {[attr_tag $attr] == [attr_tag $incr_attr]} {
+
+						set number_pattern {[-]?\d+([.]\d+)?}
+
+						set value [attr_value $attr]
+						if {![regexp $number_pattern $value n]} {
+							error "attribute '[attr_tag $attr]' contains no number, has value '$value'" }
+
+						set incr_value [string_trim [attr_value $incr_attr]]
+						if {![regexp "^$number_pattern\$" $incr_value i]} {
+							error "incr expects a numeric argument, got '$incr_value'" }
+
+						regsub $number_pattern $value [expr $n + $i] value
+
+						set attr [lreplace $attr 4 4 $value]
+
+						lappend applied_attrs [attr_tag $attr]
+					}
+				}
+				lappend result_attrs $attr
+			}
+
+			foreach incr_attr $incr_attrs {
+				if {[lsearch $applied_attrs [attr_tag $incr_attr]] == -1} {
+					error "no such attribute '[attr_tag $incr_attr]'" } }
+
 			set filtered_hid [lreplace $filtered_hid 6 6 $result_attrs]
 		}]
 	}

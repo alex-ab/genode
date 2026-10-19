@@ -505,6 +505,20 @@ Available commands
   Sets the attributes 'caps' and 'ram' of the 'start' node named
   'vfs' to the values 100 and 16M respectively.
 
+:'hid [-i] incr <attr-def> <input-file>':
+
+  A variant of the 'set' command that increments the attribute
+  value(s) instead of replacing them. Increments can be negative
+  and can have a fractional part separated by '.'. Non-number
+  portions of existing attribute values are preserved.
+
+  Example:
+
+  ! $ hid incr 'config | + start vfs | : ram: 8' <input-file>
+
+  If the original 'ram' attribute value was '16M', the command
+  would change it to '24M'.
+
 :'hid [-i] remove <node-path>':
 
   Remove the node(s) specified by the '<node-path>'.
