@@ -1405,6 +1405,7 @@ struct Wifi::Manager : Wifi::Rfkill_notification_handler
 
 			DEFAULT_VERBOSE       = false,
 			DEFAULT_RFKILL        = false,
+			DEFAULT_FORCE_SCAN    = false,
 		};
 
 		unsigned scan_interval           { DEFAULT_SCAN_INTERVAL };
@@ -1416,8 +1417,9 @@ struct Wifi::Manager : Wifi::Rfkill_notification_handler
 			    || update_quality_interval != cfg.update_quality_interval;
 		}
 
-		bool verbose { DEFAULT_VERBOSE };
-		bool rfkill  { DEFAULT_RFKILL };
+		bool verbose    { DEFAULT_VERBOSE };
+		bool rfkill     { DEFAULT_RFKILL };
+		bool force_scan { DEFAULT_FORCE_SCAN };
 
 		bool rfkill_changed(Config const &cfg) const {
 			return rfkill != cfg.rfkill; }
@@ -1466,11 +1468,15 @@ struct Wifi::Manager : Wifi::Rfkill_notification_handler
 				                 (unsigned)DEFAULT_UPDATE_QUAILITY_INTERVAL),
 				                 10, 15*60);
 
+			bool const force_scan = node.attribute_value("force_periodic_scan",
+			                                             (bool)DEFAULT_FORCE_SCAN);
+
 			Config new_config {
 				.scan_interval           = scan_interval,
 				.update_quality_interval = update_quality_interval,
 				.verbose                 = verbose,
 				.rfkill                  = rfkill,
+				.force_scan              = force_scan,
 				.log_level               = log_level,
 				.bgscan                  = bgscan
 			};
@@ -1666,7 +1672,7 @@ struct Wifi::Manager : Wifi::Rfkill_notification_handler
 
 	bool _arm_scan_timer()
 	{
-		if (_join.state == Join_state::State::CONNECTED)
+		if (_join.state == Join_state::State::CONNECTED && !_config.force_scan)
 			return false;
 
 		return _arm_timer(Timer_type::SCAN);

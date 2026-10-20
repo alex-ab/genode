@@ -95,7 +95,13 @@ node features the following attributes.
   The default value is set to 'simple:30:-70:600'. This functionality can
   be disabled by specifying an empty value, e.g. 'bgscan=""'. If bgscan is
   disabled the 'accesspoints' report will not be updated while the
-  supplicant is connected to a network.
+  supplicant is connected to a network (see 'force_periodic_scan').
+
+* :force_periodic_scan: instructs the driver to forcefully scan
+  actively while being connected to a network. This attribute is
+  primarily intended for dealing with hidden networks because those
+  will not be captured when using 'bgscan' and therefor the default
+  is 'false'.
 
 * :log_level: allows for steering the verbosity of the supplicant
   and may assist while diagnosing problems with the driver.
