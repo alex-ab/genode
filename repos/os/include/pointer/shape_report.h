@@ -33,6 +33,12 @@ struct Pointer::Shape_report
 	unsigned int  width;
 	unsigned int  height;
 	unsigned char shape[MAX_SHAPE_SIZE];
+
+	bool valid() const
+	{
+		return visible && width  > 0 && width  <= MAX_WIDTH
+		               && height > 0 && height <= MAX_HEIGHT;
+	}
 };
 
 #endif /* _INCLUDE__POINTER__SHAPE_REPORT_H_ */
