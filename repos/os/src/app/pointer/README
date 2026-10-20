@@ -41,3 +41,46 @@ the guest-pointer shapes if Guest Additions are installed, and Qt applications.
 The pointer can be scaled using a whole-number factor specified in the 'scale'
 attribute. For using different factors for vertical and horizontal scaling,
 the attributes 'scale_x' and 'scale_y' can be used.
+
+Default pointer shape
+---------------------
+
+Whenever no client-provided shape is available, the pointer falls back
+to a default shape. This shape can be customized using a 'shape' node
+named 'default'. The pixels are provided in a character-encoded format as
+illustrated in the following example.
+
+: + shape default | x: 0 | y: 0
+:   + color . | rgb: #000000
+:   + color ; | rgb: #000000 | alpha: 0.5
+:   + color , | rgb: #000000 | alpha: 0.2
+:   + color # | rgb: #ffffff
+:   + pixels
+:     : ##
+:     : #.#
+:     : #..#
+:     : #...#
+:     : #....#
+:     : #.....#
+:     : #......#
+:     : #.......#
+:     : #........#
+:     : #.....#####
+:     : #..#..#;;;;
+:     : #.#;#..#:::
+:     : ##;:#..#
+:     : #;: ;#..#
+:     : ;:  :#..#
+:     : :    ;###
+:     :      :;;;
+:     :       :::
+
+Each color is represented by a distinct ASCII character. A 'color' node
+assigns an RGB color value and an optional alpha value to a character.
+The pixels of the shape are defined as quoted content of the 'pixels' sub
+node, using the defined characters. Any character with no color assignment
+is assumed to be transparent.
+
+The 'x' and 'y' attributes of the 'shape' define the hot-spot position within
+the shape. The shape is placed on screen such that this spot matches the
+pointer position.

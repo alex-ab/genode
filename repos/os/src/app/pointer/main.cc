@@ -14,6 +14,7 @@
  */
 
 /* Genode includes */
+#include <util/dictionary.h>
 #include <base/component.h>
 #include <base/heap.h>
 #include <base/attached_rom_dataspace.h>
@@ -121,7 +122,8 @@ struct Pointer::Main : Rom::Reader
 	Dataspace_capability _pointer_ds { };
 
 	void _update_texture(Gui::Point, Gui::Area, auto const &fn);
-	void _show_default_pointer();
+	void _show_pointer(char const *);
+	void _show_builtin_pointer();
 	void _update_pointer();
 
 	bool _xray = false;
@@ -133,6 +135,7 @@ struct Pointer::Main : Rom::Reader
 	Signal_handler<Main> _xray_handler  { _env.ep(), *this, &Main::_handle_xray };
 
 	Sliced_heap _sliced_heap { _env.ram(), _env.rm() };
+	Heap        _heap        { _env.ram(), _env.rm() };
 
 	Rom::Registry _rom_registry { _sliced_heap, _env.ram(), _env.rm(), *this };
 
@@ -206,7 +209,79 @@ void Pointer::Main::_update_texture(Gui::Point hot, Gui::Area size, auto const &
 }
 
 
-void Pointer::Main::_show_default_pointer()
+void Pointer::Main::_show_pointer(char const *style)
+{
+	bool ok = false;
+
+	_config_rom.node().for_each_sub_node("shape", [&] (Node const &shape) {
+		if (shape.attribute_value("name", String<20>()) != style)
+			return;
+
+		Gui::Point const hot { shape.attribute_value("x", 0),
+		                       shape.attribute_value("y", 0) };
+
+		/* build color table */
+
+		struct Color_key;
+		using  Key = String<2>;
+		using  Color_keys = Dictionary<Color_key, Key>;
+		struct Color_key : Color_keys::Element
+		{
+			Color const rgba;
+			Color_key(Color_keys &dict, Key const &key, Color rgba)
+			: Color_keys::Element(dict, key), rgba(rgba) { };
+		};
+		Color_keys keys { };
+
+		shape.for_each_sub_node("color", [&] (Node const &node) {
+			Key const key = node.attribute_value("name", Key());
+			Color    rgba = node.attribute_value("rgb", Color());
+			if (node.has_attribute("alpha"))
+				rgba.a = uint8_t(255*node.attribute_value("alpha", 1.0));
+
+			new (_heap) Color_key(keys, key, rgba);
+		});
+
+		shape.with_optional_sub_node("pixels", [&] (Node const &pixels) {
+
+			/* determine size */
+			unsigned w = 0, h = 0;
+			pixels.for_each_quoted_line([&] (Node::Quoted_line const &line) {
+				h++; w = max(w, unsigned(line.bytes.num_bytes)); });
+
+			/* render quoted lines into texture */
+			_update_texture(hot, { w, h }, [&] (Texture<Pixel_rgb888> &texture) {
+				unsigned y = 0;
+				pixels.for_each_quoted_line([&] (Node::Quoted_line const &text) {
+					uint8_t line[w*4] { };
+					for (unsigned x = 0; x < text.bytes.num_bytes; x++) {
+						Key const key { Char(text.bytes.start[x]) };
+						keys.with_element(key,
+							[&] (Color_key const &color_key) {
+								line[x*4+0] = color_key.rgba.r;
+								line[x*4+1] = color_key.rgba.g;
+								line[x*4+2] = color_key.rgba.b;
+								line[x*4+3] = color_key.rgba.a;
+							},
+							[&] { });
+					}
+					texture.rgba(line, w, y);
+					y++;
+				});
+				ok = true;
+			});
+		});
+
+		/* release color table */
+		while (keys.with_any_element([&] (Color_key &k) { destroy(_heap, &k); }));
+	});
+
+	if (!ok)
+		_show_builtin_pointer();
+}
+
+
+void Pointer::Main::_show_builtin_pointer()
 {
 	Gui::Area size { big_mouse.w, big_mouse.h };
 
@@ -263,7 +338,7 @@ void Pointer::Main::_update_pointer()
 	if (shape_report.valid())
 		_show_shape_pointer(shape_report);
 	else
-		_show_default_pointer();
+		_show_pointer("default");
 }
 
 

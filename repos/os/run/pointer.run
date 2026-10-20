@@ -148,6 +148,31 @@ config
 + start pointer | ram: 10M
   + provides | + service Report
   + config | shapes: yes | verbose: no | scale: 10
+    + shape default | x: 0 | y: 16
+      .
+      . Atari style
+      .
+      + color . | rgb: #000000
+      + color : | rgb: #000000 | alpha: 0.5
+      + color # | rgb: #ffffff
+      + color + | rgb: #ffffff | alpha: 0.5
+      + pixels
+        :       ###
+        :      #..#
+        : #    #..#
+        : ##  #..#
+        : #.# #..#
+        : #..#..#
+        : #.....#####
+        : #........#
+        : #.......#
+        : #......#
+        : #.....#
+        : #....#
+        : #...#
+        : #..#
+        : #.#
+        : ##
   + route
     + service PD                 | + parent
     + service LOG                | + parent
