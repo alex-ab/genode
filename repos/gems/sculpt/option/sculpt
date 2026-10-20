@@ -114,13 +114,13 @@ option
     + rom hover        | + child report | label: gui/hover
     + rom leitzentrale | + child report | label: global_keys/leitzentrale
 
-+ child pointer | binary: pointer | ram: 2M | caps: 100 | priority: driver
++ child pointer | binary: pointer | ram: 4M | caps: 100 | priority: driver
   + provides | + report
-  + config | shapes: yes
   + connect
-    + gui       | + child gui
-    + rom hover | + child report | label: gui/hover
-    + rom xray  | + child report | label: global_keys/xray
+    + gui        | + child gui
+    + rom config | + child model  | label: child/pointer
+    + rom hover  | + child report | label: gui/hover
+    + rom xray   | + child report | label: global_keys/xray
 
 + child global_keys | binary: global_keys_handler | ram: 1M | caps: 100 | priority: driver
   + connect

@@ -367,6 +367,7 @@ set required_child_configs {
 	ram_fs
 	report
 	model
+	pointer
 }
 
 foreach config $required_child_configs {
