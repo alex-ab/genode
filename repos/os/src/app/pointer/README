@@ -37,3 +37,7 @@ shape reports to the log.
 
 The most common use cases for pointer shapes are VirtualBox, which reports
 the guest-pointer shapes if Guest Additions are installed, and Qt applications.
+
+The pointer can be scaled using a whole-number factor specified in the 'scale'
+attribute. For using different factors for vertical and horizontal scaling,
+the attributes 'scale_x' and 'scale_y' can be used.

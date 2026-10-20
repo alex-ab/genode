@@ -24,7 +24,6 @@
 #include <os/texture_rgb888.h>
 #include <gui_session/connection.h>
 #include <report_rom/report_service.h>
-#include <pointer/dither_painter.h>
 #include <pointer/shape_report.h>
 
 /* local includes */
@@ -34,6 +33,54 @@
 namespace Pointer {
 	using namespace Genode;
 	class Main;
+
+	struct Scale
+	{
+		unsigned x, y;
+
+		static Scale from_node(Node const &node)
+		{
+			unsigned const scale = node.attribute_value("scale", 1u);
+			return { .x = node.attribute_value("scale_x", scale),
+			         .y = node.attribute_value("scale_y", scale) };
+		}
+	};
+
+	/**
+	 * Paint scaled texture to surface
+	 *
+	 * Surface size must be multiple ot texture size. No clipping.
+	 */
+	template <typename DST_PT, typename SRC_PT>
+	static inline void paint_scaled(Surface<DST_PT>       &surface,
+	                                Texture<SRC_PT> const &texture)
+	{
+		if (!texture.size().count() || !texture.pixel() || !texture.alpha())
+			return;
+
+		unsigned const x_factor = surface.size().w / texture.size().w,
+		               y_factor = surface.size().h / texture.size().h;
+		if (!x_factor || !y_factor)
+			return;
+
+		DST_PT *dst = surface.addr();
+
+		for (unsigned y = 0, h = surface.size().h; y < h; y++) {
+
+			size_t const src_line_offset = (y/y_factor)*texture.size().w;
+
+			SRC_PT  const *src_pixel = texture.pixel() + src_line_offset;
+			uint8_t const *src_alpha = texture.alpha() + src_line_offset;
+
+			for (unsigned x = 0, w = surface.size().w; x < w; x++) {
+
+				SRC_PT  const pixel = src_pixel[x/x_factor];
+				uint8_t const alpha = src_alpha[x/x_factor];
+
+				*dst++ = DST_PT(pixel.r(), pixel.g(), pixel.b(), alpha);
+			}
+		}
+	}
 }
 
 
@@ -45,14 +92,16 @@ struct Pointer::Main : Rom::Reader
 
 	struct Config
 	{
-		bool verbose;
-		bool shapes;
+		bool  verbose;
+		bool  shapes;
+		Scale scale;
 
 		static Config from_node(Node const &node)
 		{
 			return {
 				.verbose = node.attribute_value("verbose", false),
 				.shapes  = node.attribute_value("shapes",  false),
+				.scale   = Scale::from_node(node),
 			};
 		}
 	};
@@ -125,30 +174,35 @@ void Pointer::Main::_update_texture(Gui::Point hot, Gui::Area size, auto const &
 	                              size);
 	fn(texture);
 
-	if (size != _current_pointer_size) {
+	Scale const scale = _config.scale;
 
-		_gui.buffer({ .area = size, .alpha = true });
+	Gui::Area  const scaled_size { .w = size.w*scale.x,     .h = size.h*scale.y };
+	Gui::Point const scaled_hot  { .x = hot.x*int(scale.x), .y = hot.y*int(scale.y) };
+
+	if (scaled_size != _current_pointer_size) {
+
+		_gui.buffer({ .area = scaled_size, .alpha = true });
 
 		_pointer_ds = _gui.framebuffer.dataspace();
 
-		_current_pointer_size = size;
+		_current_pointer_size = scaled_size;
 	}
 
 	Attached_dataspace ds { _env.rm(), _pointer_ds };
 
 	Pixel_rgb888 *pixel = ds.local_addr<Pixel_rgb888>();
 
-	Pixel_alpha8 *alpha = reinterpret_cast<Pixel_alpha8 *>(pixel + size.count());
+	Pixel_alpha8 *alpha = reinterpret_cast<Pixel_alpha8 *>(pixel + scaled_size.count());
 
-	Surface<Pixel_rgb888> pixel_surface(pixel, size);
-	Surface<Pixel_alpha8> alpha_surface(alpha, size);
+	Surface<Pixel_rgb888> pixel_surface(pixel, scaled_size);
+	Surface<Pixel_alpha8> alpha_surface(alpha, scaled_size);
 
-	Dither_painter::paint(pixel_surface, texture);
-	Dither_painter::paint(alpha_surface, texture);
+	paint_scaled(pixel_surface, texture);
+	paint_scaled(alpha_surface, texture);
 
-	_gui.framebuffer.refresh({ { 0, 0 }, size });
+	_gui.framebuffer.refresh({ { 0, 0 }, scaled_size });
 
-	_view.geometry({ hot, size });
+	_view.geometry({ { -scaled_hot.x, -scaled_hot.y }, scaled_size });
 }
 
 
@@ -178,7 +232,7 @@ void Pointer::Main::_show_default_pointer()
 void Pointer::Main::_show_shape_pointer(Shape_report &shape_report)
 {
 	Gui::Area  size { shape_report.width, shape_report.height };
-	Gui::Point hot  { int(-shape_report.x_hot), int(-shape_report.y_hot) };
+	Gui::Point hot  { int(shape_report.x_hot), int(shape_report.y_hot) };
 
 	_update_texture(hot, size, [&] (Texture<Pixel_rgb888> &texture) {
 

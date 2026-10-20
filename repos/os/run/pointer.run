@@ -145,9 +145,9 @@ config
     + service PD                    | + parent
     + service LOG                   | + parent
 
-+ start pointer
++ start pointer | ram: 10M
   + provides | + service Report
-  + config | shapes: yes | verbose: no
+  + config | shapes: yes | verbose: no | scale: 10
   + route
     + service PD                 | + parent
     + service LOG                | + parent
