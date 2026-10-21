@@ -23,6 +23,22 @@ namespace Genode {
 	template <typename CT = int>                         class Point;
 	template <typename DT = unsigned>                    class Area;
 	template <typename CT = int, typename DT = unsigned> class Rect;
+
+	/**
+	 * Compatibility helper for supporting xpos,ypos,width,height attributes
+	 *
+	 * \noapi
+	 */
+	bool _try_parse(Node::Attribute const &a, auto const &tag, auto &v, bool &ok)
+	{
+		if (!ok && a.tag.equals(tag)) {
+			if (parse(a.value, v) == a.value.num_bytes)
+				return true;
+			else
+				v = { };
+		}
+		return false;
+	};
 }
 
 
@@ -65,12 +81,18 @@ struct Genode::Point
 	/**
 	 * Construct point from node attributes
 	 *
-	 * The node is expected to feature the attributes 'xpos' and 'ypos'.
+	 * The node is expected to feature the attributes 'x' and 'y'.
 	 */
 	static Point from_node(auto const &node)
 	{
-		return Point(node.attribute_value("xpos", CT{}),
-		             node.attribute_value("ypos", CT{}));
+		CT x { }; bool x_ok = false;
+		CT y { }; bool y_ok = false;
+
+		node.for_each_attribute([&] (Node::Attribute const &a) {
+			_try_parse(a, "x", x, x_ok) || _try_parse(a, "xpos", x, x_ok) ||
+			_try_parse(a, "y", y, y_ok) || _try_parse(a, "ypos", y, y_ok);
+		});
+		return { x, y };
 	}
 };
 
@@ -102,13 +124,18 @@ struct Genode::Area
 	/**
 	 * Construct area from node attributes
 	 *
-	 * The node is expected to feature the attributes 'width' and
-	 * 'height'.
+	 * The node is expected to feature the attributes 'w' and 'h'.
 	 */
 	static Area from_node(auto const &node)
 	{
-		return Area(node.attribute_value("width",  DT{}),
-		            node.attribute_value("height", DT{}));
+		DT w { }; bool w_ok = false;
+		DT h { }; bool h_ok = false;
+
+		node.for_each_attribute([&] (Node::Attribute const &a) {
+			_try_parse(a, "w", w, w_ok) || _try_parse(a, "width",  w, w_ok) ||
+			_try_parse(a, "h", h, h_ok) || _try_parse(a, "height", h, h_ok);
+		});
+		return { w, h };
 	}
 };
 
@@ -256,13 +283,21 @@ struct Genode::Rect
 	/**
 	 * Construct rectangle from node attributes
 	 *
-	 * The XML node is expected to feature the attributes 'xpos', 'ypos'.
-	 * 'width', and 'height'. If an attribute is absent, the corresponding
-	 * value is set to 0.
+	 * The node is expected to feature the attributes 'x', 'y', 'w', and 'h'.
+	 * If an attribute is absent, the corresponding value is set to 0.
 	 */
 	static Rect from_node(auto const &node)
 	{
-		return Rect(Point::from_node(node), Area::from_node(node));
+		CT x { }; bool x_ok = false; DT w { }; bool w_ok = false;
+		CT y { }; bool y_ok = false; DT h { }; bool h_ok = false;
+
+		node.for_each_attribute([&] (Node::Attribute const &a) {
+			_try_parse(a, "x", x, x_ok) || _try_parse(a, "xpos",   x, x_ok) ||
+			_try_parse(a, "y", y, y_ok) || _try_parse(a, "ypos",   y, y_ok) ||
+			_try_parse(a, "w", w, w_ok) || _try_parse(a, "width",  w, w_ok) ||
+			_try_parse(a, "h", h, h_ok) || _try_parse(a, "height", h, h_ok);
+		});
+		return { { x, y }, { w, h } };
 	}
 };
 
