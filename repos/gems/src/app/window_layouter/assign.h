@@ -116,12 +116,13 @@ class Window_layouter::Assign : public List_model<Assign>::Element
 		void update(Node const &assign)
 		{
 			target_name   = assign.attribute_value("target", Target::Name());
-			_pos_defined  = assign.has_attribute("xpos")  && assign.has_attribute("ypos");
-			_size_defined = assign.has_attribute("width") && assign.has_attribute("height");
+			_pos_defined  = (assign.has_attribute("xpos") || assign.has_attribute("x"))
+			             && (assign.has_attribute("ypos") || assign.has_attribute("y"));
+			_size_defined = Area::from_node(assign).count() > 0;
 			_maximized    = assign.attribute_value("maximized", false);
 			_visible      = assign.attribute_value("visible", true);
-			_xpos_any     = assign.attribute_value("xpos", String<20>()) == "any";
-			_ypos_any     = assign.attribute_value("ypos", String<20>()) == "any";
+			_xpos_any     = assign.attribute_value("xpos", assign.attribute_value("x", String<20>())) == "any";
+			_ypos_any     = assign.attribute_value("ypos", assign.attribute_value("y", String<20>())) == "any";
 			_pos          = Point::from_node(assign);
 			_size         = Area::from_node(assign);
 		}

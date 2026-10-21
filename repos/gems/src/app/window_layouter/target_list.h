@@ -45,8 +45,9 @@ class Window_layouter::Target_list
 		{
 			unsigned const avail_px = row ? avail.w() : avail.h();
 
-			char const *sub_node_type = row ? "column" : "row";
-			char const *px_size_attr  = row ? "width"  : "height";
+			char const *sub_node_type        = row ? "column" : "row";
+			char const *px_legacy_size_attr  = row ? "width"  : "height";
+			char const *px_size_attr         = row ? "w"      : "h";
 
 			unsigned px_pos = row ? avail.x1() : avail.y1();
 
@@ -60,15 +61,20 @@ class Window_layouter::Target_list
 			unsigned total_weight     = 0;
 			unsigned num_weighted     = 0;
 
+			bool const has_px_size_attr = node.has_attribute(px_size_attr)
+			                           || node.has_attribute(px_legacy_size_attr);
+
 			/* ignore weight if pixel size is provided */
 			auto weight_attr_value = [&] (Node const &node) {
-				return node.has_attribute(px_size_attr)
+				return has_px_size_attr
 				     ? 0 : node.attribute_value("weight", default_weight); };
 
 			node.for_each_sub_node(sub_node_type, [&] (Node const &child) {
-				preserved_pixels += child.attribute_value(px_size_attr, 0U);
+				preserved_pixels +=
+					child.attribute_value(px_legacy_size_attr,
+					                      child.attribute_value(px_size_attr, 0U));
 				total_weight     += weight_attr_value(child);
-				num_weighted     += child.has_attribute(px_size_attr) ? 0 : 1;
+				num_weighted     += has_px_size_attr ? 0 : 1;
 			});
 
 			if (preserved_pixels > avail_px) {

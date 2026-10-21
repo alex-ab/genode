@@ -88,7 +88,7 @@ struct Window_layouter::Panorama
 			[&] (Capture &capture) { destroy(_alloc, &capture); },
 
 			[&] (Capture &capture, Node const &node) {
-				if (node.has_attribute("width") && node.has_attribute("height"))
+				if (Area::from_node(node).count() > 0)
 					capture_state = Capture_state::PRESENT;
 				capture.update(node); }
 		);
