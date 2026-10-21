@@ -13,7 +13,8 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/vfs_pipe \
                   [depot_user]/src/vfs_import \
                   [depot_user]/src/nitpicker \
-                  [depot_user]/src/fs_rom
+                  [depot_user]/src/fs_rom \
+                  [depot_user]/src/report_rom
 
 # write default vimrc file
 set vimrc_fd [open [run_dir]/genode/vimrc w]
@@ -76,6 +77,12 @@ config | verbose: yes
       + parent
       + any-child
 
++ start report_rom | ram: 2M
+  + provides
+    + service Report
+    + service ROM
+  + config | verbose: yes
+
 + start config_fs | caps: 120 | ram: 30M
   + provides | + service File_system
   + binary vfs
@@ -101,6 +108,7 @@ config | verbose: yes
             |   + device | + log
             |   + device | + terminal
             |   + inline rtc | : 2018-01-01 00:01
+            |   + report announce | limit: 4K
             |
             + policy | label_prefix: vfs_rom | root: /
             + default-policy | root: / | writeable: yes
@@ -118,6 +126,7 @@ config | verbose: yes
   + route
     + service File_system         | + child config_fs
     + service Terminal            | + child terminal
+    + service Report              | + child report_rom
     + service ROM | label: config | + child config_rom | label: vfs
     + any-service                 | + parent
 

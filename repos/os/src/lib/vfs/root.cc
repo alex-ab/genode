@@ -30,6 +30,7 @@
 #include <terminal_file_system.h>
 #include <zero_file_system.h>
 #include <device_file_system.h>
+#include <report_file_system.h>
 #include <vfs/dir_file_system.h>
 
 
@@ -208,5 +209,6 @@ Genode::Vfs::Root::Factory::Factory(Allocator &alloc)
 	_add_builtin_fs<Vfs_ram     ::File_system>();
 	_add_builtin_fs<Vfs_symlink ::File_system>();
 	_add_builtin_fs<Vfs_device  ::File_system>();
+	_add_builtin_fs<Vfs_report  ::File_system>();
 	_add_builtin_fs<Dir_file_system>();
 }
