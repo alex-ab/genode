@@ -137,6 +137,11 @@ struct Genode::Span : Noncopyable
 		    && !memcmp(other.start, start, num_bytes);
 	}
 
+	bool equals(auto const &literal) const
+	{
+		return equals(Span(literal, (sizeof(literal) - 1)/sizeof(literal[0])));
+	}
+
 	bool starts_with(Span const &prefix) const
 	{
 		return num_bytes >= prefix.num_bytes
