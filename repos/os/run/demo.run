@@ -160,7 +160,7 @@ config
       + parent
       + any-child
 
-+ start scout | caps: 10000 | ram: 80M
++ start scout | caps: 11000 | ram: 120M
   + config
     + libc | stdout: /dev/log | stderr: /dev/log
     + vfs | + dir dev | + device | + log
@@ -173,9 +173,12 @@ config
 set launchpad_config_fd [open "bin/launchpad.config" w]
 puts $launchpad_config_fd {
 config
-+ launcher testnit   | ram_quota: 768K  | caps: 50
-+ launcher scout     | ram_quota: 41M   | caps: 200
-+ launcher launchpad | ram_quota: 6M    | caps: 1000 | + configfile launchpad.config
++ launcher testnit   | ram_quota: 2M    | caps: 100
++ launcher scout     | ram_quota: 61M   | caps: 300
+  + config
+    + libc | stdout: /dev/log | stderr: /dev/log
+    + vfs | + dir dev | + device | + log
++ launcher launchpad | ram_quota: 10M   | caps: 1000 | + configfile launchpad.config
 + launcher nitlog    | ram_quota: 1500K | caps: 100
 + launcher liquid_fb | ram_quota: 9M    | caps: 100  | + config | resize_handle: on
 + launcher nitpicker | ram_quota: 1M    | caps: 100
