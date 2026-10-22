@@ -182,6 +182,20 @@ void Pointer::Main::_update_texture(Gui::Point hot, Gui::Area size, auto const &
 	Gui::Area  const scaled_size { .w = size.w*scale.x,     .h = size.h*scale.y };
 	Gui::Point const scaled_hot  { .x = hot.x*int(scale.x), .y = hot.y*int(scale.y) };
 
+	auto update_view = [&]
+	{
+		_view.geometry({ { -scaled_hot.x, -scaled_hot.y }, scaled_size });
+	};
+
+	/*
+	 * Update the view of a shrinking shape before rendering the smaller image
+	 * to prevent the original view from briefly displaying the small new image
+	 * as tiled pattern.
+	 */
+	bool const shinking = scaled_size.count() < _current_pointer_size.count();
+
+	if (shinking) update_view();
+
 	if (scaled_size != _current_pointer_size) {
 
 		_gui.buffer({ .area = scaled_size, .alpha = true });
@@ -205,7 +219,7 @@ void Pointer::Main::_update_texture(Gui::Point hot, Gui::Area size, auto const &
 
 	_gui.framebuffer.refresh({ { 0, 0 }, scaled_size });
 
-	_view.geometry({ { -scaled_hot.x, -scaled_hot.y }, scaled_size });
+	if (!shinking) update_view();
 }
 
 
