@@ -228,6 +228,25 @@ void Component::construct(Genode::Env &env)
 			fail("unexpected attr value in span-clip test: '", server.name, "'");
 	}
 
+	/*
+	 * sibling sub nodes with the first node at a compacted line (#5983)
+	 */
+	{
+		Node const node { Span::from_cstring(
+			"domain\n"
+			"+ tcp | + permit a\n"
+			"        + permit b\n"
+			"-"
+		)};
+
+		unsigned count = 0; /* count number of permit sub nodes */
+		node.with_optional_sub_node("tcp", [&] (Node const &tcp) {
+			tcp.for_each_sub_node("permit", [&] (Node const &) { count++; }); });
+
+		if (count != 2)
+			fail("failed to reach sibling node indented behind a compacted line");
+	}
+
 	auto with_generated = [&] (auto const &node_type, auto const &fn, auto const &result_fn)
 	{
 		char buf[4*1024] { };

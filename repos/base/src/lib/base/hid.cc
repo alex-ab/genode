@@ -62,7 +62,7 @@ Node::Match Node::_search_by_index(unsigned n) const
 }
 
 
-void Node::_for_each_sub_node(Span const &bytes, With_indent_span::Ft const &fn)
+void Node::_for_each_sub_node(Indent indent, Span const &bytes, With_indent_span::Ft const &fn)
 {
 	struct Node
 	{
@@ -87,7 +87,7 @@ void Node::_for_each_sub_node(Span const &bytes, With_indent_span::Ft const &fn)
 		finish();
 		node = { .start   = seg.start,
 		         .last    = seg.start + seg.num_bytes - 1,
-		         .indent  = indent,
+		         .indent  = indent.value,
 		         .enabled = enabled };
 	};
 
@@ -96,13 +96,22 @@ void Node::_for_each_sub_node(Span const &bytes, With_indent_span::Ft const &fn)
 		node.last = seg.start + seg.num_bytes - 1;
 	};
 
-	_for_each_segment(bytes,
+	_for_each_segment(indent, bytes,
 		[&] (Prefix const  prefix, Indent const indent, Span const &seg) {
 			if (prefix.node_or_xnode() && !node.contains(indent))
 				start(indent, prefix.node(), seg);
 			else
 				extend(seg); });
 	finish();
+}
+
+
+/*
+ * \deprecated  only temporarily needed for upholding ABI compatibility
+ */
+void Node::_for_each_sub_node(Span const &bytes, With_indent_span::Ft const &fn)
+{
+	_for_each_sub_node(Indent { }, bytes, fn);
 }
 
 
@@ -113,7 +122,7 @@ bool Node::has_sub_node(char const *type) const
 }
 
 
-void Node::_for_each_attr(Span const &bytes, auto const &fn)
+void Node::_for_each_attr(Indent indent, Span const &bytes, auto const &fn)
 {
 	auto with_tag_value = [] (Span const &s, auto const &fn)
 	{
@@ -135,7 +144,7 @@ void Node::_for_each_attr(Span const &bytes, auto const &fn)
 	};
 
 	bool done = false;
-	_for_each_segment(bytes,
+	_for_each_segment(indent, bytes,
 		[&] (Prefix const prefix, Indent const, Span const &seg) {
 			if (done)
 				return;
@@ -160,7 +169,7 @@ void Node::_for_each_attr(Span const &bytes, auto const &fn)
 
 void Node::_for_each_attribute(With_attribute::Ft const &fn) const
 {
-	_for_each_attr(_bytes, [&] (Span const &tag, Span const &value) {
+	_for_each_attr(_indent, _bytes, [&] (Span const &tag, Span const &value) {
 		fn(Attribute { .tag   = { tag  .start, tag  .num_bytes },
 		               .value = { value.start, value.num_bytes } }); });
 }
@@ -170,7 +179,7 @@ bool Node::has_attribute(char const *type) const
 {
 	bool result = false;
 	size_t const type_len = strlen(type);
-	_for_each_attr(_bytes, [&] (Span const &tag, Span const &) {
+	_for_each_attr(_indent, _bytes, [&] (Span const &tag, Span const &) {
 		if (!result && tag.equals({ type, type_len })) result = true; });
 	return result;
 }
@@ -181,7 +190,7 @@ void Node::_with_tag_value(char const *type, With_tag_value::Ft const &fn) const
 	size_t const type_len = strlen(type);
 
 	bool found = false;
-	_for_each_attr(_bytes, [&] (Span const &tag, Span const &value) {
+	_for_each_attr(_indent, _bytes, [&] (Span const &tag, Span const &value) {
 		if (!found && tag.equals({ type, type_len })) {
 			fn(tag, value);
 			found = true; } });

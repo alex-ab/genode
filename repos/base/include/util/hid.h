@@ -180,8 +180,10 @@ class Genode::Node : Noncopyable
 			});
 		}
 
-		static void _for_each_segment(Span const &bytes, auto const &fn)
+		static void _for_each_segment(Indent indent, Span const &bytes, auto const &fn)
 		{
+			unsigned pos_base = indent.value; /* indentation of first line */
+
 			bool first = true;
 			bytes.split('\n', [&] (Span const &line) {
 				char const *start = line.start;
@@ -193,12 +195,16 @@ class Genode::Node : Noncopyable
 				while (num_bytes)
 					_with_segment({ .first = first }, { start, num_bytes },
 						[&] (Prefix prefix, Span const &seg, Span const &remain) {
-							if (seg.start >= line.start && prefix.type != Prefix::COMMENT)
-								fn(prefix, Indent { unsigned(seg.start - line.start) }, seg);
+							if (seg.start >= line.start && prefix.type != Prefix::COMMENT) {
+								unsigned const pos = unsigned(seg.start - line.start);
+								fn(prefix, Indent { pos_base + pos }, seg);
+							}
 							start     = remain.start;
 							num_bytes = remain.num_bytes;
 							first     = false;
 						});
+
+				pos_base = 0; /* for all further lines, line.start is at pos 0 */
 			});
 		}
 
@@ -207,9 +213,12 @@ class Genode::Node : Noncopyable
 		/* let '_for_each_sub_node' be a regular function, not a template */
 		using With_indent_span = Callable<void, Indent const &, Span const &>;
 
+		/* deprecated */
 		static void _for_each_sub_node(Span const &, With_indent_span::Ft const &);
 
-		static inline void _for_each_attr(Span const &, auto const &);
+		static void _for_each_sub_node(Indent, Span const &, With_indent_span::Ft const &);
+
+		static inline void _for_each_attr(Indent, Span const &, auto const &);
 
 		using With_attribute = Callable<void, Attribute const &>;
 
@@ -294,7 +303,7 @@ class Genode::Node : Noncopyable
 		unsigned num_sub_nodes() const
 		{
 			unsigned n = 0;
-			_for_each_sub_node(_bytes, With_indent_span::Fn {
+			_for_each_sub_node(_indent, _bytes, With_indent_span::Fn {
 				[&] (Indent const, Span const &) { n++; } });
 			return n;
 		}
@@ -304,7 +313,7 @@ class Genode::Node : Noncopyable
 		 */
 		void for_each_sub_node(auto const &fn) const
 		{
-			_for_each_sub_node(_bytes, With_indent_span::Fn {
+			_for_each_sub_node(_indent, _bytes, With_indent_span::Fn {
 				[&] (Indent const indent, Span const &s) {
 					fn(Node { indent, s }); } });
 		}
@@ -408,7 +417,7 @@ class Genode::Node : Noncopyable
 			char const *start     { }; /* visited line */
 			size_t      num_bytes { };
 
-			_for_each_segment(_bytes,
+			_for_each_segment(_indent, _bytes,
 				[&] (Prefix const  prefix, Indent const, Span const &seg) {
 					if (prefix.type != Prefix::RAW)
 						return;
