@@ -181,7 +181,7 @@ struct Nvme::Identify_data : Genode::Mmio<0x208>
 	enum {
 		SN_OFFSET = 0x04, SN_LEN = 20,
 		MN_OFFSET = 0x18, MN_LEN = 40,
-		FR_OFFSET = 0x40, FR_LEN = 12,
+		FR_OFFSET = 0x40, FR_LEN =  8,
 	};
 
 	using Sn = Genode::String<SN_LEN + 1>;
