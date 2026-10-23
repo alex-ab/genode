@@ -97,7 +97,7 @@ class Vfs_capture::Data_file_system : public Single_file_system
 		                 Genode::Env &env)
 		:
 			Single_file_system(parent_fs, {
-				.ident = name,
+				.ident = { { "data ", name } },
 				.name  = name,
 				.rwx   = File::RW_TRANSACTIONAL
 			}),
