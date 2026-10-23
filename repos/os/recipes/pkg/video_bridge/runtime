@@ -1,0 +1,17 @@
+runtime | ram: 12M | caps: 200 | binary: nitpicker
+
++ requires | + timer
+
++ provides
+  + gui
+  + capture
+
++ config | request_framebuffer: no
+  + capture
+  + domain default | layer: 1 | content: client | label: no
+  + default-policy | domain: default
+
++ content
+  + rom | label: ld.lib.so
+  + rom | label: nitpicker
+-

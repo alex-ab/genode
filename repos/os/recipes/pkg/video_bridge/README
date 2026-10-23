@@ -1,0 +1,5 @@
+
+   Video bridge for connecting a GUI client with capture client
+
+The most prominent use case is the use of a webcam (GUI client) as capture
+device for a browser (capture client).
