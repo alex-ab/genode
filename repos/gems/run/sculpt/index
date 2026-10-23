@@ -18,6 +18,7 @@ index
   + pkg | path: recall_fs         | info: component-specific file-system view
   + pkg | path: file_vault        | info: encrypted file store
   + pkg | path: black_hole        | info: pseudo service provider
+  + pkg | path: video_bridge      | info: video bridge
   + pkg | path: usb_webcam        | info: USB webcam
   + pkg | path: bsd_audio         | info: audio driver | arch: x86_64
   + pkg | path: record_play_mixer | info: audio mixer

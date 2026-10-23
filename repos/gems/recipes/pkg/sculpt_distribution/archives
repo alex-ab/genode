@@ -26,4 +26,5 @@ _/pkg/nano3d
 _/pkg/usb_webcam
 _/pkg/window_layouter
 _/pkg/wm
+_/pkg/video_bridge
 _/src/vfs_oss
