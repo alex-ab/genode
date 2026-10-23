@@ -1,14 +1,23 @@
-runtime | binary: init | caps: 900 | ram: 64M
-
-+ provides | + capture
+runtime | binary: usb_webcam | caps: 300 | ram: 52M
 
 + requires
   + timer
   + usb
+  + gui
+
++ config | ld_verbose: no | width: 640 | height: 480
+  + libc | stdout: /dev/log | stderr: /dev/log
+         | rtc:    /dev/rtc | pipe:   /pipe
+  + env LIBUSB_DEBUG | : 0
+  + vfs
+    + dir pipe | + pipe
+    + dir dev
+      + device | + log
+      + inline rtc | : 2018-01-01 00:01
+      + libusb
 
 + content
   + rom | label: ld.lib.so
-  + rom | label: init
   + rom | label: jpeg.lib.so
   + rom | label: vfs.lib.so
   + rom | label: vfs_libusb.lib.so
@@ -20,89 +29,4 @@ runtime | binary: init | caps: 900 | ram: 64M
   + rom | label: libusb.lib.so
   + rom | label: libuvc.lib.so
   + rom | label: stdcxx.lib.so
-  + rom | label: nitpicker
-  + rom | label: report_rom
-  + rom | label: rom_filter
-
-+ config
-  + parent-provides
-    + service ROM
-    + service PD
-    + service RM
-    + service CPU
-    + service LOG
-    + service Timer
-    + service Usb
-
-  + default | caps: 100
-
-  + service Capture | + default-policy | + child nitpicker_camera
-
-  + start nitpicker_camera | caps: 150 | ram: 4M
-    + binary nitpicker
-    + provides
-      + service Gui
-      + service Capture
-    + config | request_framebuffer: no
-      + report | panorama: yes
-      + capture
-      + domain default | layer: 1 | content: client | label: no
-      + default-policy | domain: default
-    + route
-      + service Report | + child report_rom
-      + any-service    | + parent
-
-  + start report_rom | ram: 2M
-    + binary report_rom
-    + provides
-      + service Report
-      + service ROM
-    + config | verbose: no
-      + policy | label:  webcam_config -> panorama | report: nitpicker_camera -> panorama
-    + route | + any-service | + parent
-
-  + start webcam_config | ram: 1M
-    + binary rom_filter
-    + provides | + service ROM
-    + route
-      + service ROM | label: panorama | + child report_rom
-      + any-service                   | + parent
-    + config | verbose: no
-      + input capture_width | rom: panorama | node: panorama | default:
-        + node | type: capture | + attribute width
-      + output | node: config
-        + if
-          + has_value | input: capture_width | value:
-          + then
-          + else
-            + inline
-            | + parent-provides
-            |   + service ROM
-            |   + service PD
-            |   + service RM
-            |   + service CPU
-            |   + service LOG
-            |   + service Timer
-            |   + service Gui
-            |   + service Usb
-            |
-            | + start usb_webcam | caps: 300 | ram: 52M
-            |   + route | + any-service | + parent
-            |   + config | ld_verbose: no | width: 640 | height: 480
-            |     + libc | stdout: /dev/log | stderr: /dev/log
-            |            | rtc:    /dev/rtc | pipe:   /pipe
-            |     + env LIBUSB_DEBUG | : 0
-            |     + vfs
-            |       + dir pipe | + pipe
-            |       + dir dev
-            |         + device | + log
-            |         + inline rtc | : 2018-01-01 00:01
-            |         + libusb
-
-  + start webcam | caps: 400 | ram: 54M
-    + binary init
-    + route
-      + service ROM | label: config | + child webcam_config | label: config
-      + service Gui                 | + child nitpicker_camera
-      + any-service                 | + parent
 -
