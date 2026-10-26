@@ -390,6 +390,9 @@ int Libc::Fs::mkdir(char const *at, char const *name, mode_t mode)
 			}
 			first = false;
 
+			if (!_curr_mkdir_op.try_acquire(path))
+				return Fn::INCOMPLETE;
+
 			Vfs::Mkdir_result mkdir_result = _vfs.mkdir(path, mtime);
 			if (mkdir_result == Vfs::Mkdir_result::RETRY)
 				return Fn::INCOMPLETE;
@@ -400,6 +403,7 @@ int Libc::Fs::mkdir(char const *at, char const *name, mode_t mode)
 			else
 				errno = EPERM;
 
+			_curr_mkdir_op.release();
 			return Fn::COMPLETE;
 		});
 		if (succeeded)
@@ -1675,12 +1679,17 @@ int Libc::Fs::symlink(char const *target_path, const char *link_path)
 
 	_monitor.monitor([&] {
 
+		if (!_curr_symlink_op.try_acquire(link_path))
+			return Fn::INCOMPLETE;
+
 		switch (_vfs.symlink(link_path, target_path, mtime)) {
 		case Vfs::Symlink_result::RETRY:   return Fn::INCOMPLETE;
 		case Vfs::Symlink_result::CREATED: succeeded = true;     break;
 		case Vfs::Symlink_result::UPDATED: succeeded = true;     break;
 		case Vfs::Symlink_result::DENIED:  result_errno = EPERM; break;
 		}
+
+		_curr_symlink_op.release();
 		return Fn::COMPLETE;
 	});
 
@@ -1847,6 +1856,9 @@ Libc::Fs::Follow_result Libc::Fs::follow_symlinks(char const *path_cstring)
 
 	_monitor.monitor([&] {
 
+		if (!_curr_follow_op.try_acquire(path_cstring))
+			return Fn::INCOMPLETE;
+
 		for (; follow_limit; follow_limit--) {
 
 			char target[Vfs::MAX_PATH_LEN] { };
@@ -1871,10 +1883,13 @@ Libc::Fs::Follow_result Libc::Fs::follow_symlinks(char const *path_cstring)
 					return true;
 				});
 
-			if (done)
+			if (done) {
+				_curr_follow_op.release();
 				return Fn::COMPLETE;
+			}
 		}
 		result = Follow_error::LOOP;
+		_curr_follow_op.release();
 		return Fn::COMPLETE;
 	});
 	return result;

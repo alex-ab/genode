@@ -87,6 +87,28 @@ struct Libc::Fs
 	Directory                        &_root_dir;
 	Procfs                           &_procfs;
 
+	/*
+	 * Keep record of the paths currently processed by the VFS to counter
+	 * thrashing effects by multiple pthreads.
+	 */
+	struct Curr_op
+	{
+		Vfs::Dir_handle::Path _path;
+
+		[[nodiscard]] bool try_acquire(auto const &path_arg)
+		{
+			if (_path.length() > 1 && _path != path_arg)
+				return false;
+
+			_path = path_arg;
+			return true;
+		}
+
+		void release() { _path = { }; }
+	};
+
+	Curr_op _curr_mkdir_op, _curr_symlink_op, _curr_follow_op;
+
 	using off_t  = ::off_t;
 	using size_t = ::size_t;
 	using At = Vfs::At;
