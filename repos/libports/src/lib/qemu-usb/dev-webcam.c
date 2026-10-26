@@ -65,8 +65,8 @@ enum {
 };
 
 static const USBDescStrings desc_strings = {
-	[STR_MANUFACTURER]   = "Genode",
-	[STR_PRODUCT]        = "Genode USB WebCAM",
+	[STR_MANUFACTURER]   = "Generic",
+	[STR_PRODUCT]        = "USB Webcam",
 	[STR_SERIALNUMBER]   = "1",
 	[STR_CONFIG_HIGH]    = "High speed config (usb 2.0)",
 	[STR_VIDEOCONTROL]   = "Videocontrol",
