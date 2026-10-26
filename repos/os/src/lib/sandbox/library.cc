@@ -414,6 +414,9 @@ void Genode::Sandbox::Library::update_child(Child &child, Node const &start)
 
 void Genode::Sandbox::Library::apply_config(Node const &config)
 {
+	if (config.type() != "config")
+		return;
+
 	_server_appeared_or_disappeared = false;
 	_state_report_outdated          = false;
 
