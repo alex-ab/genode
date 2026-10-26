@@ -5,11 +5,17 @@ source [genode_dir]/tool/run/shim.inc
 # Create GPT disk image with UEFI boot loaders and content of the run directory
 #
 # \param --image-uefi_size   disk size in MiB
-# \param --image-disk_shim   nickname of certificate to use to sign GRUB2
+# \param --image-uefi_shim   nickname of certificate to use to sign GRUB2
+# \param --image-boot-png    path to custom boot splash image
 #
 
 proc image_uefi_size { } { return [cmd_arg --image-uefi_size 0] }
 proc image_uefi_shim { } { return [cmd_arg --image-uefi_shim ""] }
+
+proc image_boot_png { } {
+	set default_png [genode_dir]/tool/boot/boot.png
+	return [cmd_arg --image-boot-png "$default_png"]
+}
 
 
 ##
@@ -56,6 +62,6 @@ proc install_uefi_bootloader_to_run_dir { } {
 	exec mkdir -p [run_dir]/boot/grub
 	exec cp [genode_dir]/tool/boot/bender [run_dir]/boot/bender
 
-	exec cp [genode_dir]/tool/boot/boot.png [run_dir]/boot/boot.png
+	exec cp [image_boot_png]                [run_dir]/boot/boot.png
 	exec cp [get_grub2_dir]/boot/font.pf2   [run_dir]/boot/font.pf2
 }

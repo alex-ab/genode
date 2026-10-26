@@ -3,6 +3,7 @@
 #
 # \param --image-disk_size   disk size in MiB
 # \param --image-disk_shim   nickname of certificate to use to sign GRUB2
+# \param --image-boot-png    path to custom boot splash image
 #
 
 source [genode_dir]/tool/run/grub2.inc
@@ -11,6 +12,11 @@ source [genode_dir]/tool/run/shim.inc
 
 proc image_disk_size { } { return [cmd_arg --image-disk_size 0] }
 proc image_disk_shim { } { return [cmd_arg --image-disk_shim ""] }
+
+proc image_boot_png { } {
+	set default_png [genode_dir]/tool/boot/boot.png
+	return [cmd_arg --image-boot-png "$default_png"]
+}
 
 
 proc prepare_grub2_files { } {
@@ -133,6 +139,6 @@ proc run_image { } {
 proc install_disk_bootloader_to_run_dir { } {
 	exec mkdir -p [run_dir]/boot/grub
 	exec cp [genode_dir]/tool/boot/bender   [run_dir]/boot/bender
-	exec cp [genode_dir]/tool/boot/boot.png [run_dir]/boot/boot.png
+	exec cp [image_boot_png]                [run_dir]/boot/boot.png
 	exec cp [get_grub2_dir]/boot/font.pf2   [run_dir]/boot/font.pf2
 }
