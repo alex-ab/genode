@@ -58,7 +58,7 @@ struct Sculpt::Graph : Widget<Depgraph>
 
 	using Hosted_title   = Hosted<Depgraph, Frame, Vbox, Hbox, Toggle_button>;
 	using Hosted_remove  = Hosted<Depgraph, Frame, Vbox, Hbox, Deferred_action_button>;
-	using Hosted_restart = Hosted<Depgraph, Frame, Vbox, Frame, Hbox, Button, Deferred_action_button>;
+	using Hosted_restart = Hosted<Depgraph, Frame, Vbox, Frame, Hbox, Button, Float, Deferred_action_button>;
 
 	Hosted_title   _title   { Id { "title"   } };
 	Hosted_remove  _remove  { Id { "remove"  } };

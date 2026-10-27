@@ -169,10 +169,10 @@ void Graph::_view_selected_node_content(Scope<Depgraph, Frame, Vbox> &s,
 			s.sub_scope<Button>([&] (Scope<Depgraph, Frame, Vbox, Frame, Hbox, Button> &s) {
 				s.attribute("style", "invisible");
 				s.attribute("stretch", "no");
-				s.widget(_restart, [&] (Scope<Button> &s) {
-					s.attribute("style", "restart");
-					s.sub_node("label", [&] { });
-				});
+				s.sub_scope<Float>([&] (Scope<Depgraph, Frame, Vbox, Frame, Hbox, Button, Float> &s) {
+					s.widget(_restart, [&] (Scope<Button> &s) {
+						s.attribute("style", "restart");
+						s.sub_node("label", [&] { }); }); });
 			});
 			s.sub_scope<Vbox>([&] (Scope<Depgraph, Frame, Vbox, Frame, Hbox, Vbox> &s) {
 				s.sub_scope<Min_ex>(25);
