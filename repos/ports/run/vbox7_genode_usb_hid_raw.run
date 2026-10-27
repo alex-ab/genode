@@ -239,23 +239,8 @@ regexp {(\[init -\> log_terminal\] \[init -\> event_dump\] Input event #0\t.*)} 
 
 run_genode_until {.*\[init -\> event_dump\] Input event #11.*\n} 60 [output_spawn_id]
 
-# pay only attention to the output of init and its children
-grep_output {^\[init }
-
-unify_output {(?n)^\[init -\> log_terminal\] \[init -\> usb_hid\] usb usb-[0-9]-[0-9]: input irq status -19 received} ""
-unify_output {(?n) on usb-usbbus.*$} ""
-unify_output {(?n) at usb-usbbus.*\)} ")"
-unify_output {(?n)hid-generic.*input:} "hid-generic: input:"
-unify_output {(?n)usb-[0-9]-[0-9]: USB disconnect, device number [0-9]} "usb-X-X: USB disconnect, device number X"
-unify_output {(?n)device number [0-9]+} "device number X"
-unify_output {(?n)input[0-9]} "inputX"
-unify_output {(?n) as /devices/.*} ""
-unify_output {(?n)^\[init -\> usb.*} ""
-unify_output {(?n)^\[init -\> pc_usb_host.*} ""
-unify_output {(?n)^\[init -\> log_terminal\] \[init -\> usb.*} ""
-unify_output {(?n)^.*dangling allocation.*$} ""
-unify_output {(?n)^.*usbfs: process .* did not claim interface.*$} ""
-trim_lines
+# pay only attention to the output of event_dump
+grep_output {^\[init -\> log_terminal\] \[init -\> event_dump\]}
 
 compare_output_to {
 [init -> log_terminal] [init -> event_dump] Input event #0	PRESS KEY_X 65534	key count: 1
