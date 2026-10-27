@@ -45,7 +45,7 @@ struct Test::Monitor
 
 	Attached_rom_dataspace _init_state { _env, "state" };
 
-	Expanding_reporter _init_config { _env, "init.config" };
+	Expanding_reporter _init_config { _env, "config", "init.config" };
 
 	size_t _ram_quota = 2*1024*1024;
 
