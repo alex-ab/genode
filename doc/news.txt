@@ -4,6 +4,59 @@
                                ===========
 
 
+Sculpt OS release 26.10 | 2026-10-30
+####################################
+
+| Sculpt OS 26.10 uses Genode's custom microkernel by default,
+| drops XML, hosts virtual machines in VirtualBox 7, and turns the USB
+| host-controller driver into a pluggable component.
+
+A few user conveniences like a scalable and user-customizable mouse pointer,
+an added visual overview of dependent components, improved flexibility of
+using webcams, or new support for UK keyboards notwithstanding, the
+four major shifts of the current release are below the surface.
+
+First, Sculpt 26.10 is the first version based on Genode's custom microkernel
+instead of relying on a 3rd-party kernel. This kernel - designed from the
+ground up for the needs of Genode and Sculpt OS in particular - is not only
+more "micro" than any other of the microkernels supported by Genode, it also
+solves long-standing deficiencies concerning CPU scheduling and kernel-memory
+management. Sculpt OS finally stands on Genode's own footing!
+
+Second, the release marks the finishing line of the transition from XML to
+Genode's [https://genode.org/documentation/hid - HID] configuration format,
+increasing the comfort of the system's textual user interface. Whereas
+the previous version still supported both XML and HID, the new version has
+become relieved from the XML legacy.
+
+As the third major shift, the new version upgrades key components, offering
+VirtualBox 7 instead of version 6, and bumping all Linux-based driver
+components from kernel version 6.12 to 6.18. This makes Sculpt OS
+inter-operable with recent guest OS versions and a greater variety of modern
+hardware. Speaking of drivers, the new version takes the concept of pluggable
+drivers as far as covering the USB host-controller driver. In fact, this bus
+driver can now be started, removed, and re-started without bringing USB
+clients into trouble. This architectural change does not only improve
+failsafety - a faulted host driver can now be instantly replaced by a fresh
+instance - but also clears the way towards more flexible management of power
+and seamless driver updates.
+
+Finally, Sculpt OS 26.10 pays tribute to this year's overall
+[https://genode.org/about/road-map - theme] of "building bridges" by featuring
+our software development kit (Goa SDK) running directly on Sculpt OS without
+virtualization. This entails a wealth of tooling including GCC, Binutils, Git,
+Sequoia, Expect, Curl, man, Make, and CMake having landed on Genode. Although
+still young and not time-tested yet, it shows what's possible today and allows
+us developers to gradually shift more and more development routine into this
+self-hosted environment, stressing the general-purpose qualities of Genode
+and motivating further optimizations.
+
+Sculpt OS 26.10 is available as ready-to-use system image for PC hardware,
+the PinePhone, and the MNT Reform laptop at the
+[https:/download/sculpt - Sculpt download page] accompanied
+with updated [https:/documentation/articles/sculpt-26-10 - documentation].
+
+
 Genode OS Framework release 26.08 | 2026-08-25
 ##############################################
 
