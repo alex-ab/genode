@@ -37,7 +37,7 @@ if {![have_include "power_on/qemu"]} {
 # non Intel machines have no GPU support, e.g. Qemu and AMD
 set board_non_intel [expr [have_include "power_on/qemu"]]
 
-set use_gpu_client 1
+set use_gpu_client 0
 set use_gpe "no"
 set use_ahci 0
 set use_nvme 0
@@ -117,6 +117,8 @@ proc restartable_drivers { } {
   |           + service Capture
   |           + service Event
   |           + service Gui
+  |           + service Usb_host
+  |           + service Uplink
 } [display_config] {
 } [input_config] {
 } [wifi_config] {
@@ -284,14 +286,14 @@ proc log_output { } {
     + any-service
       + parent
 
-+ start terminal | caps: 110 | ram: 6M } [priority_log] {
++ start terminal | caps: 130 | ram: 6M } [priority_log] {
   + provides
   | + service Terminal
   + config
   | + initial | width: 1200 | height: 780
   | + palette
-  | | + color | index: 0 | value: #2f3953
-  | | + color | index: 8 | value: #2f3953
+  |   + color 0 | fg: #2f3953
+  |   + color 8 | fg: #2f3953
   | + vfs
   |   + rom VeraMono.ttf
   |   + dir font
@@ -423,67 +425,17 @@ proc gpu_config { } {
   | + service Gpu
   | + service Dma
   | + service Platform
-  + config | system: yes
-  | + device
-  | |        vendor:      0x8086
-  | |        device:      0x1606
-  | |        generation:  8
-  | |        platform:    broadwell
-  | |        description: HD Graphics (BDW GT1 ULT)
-  | + device
-  | |        vendor:      0x8086
-  | |        device:      0x1616
-  | |        generation:  8
-  | |        platform:    broadwell
-  | |        description: HD Graphics 5500 (BDW GT2 ULT)
-  | + device
-  | |        vendor:      0x8086
-  | |        device:      0x1622
-  | |        generation:  8
-  | |        platform:    broadwell
-  | |        description: Iris Pro Graphics 6200 (BDW GT3e)
-  | + device
-  | |        vendor:      0x8086
-  | |        device:      0x1916
-  | |        generation:  9
-  | |        platform:    skylake
-  | |        description: HD Graphics 520 (Skylake, Gen9)
-  | + device
-  | |        vendor:      0x8086
-  | |        device:      0x191b
-  | |        generation:  9
-  | |        platform:    skylake
-  | |        description: HD Graphics 530 (Skylake, Gen9)
-  | + device
-  | |        vendor:      0x8086
-  | |        device:      0x5916
-  | |        generation:  9
-  | |        platform:    kabylake
-  | |        description: HD Graphics 620 (Kaby Lake, Gen9p5)
-  | + device
-  | |        vendor:      0x8086
-  | |        device:      0x5917
-  | |        generation:  9
-  | |        platform:    kabylake
-  | |        description: UHD Graphics 620 (Kaby Lake, Gen9p5)
-  | + device
-  | |        vendor:      0x8086
-  | |        device:      0x591b
-  | |        generation:  9
-  | |        platform:    kabylake
-  | |        description: HD Graphics 630 (Kaby Lake, Gen9p5)
-  | + device
-  | |        vendor:      0x8086
-  | |        device:      0x3ea0
-  | |        generation:  9
-  | |        platform:    whiskeylake
-  | |        description: UHD Graphics 620 (Whiskey Lake, Gen9p5)
-  | + device
-  |          vendor:      0x8086
-  |          device:      0x9a49
-  |          generation:  12
-  |          platform:    tigerlake
-  |          description: Iris Xe Graphics (Tiger Lake, Xe)
+  + config | max_framebuffer_memory: 64M
+  | + device | vendor: 0x8086 | device: 0x1606 | generation:   8 | platform: broadwell   | description: HD Graphics (BDW GT1 ULT)
+  | + device | vendor: 0x8086 | device: 0x1616 | generation:   8 | platform: broadwell   | description: HD Graphics 5500 (BDW GT2 ULT)
+  | + device | vendor: 0x8086 | device: 0x1622 | generation:   8 | platform: broadwell   | description: Iris Pro Graphics 6200 (BDW GT3e)
+  | + device | vendor: 0x8086 | device: 0x1916 | generation:   9 | platform: skylake     | description: HD Graphics 520 (Skylake, Gen9)
+  | + device | vendor: 0x8086 | device: 0x191b | generation:   9 | platform: skylake     | description: HD Graphics 530 (Skylake, Gen9)
+  | + device | vendor: 0x8086 | device: 0x5916 | generation:   9 | platform: kabylake    | description: HD Graphics 620 (Kaby Lake, Gen9p5)
+  | + device | vendor: 0x8086 | device: 0x5917 | generation:   9 | platform: kabylake    | description: UHD Graphics 620 (Kaby Lake, Gen9p5)
+  | + device | vendor: 0x8086 | device: 0x591b | generation:   9 | platform: kabylake    | description: HD Graphics 630 (Kaby Lake, Gen9p5)
+  | + device | vendor: 0x8086 | device: 0x3ea0 | generation:   9 | platform: whiskeylake | description: UHD Graphics 620 (Whiskey Lake, Gen9p5)
+  | + device | vendor: 0x8086 | device: 0x9a49 | generation:  12 | platform: tigerlake   | description: Iris Xe Graphics (Tiger Lake, Xe)
   + route
     + service Dma
     | + child platform | label: fb
@@ -608,7 +560,7 @@ proc nic_config { } {
   |         + start nic | caps: 150 | ram: 16M
   |           + binary pc_nic
   |           + route
-  |             + service Uplink | + child nic_router
+  |             + service Uplink | + parent
   |             + any-service    | + parent }
 }
 
@@ -627,6 +579,7 @@ build {
 	driver/ahci
 	driver/nvme
 	driver/rtc
+	server/nic_router
 	app/acpica
 	app/pci_decode
 	app/block_tester
@@ -637,6 +590,7 @@ create_boot_directory
 
 import_from_depot [depot_user]/src/init \
                   [depot_user]/src/nitpicker \
+                  [depot_user]/src/nic_router \
                   [depot_user]/src/ps2 \
                   [depot_user]/pkg/themed_wm \
                   [depot_user]/pkg/terminal \
@@ -763,7 +717,12 @@ config | verbose: no | prio_levels: 4
 } [ ahci_config] {
 } [ nvme_config] {
 
-+ start usb | caps: 200 | ram: 1M
++ start nic_router | ram: 10M | caps: 300 } [priority_drivers] {
+  + provides
+    + service Nic
+    + service Uplink
+
++ start usb | caps: 200 | ram: 1M } [priority_drivers] {
   + provides
     + service Usb
     + service Usb_host
@@ -773,7 +732,7 @@ config | verbose: no | prio_levels: 4
     + service Platform | + child platform | label: usb
     + any-service      | + parent
 
-+ start drivers_init | caps: 10000 | ram: 128M } [priority_drivers] {
++ start drivers_init | caps: 10000 | ram: 192M } [priority_drivers] {
   + binary init
   + route
     + service Report                               | + child drivers_reports
@@ -788,6 +747,7 @@ config | verbose: no | prio_levels: 4
     + service Platform | label_prefix: nic ->      | + child platform | label: nic
     + service Platform | label_prefix: fb ->       | + child platform | label: fb
     + service Platform | label_prefix: usb ->      | + child platform | label: usb
+    + service Usb_host | label_prefix: usb ->      | + child usb      | label: usb
     + service Platform | label_prefix: intel_fb -> | + child gpu
     + service ROM | label: intel_fb -> intel_opregion
     | + child drivers_reports | label: intel_fb -> intel_opregion
@@ -930,6 +890,7 @@ build_boot_image [build_artifacts]
 # enable MMIO PCI MMCFG access.
 #
 append qemu_args "-smp 1"
+append qemu_args " -m 1024"
 
 if {[have_include "power_on/qemu"] && $use_ahci} {
 	append qemu_args " -device ahci,id=ahci "
