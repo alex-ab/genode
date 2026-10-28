@@ -1,7 +1,7 @@
 
 
                       =============================
-                      Sculpt Operating System 26.04
+                      Sculpt Operating System 26.10
                       =============================
 
 
@@ -12,7 +12,7 @@
 Introduction
 ############
 
-[image sculpt_26_04 100%]
+[image sculpt_26_10 100%]
 
 Sculpt is a component-based desktop operating system that puts the user in
 the position of full control. It is empowered by the Genode OS Framework,
@@ -61,7 +61,7 @@ Your feedback is appreciated!
   [https://www.genode-labs.com]
 
 A printable PDF version of this document is available at the
-[https://genode.org/documentation/sculpt-26.04.pdf - Genode website].
+[https://genode.org/documentation/sculpt-26-10.pdf - Genode website].
 
 
 Hardware requirements and preparations
@@ -123,15 +123,17 @@ system-global operations like resetting the machine, enabling optional
 features, or picking a pre-defined system composition from a selection of
 presets.
 
-[image sculpt_26_04_panel 100%]
+[image sculpt_26_10_panel 100%]
 
 The main user interface is the component graph, which reveals how all the
 building blocks of the system relate to each other. A click on a component
-reveals the set of components it relies on (its trusted computing base) along
-with additional details and controls. Each connection means that the component
-on the right side relies on the component on the left side. Should the graph
-not fit on the screen, it can be vertically positioned using a scroll wheel or
-the page-up / page-down keys.
+reveals the set of components it relies on (its trusted computing base) on its
+left. Each connection means that the component on the right side relies on the
+component on the left side. Hence, to the right of the selected component, one
+can see all components that depend on the selected one. The dialog inside the
+selected component reveals additional details and controls for this specific
+component. Should the graph not fit on the screen, it can be vertically
+positioned using a scroll wheel or the page-up / page-down keys.
 
 The red-tinted "depot" component along with the diagnostic messages in the
 lower left corner indicate that some precondition for using Sculpt OS is
@@ -147,7 +149,7 @@ Enable *networking* in the network component by selecting one of the "Wired",
 "USB", or "Wifi" options, which prompts the system to start the
 corresponding driver component.
 
-[image sculpt_26_04_network 50%]
+[image sculpt_26_10_network 50%]
 
 In the "Wifi" case, click on the wifi driver (close to the platform component
 at the upper part of the graph), select an access point and enter the
@@ -217,7 +219,7 @@ As a starter, let's add a desktop background. In the "GUI ..." sub menu, a
 click on the first item named "sticks blue backdrop" presents us with the
 option to install the package.
 
-[image sculpt_26_04_install_backdrop 47%]
+[image sculpt_26_10_install_backdrop 47%]
 
 A click on the "Install" button triggers the download of the package and its
 dependencies. Once the download is complete, the menu presents a configuration
@@ -225,7 +227,7 @@ dialog that allows you to define the interplay of the new component with the
 system. In this particular case, you have to decide for a GUI service to be
 used by the backdrop.
 
-[image sculpt_26_04_backdrop_routes 47%]
+[image sculpt_26_10_backdrop_routes 47%]
 
 The first option "gui" would grant direct access to the system's low-level GUI
 server, which is normally not used by applications but by higher-level GUI
@@ -239,7 +241,7 @@ to appear integrated into the administrative user interface. In our case, "gui
 (backdrop)" is the correct choice. Once the configuration is complete, a new
 button for adding the component to the system appears.
 
-[image sculpt_26_04_add_backdrop 47%]
+[image sculpt_26_10_add_backdrop 47%]
 
 After pressing the button, you should notice a slight visual change. *Press*
 *F12* to toggle between the Leitzentrale and the desktop. Now, the backdrop
@@ -249,7 +251,7 @@ information. The upper-right "x" button can be used to remove the component
 from the system. A click on the circular icon in the lower-left corner
 restarts the component.
 
-[image sculpt_26_04_backdrop_selected 80%]
+[image sculpt_26_10_backdrop_selected 80%]
 
 As a next step, let us add a window system. In the '+' menu, you can find
 a readily packaged window system at _GUI_ -> _themed wm_.
@@ -260,9 +262,9 @@ manager in charge of controlling the keyboard focus, which is part of its job
 after all. The _GUI_ should be assigned to "gui" as the basic mechanism to be
 used for graphical output and user input for the windowed applications.
 By assigning _Report (shape)_ to _pointer_, we allow the window manager to
-report mouse-cursor shapes to the pointer component. By assigning _Report
-(clipboard)_ to _clipboard_, we grant the window manager the right to change
-the content of the global clipboard. Vice versa, by assigning _ROM_
+report mouse-cursor shapes to the pointer component. By assigning
+_Report (clipboard)_ to _clipboard_, we grant the window manager the right to
+change the content of the global clipboard. Vice versa, by assigning _ROM_
 _(clipboard)_, we permit the window manager to obtain clipboard content.
 
 After adding the component, the "themed wm" will appear in the components view.
@@ -326,7 +328,7 @@ example, since there is no connection from _system shell_ to the _network_,
 we know that this component is isolated from the network. The network-related
 components are outside the trusted computing base of the system shell.
 
-[image sculpt_26_04_system_shell_selected 70%]
+[image sculpt_26_10_system_shell_selected 70%]
 
 
 Using a persistent storage device
@@ -346,7 +348,7 @@ The following steps describe the use of the USB stick that holds the Sculpt
 OS boot image as target. The USB stick can be accessed be selecting the "usb"
 component.
 
-[image sculpt_26_04_usb_selected 75%]
+[image sculpt_26_10_usb_selected 75%]
 
 Upon selecting the USB stick, one can see three partitions. The first two
 partitions are necessary for booting from the stick whereas the third
@@ -539,8 +541,8 @@ Component configurations
 Components can be configured using the 'config' sub node of its 'child' node or
 by a detached configuration file. By convention, such configuration files are
 placed at the model's _child/_ subdirectory and named after the respective
-component. For example, the configuration of the 'gui' component can be found
-at _child/gui_.
+component. For example, the configuration of the 'pointer' component can be
+found at _child/pointer_.
 
 
 Report subsystem
@@ -584,7 +586,7 @@ your network connectivity. Most importantly, however, it allows the user to
 access the _model_ and _report_ file systems. Both file systems are readily
 accessible under the "Files" tab of the panel. The file browser allows you to
 traverse directory hierarchies, inspect individual files, and edit files.
-Alternatively to the "Files" tab, Sculpt 26.04 features a command-line
+Alternatively to the "Files" tab, Sculpt 26.10 features a command-line
 interface. To spawn this command-line interface, click on the "ram fs"
 component in the graph and select "Inspect". In the panel, a third tab named
 "Inspect" appears, which hosts the command-line interface.
@@ -715,9 +717,6 @@ Try out the following tweaks:
   changing its 'gui' connection in _/model/option/log_view_ from
   'child leitzentrale' to the window manager.
 
-You may also enjoy tinkering with the configuration of the GUI server, which
-is located at the file _/model/child/gui_. For example, you may change the
-background color the "default" domain.
 
 System resources
 ================
@@ -1010,7 +1009,7 @@ utilize hardware-accelerated graphics on machines that feature a GPU supported
 by Sculpt. Supported are Intel GPUs of generation 8 (Broadwell) to 12 (Tiger
 Lake).
 
-_Note that GPU support is a very recent feature and has thereby not_
+_Note that GPU support is a recent feature and has thereby not_
 _received intensive testing yet. Please regard it as experimental and_
 _use it with caution._
 
@@ -1144,39 +1143,34 @@ a rectangular area. So one click may affect nodes other than only the clicked
 one.
 
 Below the CPU-affinity matrix, the dialog allows for the selection of the
-component's scheduling priority. Note that here the notion of priority refers
-to CPU scheduling profiles as opposed to nice levels. On kernels like NOVA
-that use hard static priority scheduling, a high-priority activity prevents
-all lower-level priorities from executing. Consequently, the assignment of a
-high priority comes at the risk of starving lower-priority components. The
-dialog presents four options:
+component's CPU-scheduling class.
 
 :Driver:
 
-  The highest priority should be preserved to latency-critical device drivers
-  such as audio drivers. This option is also a sensible choice for trusted
-  components that must stay somewhat responsive under any condition. For
-  example, the components of the Leitzentrale GUI operate on this priority to
-  preserve the user's control over the system even in the event of a rampaging
-  high-priority device driver.
+  The highest scheduling class should be preserved to latency-critical device
+  drivers such as audio drivers. This option is also a sensible choice for
+  trusted components that must stay somewhat responsive under any condition.
+  For example, the components of the Leitzentrale GUI operate on this priority
+  to preserve the user's control over the system even in the event of a
+  rampaging high-priority device driver.
 
 :Multimedia:
 
-  The second-highest priority is recommended for latency-sensitive
+  The second-highest scheduling class is recommended for latency-sensitive
   applications such as audio and video players as well as their dependencies.
   For example, it is the appropriate priority for window-management
   components.
 
 :Default:
 
-  The default priority is suitable for all regular applications as well as
-  storage and networking components.
+  The default is suitable for all regular applications as well as storage and
+  networking components.
 
 :Background:
 
-  The lowest priority is designated for non-interactive best-effort workloads
-  such as long-running computations. By assigning the background priority to
-  such components, they won't impede the user's perception of the
+  The lowest scheduling class is designated for non-interactive best-effort
+  workloads such as long-running computations. By assigning the background
+  class to such components, they won't impede the user's perception of the
   responsiveness of the system.
 
 The "System control" option allows the new component to monitor or manipulate
@@ -1344,7 +1338,7 @@ a preset by copying _/model/deploy_ as new file to _/model/presets/_.
 
 To keep your custom preset available after reboot, follow the pattern
 described in Section [Making customizations permanent] by copying the file to
-_/config/26.04/presets/_ at your Sculpt partition.
+_/config/26.10/presets/_ at your Sculpt partition.
 
 
 Installation on disk
@@ -1384,7 +1378,7 @@ at the upper-right screen corner provides you with a convenient user interface
 for discovering and downloading new versions, and for switching between the
 installed system images.
 
-[image sculpt_26_04_check_updates 50%]
+[image sculpt_26_10_check_updates 50%]
 
 The upper part of the dialog allows you to select the system-image provider.
 By default, the provider is set to the one of your currently running system
@@ -1399,7 +1393,7 @@ The check-for-updates button downloads the information about available images
 from the selected provider. This information is presented along with the
 already downloaded images as exemplified in the following screenshot.
 
-[image sculpt_26_04_update 50%]
+[image sculpt_26_10_update 50%]
 
 The little "..." dots indicate that change-log information is available when
 clicking on the entry. The download button fetches the image. Once fetched,
@@ -1626,8 +1620,8 @@ machines with mixed yet promising results.
 On most machines, the wifi driver is not able to re-initialize the wifi device
 after resume. The Lenovo x260 is a notable exception.
 
-Upon resume, Sculpt OS restarts the USB host-controller driver, which implies
-the restart of all USB clients. E.g., a virtual machine connected to USB will
+Upon resume, Sculpt OS restarts the USB host-controller driver, causing ripple
+effects to all USB clients. E.g., a virtual machine connected to USB will
 be affected. While accessing any USB storage device, the standby option is
 deliberately not presented.
 
@@ -1673,21 +1667,20 @@ download at [https://genode.org].
 
   ! git clone https://codeberg.org/genodelabs/genode.git
   ! cd genode
-  ! git checkout -b sculpt-26.04 sculpt-26.04
+  ! git checkout -b sculpt-26.10 sculpt-26.10
 
-# Download the support for the NOVA microkernel
+# Download the support for Genode's microkernel
 
-  ! ./tool/depot/download genodelabs/bin/x86_64/base-nova/2026-04-30
+  ! ./tool/depot/download genodelabs/bin/x86_64/base-hw-pc/2026-10-30
 
   The content is downloaded to the _public/_ directory and extracted to
   the _depot/_ directory.
 
 # Download all ingredients for the Sculpt boot image
 
-  ; TODO
   ! ./tool/depot/download \
-  !    genodelabs/pkg/x86_64/sculpt/2026-04-30 \
-  !    genodelabs/pkg/x86_64/sculpt_drivers-pc/2026-04-30
+  !    genodelabs/pkg/x86_64/sculpt/2026-10-30 \
+  !    genodelabs/pkg/x86_64/sculpt_drivers-pc/2026-10-30
 
 # Create a build directory
 
@@ -1713,7 +1706,7 @@ download at [https://genode.org].
 # Create the Sculpt boot image (defined by the run script at
   _repos/gems/run/sculpt_image.run_)
 
-  ! make -C build/x86_64 run/sculpt_image KERNEL=nova BOARD=pc DEPOT=omit
+  ! make -C build/x86_64 run/sculpt_image KERNEL=hw BOARD=pc DEPOT=omit
 
   The boot image is created at _build/x86_64/var/run/sculpt.img_.
 
@@ -1738,10 +1731,10 @@ be prepared. The following command prepares all of them at once:
 ! <GENODE-DIR>/tool/ports/prepare_port \
 !      acpica bash coreutils curl-minimal dde_bsd dde_rump e2fsprogs-lib \
 !      expat gdb gmp gnupg grub2 jitterentropy jpeg libarchive libc \
-!      libdrm libgcrypt libiconv libnl libpng libusb libuvc \
-!      libyuv linux linux-firmware mesa-minimal ncurses nova openssl-minimal \
-!      qemu-usb stb stdcxx sticks_blue_backdrop tcl ttf-bitstream-vera vim \
-!      virtualbox6 wpa_supplicant x86emu xz zlib
+!      libdrm libgcrypt libiconv libnl libpng libusb libuvc libyuv linux \
+!      linux-firmware mesa-minimal ncurses openssl-minimal qemu-usb \
+!      stb stdcxx sticks_blue_backdrop tcl ttf-bitstream-vera vim \
+!      virtualbox7 wpa_supplicant x86emu xz zlib
 
 The ingredients of the boot image are defined by the _sculpt/default-pc.sculpt_
 file located in the _repos/gems/_ repository. The default set of software
@@ -1789,7 +1782,7 @@ Sculpt system, you must publish them. This involves the archiving, signing,
 and uploading of the content. The former two steps are covered by the
 _tool/depot/publish_current_ tool. For more information about working with the
 depot tool, refer to the package-management
-[https://genode.org/documentation/genode-foundations/25.05/development/Package_management.html - documentation].
+[https://genode.org/documentation/genode-foundations/26.05/development/Package_management.html - documentation].
 
 All options and presets integrated into the boot image are defined in
 _gems/sculpt/default-pc.sculpt_ and the accompanied files are located at
@@ -1812,7 +1805,7 @@ Credits
 #######
 
 Sculpt is an example system scenario of the Genode project, which is a novel
-operating-system technology designed and developed by
+operating-system technology designed and developed from the ground up by
 [https://genode-labs.com - Genode Labs GmbH].
 
 :Genode OS Framework:
@@ -1822,17 +1815,12 @@ That said, Genode is not developed in a vacuum. It greatly benefits from the
 free-software/open-source community. The following projects play a particularly
 important role for Sculpt OS.
 
-:NOVA microhypervisor:
-
-  Sculpt's kernel is a derivate of NOVA, maintained by Genode Labs.
-  NOVA was originally created by Udo Steinberg [https://hypervisor.org].
-
 :Linux kernel:
   [https://kernel.org]
 
-  Sculpt reuses several Linux subsystems as individual components, in
-  particular the USB stack, the Intel wireless stack, the Intel graphics
-  driver, and the TCP/IP stack.
+  Even though Sculpt does not use Linux as kernel, it reuses several Linux
+  subsystems as user-level components, in particular the USB stack, the Intel
+  wireless stack, the Intel graphics driver, and the TCP/IP stack.
 
 :NetBSD's rump kernel:
   [https://wiki.netbsd.org/rumpkernel/]
