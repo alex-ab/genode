@@ -29,6 +29,6 @@ INC_DIR += $(LX_SRC_DIR)/drivers/gpu/drm/i915
 #
 CC_C_OPT += -DCONFIG_DRM_XE_DISPLAY \
             -Ddrm_i915_private=xe_device \
-            -DCONFIG_ARCH_FORCE_MAX_ORDER=12
+            -DCONFIG_ARCH_FORCE_MAX_ORDER=14
 
 LD_OPT += -Bsymbolic
