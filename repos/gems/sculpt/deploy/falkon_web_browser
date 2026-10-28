@@ -25,7 +25,7 @@ deploy | info: disposable web browser
     + image | png: genode_logo.png | alpha:  50 | anchor: bottom_right
                                      xpos:  -20 | ypos:  -20
 
-+ child falkon_qt6-jemalloc | pkg: cproc/pkg/falkon_qt6-jemalloc/2026-04-22
++ child falkon_qt6-jemalloc | pkg: cproc/pkg/falkon_qt6-jemalloc/2026-10-27
   + connect
     + rm                  | + parent
     + nic                 | + child network
