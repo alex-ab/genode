@@ -2556,8 +2556,10 @@ struct Main : Irq_ack_handler, Gpu_reset_handler
 			if (stop_driver)
 				_igd_device->stop_driver();
 
-			if (resume_driver)
+			if (resume_driver) {
 				_igd_device->resume_driver();
+				_platform_root.device_ready();
+			}
 		} else {
 			/* not supported GPU case */
 			if (stop_driver) {
@@ -2570,6 +2572,8 @@ struct Main : Irq_ack_handler, Gpu_reset_handler
 				_dev.acquire_device();
 
 				log("driver resumed");
+
+				_platform_root.device_ready();
 			}
 		}
 	}

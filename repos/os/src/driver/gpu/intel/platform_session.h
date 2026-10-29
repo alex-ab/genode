@@ -280,12 +280,19 @@ class Platform::Session_component : public Rpc_object<Session>,
 
 		bool handle_irq() { return _device_component.handle_irq(); }
 
+		void device_ready() { _rom_session.trigger_update(); }
+
 		/***************************************
 		 ** Dynamic_rom_session::Producer API **
 		 ***************************************/
 
 		void generate(Genode::Generator &g) override
 		{
+			if (!_hw_ready.mmio_ready()) {
+				/* report generation will be triggered by device_ready() */
+				return;
+			}
+
 			Rom_session_client rsc(_platform.devices_rom());
 			Attached_dataspace rom(_env.rm(), rsc.dataspace());
 
@@ -772,6 +779,15 @@ class Platform::Root : public Root_component<Session_component, Genode::Single_c
 				return _session->handle_irq();
 
 			return false;
+		}
+
+		void device_ready()
+		{
+			/* device state changed -> notify potential existing session */
+			if (!_session.constructed())
+				return;
+
+			_session->device_ready();
 		}
 };
 
