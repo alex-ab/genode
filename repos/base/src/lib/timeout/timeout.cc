@@ -80,7 +80,8 @@ Duration Timeout::deadline() const
 
 void Timeout_scheduler::handle_timeout(Duration curr_time)
 {
-	Mutex::Guard guard { _handle_mutex };
+	Mutex::Guard handle_guard   { _handle_mutex };
+	Mutex::Guard schedule_guard { _schedule_mutex };
 
 	Clock lookahead_time { curr_time };
 	lookahead_time.add(_accuracy_us);
@@ -93,12 +94,11 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 				Timeout &timeout { alarm.timeout };
 				Clock deadline   { alarm.time };
 
-				{
-					Mutex::Guard guard { _schedule_mutex };
-					timeout._alarm.destruct();
-				}
+				timeout._alarm.destruct();
 
+				_schedule_mutex.release();
 				timeout._handler.handle_timeout(curr_time);
+				_schedule_mutex.acquire();
 
 				if (timeout._period.value > 0) {
 
@@ -106,26 +106,20 @@ void Timeout_scheduler::handle_timeout(Duration curr_time)
 						deadline.add(timeout._period);
 
 					/* re-insert periodic timeout */
-					{
-						Mutex::Guard guard { _schedule_mutex };
-						timeout._alarm.construct(_alarms, timeout, deadline);
-					}
+					timeout._alarm.construct(_alarms, timeout, deadline);
 				}
 			});
 	}
 
 	/* schedule soonest alarm at time source */
-	{
-		Mutex::Guard guard { _schedule_mutex };
-		_alarms.soonest(Clock { 0 }).with_result(
-			[&] (Clock soonest) {
-				_schedule_alarm(soonest);
-			},
-			[&] (Alarms::None) {
-				_alarm_time.destruct();
-			}
-		);
-	}
+	_alarms.soonest(Clock { 0 }).with_result(
+		[&] (Clock soonest) {
+			_schedule_alarm(soonest);
+		},
+		[&] (Alarms::None) {
+			_alarm_time.destruct();
+		}
+	);
 }
 
 
