@@ -34,7 +34,9 @@ State System_control_component::system_control(State const &s)
 {
 	State ret;
 
-	ret.r[0] = Hw::Psci_smc_functor::call(s.r[0], s.r[1], s.r[2], s.r[3]);
+	Hw::Psci_smc_functor::call(s.r[0], s.r[1], s.r[2], s.r[3],
+	                           s.r[4], s.r[5], s.r[6], s.r[7],
+	                           ret.r[0], ret.r[1], ret.r[2], ret.r[3]);
 
 	return ret;
 }

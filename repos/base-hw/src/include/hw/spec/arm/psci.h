@@ -41,20 +41,26 @@ class Hw::Psci
 			                                : PSCI_64_BASE) + func;
 		}
 
+		static inline int _call(Genode::umword_t func, Genode::umword_t a0,
+		                        Genode::umword_t a1,   Genode::umword_t a2) {
+			Genode::umword_t r0, r1, r2, r3;
+			CONDUIT_FUNCTOR::call(func, a0, a1, a2, 0, 0, 0, 0, r0, r1, r2, r3);
+			return (int)r0;
+		}
+
 	public:
 
 		static bool cpu_on(unsigned long cpu_id, void *entrypoint)
 		{
-			return CONDUIT_FUNCTOR::call(_psci_func(CPU_ON, false),
-			                             cpu_id,
-			                             (unsigned long)entrypoint,
-			                             cpu_id) == 0;
+			return _call(_psci_func(CPU_ON, false),
+			                        cpu_id,
+			                        (unsigned long)entrypoint,
+			                        cpu_id) == 0;
 		}
 
 		static bool cpu_off()
 		{
-			return CONDUIT_FUNCTOR::call(_psci_func(CPU_OFF, true),
-			                             0, 0, 0) == 0;
+			return _call(_psci_func(CPU_OFF, true), 0, 0, 0) == 0;
 		}
 };
 
