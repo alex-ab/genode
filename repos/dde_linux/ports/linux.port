@@ -36,6 +36,7 @@ PATCH_FILES := \
                evbug.patch \
                xe_vmap_contiguous.patch \
                xe_generated.patch \
-               xe_vtd.patch
+               xe_vtd.patch \
+               xe_dumb_ggtt.patch
 
 PATCHES += $(addprefix patches/,$(PATCH_FILES))

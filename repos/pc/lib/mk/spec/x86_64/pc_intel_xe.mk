@@ -5,9 +5,10 @@ TARGET_LIB_DIR := $(REP_DIR)/src/lib/pc_intel_xe
 
 INC_DIR += $(TARGET_LIB_DIR)
 
-SRC_C = lx_xe_brightness.c
+SRC_C = lx_xe_brightness.c lx_xe_fb.c
 
 vpath lx_xe_brightness.c $(TARGET_LIB_DIR)
+vpath lx_xe_fb.c         $(TARGET_LIB_DIR)
 vpath %.c $(REP_DIR)/src/lib/pc
 
 LIBS += pc_linux_generated pc_lx_emul
@@ -18,6 +19,9 @@ INC_DIR += $(LX_SRC_DIR)/drivers/gpu/drm/xe/compat-i915-headers
 INC_DIR += $(LX_SRC_DIR)/drivers/gpu/drm/i915/display
 INC_DIR += $(LX_SRC_DIR)/drivers/gpu/drm/xe
 INC_DIR += $(LX_SRC_DIR)/drivers/gpu/drm/i915
+
+# for lx_xe_brightness.c and lx_xe_fb.c
+INC_DIR += $(REP_DIR)/src/driver/framebuffer/intel/pc
 
 #
 # -DCONFIG_DRM_XE_DISPLAY required because of

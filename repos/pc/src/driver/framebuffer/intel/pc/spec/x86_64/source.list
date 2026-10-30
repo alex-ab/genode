@@ -156,6 +156,7 @@ drivers/gpu/drm/i915/display/intel_fb.c
 drivers/gpu/drm/i915/display/intel_fb_bo.c
 drivers/gpu/drm/i915/display/intel_fb_pin.c
 drivers/gpu/drm/i915/display/intel_fbc.c
+drivers/gpu/drm/i915/display/intel_fbdev_fb.c
 drivers/gpu/drm/i915/display/intel_fdi.c
 drivers/gpu/drm/i915/display/intel_fifo_underrun.c
 drivers/gpu/drm/i915/display/intel_flipq.c
@@ -278,7 +279,6 @@ drivers/video/fbdev/core/fbcmap.c
 drivers/video/hdmi.c
 drivers/video/nomodeset.c
 kernel/async.c
-kernel/irq_work.c
 kernel/irq/chip.c
 kernel/irq/devres.c
 kernel/irq/handle.c

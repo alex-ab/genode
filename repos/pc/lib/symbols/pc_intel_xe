@@ -6,7 +6,9 @@ jiffies D 0
 jiffies_64 D 0
 kmalloc_caches D 0
 lx_xe_get_brightness T
+lx_xe_register_fb T
 lx_xe_set_brightness T
+lx_xe_unpin_vma T
 mem_type_is_vram T
 random_kmalloc_seed D 0
 system_percpu_wq D 0

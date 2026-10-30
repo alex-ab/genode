@@ -1,0 +1,18 @@
+--- src/linux/drivers/gpu/drm/xe/xe_bo.c
++++ src/linux/drivers/gpu/drm/xe/xe_bo.c
+@@ -3600,11 +3600,10 @@
+ 		printk("%s:%u - resize %llx->%lx for contiguous vmap\n", __func__, __LINE__, args->size, asize);
+ 	}
+ 
+-	bo = xe_bo_create_user(xe, NULL, asize,
+-			       DRM_XE_GEM_CPU_CACHING_WC,
+-			       XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
+-			       XE_BO_FLAG_SCANOUT |
+-			       XE_BO_FLAG_NEEDS_CPU_ACCESS, NULL);
++	bo = xe_bo_create_pin_map_novm(xe, xe_device_get_root_tile(xe), asize,
++						ttm_bo_type_kernel, XE_BO_FLAG_SCANOUT |
++						XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
++						XE_BO_FLAG_GGTT, false);
+ 	if (IS_ERR(bo))
+ 		return PTR_ERR(bo);
+ 

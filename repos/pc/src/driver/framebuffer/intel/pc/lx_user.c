@@ -32,6 +32,7 @@
 
 #include "lx_emul.h"
 #include "lx_brightness.h"
+#include "lx_register_fb.h"
 
 
 enum { MAX_CONNECTORS  =  32, CONNECTOR_ID_MIRROR  = MAX_CONNECTORS - 1 };
@@ -46,9 +47,9 @@ static bool const verbose = false;
 static struct state {
 	struct drm_mode_create_dumb  fb_dumb;
 	struct drm_mode_fb_cmd2      fb_cmd;
-	struct drm_framebuffer     * fbs;
-	struct page               ** pages;
-	unsigned                     pagecount;
+	struct drm_framebuffer     * fb;
+	struct i915_vma            * vma;
+	unsigned long                vma_flags;
 	unsigned                     rotate;
 	bool                         flip;
 	uint8_t                      mode_id;
@@ -58,14 +59,11 @@ static struct state {
 } states [MAX_CONNECTORS] = { };
 
 
-static int user_register_fb(struct drm_client_dev   const * const dev,
-                            struct fb_info                * const info,
-                            struct drm_framebuffer        * const fb,
-                            struct drm_mode_fb_cmd2       * const fb_cmd,
-                            struct page                 *** const pages,
-                            unsigned                      * const page_count,
-                            unsigned width_mm, unsigned height_mm,
-                            unsigned rotate, bool flip);
+static int user_register_fb(struct drm_client_dev const * const dev,
+                            struct fb_info              * const fb_info,
+                            struct state          const * const state,
+                            unsigned                      const width_mm,
+                            unsigned                      const height_mm);
 
 
 static int check_resize_fb(struct drm_client_dev       * const dev,
@@ -301,10 +299,6 @@ static void destroy_fb_and_capture(struct drm_client_dev       * const dev,
                                    struct state                * const state)
 {
 	struct fb_info                  info      = { };
-	struct drm_mode_fb_cmd2 * const dumb_fb   = &state->fb_cmd;
-	struct drm_mode_map_dumb  const data_mmap = { .handle = dumb_fb->handles[0] };
-	struct drm_gem_object   * const gem       = drm_gem_object_lookup(dev->file,
-	                                                                  data_mmap.handle);
 
 	info.var.bits_per_pixel = 32;
 	info.node               = connector->index;
@@ -312,11 +306,19 @@ static void destroy_fb_and_capture(struct drm_client_dev       * const dev,
 
 	kernel_register_fb(&info, 0, 0, 0, false);
 
-	if (state->pages) {
-		if (gem->filp)
-			drm_gem_put_pages(gem, state->pages, true, true);
-		state->pages = NULL;
-		state->pagecount = 0;
+	if (state->vma) {
+		struct drm_gem_object * gem = drm_gem_object_lookup(dev->file,
+		                                                    state->fb_cmd.handles[0]);
+
+		if (gem) {
+			if (gem->filp)
+				lx_i915_unpin_vma(state->vma, state->vma_flags);
+			else
+				lx_xe_unpin_vma(state->vma, state->vma_flags);
+		}
+
+		state->vma       = NULL;
+		state->vma_flags = 0;
 	}
 
 	state->enabled   = false;
@@ -342,7 +344,7 @@ static void close_unused_captures(struct drm_client_dev * const dev)
 		if (connector->index == CONNECTOR_ID_MIRROR)
 			continue;
 
-		if (!states[connector->index].fbs)
+		if (!states[connector->index].fb)
 			destroy_fb_and_capture(dev, connector, &states[connector->index]);
 	}
 	drm_connector_list_iter_end(&conn_iter);
@@ -540,11 +542,11 @@ static void handle_mirror(struct drm_client_dev   * const dev,
 
 		/* if mirrored fb changed, drop reference and get new framebuffer */
 		if (resized) {
-			if (state_mirror->fbs)
-				drm_framebuffer_put(state_mirror->fbs);
+			if (state_mirror->fb)
+				drm_framebuffer_put(state_mirror->fb);
 
-			state_mirror->fbs = drm_framebuffer_lookup(dev->dev, dev->file,
-			                                           mirror_fb_cmd->fb_id);
+			state_mirror->fb = drm_framebuffer_lookup(dev->dev, dev->file,
+			                                          mirror_fb_cmd->fb_id);
 		}
 
 		mirror->info.var.xres         = mirror->mode.hdisplay;
@@ -593,9 +595,9 @@ static void reconfigure(struct drm_client_dev * const dev)
 		lx_emul_i915_connector_config(connector->name, &conf_mode);
 
 		/* drop old fb reference, taken again later */
-		if (state->fbs) {
-			drm_framebuffer_put(state->fbs);
-			state->fbs = NULL;
+		if (state->fb) {
+			drm_framebuffer_put(state->fb);
+			state->fb = NULL;
 		}
 
 		/* lookup next mode */
@@ -693,8 +695,8 @@ static void reconfigure(struct drm_client_dev * const dev)
 		if (conf_mode.mirror) {
 			struct drm_mode_fb_cmd2 * mirror_fb_cmd = &states[CONNECTOR_ID_MIRROR].fb_cmd;
 			/* get new fb reference for mirrored fb */
-			state->fbs = drm_framebuffer_lookup(dev->dev, dev->file,
-			                                    mirror_fb_cmd->fb_id);
+			state->fb = drm_framebuffer_lookup(dev->dev, dev->file,
+			                                   mirror_fb_cmd->fb_id);
 			continue;
 		}
 
@@ -708,27 +710,24 @@ static void reconfigure(struct drm_client_dev * const dev)
 		}
 
 		/* get new fb reference after check_resize_fb */
-		state->fbs = drm_framebuffer_lookup(dev->dev, dev->file,
-		                                    state->fb_cmd.fb_id);
+		state->fb = drm_framebuffer_lookup(dev->dev, dev->file,
+		                                   state->fb_cmd.fb_id);
 
 		if (verbose)
 			printk("%s:%u %s %s %s\n", __func__, __LINE__, connector->name,
 			       same_state ? " same state " : " different state",
 			       resized    ? " resized " : "not resized");
 
-		if (state->fbs && (!same_state || resized)) {
+		if (state->fb && (!same_state || resized)) {
 			unsigned width_mm  = mode->width_mm  ? : connector->display_info.width_mm;
 			unsigned height_mm = mode->height_mm ? : connector->display_info.height_mm;
 
-			int err = user_register_fb(dev, &fb_info, state->fbs, &state->fb_cmd,
-			                           &state->pages, &state->pagecount,
-			                           width_mm, height_mm,
-			                           state->rotate, state->flip);
+			err = user_register_fb(dev, &fb_info, state, width_mm, height_mm);
 
 			if (err == -ENOSPC) {
-				if (state->fbs) {
-					drm_framebuffer_put(state->fbs);
-					state->fbs = NULL;
+				if (state->fb) {
+					drm_framebuffer_put(state->fb);
+					state->fb = NULL;
 				}
 				destroy_fb_and_capture(dev, connector, state);
 			}
@@ -739,11 +738,8 @@ static void reconfigure(struct drm_client_dev * const dev)
 	if (mirror.report) {
 		struct state * state_mirror = &states[CONNECTOR_ID_MIRROR];
 
-		user_register_fb(dev, &mirror.info, state_mirror->fbs,
-		                 &state_mirror->fb_cmd, &state_mirror->pages,
-		                 &state_mirror->pagecount,
-		                 mirror.width_mm, mirror.height_mm,
-		                 state_mirror->rotate, state_mirror->flip);
+		user_register_fb(dev, &mirror.info, state_mirror, mirror.width_mm,
+		                 mirror.height_mm);
 	}
 
 	close_unused_captures(dev);
@@ -762,7 +758,7 @@ static int do_action_loop(void * data)
 
 		switch (action) {
 		case ACTION_DETECT_MODES:
-			/* probe new modes of connectors and apply very same previous fbs */
+			/* probe new modes of connectors and apply very same previous fb */
 			status_last_action = probe_and_apply_fbs(dev_client, true)
 			                   ? ACTION_FAILED : !ACTION_FAILED;
 			break;
@@ -882,11 +878,8 @@ static int update_content(void *)
 
 			states[index].unchanged = 0;
 
-			if (states[index].fbs) {
-				drm_clflush_pages(states[index].pages,
-				                  states[index].pagecount);
-				mark_framebuffer_dirty(states[index].fbs);
-			}
+			if (states[index].fb)
+				mark_framebuffer_dirty(states[index].fb);
 		}
 		drm_connector_list_iter_end(&conn_iter);
 
@@ -945,7 +938,7 @@ static void _report_connectors(void * genode_data, bool const discrete)
 	drm_client_for_each_connector_iter(connector, &conn_iter) {
 
 		bool const valid_fb = connector->index < MAX_CONNECTORS
-		                    ? states[connector->index].fbs : false;
+		                    ? states[connector->index].fb : false;
 		unsigned const rotate = connector->index < MAX_CONNECTORS
 		                ? states[connector->index].rotate : 0;
 		char const flip = connector->index < MAX_CONNECTORS
@@ -1126,16 +1119,16 @@ static int probe_and_apply_fbs(struct drm_client_dev *client, bool const detect)
 		connector = *modeset->connectors;
 
 		if (verbose)
-			printk("%s:%u %s fb=%px i=%u fbs[i]=%px %s\n",
+			printk("%s:%u %s fb=%px i=%u fb[i]=%px %s\n",
 			       __func__, __LINE__,
 			       connector->name, modeset->fb,
 			       connector->index,
 			       connector->index < MAX_CONNECTORS ?
-			       states[connector->index].fbs : NULL,
+			       states[connector->index].fb : NULL,
 			       detect ? " - detect run" : " - configure run");
 
 		modeset->fb = connector->index < MAX_CONNECTORS
-		            ? states[connector->index].fbs
+		            ? states[connector->index].fb
 		            : NULL;
 
 		if (!modeset->fb) {
@@ -1242,73 +1235,32 @@ static int register_drm_client(struct drm_device * const dev)
 
 
 static int user_register_fb(struct drm_client_dev const * const dev,
-                            struct fb_info              * const info,
-                            struct drm_framebuffer      * const fb,
-                            struct drm_mode_fb_cmd2     * const dumb_fb,
-                            struct page               *** const pages,
-                            unsigned                    * const pagecount,
+                            struct fb_info              * const fb_info,
+                            struct state          const * const state,
                             unsigned                      const width_mm,
-                            unsigned                      const height_mm,
-                            unsigned                      const rotate,
-                            bool                          const flip)
+                            unsigned                      const height_mm)
 {
-	pgprot_t      const prot   = { };
-	unsigned long const flags  = 0;
-	int                 result = -EINVAL;
+	int err = -EINVAL;
+	struct drm_gem_object * gem = drm_gem_object_lookup(dev->file,
+	                                                    state->fb_cmd.handles[0]);
 
-	struct drm_mode_map_dumb const data_mmap = { .handle = dumb_fb->handles[0] };
-
-	struct drm_gem_object * const gem = drm_gem_object_lookup(dev->file,
-	                                                          data_mmap.handle);
-	if (!info || !fb || !gem || !pages) {
-		printk("%s:%u error setting up info and fb %px %px %px %px\n",
-		       __func__, __LINE__, info, fb, gem, pages);
-		return -EINVAL;
+	if (gem && gem->filp) {
+		err = lx_i915_register_fb(dev, fb_info, state->fb, &state->fb_cmd,
+		                          width_mm, height_mm,
+		                          state->rotate, state->flip,
+		                          &state->vma, &state->vma_flags);
+	} else {
+		err = lx_xe_register_fb(dev, fb_info, state->fb, &state->fb_cmd,
+		                        width_mm, height_mm,
+		                        state->rotate, state->flip,
+		                        &state->vma, &state->vma_flags);
 	}
 
-	if (!gem->filp) {
-		struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
+	if (!err)
+		kernel_register_fb(fb_info, width_mm, height_mm,
+		                   state->rotate, state->flip);
 
-		if (bo && bo->ttm)
-			*pages = bo->ttm->pages;
-		else
-			*pages = NULL;
-	} else
-		*pages = drm_gem_get_pages(gem);
-
-	if (!*pages || IS_ERR(*pages)) {
-		result = PTR_ERR(*pages);
-		*pages = NULL;
-		*pagecount = 0;
-
-		printk("%s drm_gem_get_pages failed\n", __func__);
-
-		return result;
-	}
-
-	void * vaddr = vmap(*pages, gem->size >> PAGE_SHIFT, flags, prot);
-	*pagecount = gem->size >> PAGE_SHIFT;
-
-	if (!vaddr) {
-		if (gem->filp)
-			drm_gem_put_pages(gem, *pages, false, false);
-		*pages = NULL;
-		*pagecount = 0;
-		result = -EINVAL;
-
-		printk("%s vmap failed\n", __func__);
-
-		return result;
-	}
-	/* fill framebuffer info for kernel_register_fb */
-	info->screen_base        = vaddr;
-	info->screen_size        = gem->size;
-	info->fix.line_length    = fb->pitches[0];
-	info->var.bits_per_pixel = drm_format_info_bpp(fb->format, 0);
-
-	kernel_register_fb(info, width_mm, height_mm, rotate, flip);
-
-	return 0;
+	return err;
 }
 
 
