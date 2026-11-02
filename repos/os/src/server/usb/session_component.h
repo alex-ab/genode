@@ -72,7 +72,7 @@ class Usb::Session_component
 		Signal_handler<Session_component> _dummy_handler {
 			_env.ep(), *this, &Session_component::_do_nothing };
 
-		enum class State { CREATED, RELEASING };
+		enum class State { CREATED, CLOSING };
 		State _state { State::CREATED };
 
 		void _do_nothing() {}
@@ -108,7 +108,7 @@ class Usb::Session_component
 
 		bool acquired(Device const &) const;
 
-		Release_result release_all();
+		Release_result close();
 
 		void released(Device_component &dc);
 

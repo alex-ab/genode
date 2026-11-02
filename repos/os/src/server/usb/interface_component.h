@@ -73,7 +73,7 @@ class Usb::Interface_component
 		Constructible<Request> _request {};
 
 		enum class State {
-			CREATED, ACQUIRED, RELEASING, UNAVAIL
+			CREATED, ACQUIRED, RELEASING, DISCONNECTED, UNAVAIL
 		} _state;
 
 	public:

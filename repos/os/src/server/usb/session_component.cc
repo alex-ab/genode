@@ -164,9 +164,9 @@ Session_component::release_device(Device_capability cap)
 }
 
 
-Session_component::Release_result Session_component::release_all()
+Session_component::Release_result Session_component::close()
 {
-	_state = State::RELEASING;
+	_state = State::CLOSING;
 
 	Release_result result = Release_result::OK;
 
@@ -184,15 +184,15 @@ Session_component::Release_result Session_component::release_all()
 
 void Session_component::released(Device_component &dc)
 {
-	_dev_session_alloc.destroy(dc);
-
 	_root.device_state_changed();
 
 	if (_release_sigh_cap.valid())
 		Signal_transmitter(_release_sigh_cap).submit();
 
-	if (_state != State::RELEASING)
+	if (_state != State::CLOSING)
 		return;
+
+	_dev_session_alloc.destroy(dc);
 
 	if (_device_registry.if_empty([] { return true;  },
 	                              [] { return false; }))

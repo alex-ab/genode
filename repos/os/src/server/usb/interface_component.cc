@@ -62,10 +62,10 @@ void Interface_component::Request::generate(Generator &g) const
 
 void Interface_component::Request::done()
 {
-	if (type == Type::ACQUIRE)
-		session._state = Interface_component::State::ACQUIRED;
-
 	bool const released = (type == Type::RELEASE);
+
+	session._state = released ? Interface_component::State::DISCONNECTED
+	                          : Interface_component::State::ACQUIRED;
 
 	if (!released) session._request.destruct();
 
@@ -97,11 +97,18 @@ Device_session::Release_result Interface_component::release()
 {
 	using Result = Device_session::Release_result;
 
-	if (_state == State::CREATED || _state == State::UNAVAIL)
-		return Result::OK;
-
-	if (_state == State::RELEASING)
+	switch (_state) {
+	case State::ACQUIRED:
+		break;
+	case State::RELEASING:
 		return Result::PENDING;
+	case State::CREATED:
+		_state = State::DISCONNECTED;
+		[[fallthrough]];
+	case State::DISCONNECTED:
+	case State::UNAVAIL:
+		return Result::OK;
+	};
 
 	auto &id_space = _device_session._session._root.host_id_space();
 	auto host_id = _device_session._device_id.host_id;
@@ -110,11 +117,13 @@ Device_session::Release_result Interface_component::release()
 		[&] (Host_session_component &hsc) {
 			_request.construct(hsc, Request::Type::RELEASE,
 			                   _device_session.id(), _iface_idx, *this);
+			_state = State::RELEASING;
 			return Result::PENDING;
 		},
 
 		/* device not found, removed in the meantime */
 		[&] {
+			_state = State::DISCONNECTED;
 			return Result::OK;
 		});
 }

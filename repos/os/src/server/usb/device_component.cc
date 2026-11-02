@@ -188,13 +188,18 @@ Device_component::release_interface(Interface_capability iface_cap)
 
 Device_session::Release_result Device_component::release()
 {
-	if (_state == State::CREATED || _state == State::UNAVAIL)
-		return Release_result::OK;
-
-	if (_state == State::RELEASING)
+	switch (_state) {
+	case State::ACQUIRED:
+		break;
+	case State::RELEASING:
 		return Release_result::PENDING;
-
-	_state = State::RELEASING;
+	case State::CREATED:
+		_state = State::DISCONNECTED;
+		[[fallthrough]];
+	case State::DISCONNECTED:
+	case State::UNAVAIL:
+		return Release_result::OK;
+	};
 
 	Release_result result = Release_result::OK;
 
@@ -212,11 +217,14 @@ Device_session::Release_result Device_component::release()
 		[&] (Host_session_component &hsc) {
 			_request.construct(hsc, Request::Type::RELEASE,
 			                   _device_id.name, *this);
+			_state = State::RELEASING;
 			return Release_result::PENDING;
 		},
 
 		/* device not found, removed in the meantime */
 		[&] {
+			_state = result == Release_result::OK ? State::RELEASING
+			                                      : State::DISCONNECTED;
 			return result;
 		});
 }
@@ -224,10 +232,13 @@ Device_session::Release_result Device_component::release()
 
 void Device_component::released(Interface_component &ic)
 {
-	_iface_session_alloc.destroy(ic);
-
 	if (_release_sigh_cap.valid())
 		Signal_transmitter(_release_sigh_cap).submit();
+
+	if (_session._state != Session_component::State::CLOSING)
+		return;
+
+	_iface_session_alloc.destroy(ic);
 
 	if (_state == State::DISCONNECTED)
 		_iface_registry.if_empty([&] { _session.released(*this); }, [] {});

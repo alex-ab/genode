@@ -64,7 +64,7 @@ Usb::Root::_handle_session_request(Node const &request, Parent::Server::Id id)
 			[&] () -> Request_result {
 				return _session_id_space.apply<Session_component>({id.value},
 					[&] (Session_component &session) -> Request_result {
-						if (session.release_all() == Session::Release_result::OK) {
+						if (session.close() == Session::Release_result::OK) {
 							_session_alloc.destroy(session);
 							return Parent::Session_response::CLOSED;
 						}
