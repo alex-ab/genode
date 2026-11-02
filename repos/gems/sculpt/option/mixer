@@ -21,12 +21,12 @@ option
   | + mix mic_right
   |   x play | label: audio -> mic_right
   |
-  | x policy | label: vbox6 -> vbox -> left  | record: mic_left
+  | x policy | label: vbox7 -> vbox -> left  | record: mic_left
   |            period_ms: 46 | jitter_ms: 23 | volume: 1.0
   |   .
-  |   . left channel of a vbox6 VM matching its OSS configuration
+  |   . left channel of a vbox VM matching its OSS configuration
   |   .
-  | x policy | label: vbox6 -> vbox -> right | record: mic_right
+  | x policy | label: vbox7 -> vbox -> right | record: mic_right
   |            period_ms: 46 | jitter_ms: 23 | volume: 1.0
   |
   | + policy | label: audio -> left | record: left

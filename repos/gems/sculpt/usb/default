@@ -3,7 +3,7 @@ config | managed: yes
 . available devices are listed at /report/usb/devices
 .
 
-+ policy | label_prefix: vbox6-dev ->
++ policy | label_prefix: vbox7-dev ->
   .
   . example for a hypothetical development VM
   .
