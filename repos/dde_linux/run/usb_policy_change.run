@@ -1,0 +1,93 @@
+#
+# USB multiplexer policy change test
+#
+# Test connect and disconnect on Qemu
+
+assert {[have_spec x86]}
+assert {![have_spec linux]}
+assert {[have_include power_on/qemu]}
+
+create_boot_directory
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/pkg/test_usb_host-[board] \
+                  [depot_user]/src/dynamic_rom \
+                  [depot_user]/src/report_rom \
+                  [depot_user]/src/usb_hid \
+                  [depot_user]/src/init
+
+build { server/event_dump }
+
+install_config {
+config | verbose: yes
+
++ parent-provides
+  + service CPU
+  + service IO_MEM
+  + service IO_PORT
+  + service IRQ
+  + service LOG
+  + service PD
+  + service RM
+  + service ROM
+
++ default-route
+  + any-service
+    + parent
+    + any-child
+
++ default | caps: 100 | ram: 1M
+
++ start timer
+  + provides | + service Timer
+
++ start report_rom
+  + provides
+    + service Report
+    + service ROM
+  + config | verbose: no
+    + default-policy | report: usb -> usb -> devices
+
++ start usb | caps: 1500 | ram: 32M | managing_system: yes
+  + binary init
+  + provides | + service Usb
+  + route
+    + service ROM | label: config     | + parent | label: drivers.config
+    + service ROM | label: usb.config | + child dynamic_rom
+    + service Timer                   | + child timer
+    + service Report                  | + child report_rom
+    + any-service
+      + parent
+
++ start usb_hid | caps: 180 | ram: 11M
+  + config
+  + route
+    + service ROM | label: report | + child report_rom
+    + service Event               | + child event_dump
+    + service Timer               | + child timer
+    + service Usb                 | + child usb
+    + any-service                 | + parent
+
++ start dynamic_rom | ram: 4M
+  + provides | + service ROM
+  + config | verbose: no
+  | + rom usb.config
+  |   + inline | + report | devices: yes | + default-policy
+  |   + sleep  | milliseconds: 1000
+  |   + inline | + report | devices: yes | + default-policy | + device | class: 0x3
+  |   + sleep  | milliseconds: 1000
+  + route
+    + service Timer | + child timer
+    + any-service   | + parent
+
++ start event_dump
+  + provides | + service Event
+  + config
+-}
+
+build_boot_image [build_artifacts]
+
+append qemu_args " -device nec-usb-xhci,id=xhci -device usb-kbd,bus=xhci.0 -nographic"
+
+run_genode_until {\[init -\> usb_hid\] Connected device: input8.*} 60
+
+puts "\nTest succeeded\n"
