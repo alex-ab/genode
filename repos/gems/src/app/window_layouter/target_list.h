@@ -61,20 +61,27 @@ class Window_layouter::Target_list
 			unsigned total_weight     = 0;
 			unsigned num_weighted     = 0;
 
-			bool const has_px_size_attr = node.has_attribute(px_size_attr)
-			                           || node.has_attribute(px_legacy_size_attr);
+			auto has_px_size_attr = [&] (Node const &node)
+			{
+				return node.has_attribute(px_size_attr)
+			        || node.has_attribute(px_legacy_size_attr);
+			};
+
+			auto px_size_attr_value = [&] (Node const &node)
+			{
+				return node.attribute_value(px_legacy_size_attr,
+				                            node.attribute_value(px_size_attr, 0U));
+			};
 
 			/* ignore weight if pixel size is provided */
 			auto weight_attr_value = [&] (Node const &node) {
-				return has_px_size_attr
+				return has_px_size_attr(node)
 				     ? 0 : node.attribute_value("weight", default_weight); };
 
 			node.for_each_sub_node(sub_node_type, [&] (Node const &child) {
-				preserved_pixels +=
-					child.attribute_value(px_legacy_size_attr,
-					                      child.attribute_value(px_size_attr, 0U));
+				preserved_pixels += px_size_attr_value(child);
 				total_weight     += weight_attr_value(child);
-				num_weighted     += has_px_size_attr ? 0 : 1;
+				num_weighted     += has_px_size_attr(child) ? 0 : 1;
 			});
 
 			if (preserved_pixels > avail_px) {
@@ -94,7 +101,7 @@ class Window_layouter::Target_list
 
 				auto calc_px_size = [&] () {
 
-					unsigned const px = child.attribute_value(px_size_attr, 0U);
+					unsigned const px = px_size_attr_value(child);
 					if (px)
 						return px;
 
@@ -105,7 +112,7 @@ class Window_layouter::Target_list
 					return 0U;
 				};
 
-				bool const weighted = !child.has_attribute(px_size_attr);
+				bool const weighted = !has_px_size_attr(child);
 
 				if (weighted)
 					count_weighted++;
