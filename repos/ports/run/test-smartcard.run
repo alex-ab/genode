@@ -24,8 +24,15 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/pkg/test_usb_host-[board] \
                   [depot_user]/src/report_rom \
                   [depot_user]/src/init \
+                  [depot_user]/src/libc \
+                  [depot_user]/src/posix \
                   [depot_user]/src/libusb \
+                  [depot_user]/src/zlib \
+                  [depot_user]/src/vfs \
+                  [depot_user]/src/vfs_pipe \
                   [depot_user]/src/vfs_libusb \
+                  [depot_user]/src/vfs_jitterentropy \
+                  [depot_user]/src/vfs_xoroshiro \
                   [depot_user]/pkg/test-smartcard/2026-09-17
 
 install_config {
@@ -76,11 +83,14 @@ config
     |   + inline rtc | : 2018-01-01 00:01
     |   + libusb
     |   + device | + log
+    |   + device entropy | + jitterentropy
+    |   + device random  | + xoroshiro | seed_path: /dev/entropy
+    |   + device urandom | + xoroshiro | seed_path: /dev/entropy
     | + dir pipe | + pipe
     | + dir ifd-ccid.bundle
     |   + dir Contents
     |     + tar Info.plist.tar
-    + libc | stdout: /dev/log | stderr: /dev/log | rtc: /dev/rtc | pipe: /pipe
+    + libc | stdout: /dev/log | stderr: /dev/log | rtc: /dev/rtc | pipe: /pipe | rng: /dev/urandom
     + env LIBUSB_DEBUG | . log libusb errors
       : 1
 -}

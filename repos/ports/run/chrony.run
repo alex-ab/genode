@@ -32,6 +32,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/stdcxx \
                   [depot_user]/src/vfs \
                   [depot_user]/src/vfs_jitterentropy \
+                  [depot_user]/src/vfs_xoroshiro \
                   [depot_user]/src/vfs_lxip \
                   [depot_user]/src/vfs_pipe \
                   [depot_user]/src/nettle/3.7-2026-10-07 \
@@ -132,8 +133,9 @@ config | verbose: yes | prio_levels: 2
   |        | socket: /socket | pipe: /pipe | rng: /dev/random
   | + vfs
   |   + dir dev
-  |     + device random  | + jitterentropy
-  |     + device urandom | + jitterentropy
+  |     + device entropy | + jitterentropy
+  |     + device random  | + xoroshiro | seed_path: /dev/entropy
+  |     + device urandom | + xoroshiro | seed_path: /dev/entropy
   |     + device | + log
   |     + device | + null
   |     + device | + rtc

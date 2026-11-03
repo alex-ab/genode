@@ -2,41 +2,41 @@
 #
 # The run script sets up the following scenario:
 #
-#		             | 10.10.10.2/24 (DHCP)             10.10.10.1/24  (server_home)
-#		             | ************                     +++++++++++++++++++++++
-#		             | * lighttpd *        -----        + nic_router (server) +
-#		             | ************                     +++++++++++++++++++++++
-#		             |                                  10.10.20.1/24  (vpn_inner) (no_arp)
-#		             |                                             |
-#		server init  |                                             |
-#		             |                                       10.10.20.2/24 (DHCP)
-#		             |                                       %%%%%%%%%%%%%
-#		             |                                       % wg_server %
-#		             |                                       %%%%%%%%%%%%%
-#		             |                                       10.10.0.2/24  (DHCP?)
-#		                                                           |
-#		                                                           |
-#		                                                10.10.0.1/24 (vpn_server)
-#		                                                +++++++++++++++++++++++
-#		                                                + nic_router (global) +
-#		                                                +++++++++++++++++++++++
-#		                                                10.20.0.1/24 (vpn_client)
-#		                                                           |
-#		                                                           |
-#		             |                                       10.20.0.2/24  (DHCP?)
-#		             |                                       %%%%%%%%%%%%%
-#		             |                                       % wg_client %
-#		             |                                       %%%%%%%%%%%%%
-#		             |                                       10.20.20.2/24 (DHCP)
-#		             |                                             |
-#		client init  |                                             |
-#		             |                                  10.20.20.1/24  (vpn_inner) (no_arp)
-#		             | ************                     +++++++++++++++++++++++
-#		             | * fetchurl *        -----        + nic_router (client) +
-#		             | ************                     +++++++++++++++++++++++
-#		             | 10.20.10.2/24 (DHCP)             10.20.10.1/24  (client_home)
+#              | 10.10.10.2/24 (DHCP)             10.10.10.1/24  (server_home)
+#              | ************                     +++++++++++++++++++++++
+#              | * lighttpd *        -----        + nic_router (server) +
+#              | ************                     +++++++++++++++++++++++
+#              |                                  10.10.20.1/24  (vpn_inner) (no_arp)
+#              |                                             |
+# server init  |                                             |
+#              |                                       10.10.20.2/24 (DHCP)
+#              |                                       %%%%%%%%%%%%%
+#              |                                       % wg_server %
+#              |                                       %%%%%%%%%%%%%
+#              |                                       10.10.0.2/24  (DHCP?)
+#                                                            |
+#                                                            |
+#                                                 10.10.0.1/24 (vpn_server)
+#                                                 +++++++++++++++++++++++
+#                                                 + nic_router (global) +
+#                                                 +++++++++++++++++++++++
+#                                                 10.20.0.1/24 (vpn_client)
+#                                                            |
+#                                                            |
+#              |                                       10.20.0.2/24  (DHCP?)
+#              |                                       %%%%%%%%%%%%%
+#              |                                       % wg_client %
+#              |                                       %%%%%%%%%%%%%
+#              |                                       10.20.20.2/24 (DHCP)
+#              |                                             |
+# client init  |                                             |
+#              |                                  10.20.20.1/24  (vpn_inner) (no_arp)
+#              | ************                     +++++++++++++++++++++++
+#              | * fetchurl *        -----        + nic_router (client) +
+#              | ************                     +++++++++++++++++++++++
+#              | 10.20.10.2/24 (DHCP)             10.20.10.1/24  (client_home)
 #
-#		The client side will be restarted two times to test reconnecting.
+# The client side will be restarted two times to test reconnecting.
 
 assert {[have_board linux] || [have_board pc]}
 
@@ -74,6 +74,7 @@ lappend depot_archives [depot_user]/src/report_rom
 lappend depot_archives [depot_user]/src/[rtc_binary_name]
 lappend depot_archives [depot_user]/src/vfs
 lappend depot_archives [depot_user]/src/vfs_jitterentropy
+lappend depot_archives [depot_user]/src/vfs_xoroshiro
 lappend depot_archives [depot_user]/src/vfs_lwip
 lappend depot_archives [depot_user]/src/vfs_pipe
 lappend depot_archives [depot_user]/src/wireguard
@@ -137,7 +138,8 @@ set server_init_config {
   |            | rtc:    /dev/rtc  | rng:    /dev/random | socket: /socket
   |     + vfs
   |       + dir dev
-  |         + device random | + jitterentropy
+  |         + device entropy | + jitterentropy
+  |         + device random  | + xoroshiro | seed_path: /dev/entropy
   |         + device | + log
   |         + device | + null
   |         + device | + rtc

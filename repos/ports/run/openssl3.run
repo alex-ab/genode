@@ -15,6 +15,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/pc_rtc \
                   [depot_user]/src/vfs \
                   [depot_user]/src/vfs_jitterentropy \
+                  [depot_user]/src/vfs_xoroshiro \
                   [depot_user]/src/vfs_lxip \
                   [depot_user]/src/vfs_pipe \
                   [depot_user]/src/openssl3/3.5.7-2026-10-13
@@ -85,7 +86,8 @@ config | verbose: yes | prio_levels: 2
       + tar openssl3.tar
       + dir dev
         + dir pipe | + pipe
-        + device random | + jitterentropy
+        + device entropy | + jitterentropy
+        + device random  | + xoroshiro | seed_path: /dev/entropy
         + device | + null
         + device | + rtc
         + device | + zero

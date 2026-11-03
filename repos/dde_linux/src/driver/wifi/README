@@ -22,8 +22,9 @@ platform.
 !+ config
 !  + vfs
 !    + dir dev
-!    | + device random  | + jitterentropy
-!    | + device urandom | + jitterentropy
+!    | + device entropy | + jitterentropy
+!    | + device random  | + xoroshiro | seed_path: /dev/entropy
+!    | + device urandom | + xoroshiro | seed_path: /dev/entropy
 !    | + device | + log
 !    | + device | + null
 !    | + device | + rtc
@@ -46,8 +47,9 @@ following snippet illustrates the use of the driver on the PinePhone.
 !+ config
 !  + vfs
 !    + dir dev
-!    | + device random  | + jitterentropy
-!    | + device urandom | + jitterentropy
+!    | + device entropy | + jitterentropy
+!    | + device random  | + xoroshiro | seed_path: /dev/entropy
+!    | + device urandom | + xoroshiro | seed_path: /dev/entropy
 !    | + device | + log
 !    | + device | + null
 !    | + device | + rtc

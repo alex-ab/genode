@@ -548,8 +548,9 @@ proc wifi_config { } {
   |           |   | + device | + log
   |           |   | + device | + null
   |           |   | + device | + rtc
-  |           |   | + device random  | + jitterentropy
-  |           |   | + device urandom | + jitterentropy
+  |           |   | + device entropy | + jitterentropy entropy
+  |           |   | + device random  | + xoroshiro | seed_path: /dev/entropy
+  |           |   | + device urandom | + xoroshiro | seed_path: /dev/entropy
   |           |   + dir firmware
   |           |     + tar wifi_firmware.tar
   |           + route

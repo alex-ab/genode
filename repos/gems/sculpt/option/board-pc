@@ -188,8 +188,9 @@ option
   |     + device | + zero
   |     + device | + log
   |     + device | + null
-  |     + device random  | + jitterentropy
-  |     + device urandom | + jitterentropy
+  |     + device entropy | + jitterentropy
+  |     + device random  | + xoroshiro | seed_path: /dev/entropy
+  |     + device urandom | + xoroshiro | seed_path: /dev/entropy
   |     + inline rtc | : 2018-01-01 00:01
   |   + dir firmware
   |     + tar pc_wifi_firmware.tar
@@ -205,6 +206,7 @@ option
     + rom libm.lib.so               | + parent
     + rom libnl.lib.so              | + parent
     + rom vfs_jitterentropy.lib.so  | + parent
+    + rom vfs_xoroshiro.lib.so      | + parent
     + rom libssl-minimal.lib.so     | + parent
     + rom wifi.lib.so               | + parent | label: pc_wifi.lib.so
     + rom pc_wifi_firmware.tar      | + parent

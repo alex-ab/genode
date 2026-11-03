@@ -13,11 +13,12 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/nic_router \
                   [depot_user]/src/libc \
                   [depot_user]/src/lighttpd \
-                  [depot_user]/src/openssl \
+                  [depot_user]/src/openssl-minimal \
                   [depot_user]/src/pcre \
                   [depot_user]/src/posix \
                   [depot_user]/src/vfs \
                   [depot_user]/src/vfs_jitterentropy \
+                  [depot_user]/src/vfs_xoroshiro \
                   [depot_user]/src/vfs_[ip_stack] \
                   [depot_user]/src/zlib
 
@@ -77,7 +78,8 @@ config
   |     + device | + log
   |     + device | + null
   |     + inline rtc | : 2000-01-01 00:00
-  |     + device random | + jitterentropy
+  |     + device entropy | + jitterentropy
+  |     + device random  | + xoroshiro | seed_path: /dev/entropy
   |   + dir socket | + } [ip_stack] { | dhcp: yes
   |   + dir tmp | + ram
   |   + dir etc

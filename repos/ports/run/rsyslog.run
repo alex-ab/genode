@@ -11,6 +11,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/vfs \
                   [depot_user]/src/vfs_import \
                   [depot_user]/src/vfs_jitterentropy \
+                  [depot_user]/src/vfs_xoroshiro \
                   [depot_user]/src/vfs_pipe \
                   [depot_user]/src/zlib \
                   [depot_user]/pkg/system_rtc-[board] \
@@ -92,8 +93,9 @@ config | verbose: yes
   |        | rng: /dev/random
   | + vfs
   |   + dir dev
-  |     + device random  | + jitterentropy
-  |     + device urandom | + jitterentropy
+  |     + device entropy | + jitterentropy
+  |     + device random  | + xoroshiro | seed_path: /dev/entropy
+  |     + device urandom | + xoroshiro | seed_path: /dev/entropy
   |     + device | + log
   |     + device | + null
   |     + device | + rtc

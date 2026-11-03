@@ -148,6 +148,8 @@ set packages "
 	[depot_user]/src/posix
 	[depot_user]/src/report_rom
 	[depot_user]/src/vfs
+	[depot_user]/src/vfs_jitterentropy
+	[depot_user]/src/vfs_xoroshiro
 	[depot_user]/src/nic_router
 "
 set use_nic_driver [expr !$use_usb_driver && !$use_wifi_driver && !$use_tap]
@@ -243,8 +245,9 @@ proc wifi_start_nodes { } { return [join [list {
   |   + dir dev
   |     + device | + log
   |     + device | + null
-  |     + device random  | + jitterentropy
-  |     + device urandom | + jitterentropy
+  |     + device entropy | + jitterentropy
+  |     + device random  | + xoroshiro | seed_path: /dev/entropy
+  |     + device urandom | + xoroshiro | seed_path: /dev/entropy
   |     + inline rtc | : 2018-01-01 00:01
   |   + dir firmware | + tar wifi_firmware.tar
   + route

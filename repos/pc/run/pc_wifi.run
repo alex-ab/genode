@@ -20,6 +20,7 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/pc_platform \
                   [depot_user]/src/report_rom \
                   [depot_user]/src/vfs_jitterentropy \
+                  [depot_user]/src/vfs_xoroshiro \
                   [depot_user]/src/vfs_lwip \
                   [depot_user]/pkg/pc_wifi \
                   [depot_user]/src/libc \
@@ -205,8 +206,9 @@ config | verbose: yes | prio_levels: 2
   | + libc | stdout: /dev/log | stderr: /dev/log | rtc: /dev/rtc | rng: /dev/urandom
   | + vfs
   |   + dir dev
-  |     + device random  | + jitterentropy
-  |     + device urandom | + jitterentropy
+  |     + device entropy | + jitterentropy
+  |     + device random  | + xoroshiro | seed_path: /dev/entropy
+  |     + device urandom | + xoroshiro | seed_path: /dev/entropy
   |     + device | + log
   |     + device | + null
   |     + device | + rtc
