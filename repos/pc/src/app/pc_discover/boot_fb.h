@@ -49,6 +49,16 @@ struct Pc_discover::Boot_fb
 			boot.with_optional_sub_node("framebuffer", [&] (Node const &framebuffer) {
 				fn(Mode::from_node(framebuffer)); }); });
 	}
+
+	static bool efi_boot(Node const &platform)
+	{
+		bool efi = false;
+
+		platform.with_optional_sub_node("boot", [&] (Node const &boot) {
+			efi = boot.attribute_value("efi", efi); });
+
+		return efi;
+	}
 };
 
 #endif /* _BOOT_FB_H_ */

@@ -42,6 +42,7 @@ void Core::Platform::_init_additional_platform_info(Generator &g)
 		}
 	});
 	g.node("boot", [&] {
+		g.attribute("efi", !!_boot_info().plat_info.efi_system_table);
 		g.node("framebuffer", [&] {
 			Hw::Framebuffer const &boot_fb = _boot_info().plat_info.framebuffer;
 			g.attribute("phys",   String<32>(Hex(boot_fb.addr)));

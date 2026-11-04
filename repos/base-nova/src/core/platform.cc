@@ -294,7 +294,7 @@ static bool cpuid_invariant_tsc()
 struct Resolution : Register<64>
 {
 	struct Bpp    : Bitfield<0, 8> { };
-	struct Type   : Bitfield<8, 8> { enum { VGA_TEXT = 2 }; };
+	struct Type   : Bitfield<8, 8> { };
 	struct Height : Bitfield<16, 24> { };
 	struct Width  : Bitfield<40, 24> { };
 };
@@ -705,10 +705,9 @@ Core::Platform::Platform()
 					g.attribute("height", _cpus.height());
 				});
 				g.node("boot", [&] {
-					if (!boot_fb)
-						return;
+					g.attribute("efi", efi_boot);
 
-					if (!efi_boot && (Resolution::Type::get(boot_fb->size) != Resolution::Type::VGA_TEXT))
+					if (!boot_fb)
 						return;
 
 					g.node("framebuffer", [&] {

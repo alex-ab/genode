@@ -99,11 +99,13 @@ void Pc_discover::Main::_handle_devices()
 		if (condition) enable_child(name); else remove_child(name);
 	};
 
+	auto const efi_boot = Boot_fb::efi_boot(platform);
+
 	enable_or_remove_child("usb_host",  detected.usb);
 	enable_or_remove_child("intel_gpu", detected.intel_gfx);
 	enable_or_remove_child("intel_fb",  detected.intel_gfx &&  intel_fb_usable);
-	enable_or_remove_child("boot_fb",   detected.boot_fb   && !intel_fb_usable);
-	enable_or_remove_child("vesa_fb",   detected.vga && !detected.boot_fb && !intel_fb_usable);
+	enable_or_remove_child("boot_fb",   detected.boot_fb   && !intel_fb_usable &&  efi_boot);
+	enable_or_remove_child("vesa_fb",   detected.vga       && !intel_fb_usable && (!efi_boot || !detected.boot_fb));
 	enable_or_remove_child("ps2",       detected.ps2);
 	enable_or_remove_child("ahci",      detected.ahci);
 	enable_or_remove_child("nvme",      detected.nvme);
