@@ -21,15 +21,32 @@ assert {[have_spec x86]}
 assert {[have_spec hw] || [have_spec nova]}
 
 
-if {[have_spec nova]} {
-	# enable logmem to get kernel logs in memory
-	proc kernel_output { } { return "logmem" }
+if { [have_cmd_switch --autopilot] } {
+
+	# Test mimic of sending wake up request works solely with Qemu
+	assert {[have_include power_on/qemu]} \
+		"Autopilot mode is not supported on this platform."
+
+	assert {[have_spec x86_64]}
 }
 
 
-# serial is not ever usable on hardware after resume, avoid hang by now
-if {![have_include "power_on/qemu"]} {
-	# switch off serial device usage by kernel and core
+# serial is known to work on Qemu after resume
+set use_serial [have_include "power_on/qemu"]
+
+if {[have_spec nova]} {
+	# enable logmem to get kernel logs in memory
+	proc kernel_output { } {
+		global use_serial
+		set kernel_config "logmem"
+		if { $use_serial } { append kernel_config " serial" }
+		return $kernel_config
+	}
+}
+
+
+# switch off serial, if not available after resume
+if {!$use_serial} {
 	proc boot_output { } { return "" }
 }
 
@@ -41,9 +58,9 @@ set use_gpu_client 0
 set use_gpe "no"
 set use_ahci 0
 set use_nvme 0
-set use_wifi 1
-set use_usb 1
-set use_nic 1
+set use_usb  [expr ![have_cmd_switch --autopilot]]
+set use_nic  [expr ![have_cmd_switch --autopilot]]
+set use_wifi [expr ![have_cmd_switch --autopilot]]
 
 proc priority_timer    { } { return { | priority:  0 } }
 proc priority_base     { } { return { | priority: -1 } }
@@ -565,6 +582,8 @@ proc nic_config { } {
 }
 
 
+if { ! [have_cmd_switch --autopilot] } {
+
 build {
 	core timer init lib/ld
 	server/report_rom
@@ -586,9 +605,12 @@ build {
 	lib/pc_intel_xe
 }
 
+}
+
 create_boot_directory
 
-import_from_depot [depot_user]/src/init \
+import_from_depot [depot_user]/src/[base_src] \
+                  [depot_user]/src/init \
                   [depot_user]/src/nitpicker \
                   [depot_user]/src/nic_router \
                   [depot_user]/src/ps2 \
@@ -602,6 +624,12 @@ import_from_depot [depot_user]/src/init \
                   [depot_user]/src/nano3d \
                   [depot_user]/src/usb \
                   [depot_user]/src/log_core \
+                  [depot_user]/src/acpi \
+                  [depot_user]/src/acpica \
+                  [depot_user]/src/pc_platform \
+                  [depot_user]/src/pci_decode \
+                  [depot_user]/src/rom_filter \
+                  [depot_user]/src/vesa_fb \
                   [depot_user]/raw/pc_display_firmware
 
 if {$use_gpu_client} {
@@ -889,7 +917,11 @@ build_boot_image [build_artifacts]
 # It seems that mch_mmconfig_setup should use I/O PCI access in order to
 # enable MMIO PCI MMCFG access.
 #
-append qemu_args "-smp 1"
+if {[have_spec nova]} { append qemu_args "-smp 1" }
+
+# with hw and smp 1 qemu quits silently, use more than one cpu
+if {[have_spec hw]}   { append qemu_args "-smp 2" }
+
 append qemu_args " -m 1024"
 
 if {[have_include "power_on/qemu"] && $use_ahci} {
@@ -924,4 +956,37 @@ if {$use_usb} {
 	append qemu_args " -device usb-mouse,bus=xhci.0"
 }
 
-run_genode_until forever
+if { [have_cmd_switch --autopilot] } {
+
+	run_genode_until {\[init -\> acpica\] prepare suspend S3.*\n} 30
+	set spawn_id $qemu_spawn_id
+
+	# send Ctrl-a+c to enter Qemu's monitor mode
+	send "\x01\x63"
+
+	# wait for monitor to become ready
+	run_genode_until {(qemu)} 25 $spawn_id
+
+        # wait until Genode guest got suspended by Qemu firmware
+	sleep 20
+
+	# debug info for post review
+	send "info status\n"
+	# wake Genode guest
+	send "system_wakeup\n"
+	# debug info for post review
+	send "info status\n"
+
+	# wait until framebuffer got re-startet and show good life sign
+	run_genode_until {\[init -\> drivers_init -\> fb] Found:.*\n} 30 $spawn_id
+
+	# check for bad output
+	grep_output {(requests resources: )|(Error)|(abort called)}
+
+	compare_output_to {}
+
+} else {
+
+	run_genode_until forever
+
+}

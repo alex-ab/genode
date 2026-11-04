@@ -1,4 +1,5 @@
 acpica
+acpi_suspend
 aes_cbc_4k
 bomb
 cpu_balancer
