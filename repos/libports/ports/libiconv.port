@@ -1,4 +1,4 @@
-LICENSE   := GPLv3
+LICENSE   := LGPL-2.0-or-later
 VERSION   := 1.14
 DOWNLOADS := libiconv.archive
 

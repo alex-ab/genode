@@ -1,4 +1,4 @@
-LICENSE   := GPLv2
+LICENSE   := MIT
 VERSION   := 24.0.8
 DOWNLOADS := mesa.archive
 
