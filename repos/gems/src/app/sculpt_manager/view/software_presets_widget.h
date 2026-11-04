@@ -23,22 +23,20 @@ namespace Sculpt { struct Software_presets_widget; }
 
 struct Sculpt::Software_presets_widget : Widget<Frame>
 {
-	using Name = Presets::Info::Name;
-
-	Name _selected { };
+	struct Index : Id { } _selected { };
 
 	struct Preset : Widget<Vbox>
 	{
-		using Radio = Hosted<Vbox, Radio_select_button<Name>>;
+		using Radio = Hosted<Vbox, Radio_select_button<Index>>;
 		using Load  = Hosted<Vbox, Float, Deferred_action_button>;
 
 		void view(Scope<Vbox> &s, Presets::Info const &preset, Load const &load,
-		          Name const &selected) const
+		          Index const &index, Index const &selected) const
 		{
-			s.widget(Radio { Id { preset.name }, preset.name },
-			         selected, Name { " ", Pretty(preset.name) });
+			s.widget(Radio { Id { "radio" }, index },
+			         selected, Presets::Info::Name { " ", Pretty(preset.name) });
 
-			if (selected != preset.name)
+			if (index.value != selected.value)
 				return;
 
 			s.sub_scope<Vgap>();
@@ -72,16 +70,19 @@ struct Sculpt::Software_presets_widget : Widget<Frame>
 	{
 		s.sub_scope<Vbox>([&] (Scope<Frame, Vbox> &s) {
 			s.sub_scope<Min_ex>(35);
+			unsigned i = 0;
 			presets.for_each([&] (Presets::Info const &info) {
-				Hosted_preset const hosted { Id { info.name } };
-				s.widget(hosted, info, _load, _selected); }); });
+				Index const index { ++i };
+				Hosted_preset const hosted { index };
+				s.widget(hosted, info, _load, index, _selected); }); });
 	}
 
 	void _with_selected_preset(Presets const &presets, auto const &fn)
 	{
+		unsigned i = 0;
 		presets.for_each([&] (Presets::Info const &info) {
-			if (info.name == _selected)
-				fn(info); });
+			if (Id::Value(++i) == _selected.value)
+				fn(Index { i }, info); });
 	}
 
 	void click(Clicked_at const &at, Presets const &presets)
@@ -89,11 +90,10 @@ struct Sculpt::Software_presets_widget : Widget<Frame>
 		/* unfold preset info */
 		Id const id = at.matching_id<Frame, Vbox, Vbox>();
 		if (id.valid())
-			_selected = id.value;
+			_selected.value = id.value;
 
-		_with_selected_preset(presets, [&] (Presets::Info const &info) {
-			Hosted_preset hosted { Id { info.name } };
-			hosted.propagate(at, _load); });
+		_with_selected_preset(presets, [&] (Index const i, Presets::Info const &) {
+			Hosted_preset { i }.propagate(at, _load); });
 	}
 
 	struct Action : Interface
@@ -103,10 +103,9 @@ struct Sculpt::Software_presets_widget : Widget<Frame>
 
 	void clack(Clacked_at const &at, Presets const &presets, Action &action)
 	{
-		_with_selected_preset(presets, [&] (Presets::Info const &info) {
-			Hosted_preset hosted { Id { info.name } };
-			hosted.propagate(at, _load, [&] {
-				action.load_deploy_preset(_selected);
+		_with_selected_preset(presets, [&] (Index const i, Presets::Info const &info) {
+			Hosted_preset { i }.propagate(at, _load, [&] {
+				action.load_deploy_preset(info.name);
 				_selected = { };
 			});
 		});
