@@ -4,15 +4,23 @@ deploy | info: webcam example
 + option sculpt  | required: yes
 + option managed | required: yes
 
-+ child internal | ram: 64M | pkg: usb_webcam
-  + connect | + usb | + child usb
++ child internal | ram: 64M | pkg: video_bridge
   + provides
     + capture
-    + report
+    + gui
 
-+ child external | ram: 64M | pkg: usb_webcam
-  + connect | + usb | + child usb
++ child internal_webcam | ram: 64M | pkg: usb_webcam
+  + connect
+    + gui | + child internal
+    + usb | + child usb
+
++ child external | ram: 64M | pkg: video_bridge
   + provides
     + capture
-    + report
+    + gui
+
++ child external_webcam | ram: 64M | pkg: usb_webcam
+  + connect
+    + gui | + child external
+    + usb | + child usb
 -

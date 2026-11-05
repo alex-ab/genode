@@ -1,6 +1,6 @@
 config | bios_handoff: no
 
-+ policy | label: internal -> webcam -> usb_webcam ->
++ policy | label: internal_webcam ->
   .
   . available devices are listed at /report/runtime/usb/devices
   .
@@ -16,8 +16,9 @@ config | bios_handoff: no
   + device | vendor_id: 0x04f2 | product_id: 0xb703 | . Fujitsu U741x
   + device | vendor_id: 0x0bda | product_id: 0x5634 | . Framework 13
   + device | vendor_id: 0x30c9 | product_id: 0x00e6 | . HP ZBook 8 G1i
+  + device | vendor_id: 0x0408 | product_id: 0x5498 | . HP ZBook X 16 G2i
 
-+ policy | label: external -> webcam -> usb_webcam ->
++ policy | label: external_webcam ->
   + device | vendor_id: 0x046d | product_id: 0x08e5 | . Logitech C920
   + device | vendor_id: 0x046d | product_id: 0x0825 | . Logitech C270
   + device | vendor_id: 0x046d | product_id: 0x09c1 | . Logitech Quickcam
