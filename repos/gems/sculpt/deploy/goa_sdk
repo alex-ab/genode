@@ -1,0 +1,83 @@
+deploy | info: Goa SDK
+
++ option board   | required: yes
++ option sculpt  | required: yes
++ option managed | required: yes
+
++ option recall_fs
++ option system_clock
++ option window_manager
++ option black_hole
+
++ child goa_sdk | pkg: cproc/pkg/goa_sdk/2026-11-05
+  + connect
+    + gui              | + child wm
+    + nic              | + child network
+    + rtc              | + child system_clock
+    + fs depot
+      + child recall_fs
+      x child default_fs_rw | prepend_resource: /depot
+    + fs recall        | + child recall_fs
+    + fs rw            | + child recall_fs
+    + fs vm            | + child recall_fs
+    + rom clipboard    | + child wm
+    + report clipboard | + child wm
+
++ child testbed_log_view | binary: terminal | caps: 120 | ram: 8M
+  + provides | + terminal
+  + config
+  | + initial | width: 400 | height: 600
+  | + vfs | + dir font | + fs | label: font -> /
+  | + palette
+  |   + color 0 | fg: #2f3953
+  |   + color 8 | fg: #2f3953
+  + connect
+    + gui            | + child wm
+    + fs  font       | + child font
+    + rom vfs.lib.so | + parent
+    + rom terminal   | + parent
+
++ child testbed_log_pipe | binary: stdin2out | caps: 100 | ram: 2M
+  + config
+  | + libc | stdin: /data/log | stdout: /dev/terminal
+  | + vfs
+  |   + dir dev  | + device | + terminal
+  |   + dir data | + fs | label: data -> / | writeable: yes
+  |   + import | overwrite: no
+  |     + dir data
+  |       + inline log
+  |         : ### start ###
+  |         :
+  + connect
+    + terminal              | + child testbed_log_view
+    + fs data               | + child recall_fs | identity: testbed -> run -> data -> report
+    + rom vfs.lib.so        | + parent
+    + rom libc.lib.so       | + parent
+    + rom libm.lib.so       | + parent
+    + rom posix.lib.so      | + parent
+    + rom vfs_import.lib.so | + parent
+    + rom stdin2out         | + parent
+
++ child testbed | pkg: cproc/pkg/goa_local_testbed/2026-11-04
+  + connect
+    + fs vm               | + child recall_fs | identity: goa_sdk -> vm
+    + fs run              | + child recall_fs
+    + gui                 | + child wm
+    + nic                 | + child black_hole
+    + rtc                 | + child system_clock
+    + trace               | + parent
+    + gpu                 | + child black_hole
+    + play                | + child black_hole
+    + record              | + child black_hole
+    + usb                 | + child black_hole
+    + vm                  | + parent
+    + event               | + child black_hole
+    + capture             | + child black_hole
+    + fs                  | + child ram_fs
+    + rom mesa_gpu.lib.so | + child black_hole
+    + rom clipboard       | + child black_hole
+    + rom platform_info   | + child black_hole
+    + rom capslock        | + child black_hole
+    + report clipboard    | + child black_hole
+    + report shape        | + child black_hole
+-
