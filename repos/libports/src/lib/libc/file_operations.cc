@@ -210,6 +210,37 @@ static RET without_trailing_slash(char const *p, auto const &fn)
 }
 
 
+template <typename RET>
+static RET with_path_at(int libc_fd, char const *caller_name, char const *path, auto const &fn)
+{
+	if (invalid_path_cstring(path))
+		return -1;
+
+	Absolute_path abs_path = path;
+
+	if (path[0] == 0) {
+		/* if path argument is empty, use libc_fd path as is */
+		RET const ret = with_fd(libc_fd, caller_name, [&] (File_descriptor &fd) {
+			abs_path = fd.path.string(); return 0; });
+		if (ret < 0)
+			return ret;
+
+	} else if (path[0] != '/') {
+		/* relative either to libc_fd path or to cwd */
+		if (libc_fd == AT_FDCWD) {
+			abs_path.import(path, cwd().string());
+		} else {
+			RET const ret = with_fd(libc_fd, caller_name, [&] (File_descriptor &fd) {
+				abs_path.import(path, fd.path.string()); return 0; });
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return fn(abs_path.string());
+}
+
+
 /********************
  ** Libc functions **
  ********************/
@@ -472,8 +503,9 @@ __SYS_(int, fstat, (int libc_fd, struct stat *buf),
 
 __SYS_(int, fstatat, (int libc_fd, char const *path, struct stat *buf, int flags),
 {
-	if (invalid_path_cstring(path))
-		return -1;
+	/* don't use 'invalid_path_cstring', strlen(path) may legitimately be 0 */
+	if (!path)
+		return Errno(EFAULT);
 
 	if (*path == '/') {
 		if (flags & AT_SYMLINK_NOFOLLOW)
@@ -578,6 +610,13 @@ extern "C" int mkdir(const char *path, mode_t mode)
 {
 	return with_abs_compound_last<int>(path, [&] (char const *c, char const *l) {
 		return fs().mkdir(c, l, mode); });
+}
+
+
+extern "C" int mkdirat(int libc_fd, const char *path, mode_t mode)
+{
+	return with_path_at<int>(libc_fd, "mkdirat", path, [&] (char const *path) {
+		return mkdir(path, mode); });
 }
 
 
@@ -767,25 +806,19 @@ __SYS_(int, openat, (int libc_fd, const char *path, int flags, ...),
 	mode_t mode = va_arg(ap, unsigned);
 	va_end(ap);
 
-	if (*path == '/')
-		return open(path, flags, mode);
-
-	Absolute_path abs_path;
-
-	if (libc_fd == AT_FDCWD) {
-		abs_path = cwd();
-		abs_path.append_element(path);
-	} else {
-		int ret = with_fd(libc_fd, "openat", [&] (File_descriptor &fd) {
-			abs_path.import(path, fd.path.string());
-			return 0;
-		});
-		if (ret < 0)
-			return ret;
-	}
-
-	return open(abs_path.base(), flags, mode);
+	return with_path_at<int>(libc_fd, "openat", path, [&] (char const *path) {
+		return open(path, flags, mode); });
 })
+
+
+extern "C" int fchmodat(int libc_fd, const char *path, mode_t mode, int flags)
+{
+	if (flags)
+		warning("fchmodat flags ignored");
+
+	return with_path_at<int>(libc_fd, "fchmodat", path, [&] (char const *path) {
+		return chmod(path, mode); });
+}
 
 
 extern "C" int pipe(int pipefd[2]) {
@@ -874,7 +907,7 @@ __SYS_(ssize_t, read, (int libc_fd, void *buf, ::size_t count),
 })
 
 
-extern "C" ssize_t readlink(const char *path, char *buf, ::size_t bufsiz)
+extern "C" ssize_t readlink(char const *path, char *buf, ::size_t bufsiz)
 {
 	return with_abs_compound_last<ssize_t>(path, [&] (char const *compound, char const *last) {
 		return with_joined<ssize_t>(compound, last, [&] (char const *path) {
@@ -882,13 +915,29 @@ extern "C" ssize_t readlink(const char *path, char *buf, ::size_t bufsiz)
 }
 
 
-extern "C" int rename(const char *oldpath, const char *newpath)
+extern "C" ssize_t readlinkat(int libc_fd, char const *path, char *buf, ::size_t bufsiz)
+{
+	return with_path_at<ssize_t>(libc_fd, "readlinkat", path, [&] (char const *path) {
+		return readlink(path, buf, bufsiz); });
+}
+
+
+extern "C" int rename(char const *oldpath, char const *newpath)
 {
 	return with_abs_compound_last<int>(oldpath, [&] (char const *c, char const *l) {
 		return with_joined<int>(c, l, [&] (char const *oldpath) {
 			return with_abs_compound_last<int>(newpath, [&] (char const *c, char const *l) {
 				return with_joined<int>(c, l, [&] (char const *newpath) {
 					return fs().rename(oldpath, newpath); }); }); }); });
+}
+
+
+extern "C" int renameat(int oldfd, char const *oldpath,
+                        int newfd, char const *newpath)
+{
+	return with_path_at<ssize_t>(oldfd, "renameat", oldpath, [&] (char const *oldpath) {
+		return with_path_at<ssize_t>(newfd, "renameat", newpath, [&] (char const *newpath) {
+			return rename(oldpath, newpath); }); });
 }
 
 
@@ -918,7 +967,7 @@ extern "C" int stat(const char *path, struct stat *buf)
 }
 
 
-extern "C" int symlink(const char *target, const char *linkpath)
+extern "C" int symlink(char const *target, char const *linkpath)
 {
 	if (invalid_path_cstring(target))
 		return -1;
@@ -929,11 +978,28 @@ extern "C" int symlink(const char *target, const char *linkpath)
 }
 
 
-extern "C" int unlink(const char *path)
+extern "C" int symlinkat(char const *target, int libc_fd, char const *linkpath)
+{
+	return with_path_at<int>(libc_fd, "symlinkat", linkpath, [&] (char const *linkpath) {
+		return symlink(target, linkpath); });
+}
+
+
+extern "C" int unlink(char const *path)
 {
 	return with_abs_compound_last<int>(path, [&] (char const *c, char const *l) {
 		return with_joined<int>(c, l, [&] (char const *path) {
 			return fs().unlink(path); }); });
+}
+
+
+extern "C" int unlinkat(int libc_fd, char const *path, int flags)
+{
+	if (flags)
+		warning("unlinkat flags ignored");
+
+	return with_path_at<int>(libc_fd, "unlinkat", path, [&] (char const *path) {
+		return unlink(path); });
 }
 
 
