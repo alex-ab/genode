@@ -370,7 +370,8 @@ class Block::Gpt : public Block::Partition_table
 			_gpt_total        = (gpt.part_lba_end() - gpt.part_lba_start()) + 1;
 			_gpt_used         = _calculate_used(gpt, entries, gpt.entries());
 
-			for (int i = 0; i < MAX_PARTITIONS; i++) {
+			auto const num_entries = min((int)gpt.entries(), MAX_PARTITIONS);
+			for (int i = 0; i < num_entries; i++) {
 
 				Gpt_entry e(entries.range_at(i * gpt.entry_size()));
 
