@@ -202,6 +202,7 @@ class Terminal::Session_component : public Rpc_object<Session, Session_component
 				written_bytes = ::write(fd(),
 				                        _io_buffer.local_addr<char>(),
 				                        num_bytes);
+				fsync(fd());
 			});
 
 			if (written_bytes < 0) {
