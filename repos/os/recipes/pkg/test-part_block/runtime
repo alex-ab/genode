@@ -1,0 +1,75 @@
+runtime | ram: 72M | caps: 1400 | binary: init
+
++ requires | + timer
+
++ fail    | after_seconds: 70
++ fail    | : *Error:
++ fail    | : *Warning:
++ succeed | exit: 0
+
++ content
+  + rom | label: block_tester
+  + rom | label: ld.lib.so
+  + rom | label: part_block
+  + rom | label: report_rom
+  + rom | label: sequence
+  + rom | label: vfs.lib.so
+  + rom | label: vfs_block
+  + rom | label: ahdi.config
+  + rom | label: disk.config
+  + rom | label: gpt.config
+  + rom | label: mbr.config
+  + rom | label: ata.ahdi.raw
+  + rom | label: ata.gpt.raw
+  + rom | label: ata.mbr.raw
+
++ config | prio_levels: 1 | verbose: yes
+  + parent-provides
+    + service ROM
+    + service IRQ
+    + service IO_MEM
+    + service IO_PORT
+    + service PD
+    + service RM
+    + service CPU
+    + service LOG
+    + service Timer
+
+  + default-route
+    + any-service
+      + parent
+      + any-child
+
+  + start report_rom | ram: 4M | caps: 100
+    + provides
+      + service Report
+      + service ROM
+    + config | verbose: yes
+
+  + start vfs_block | ram: 32M | caps: 100
+    + provides | + service Block
+    + config
+      + vfs
+        + rom ata.gpt.raw
+        + rom ata.mbr.raw
+        + rom ata.ahdi.raw
+      + policy | label_prefix: step -> disk | file: /ata.mbr.raw  | block_size: 512
+      + policy | label_prefix: step -> mbr  | file: /ata.mbr.raw  | block_size: 512
+      + policy | label_prefix: step -> gpt  | file: /ata.gpt.raw  | block_size: 512
+      + policy | label_prefix: step -> ahdi | file: /ata.ahdi.raw | block_size: 512
+
+  + start step | ram: 33M | caps: 1000
+    + binary sequence
+    + exit | propagate: yes
+    + config
+      + start disk | ram: 32M | caps: 900 | config: disk.config | + binary init
+      + start mbr  | ram: 32M | caps: 900 | config: mbr.config  | + binary init
+      + start gpt  | ram: 32M | caps: 900 | config: gpt.config  | + binary init
+      + start ahdi | ram: 32M | caps: 900 | config: ahdi.config | + binary init
+    + route
+      + service Block | + child vfs_block
+      + any-service
+        + parent
+        + any-child
+
+-

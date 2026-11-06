@@ -695,8 +695,7 @@ set default_test_pkgs {
 	test-mmio
 	test-new_delete
 	test-nic_loopback
-	test-part_block_gpt
-	test-part_block_mbr
+	test-part_block
 	test-path
 	test-pipe_read_ready
 	test-pthread
