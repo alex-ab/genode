@@ -103,6 +103,12 @@ struct Vfs_ram_log::File_system : Single_file_system
 			return src.num_bytes;
 		}
 
+		Sync_result sync() override
+		{
+			_ram_log._notify_watchers();
+			return Sync_result::OK;
+		}
+
 		bool read_ready()  const override { return true; }
 		bool write_ready() const override { return true; }
 
