@@ -37,28 +37,24 @@ deploy | info: Goa SDK
     + rom vfs.lib.so | + parent
     + rom terminal   | + parent
 
-+ child testbed_log_pipe | binary: stdin2out | caps: 100 | ram: 2M
-  + config
-  | + libc | stdin: /data/log | stdout: /dev/terminal
++ child testbed_log_stream | binary: stream | caps: 100 | ram: 2M
+  + config | in: /data/log | out: /dev/terminal
   | + vfs
   |   + dir dev  | + device | + terminal
   |   + dir data | + fs | label: data -> / | writeable: yes
-  |   + import | overwrite: no
+  |   + import | overwrite: yes
   |     + dir data
   |       + inline log
   |         : ### start ###
   |         :
   + connect
     + terminal              | + child testbed_log_view
-    + fs data               | + child recall_fs | identity: testbed -> run -> data -> report
+    + fs data               | + child recall_fs | identity: goa_local_testbed -> run -> data -> report
     + rom vfs.lib.so        | + parent
-    + rom libc.lib.so       | + parent
-    + rom libm.lib.so       | + parent
-    + rom posix.lib.so      | + parent
     + rom vfs_import.lib.so | + parent
-    + rom stdin2out         | + parent
+    + rom stream            | + parent
 
-+ child testbed | pkg: cproc/pkg/goa_local_testbed/2026-11-04
++ child goa_local_testbed | pkg: cproc/pkg/goa_local_testbed/2026-11-04
   + connect
     + fs vm               | + child recall_fs | identity: goa_sdk -> vm
     + fs run              | + child recall_fs
@@ -80,4 +76,5 @@ deploy | info: Goa SDK
     + rom capslock        | + child black_hole
     + report clipboard    | + child black_hole
     + report shape        | + child black_hole
+    + rom file_terminal   | + parent
 -
