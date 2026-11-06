@@ -27,9 +27,8 @@ config
     + any-service | + parent
 
 + start log | caps: 100 | ram: 2M
-  + binary stdin2out
-  + config
-  | + libc | stdin: /report/log | stdout: /dev/terminal
+  + binary stream
+  + config | in: /report/log | out: /dev/terminal
   | + vfs
   |   + dir dev    | + device | + terminal
   |   + dir report | + fs | label: report -> /
