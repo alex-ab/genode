@@ -126,7 +126,7 @@ struct Vfs_import::File_system : Vfs::File_system
 		bool overwrite = _config.attribute_value("overwrite", false);
 
 		Root_directory src(_env.env(), _heap, _config);
-		Directory      dst(_env);
+		Directory      dst(_env.root());
 
 		_copy_dir(src, dst, Directory::Path(""), overwrite);
 

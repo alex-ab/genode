@@ -50,13 +50,13 @@ struct Vfs_ttf::Font_from_file
 	 */
 	static constexpr float MAX_SIZE_PX = 100.0;
 
-	Font_from_file(Vfs::Env &vfs_env, Path const &file_path, float px)
+	Font_from_file(Vfs::Root &root, Path const &file_path, float px)
 	:
-		_dir(vfs_env),
-		_content(vfs_env.alloc(), _dir, file_path, File_content::Limit{10*1024*1024})
+		_dir(root),
+		_content(root.alloc(), _dir, file_path, File_content::Limit{10*1024*1024})
 	{
 		_content.bytes([&] (char const *ptr, size_t) {
-			_font.construct(vfs_env.alloc(), ptr, min(px, MAX_SIZE_PX)); });
+			_font.construct(root.alloc(), ptr, min(px, MAX_SIZE_PX)); });
 	}
 
 	Font const &font() const { return *_font; }
@@ -100,7 +100,7 @@ struct Vfs_ttf::File_system : Dir_file_system,
 
 		Font(Vfs::Env &env, Font_config &config)
 		:
-			font(env,
+			font(env.root(),
 			     config.path,
 			     config.size),
 			cache_limit(config.cache_limit),

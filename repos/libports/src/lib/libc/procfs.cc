@@ -53,7 +53,7 @@ Procfs::Path Procfs::_fd_path(int id) const
 void Procfs::add_fd_file_from_kernel(int id, Path const &target)
 {
 	if (_fd_present)
-		_fs._vfs.symlink(_fd_path(id).string(), target.string(), { });
+		_fs._vfs.symlink(_fd_path(id).string(), target.string(), Vfs::Timestamp { });
 }
 
 
@@ -89,7 +89,7 @@ Procfs::Procfs(Fs &fs, Config const &config)
 {
 	auto mkdir = [&] (Absolute_path const &path) -> bool {
 		if (!_fs._root_dir.directory_exists(path.string())) {
-			if (_fs._vfs.mkdir(path.string(), { }) != Vfs::Mkdir_result::CREATED)
+			if (_fs._vfs.mkdir(path.string(), Vfs::Timestamp { }) != Vfs::Mkdir_result::CREATED)
 				Genode::error("Unable to create directory ", path);
 			else
 				return true;

@@ -141,6 +141,14 @@ class Genode::Vfs::Root : public Env, private Env::Io, private Env::User
 						commit_and_wait(); });
 		}
 
+		auto _without_attached_channels(char const *path, auto const &fn)
+		{
+			_detach_channels(Span::from_cstring(path));
+			auto const result = fn();
+			_reattach_channels(Span::from_cstring(path));
+			return result;
+		}
+
 	public:
 
 		Root(Genode::Env &env, Allocator &alloc)
@@ -164,18 +172,17 @@ class Genode::Vfs::Root : public Env, private Env::Io, private Env::User
 
 		Progress apply_config(Node const &config)
 		{
-			_detach_channels(Span::from_cstring("/"));
-
-			Progress const result = _fs.update(config, _fs_factory);
-			if (result.progressed)
-				_fs.resume_after_update();
-
-			_reattach_channels(Span::from_cstring("/"));
-			return result;
+			return _without_attached_channels("/", [&] {
+				Progress const result = _fs.update(config, _fs_factory);
+				if (result.progressed)
+					_fs.resume_after_update();
+				return result;
+			});
 		}
 
 		Genode::Env      &env()              override { return _env; }
 		Allocator        &alloc()            override { return _alloc; }
+		Root             &root()             override { return *this; }
 		File_system      &fs()               override { return _fs; }
 		File_handles     &file_handles()     override { return _file_handles; }
 		Dir_handles      &dir_handles()      override { return _dir_handles; }
@@ -183,6 +190,32 @@ class Genode::Vfs::Root : public Env, private Env::Io, private Env::User
 		Deferred_wakeups &deferred_wakeups() override { return _deferred_wakeups; }
 		Env::Io          &io()               override { return *this; }
 		Env::User        &user()             override { return _user; }
+
+		/*
+		 * Access to 'File_system' operations
+		 */
+
+		using Ds_cap = Dataspace_capability;
+
+		Ds_cap dataspace      (auto &&... args) { return _fs.dataspace(args...); }
+		void release          (auto &&... args) { return _fs.release(args...); }
+		Open_result open      (auto &&... args) { return _fs.open(args...); }
+		Opendir_result opendir(auto &&... args) { return _fs.opendir(args...); }
+		Stat_result stat      (auto &&... args) { return _fs.stat(args...); }
+		Mkdir_result mkdir    (auto &&... args) { return _fs.mkdir(args...); }
+		unsigned num_dirent   (auto &&... args) { return _fs.num_dirent(args...); }
+		bool directory        (auto &&... args) { return _fs.directory(args...); }
+		bool dir_entry_exists (auto &&... args) { return _fs.dir_entry_exists(args...); }
+		Symlink_result symlink(auto &&... args) { return _fs.symlink(args...); }
+		Follow_result follow  (auto &&... args) { return _fs.follow(args...); }
+		Unlink_result unlink  (auto &&... args) { return _fs.unlink(args...); }
+
+		Rename_result rename(char const *from, char const *to)
+		{
+			return _without_attached_channels(from, [&] {
+				return _without_attached_channels(to, [&] {
+					return _fs.rename(from, to); }); });
+		}
 
 		/**
 		 * Env::Io interface

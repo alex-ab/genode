@@ -82,8 +82,7 @@ struct Libc::Fs
 	Config                     const &_config;
 	Current_real_time                &_now;
 	Genode::Allocator                &_kernel_heap;
-	Vfs::Env                         &_vfs_env;
-	Vfs::File_system                 &_vfs;
+	Vfs::Root                        &_vfs;
 	Directory                        &_root_dir;
 	Procfs                           &_procfs;
 

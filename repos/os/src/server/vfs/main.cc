@@ -81,7 +81,7 @@ class Vfs_server::Session_component : private Session_resources,
 
 	private:
 
-		Vfs::Env &_vfs_env;
+		Vfs::Root &_vfs;
 
 		Entrypoint &_ep;
 
@@ -372,7 +372,7 @@ class Vfs_server::Session_component : private Session_resources,
 			if (progress == Process_packets_result::PROGRESS)
 				_io_progress_handler.handle_io_progress();
 
-			_vfs_env.io().commit();
+			_vfs.io().commit();
 		}
 
 		/**
@@ -436,7 +436,7 @@ class Vfs_server::Session_component : private Session_resources,
 		                  Ram_quota            ram_quota,
 		                  Cap_quota            cap_quota,
 		                  size_t               tx_buf_size,
-		                  Vfs::Env            &vfs_env,
+		                  Vfs::Root           &vfs_root,
 		                  Session_queue       &active_sessions,
 		                  Io_progress_handler &io_progress_handler,
 		                  char          const *root_path,
@@ -444,7 +444,7 @@ class Vfs_server::Session_component : private Session_resources,
 		:
 			Session_resources(env.ram(), env.rm(), ram_quota, cap_quota, tx_buf_size),
 			Session_rpc_object(_packet_ds.cap(), env.rm(), env.ep().rpc_ep()),
-			_vfs_env(vfs_env),
+			_vfs(vfs_root),
 			_ep(env.ep()),
 			_io_progress_handler(io_progress_handler),
 			_active_sessions(active_sessions),
@@ -496,7 +496,7 @@ class Vfs_server::Session_component : private Session_resources,
 				fullpath.append(path_str);
 			path_str = fullpath.base();
 
-			bool const exists = _vfs_env.fs().directory(path_str);
+			bool const exists = _vfs.directory(path_str);
 
 			if (!create && !exists)
 				throw Lookup_failed();
@@ -504,9 +504,9 @@ class Vfs_server::Session_component : private Session_resources,
 			if (create && !exists) {
 				Mkdir_result mkdir_result;
 				for (;;) {
-					mkdir_result = _vfs_env.fs().mkdir(path_str, { });
+					mkdir_result = _vfs.mkdir(path_str, Vfs::Timestamp { });
 					if (mkdir_result != Mkdir_result::RETRY) break;
-					_vfs_env.io().commit();
+					_vfs.io().commit();
 					_ep.wait_and_dispatch_one_io_signal();
 				}
 				assert_mkdir(mkdir_result);
@@ -515,7 +515,7 @@ class Vfs_server::Session_component : private Session_resources,
 			Directory::Policy const policy { .writeable = _writeable };
 
 			Directory &dir = *new (_alloc)
-				Directory(_node_space, _vfs_env, _alloc, policy, path_str);
+				Directory(_node_space, _vfs, _alloc, policy, path_str);
 
 			if (create && !exists)
 				_io_progress_handler.handle_io_progress();
@@ -535,7 +535,7 @@ class Vfs_server::Session_component : private Session_resources,
 				_assert_valid_name(name_str);
 
 				return File_handle {
-					dir.file(_node_space, _vfs_env, _alloc, {
+					dir.file(_node_space, _vfs, _alloc, {
 						.path      = name_str,
 						.writeable = w
 					}).value
@@ -555,7 +555,7 @@ class Vfs_server::Session_component : private Session_resources,
 				Path path = (dir.path == "/") ? Path { "/", name.string() }
 				                              : Path { dir.path, "/", name.string() };
 
-				bool const exists = _vfs_env.fs().dir_entry_exists(path.string());
+				bool const exists = _vfs.dir_entry_exists(path.string());
 
 				if (!create && !exists)
 					throw Lookup_failed();
@@ -564,16 +564,16 @@ class Vfs_server::Session_component : private Session_resources,
 				if (create && !exists) {
 					Symlink_result symlink_result;
 					for (;;) {
-						symlink_result = _vfs_env.fs().symlink(path.string(), "", { });
+						symlink_result = _vfs.symlink(path.string(), "", Vfs::Timestamp { });
 						if (symlink_result != Symlink_result::RETRY) break;
-						_vfs_env.io().commit();
+						_vfs.io().commit();
 						_ep.wait_and_dispatch_one_io_signal();
 					}
 					assert_symlink(symlink_result);
 				}
 
 				return Symlink_handle {
-					dir.symlink(_node_space, _vfs_env.fs(), _alloc, {
+					dir.symlink(_node_space, _vfs.fs(), _alloc, {
 						.path      = name_str,
 						.writeable = _writeable
 					}).value
@@ -591,7 +591,7 @@ class Vfs_server::Session_component : private Session_resources,
 			try {
 				Path const sub_path(path_str + 1, _root_path.base());
 				path_str = sub_path.base();
-				if (sub_path != "/" && !_vfs_env.fs().dir_entry_exists(path_str))
+				if (sub_path != "/" && !_vfs.dir_entry_exists(path_str))
 					throw Lookup_failed();
 			} catch (Path::Path_too_long) {
 				throw Name_too_long();
@@ -618,7 +618,7 @@ class Vfs_server::Session_component : private Session_resources,
 			}
 
 			Watch_node &node = *new (_alloc)
-				Watch_node(_node_space, _vfs_env, path_str, *this);
+				Watch_node(_node_space, _vfs, path_str, *this);
 
 			return node.watch().convert<Watch_handle>(
 				[&] (Ok) {
@@ -670,7 +670,7 @@ class Vfs_server::Session_component : private Session_resources,
 
 				Vfs::File_system::Stat vfs_stat;
 
-				if (_vfs_env.fs().stat(node.path.string(), vfs_stat) != Stat_result::OK)
+				if (_vfs.stat(node.path.string(), vfs_stat) != Stat_result::OK)
 					throw Invalid_handle();
 
 				auto fs_node_type = [&] (Vfs::Dirent_type type)
@@ -719,7 +719,7 @@ class Vfs_server::Session_component : private Session_resources,
 		unsigned num_entries(Dir_handle dir_handle) override
 		{
 			return _apply(dir_handle, [&] (Directory &dir) {
-				return _vfs_env.fs().num_dirent(dir.path.string()); });
+				return _vfs.num_dirent(dir.path.string()); });
 		}
 
 		void unlink(Dir_handle dir_handle, Name const &name) override
@@ -732,7 +732,7 @@ class Vfs_server::Session_component : private Session_resources,
 
 				Path path(name_str, dir.path.string());
 
-				assert_unlink(_vfs_env.fs().unlink(path.base()));
+				assert_unlink(_vfs.unlink(path.base()));
 			});
 
 			/*
@@ -767,7 +767,7 @@ class Vfs_server::Session_component : private Session_resources,
 					Path from_path(from_str, from_dir.path.string());
 					Path   to_path(  to_str,   to_dir.path.string());
 
-					assert_rename(_vfs_env.fs().rename(from_path.base(), to_path.base()));
+					assert_rename(_vfs.rename(from_path.base(), to_path.base()));
 				});
 			});
 
@@ -785,7 +785,7 @@ class Vfs_server::Root : public Root_component<Session_component>
 
 		Env &_env;
 
-		Vfs::Env &_vfs_env;
+		Vfs::Root &_vfs;
 
 		Attached_rom_dataspace const &_config;
 
@@ -868,7 +868,7 @@ class Vfs_server::Root : public Root_component<Session_component>
 
 			/* check if the session root exists */
 			if (!((session_root == "/")
-			 || _vfs_env.fs().directory(session_root.base()))) {
+			 || _vfs.directory(session_root.base()))) {
 				error("session root '", session_root, "' not found for '", label, "'");
 				throw Service_denied();
 			}
@@ -877,7 +877,7 @@ class Vfs_server::Root : public Root_component<Session_component>
 				Session_component(_env, label.string(),
 				                  Ram_quota{ram_quota},
 				                  Cap_quota{cap_quota},
-				                  tx_buf_size, _vfs_env,
+				                  tx_buf_size, _vfs,
 				                  _active_sessions, _io_progress_handler,
 				                  session_root.base(), writeable);
 
@@ -915,12 +915,12 @@ class Vfs_server::Root : public Root_component<Session_component>
 
 	public:
 
-		Root(Env &env, Vfs::Env &vfs_env,
+		Root(Env &env, Vfs::Root &vfs,
 		     Attached_rom_dataspace const &config, Allocator &md_alloc,
 		     Io_progress_handler &io_progress_handler)
 		:
 			Root_component<Session_component>(&env.ep().rpc_ep(), &md_alloc),
-			_env(env), _vfs_env(vfs_env), _config(config),
+			_env(env), _vfs(vfs), _config(config),
 			_io_progress_handler(io_progress_handler)
 		{
 			env.parent().announce(env.ep().manage(*this));
@@ -979,7 +979,7 @@ class Vfs_server::Root : public Root_component<Session_component>
 			if (yield)
 				Signal_transmitter(_reactivate_handler).submit();
 
-			_vfs_env.io().commit();
+			_vfs.io().commit();
 		}
 };
 
@@ -996,15 +996,15 @@ struct Vfs_server::Main : Entrypoint::Io_progress_handler
 
 	Heap _vfs_heap { &_env.ram(), &_env.rm() };
 
-	Vfs::Root _vfs_root { _env, _vfs_heap };
+	Vfs::Root _vfs { _env, _vfs_heap };
 
-	Vfs_server::Root _root { _env, _vfs_root, _config, _sliced_heap, *this };
+	Vfs_server::Root _root { _env, _vfs, _config, _sliced_heap, *this };
 
 	void _handle_config()
 	{
 		_config.update();
 		_config.node().with_optional_sub_node("vfs",
-			[&] (Node const &config) { _vfs_root.apply_config(config); });
+			[&] (Node const &config) { _vfs.apply_config(config); });
 
 		/*
 		 * The VFS configuration change may result in watch notifications

@@ -35,6 +35,11 @@ struct Genode::Vfs::Env : Interface
 	virtual Allocator &alloc() = 0;
 
 	/**
+	 * Vfs::Root interface
+	 */
+	virtual Root &root() = 0;
+
+	/**
 	 * VFS root file system
 	 */
 	virtual File_system &fs() = 0;

@@ -207,8 +207,7 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 			._config           = _config,
 			._now              = *this,
 			._kernel_heap      = _heap,
-			._vfs_env          = _vfs_root,
-			._vfs              = _vfs_root.fs(),
+			._vfs              = _vfs_root,
 			._root_dir         = _root_dir,
 			._procfs           = _procfs
 		};
@@ -722,7 +721,7 @@ struct Libc::Kernel final : Vfs::Read_ready_response_handler,
 
 		void wakeup_remote_peers()
 		{
-			_libc_env.vfs_env().io().commit();
+			_libc_env.vfs_root().io().commit();
 		}
 };
 

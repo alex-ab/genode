@@ -116,10 +116,9 @@ struct Genode::Directory : Noncopyable, Interface
 
 		Path const _path;
 
-		Vfs::Env         &_vfs_env;
-		Vfs::File_system &_fs    = _vfs_env.fs();
-		Vfs::Env::Io     &_io    = _vfs_env.io();
-		Allocator        &_alloc = _vfs_env.alloc();
+		Vfs::Root    &_root;
+		Vfs::Env::Io &_io    = _root.io();
+		Allocator    &_alloc = _root.alloc();
 
 		Vfs::Dir_handle _handle;
 
@@ -138,7 +137,7 @@ struct Genode::Directory : Noncopyable, Interface
 		 */
 		Vfs::File_system &_nonconst_fs() const
 		{
-			return const_cast<Vfs::File_system &>(_fs);
+			return const_cast<Vfs::File_system &>(_root.fs());
 		}
 
 		Vfs::Stat_result _stat(Path const &rel_path, Vfs::File_system::Stat &out) const
@@ -180,10 +179,10 @@ struct Genode::Directory : Noncopyable, Interface
 		/**
 		 * Constructor used by 'Root_directory'
 		 */
-		Directory(Vfs::Env &vfs_env)
+		Directory(Vfs::Root &root)
 		:
-			_path(""), _vfs_env(vfs_env),
-			_handle(_vfs_env.dir_handles(), _vfs_env.fs(), _alloc, "/")
+			_path(""), _root(root),
+			_handle(_root.dir_handles(), _root.fs(), _alloc, "/")
 		{ }
 
 		/**
@@ -191,8 +190,8 @@ struct Genode::Directory : Noncopyable, Interface
 		 */
 		Directory(Directory const &other, Path const &rel_path)
 		:
-			_path(join(other._path, rel_path)), _vfs_env(other._vfs_env),
-			_handle(_vfs_env.dir_handles(), _vfs_env.fs(), _alloc, _path)
+			_path(join(other._path, rel_path)), _root(other._root),
+			_handle(_root.dir_handles(), _root.fs(), _alloc, _path)
 		{ }
 
 		bool exists() const { return directory_exists(""); }
@@ -345,12 +344,12 @@ struct Genode::Directory : Noncopyable, Interface
 
 		void unlink(Path const &rel_path)
 		{
-			_fs.unlink(join(_path, rel_path).string());
+			_root.unlink(join(_path, rel_path).string());
 		}
 
 		void rename(Path const &from, Path const &to)
 		{
-			_fs.rename(join(_path, from).string(), join(_path, to).string());
+			_root.rename(join(_path, from).string(), join(_path, to).string());
 		}
 
 		/**
@@ -376,7 +375,7 @@ struct Genode::Directory : Noncopyable, Interface
 				Path path = join(_path, Path(Cstring(sub_path.string(), sub_path_len)));
 
 				if (!directory_exists(path))
-					while (_fs.mkdir(path.string(), ts) == Vfs::Mkdir_result::RETRY)
+					while (_root.fs().mkdir(path.string(), ts) == Vfs::Mkdir_result::RETRY)
 						_io.commit_and_wait();
 
 				if (end_of_path)
@@ -391,6 +390,9 @@ struct Genode::Directory : Noncopyable, Interface
 
 struct Genode::Root_directory : Vfs::Root, Directory
 {
+	using Directory::rename;
+	using Directory::unlink;
+
 	Root_directory(Genode::Env &env, Allocator &alloc)
 	:
 		Vfs::Root(env, alloc), Directory((Vfs::Root &)*this)
@@ -458,8 +460,8 @@ class Genode::Readonly_file : public File
 		 */
 		Readonly_file(Directory const &dir, Path const &rel_path)
 		:
-			_handle(_mutable(dir)._vfs_env.file_handles(),
-			        _mutable(dir)._fs, _mutable(dir)._alloc,
+			_handle(_mutable(dir)._root.file_handles(),
+			        _mutable(dir)._root.fs(), _mutable(dir)._alloc,
 			        { .path      = Directory::join(dir._path, rel_path),
 			          .writeable = false }),
 			_io(_mutable(dir)._io)
@@ -750,7 +752,7 @@ class Genode::Writeable_file : Noncopyable
 		:
 			_compound_dir_created(_create_compound_dir(dir, path, ts)),
 			_io(dir._io),
-			_handle(dir._vfs_env.file_handles(), dir._fs, dir._alloc,
+			_handle(dir._root.file_handles(), dir._root.fs(), dir._alloc,
 			        { .path      = Directory::join(dir._path, path),
 			          .writeable = true })
 		{
@@ -849,7 +851,7 @@ class Genode::New_file : public Writeable_file
 
 
 /**
- * Helper with access to 'Directory::_vfs_env' and 'Directory::_path'
+ * Helper with access to 'Directory::_root' and 'Directory::_path'
  *
  * \noapi
  */
@@ -864,8 +866,8 @@ struct Genode::Io::Watch_handler_base : Vfs::Watch_handle::Handler
 
 	Watch_handler_base(Directory const &dir, Directory::Path const &rel_path)
 	:
-		_handle(_mutable(dir)._vfs_env.watch_handles(),
-		        _mutable(dir)._vfs_env.fs(),
+		_handle(_mutable(dir)._root.watch_handles(),
+		        _mutable(dir)._root.fs(),
 		        Directory::join(dir._path, rel_path),
 		        *this)
 	{ }

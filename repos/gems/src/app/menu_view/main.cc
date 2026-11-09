@@ -42,7 +42,7 @@ struct Menu_view::Main : Dialog::Action
 
 	Heap _heap { _env.ram(), _env.rm() };
 
-	Directory _root_dir  { _env.vfs_env() };
+	Directory _root_dir  { _env.vfs_root() };
 	Directory _font_dir  { _root_dir, "font" };
 	Directory _style_dir { _root_dir, "style" };
 

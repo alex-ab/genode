@@ -217,7 +217,7 @@ struct Vfs_xoroshiro::File_system : Single_file_system
 			.rwx   = File::RO
 		} },
 		_alloc          { vfs_env.alloc() },
-		_root_dir       { Directory(vfs_env) },
+		_root_dir       { Directory(vfs_env.root()) },
 		_seed_file_path { _get_seed_file_path(config) }
 	{ }
 

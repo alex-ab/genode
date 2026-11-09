@@ -231,7 +231,7 @@ int Libc::Fs::access(char const *path, int amode)
 
 Libc::Fs::Open_file_result Libc::Fs::open_file_from_kernel(Open_file_attr const &attr)
 {
-	return *new (_kernel_heap) Open_file(_vfs_env, _response_handler, attr);
+	return *new (_kernel_heap) Open_file(_vfs, _response_handler, attr);
 }
 
 
@@ -277,7 +277,7 @@ Libc::Fs::Open_dir_result Libc::Fs::open_dir(char const *path, int flags)
 
 	Open_dir *result_od_ptr { };
 	_monitor.monitor([&] {
-		result_od_ptr = new (_kernel_heap) Open_dir(_vfs_env, path);
+		result_od_ptr = new (_kernel_heap) Open_dir(_vfs, path);
 		return Fn::COMPLETE;
 	});
 	if (result_od_ptr)
@@ -1865,7 +1865,8 @@ Libc::Fs::Follow_result Libc::Fs::follow_symlinks(char const *path_cstring)
 
 			path = _procfs.resolve_proc_self(path).string();
 
-			Vfs::Follow_result const follow = _vfs.follow(path.string(), { target, sizeof(target) });
+			Byte_range_ptr dst { target, sizeof(target) };
+			Vfs::Follow_result const follow = _vfs.follow(path.string(), dst);
 			if (follow == Vfs::Follow_error::RETRY)
 				return Fn::INCOMPLETE;
 

@@ -47,7 +47,7 @@ struct Libc::Config_accessor : Genode::Interface, Genode::Noncopyable
 
 namespace Libc { class Env; }
 
-namespace Genode::Vfs { struct Env; }
+namespace Genode::Vfs { struct Root; }
 
 
 /**
@@ -58,7 +58,7 @@ struct Libc::Env : Genode::Env, Config_accessor
 	/**
 	 * Virtual file system configured for this component
 	 */
-	virtual Genode::Vfs::Env &vfs_env() = 0;
+	virtual Genode::Vfs::Root &vfs_root() = 0;
 
 	virtual void apply_config(Genode::Node const &) = 0;
 };

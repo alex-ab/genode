@@ -56,7 +56,7 @@ class Libc::Env_implementation : public Libc::Env
 			fn(_config_rom.node());
 		}
 
-		Vfs::Env &vfs_env() override { return _vfs_root; }
+		Vfs::Root &vfs_root() override { return _vfs_root; }
 
 		void apply_config(Node const &n) override { _vfs_root.apply_config(n); }
 
