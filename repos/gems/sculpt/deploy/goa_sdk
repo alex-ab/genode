@@ -9,7 +9,7 @@ deploy | info: Goa SDK
 + option window_manager
 + option black_hole
 
-+ child goa_sdk | pkg: cproc/pkg/goa_sdk/2026-11-05
++ child goa_sdk | pkg: cproc/pkg/goa_sdk/2026-11-10
   + connect
     + gui              | + child wm
     + nic              | + child network
@@ -54,7 +54,7 @@ deploy | info: Goa SDK
     + rom vfs_import.lib.so | + parent
     + rom stream            | + parent
 
-+ child goa_local_testbed | pkg: cproc/pkg/goa_local_testbed/2026-11-04
++ child goa_local_testbed | pkg: cproc/pkg/goa_local_testbed/2026-11-06
   + connect
     + fs vm               | + child recall_fs | identity: goa_sdk -> vm
     + fs run              | + child recall_fs
