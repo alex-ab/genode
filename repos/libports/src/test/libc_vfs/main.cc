@@ -169,6 +169,21 @@ static void test(Genode::Node const &node)
 		CALL_AND_CHECK(ret, rename(file_name5, "x"), ret == 0, "file_name=%s", file_name5);
 		CALL_AND_CHECK(ret, close(fd), ret == 0, "");
 
+		/* rename to a currently opened file */
+		{
+			char buf[4] { }; /* for reading 3 bytes, leaving the last byte 0 */
+			CALL_AND_CHECK(fd, open("x", O_CREAT | O_WRONLY), fd >= 0, "file_name=%s", file_name5);
+			CALL_AND_CHECK(ret, write(fd, "123", 3), ret == 3, "write 123");
+			CALL_AND_CHECK(ret, close(fd), ret == 0, "");
+			CALL_AND_CHECK(fd, open(file_name5, O_CREAT | O_WRONLY), fd >= 0, "file_name=%s", file_name5);
+			CALL_AND_CHECK(ret, write(fd, "456", 3), ret == 3, "write 456");
+			CALL_AND_CHECK(ret, close(fd), ret == 0, "");
+			CALL_AND_CHECK(fd, open("x", O_RDONLY), fd > 0, "file_name=x");
+			CALL_AND_CHECK(ret, rename(file_name5, "x"), ret == 0, "file_name=%s", file_name5);
+			CALL_AND_CHECK(ret, read(fd, buf, sizeof(buf)), ret == 3, "read x -> %s", buf);
+			CALL_AND_CHECK(ret, close(fd), ret == 0, "");
+		}
+
 		/* test 'pread()' and 'pwrite()' */
 		CALL_AND_CHECK(fd, open(file_name2, O_CREAT | O_WRONLY), fd >= 0, "file_name=%s", file_name2);
 		/* write "a single line of" */
