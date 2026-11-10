@@ -300,6 +300,8 @@ proc parse_line { n chars ctx_var } {
 
 	upvar $ctx_var ctx
 
+	global total_parse_errors
+
 	set orig_chars $chars
 	set xpos 0
 
@@ -322,6 +324,9 @@ proc parse_line { n chars ctx_var } {
 		add_doc_line ctx $n $xpos $chars
 		set chars "" }
 
+	set at ""
+	if {$n} { set at " at line $n" }
+
 	parse [segment_pattern] chars xpos segment {
 
 		# annotation '.' or quote ':' captures the remainder of the line
@@ -338,6 +343,12 @@ proc parse_line { n chars ctx_var } {
 			set chars ""
 			set segment ""
 			set ctx(prespace) ""
+		}
+
+		if {[regexp {[^| ]\s+$} $segment bad]} {
+			set bad_line "[string_trim $orig_chars]"
+			puts stderr "Error: trailing space$at: '$bad_line'"
+			incr total_parse_errors
 		}
 
 		# strip '|' delimiter from the end of segment
@@ -372,24 +383,18 @@ proc parse_line { n chars ctx_var } {
 		parse_node $n segment node_xpos ctx ""
 
 		append ctx(prespace) $next_prespace
-	}
 
-	# diagnostic feedback
-	if {[string length $chars] > 0} {
-		set at ""
-		if {$n} { set at " at line $n" }
-		if {[regexp {\s+$} $chars bad]} {
-			set bad_line "[string_trim $orig_chars]$bad"
-			puts stderr "Error: trailing space$at: '$bad_line'"
-		} elseif {[regexp {^[| +x]*\t} $chars]} {
-			regsub {\t} $orig_chars "<TAB>" bad_line
-			set bad_line "[string_trim $bad_line]"
-			puts stderr "Error: tab misused to indent$at: '$bad_line'"
-		} else {
-			puts stderr "Unable to parse$at: '$chars'"
+		# diagnostic feedback
+		if {[string length $segment] > 0} {
+			if {[regexp {^[| +x]*\t} $segment]} {
+				regsub {\t} $orig_chars "<TAB>" bad_line
+				set bad_line "[string_trim $bad_line]"
+				puts stderr "Error: tab misused to indent$at: '$bad_line'"
+			} else {
+				puts stderr "Unable to parse$at: '$segment'"
+			}
+			incr total_parse_errors
 		}
-		global total_parse_errors
-		incr total_parse_errors
 	}
 	return true
 }
