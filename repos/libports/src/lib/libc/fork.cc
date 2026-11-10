@@ -76,6 +76,8 @@ static int                    _uid;
 static int                    _gid;
 static Config_accessor const *_config_accessor_ptr;
 static Binary_name     const *_binary_name_ptr;
+static Num_bytes              _ram;
+static size_t                 _caps;
 static Forked_children       *_forked_children_ptr;
 
 
@@ -198,6 +200,11 @@ void Libc::Child_config::_generate(Generator &g, Node const &config, Fs &fs, Fds
 				g.attribute("rng", node.attribute_value("rng", Path()));
 			if (node.has_attribute("proc"))
 				g.attribute("proc", node.attribute_value("proc", Path()));
+			if (node.has_attribute("fork_ram"))
+				g.attribute("fork_ram", node.attribute_value("fork_ram",
+				                                             Num_bytes(2500*1000)));
+			if (node.has_attribute("fork_caps"))
+				g.attribute("fork_caps", node.attribute_value("fork_caps", 100u));
 
 			node.with_optional_sub_node("passwd", [&] (Node const &node) {
 				g.node("passwd", [&] () { g.node_attributes(node); }); });
@@ -520,8 +527,8 @@ struct Libc::Forked_child : Child_policy, Child_ready
 	{
 		session.ref_account(_env.pd_session_cap());
 
-		_env.pd().transfer_quota(cap, Ram_quota{2500*1000});
-		_env.pd().transfer_quota(cap, Cap_quota{100});
+		_env.pd().transfer_quota(cap, Ram_quota{_ram});
+		_env.pd().transfer_quota(cap, Cap_quota{_caps});
 	}
 
 	void _with_route(Service::Name     const &name,
@@ -917,7 +924,8 @@ void Libc::init_fork(Genode::Env &env, Fs &fs, Fds &fds,
                      Config_accessor const &config_accessor,
                      Genode::Allocator &alloc, Heap &malloc_heap, pid_t pid,
                      uid_t uid, gid_t gid, Monitor &monitor, Signal &signal,
-                     Binary_name const &binary_name)
+                     Binary_name const &binary_name, Num_bytes ram,
+                     size_t caps)
 {
 	_env_ptr             = &env;
 	_fs_ptr              = &fs;
@@ -931,6 +939,8 @@ void Libc::init_fork(Genode::Env &env, Fs &fs, Fds &fds,
 	_uid                 =  uid;
 	_gid                 =  gid;
 	_binary_name_ptr     = &binary_name;
+	_ram                 =  ram;
+	_caps                =  caps;
 
 	static Forked_children forked_children { };
 	_forked_children_ptr = &forked_children;

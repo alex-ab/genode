@@ -120,7 +120,8 @@ namespace Libc {
 	void init_fork(Genode::Env &, Fs &, Fds &,
 	               Config_accessor const &, Genode::Allocator &heap,
 	               Heap &malloc_heap, int pid, uid_t uid, gid_t gid,
-	               Monitor &, Signal &, Binary_name const &);
+	               Monitor &, Signal &, Binary_name const &,
+	               Num_bytes ram, size_t caps);
 
 	struct Reset_atexit : Interface
 	{

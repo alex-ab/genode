@@ -39,6 +39,9 @@ struct Libc::Config
 
 	struct Connect_timeout { unsigned seconds; } conn_timeout;
 
+	Num_bytes fork_ram;
+	size_t    fork_caps;
+
 	static Config _from_libc_node(Node const &libc)
 	{
 		Path const socket = libc.attribute_value("socket", Path());
@@ -46,7 +49,7 @@ struct Libc::Config
 
 		size_t stack_size = Component::stack_size();
 		libc.with_optional_sub_node("stack", [&] (Node const &stack) {
-			stack_size = stack.attribute_value("size", Number_of_bytes(0)); });
+			stack_size = stack.attribute_value("size", Num_bytes(0)); });
 
 		Align mmap_align { AT_PAGE };
 		libc.with_optional_sub_node("mmap", [&] (Node const &mmap) {
@@ -68,6 +71,9 @@ struct Libc::Config
 			.stack_size   = stack_size,
 			.mmap_align   = mmap_align,
 			.conn_timeout = { libc.attribute_value("connect_timeout_sec", 10u) },
+			.fork_ram     = libc.attribute_value("fork_ram",
+			                                     Num_bytes(2500*1000)),
+			.fork_caps    = libc.attribute_value("fork_caps", 100u),
 		};
 	}
 
