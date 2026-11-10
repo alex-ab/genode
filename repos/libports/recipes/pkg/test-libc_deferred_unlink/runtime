@@ -1,8 +1,8 @@
 runtime | ram: 4M | caps: 200 | binary: test-libc_deferred_unlink
 
 + fail    | after_seconds: 30
-+ succeed | : child * exited with exit value 0
-+ fail    | : *Error:
++ fail    | : *Error:*
++ succeed | exit: 0
 
 + content
   + rom | label: ld.lib.so

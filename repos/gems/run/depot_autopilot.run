@@ -675,6 +675,7 @@ set default_test_pkgs {
 	test-libc_connect_lxip
 	test-libc_connect_vfs_server_lwip
 	test-libc_connect_vfs_server_lxip
+	test-libc_deferred_unlink
 	test-libc_execve
 	test-libc_procfs
 	test-libc_fifo_pipe
