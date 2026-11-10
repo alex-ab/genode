@@ -72,7 +72,7 @@ struct Terminal_log::Main
 			void write(String const &string_buf) override
 			{
 				if (!(string_buf.valid_string())) {
-					Genode::error("corrupted string");
+					error("corrupted string");
 					return;
 				}
 
@@ -96,13 +96,13 @@ struct Terminal_log::Main
 				uint64_t const ms = _timer.curr_time().trunc_to_plain_ms().value;
 				Genode::String<32> const time { ms/1000, ".", (ms/100)%10, " " };
 
-				_terminal.write(time.string(), time.length() - 1);
-				_terminal.write(_label.string(), strlen(_label.string()));
-				_terminal.write(string, len);
-
 				/* if last character of string was not a line break, add one */
-				if ((len > 0) && (string[len - 1] != '\n'))
-					_terminal.write("\n", 1);
+				Genode::String<2> const linebreak {
+					((len > 0) && (string[len - 1] != '\n')) ? "\n" : "" };
+
+				Genode::String<256> const msg { time, _label, string, linebreak };
+
+				_terminal.write(msg.string(), msg.length() - 1);
 			}
 	};
 
@@ -137,7 +137,7 @@ struct Terminal_log::Main
 			 * \param session_ep  entry point for managing cpu session objects
 			 * \param md_alloc    meta-data allocator to be used by root component
 			 */
-			Root(Genode::Env &env, Allocator &md_alloc)
+			Root(Env &env, Allocator &md_alloc)
 			:
 				Root_component<Component>(env.ep(), md_alloc),
 				_terminal(env, "log"), _timer(env)
