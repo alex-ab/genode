@@ -247,6 +247,21 @@ void Component::construct(Genode::Env &env)
 			fail("failed to reach sibling node indented behind a compacted line");
 	}
 
+	/*
+	 * equality of sub nodes, regardless of their position (#6028)
+	 */
+	{
+		Node const n1 { Span::from_cstring( "node\n+ a\n+ b\n- ") }; /* 'a' not at the end */
+		Node const n2 { Span::from_cstring( "node\n+ a\n- ") };      /* 'a' at the end */
+
+		n1.with_sub_node(0u, [&] (Node const &n1_a) {
+			n2.with_sub_node(0u, [&] (Node const &n2_a) {
+				if (n1_a.differs_from(n2_a))
+					fail("failed to check equality of sub nodes");
+			}, [&] { });
+		}, [&] { });
+	}
+
 	auto with_generated = [&] (auto const &node_type, auto const &fn, auto const &result_fn)
 	{
 		char buf[4*1024] { };
