@@ -205,7 +205,7 @@ proc test_pkgs_start_nodes { } {
 	foreach test_pkg $test_pkgs {
 		if {[skip_test $test_pkg]} {
 			append result {
-			  | + start } $test_pkg { | skip: yes }
+			  | + start } $test_pkg { | skip: yes}
 		} else {
 			set pkg "[depot_user]/pkg/$test_pkg/[_current_depot_archive_version pkg $test_pkg]"
 			append result {
