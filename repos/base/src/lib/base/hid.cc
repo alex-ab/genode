@@ -96,12 +96,19 @@ void Node::_for_each_sub_node(Indent indent, Span const &bytes, With_indent_span
 		node.last = seg.start + seg.num_bytes - 1;
 	};
 
+	auto end = [&] (Prefix const prefix, Span const &seg)
+	{
+		return prefix.type == Prefix::Type::OTHER
+		    && seg.num_bytes == 1 && seg.start[0] == '-';
+	};
+
 	_for_each_segment(indent, bytes,
-		[&] (Prefix const  prefix, Indent const indent, Span const &seg) {
+		[&] (Prefix const prefix, Indent const indent, Span const &seg) {
 			if (prefix.node_or_xnode() && !node.contains(indent))
 				start(indent, prefix.node(), seg);
-			else
-				extend(seg); });
+			else if (!end(prefix, seg))
+				extend(seg);
+		});
 	finish();
 }
 

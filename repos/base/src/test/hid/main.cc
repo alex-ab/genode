@@ -262,6 +262,15 @@ void Component::construct(Genode::Env &env)
 		}, [&] { });
 	}
 
+	/*
+	 * misinterpretation of quoted '-' as end marker
+	 */
+	Node { Span::from_cstring("n\n+ a | : -\n-") }.with_sub_node("a",
+		[&] (Node const &a) {
+			if (String<2>(Node::Quoted_content { a }) != "-")
+				fail("quoted '-' misinterpreted as end marker"); },
+		[] { });
+
 	auto with_generated = [&] (auto const &node_type, auto const &fn, auto const &result_fn)
 	{
 		char buf[4*1024] { };
