@@ -638,9 +638,10 @@ proc _hid_as_tree_recursively { indent hid { last 0 } { one_attr_per_line 0 } } 
 		set node_line "$indent$type"
 		set name_attr [hid_name_attr $hid]
 		if {[attr_tag $name_attr] == "name"} {
-			set anno [string_trim [attr_anno $name_attr]]
+			set anno [string_trim [attr_anno  $name_attr]]
+			set name [string_trim [attr_value $name_attr]]
 			if {$anno != ""} { set anno " $anno" }
-			append node_line " [attr_value $name_attr]$anno"
+			append node_line " $name$anno"
 		}
 
 		# node branch to next sibling for subsequent lines following the node
@@ -659,8 +660,8 @@ proc _hid_as_tree_recursively { indent hid { last 0 } { one_attr_per_line 0 } } 
 
 		if {!$one_attr_per_line} {
 			hid_foreach_non_name_attr tag value anno $hid {
-				if {$value != ""} { set value " $value" }
-				if {$anno  != ""} { set anno " | $anno" }
+				if {$value != ""} { set value  " [string trim $value]" }
+				if {$anno  != ""} { set anno " | [string trim $anno]"  }
 				append node_line " | $tag:$value$anno" } }
 
 		append result "$node_line\n"
@@ -669,7 +670,7 @@ proc _hid_as_tree_recursively { indent hid { last 0 } { one_attr_per_line 0 } } 
 		if {$one_attr_per_line} {
 			hid_foreach_non_name_attr tag value anno $hid {
 				set padded_tag [format "%-${tag_column_size}s" "$tag:"]
-				if {$value != ""} { set value " $value" }
+				if {$value != ""} { set value " [string_trim $value]" }
 				append result "$indent$node_column $padded_tag$value$anno\n"
 			}
 		}
