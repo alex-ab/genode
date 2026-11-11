@@ -1,7 +1,7 @@
 runtime | ram: 128M | caps: 3000 | binary: init | config: depot_download.config
 
 + requires
-  + file_system | label: system_config | writeable: no
+  + file_system | label: system_report | writeable: no
   + file_system | label: depot         | writeable: yes
   + file_system | label: public        | writeable: yes
   + rom         | label: build_info
@@ -70,9 +70,9 @@ runtime | ram: 128M | caps: 3000 | binary: init | config: depot_download.config
 
   + start dbg_download | ram: 16M
     + config
-      + vfs | + dir config | + fs | label: config -> /
+      + vfs | + dir report | + fs | label: report -> /
     + route
-      + service File_system | label_prefix: config -> | + parent | identity: system_config
+      + service File_system | label_prefix: report -> | + parent | identity: system_report
       + service Report                                | + child report_rom
       + service ROM | label: build_info               | + parent | label: build_info
       + any-service                                   | + parent
