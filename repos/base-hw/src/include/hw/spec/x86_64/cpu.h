@@ -150,6 +150,7 @@ struct Hw::X86_64_cpu
 	};
 
 	enum Msr {
+		IA32_TIME_STAMP_COUNTER      = 0x10,
 		IA32_PLATFORM_ID             = 0x17,
 		IA32_APIC_BASE               = 0x1b,
 		IA32_FEATURE_CONTROL         = 0x3a,
@@ -219,6 +220,8 @@ struct Hw::X86_64_cpu
 		AMD_LFENCE                   = 0xc0011029,
 
 	};
+
+	X86_64_MSR_REGISTER(Ia32_tsc_value, IA32_TIME_STAMP_COUNTER);
 
 	X86_64_MSR_REGISTER(Ia32_apic_base, IA32_APIC_BASE,
 		struct Bsp    : Bitfield<  8,  1> { }; /* Bootstrap processor */

@@ -113,6 +113,8 @@ class Board::Cpu : public Hw::X86_64_cpu
 
 		Xcr0::access_t xcr0 { 0 };
 
+		uint64_t tsc { 0 };
+
 		struct alignas(64) Fpu_context
 		{
 			static constexpr size_t SIZE =
@@ -211,6 +213,8 @@ class Board::Cpu : public Hw::X86_64_cpu
 		bool rear(Cpu const &other) const;
 
 		void print(Output &output) const;
+
+		void save_before_suspend();
 };
 
 #endif /* _CORE__SPEC__X86_64__CPU_H_ */

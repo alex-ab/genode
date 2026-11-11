@@ -96,6 +96,8 @@ void Core_thread::Flush_and_stop_cpu::execute(Cpu &cpu)
 
 void Cpu::Halt_job::Halt_job::load()
 {
+	_cpu().save_before_suspend();
+
 	switch (_cpu().state()) {
 	case HALT:
 		while (true) {

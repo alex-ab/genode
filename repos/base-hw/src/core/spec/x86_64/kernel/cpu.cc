@@ -30,6 +30,9 @@ void Kernel::Cpu::_arch_init()
 	_timer.init();
 	_ipi_irq.init();
 
+	/* resume tsc value, if it got saved during suspend */
+	if (tsc) Cpu::Ia32_tsc_value::write(tsc);
+
 	/* enable timer interrupt */
 	_pic.unmask(_timer.interrupt_id(), id());
 

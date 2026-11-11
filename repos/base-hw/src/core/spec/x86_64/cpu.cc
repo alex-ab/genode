@@ -430,6 +430,12 @@ void Cpu::print(Output &output) const
 }
 
 
+void Cpu::save_before_suspend()
+{
+	tsc = rdtsc();
+}
+
+
 Cpu::Cpu()
 :
 	_id(Cpu::executing_id())
