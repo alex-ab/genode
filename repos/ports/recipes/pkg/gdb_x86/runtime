@@ -4,7 +4,7 @@ runtime | ram: 128M | caps: 1000 | binary: init | config: gdb.config
   + timer
   + terminal    | label: monitor
   + terminal    | label: ui
-  + file_system | label: system_config | writeable: no
+  + file_system | label: system_report | writeable: no
   + file_system | label: depot | writeable: no
   + rom         | label: build_info
   + rm

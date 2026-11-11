@@ -39,7 +39,7 @@ struct Main
 			error("VFS not configured");
 			return { _env, _heap, Node() }; });
 
-	static constexpr char const *_runtime_config_path { "/config/managed/runtime" };
+	static constexpr char const *_runtime_config_path { "/report/runtime" };
 
 	Directory _debug_dir { _root_dir, "/debug" };
 
@@ -153,11 +153,11 @@ struct Main
 								rom_session_label =
 									child.attribute_value("label", Session_label::String());
 
-							}, [&] () {
-								Genode::warning("'child' node not found");
-								return;
-							});
+							}, [&] () { });
 						}
+
+						if (rom_session_label == "")
+							return;
 
 						Vfs::Absolute_path rom_session_label_path { rom_session_label };
 
