@@ -211,6 +211,9 @@ struct Depot_deploy::Main : Option::Action
 				                          _priorities, _attr.affinity_space,
 				                          _attr.depot_rom,
 				                          [] (Child::Name const &) { return true; });
+
+				g.node("monitor", [&] {
+					_children.gen_monitor_policy_nodes(g);});
 			},
 			[&] { warning("config lacks 'common_routes' node"); });
 	}
