@@ -33,10 +33,12 @@ Board::Timer::Timer(Cpu &cpu)
 		divider          = boot_info.plat_info.apic_div;
 	});
 
-	timer_init(Board::TIMER_VECTOR_KERNEL, (uint8_t)divider);
-
 	log("TSC ", tsc_ticks_per_ms, " kHz / APIC ", ticks_per_ms, " kHz");
 }
+
+
+void Board::Timer::init() {
+	timer_init(Board::TIMER_VECTOR_KERNEL, (uint8_t)divider); }
 
 
 void Timer::_start_one_shot(time_t const ticks) {

@@ -42,7 +42,10 @@ Local_interrupt_controller(Global_interrupt_controller &global_irq_ctrl,
 :
 	Apic({Core::Platform::mmio_to_virt(Hw::X86_64_cpu::Ia32_apic_base::base())},
 	     cpu.cpuid_1.x2apic()),
-	_global_irq_ctrl { global_irq_ctrl }
+	_global_irq_ctrl { global_irq_ctrl } { }
+
+
+void Local_interrupt_controller::init()
 {
 	using Hw::outb;
 
@@ -68,6 +71,8 @@ Local_interrupt_controller(Global_interrupt_controller &global_irq_ctrl,
 	/* Disable legacy pic */
 	outb(PIC_DATA_SLAVE,  0xff);
 	outb(PIC_DATA_MASTER, 0xff);
+
+	enable();
 }
 
 

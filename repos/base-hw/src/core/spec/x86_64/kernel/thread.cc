@@ -82,6 +82,7 @@ void Core_thread::Flush_and_stop_cpu::execute(Cpu &cpu)
 		cpu.suspend.typ_a = suspend.typ_a;
 		cpu.suspend.typ_b = suspend.typ_b;
 		cpu.next_state_suspend();
+		global_work_list.remove(&_le);
 		return;
 	}
 

@@ -26,10 +26,28 @@ void Kernel::Cpu::_arch_init()
 	/* set interrupt stack pointer to kernel context stack minus FPU state size */
 	tss.ist[0] = stack_start();
 
+	_pic.init();
+	_timer.init();
 	_ipi_irq.init();
 
 	/* enable timer interrupt */
 	_pic.unmask(_timer.interrupt_id(), id());
+
+	/* Initialize TSC AUX with individual value per cpu */
+	Cpu::Ia32_tsc_aux::write((Cpu::Ia32_tsc_aux::access_t)_id.value);
+
+	if (xstate_support == Xstate_support::LEGACY)
+		return;
+
+	Cpu::Cr4::access_t cr4 = Cpu::Cr4::read();
+	Cpu::Cr4::Osxsave::set(cr4, 1);
+	Cpu::Cr4::write(cr4);
+
+	/* we don't make use of the extended supervisor state save/restore */
+	if (xstate_support == Xstate_support::XSAVES)
+		Cpu::Ia32_xss::write(0);
+
+	Cpu::Xcr0::write(xcr0);
 }
 
 

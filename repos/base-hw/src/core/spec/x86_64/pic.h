@@ -155,6 +155,8 @@ class Board::Local_interrupt_controller : private Hw::Apic
 		 */
 		Local_interrupt_controller(Global_interrupt_controller &, Cpu &);
 
+		void init();
+
 		bool take_request(unsigned &irq);
 
 		void finish_request();

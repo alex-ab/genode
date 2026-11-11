@@ -30,6 +30,13 @@ Timer::Irq::Irq(unsigned id, Cpu &cpu)
 { }
 
 
+void Timer::init()
+{
+	_device.init();
+	_process_timeouts();
+}
+
+
 time_t Timer::timeout_max_us() const
 {
 	return ticks_to_us(_max_value());

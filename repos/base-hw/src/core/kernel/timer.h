@@ -110,8 +110,7 @@ class Kernel::Timer
 
 		time_t time() const { return _time + _duration(); }
 
-		void init() { _device.init(); }
-
+		void init();
 };
 
 #endif /* _CORE__KERNEL__TIMER_H_ */
