@@ -661,7 +661,7 @@ proc _hid_as_tree_recursively { indent hid { last 0 } { one_attr_per_line 0 } } 
 		if {!$one_attr_per_line} {
 			hid_foreach_non_name_attr tag value anno $hid {
 				if {$value != ""} { set value  " [string trim $value]" }
-				if {$anno  != ""} { set anno " | [string trim $anno]"  }
+				if {$anno  != ""} { set anno   " [string trim $anno]"  }
 				append node_line " | $tag:$value$anno" } }
 
 		append result "$node_line\n"
