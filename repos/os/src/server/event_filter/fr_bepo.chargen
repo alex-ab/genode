@@ -366,9 +366,6 @@ chargen
   + key KEY_102ND      | code: 0x00a6 | . ¦
   + dummy
 
-.
-. dead-key / compose sequences
-.
 + sequence | first: 0x0300 | second: 0x0020 | code: 0x0060 | . `
 + sequence | first: 0x0300 | second: 0x0041 | code: 0x00c0 | . À
 + sequence | first: 0x0300 | second: 0x0045 | code: 0x00c8 | . È

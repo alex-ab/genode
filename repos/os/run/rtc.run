@@ -11,13 +11,13 @@ import_from_depot [depot_user]/src/[base_src] \
                   [depot_user]/src/report_rom \
                   [depot_user]/src/[rtc_src]
 
-proc rtc_driver_start_attr { } { if {[have_board linux]} { return "| ld: no" } }
+proc rtc_driver_start_attr { } { if {[have_board linux]} { return " | ld: no" } }
 
 # RTC setting tested on Qemu only
 proc test_update { } { return [have_include power_on/qemu] }
 
 append rtc_start_nodes_with_update {
-+ start } [rtc_src] { | priority: -1 } [rtc_driver_start_attr] {
++ start } [rtc_src] { | priority: -1} [rtc_driver_start_attr] {
   + provides | + service Rtc
   + config | allow_setting_rtc: true | verbose: yes
   + route
@@ -36,7 +36,7 @@ append rtc_start_nodes_with_update {
 }
 
 append rtc_start_nodes_without_update {
-+ start } [rtc_src] { | priority: -1 } [rtc_driver_start_attr] {
++ start } [rtc_src] { | priority: -1} [rtc_driver_start_attr] {
   + provides | + service Rtc
   + config
 + start test-rtc | priority: -1

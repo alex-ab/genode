@@ -62,14 +62,14 @@ set use_usb  [expr ![have_cmd_switch --autopilot]]
 set use_nic  [expr ![have_cmd_switch --autopilot]]
 set use_wifi [expr ![have_cmd_switch --autopilot]]
 
-proc priority_timer    { } { return { | priority:  0 } }
-proc priority_base     { } { return { | priority: -1 } }
-proc priority_config   { } { return { | priority: -1 } }
-proc priority_gui      { } { return { | priority: -1 } }
-proc priority_wm       { } { return { | priority: -2 } }
-proc priority_log      { } { return { | priority: -2 } }
-proc priority_drivers  { } { return { | priority: -2 } }
-proc priority_scenario { } { return { | priority: -3 } }
+proc priority_timer    { } { return { | priority:  0} }
+proc priority_base     { } { return { | priority: -1} }
+proc priority_config   { } { return { | priority: -1} }
+proc priority_gui      { } { return { | priority: -1} }
+proc priority_wm       { } { return { | priority: -2} }
+proc priority_log      { } { return { | priority: -2} }
+proc priority_drivers  { } { return { | priority: -2} }
+proc priority_scenario { } { return { | priority: -3} }
 
 
 proc display_config { } {
@@ -83,7 +83,7 @@ proc display_config { } {
   |           + config | ld_verbose: yes | width: 1280 | height: 1024
   |             + report | connectory: yes
   |           + route
-  |             + any-service | + parent }
+  |             + any-service | + parent}
 	}
 
 	return {
@@ -94,7 +94,7 @@ proc display_config { } {
   |               + dir firmware | + tar pc_display_firmware.tar
   |             + report | connectory: yes
   |           + route
-  |             + any-service | + parent }
+  |             + any-service | + parent}
 }
 
 
@@ -109,7 +109,7 @@ proc usb_config { } {
   |           + binary pc_usb_host
   |           + route
   |             + service Report | + child report_rom
-  |             + any-service    | + parent }
+  |             + any-service    | + parent}
 }
 
 
@@ -144,7 +144,7 @@ proc restartable_drivers { } {
   |         + start nano3d | caps: 100 | ram: 8M
   |           + route
   |             + any-service
-  |               + parent }
+  |               + parent}
 
 	return $return_drivers
 }
@@ -234,7 +234,7 @@ proc gui_config { } {
     | + child nitpicker
     + any-service
       + parent
-      + any-child }
+      + any-child}
 
 	return $return_gui
 }
@@ -262,7 +262,7 @@ proc input_config { } {
   |             | + parent
   |             + any-service
   |               + parent
-  |               + any-child }
+  |               + any-child}
 }
 
 
@@ -321,7 +321,7 @@ proc log_output { } {
     | + child wm
     + any-service
       + parent
-      + any-child }
+      + any-child}
 
 	append_if [have_spec nova] return_log {
 
@@ -335,7 +335,7 @@ proc log_output { } {
     + service Timer                           | + child timer
     + service PD                              | + parent
     + service CPU                             | + parent
-    + service LOG                             | + parent }
+    + service LOG                             | + parent}
 
 	return $return_log
 }
@@ -364,7 +364,7 @@ proc ahci_config { } {
     + service Report              | + child drivers_reports
     + any-service
       + parent
-      + any-child }
+      + any-child}
 
 	append return_ahci {
 
@@ -377,7 +377,7 @@ proc ahci_config { } {
     + service Block | + child ahci
     + any-service
       + parent
-      + any-child }
+      + any-child}
 
 	return $return_ahci
 }
@@ -408,7 +408,7 @@ proc nvme_config { } {
     + service Report              | + child drivers_reports
     + any-service
       + parent
-      + any-child }
+      + any-child}
 
 	append return_nvme {
 
@@ -422,7 +422,7 @@ proc nvme_config { } {
     | + child nvme
     + any-service
       + parent
-      + any-child }
+      + any-child}
 
 	return $return_nvme
 }
@@ -462,7 +462,7 @@ proc gpu_config { } {
     | + child dynamic_rom
     + any-service
       + parent
-      + any-child }
+      + any-child}
 
 	return $return_gpu
 }
@@ -502,7 +502,7 @@ proc gpu_client { } {
     + service Gui                          | + child wm
     + service Timer                        | + child timer
     + service ROM | label: mesa_gpu.lib.so | + parent | label: mesa_gpu-iris.lib.so
-    + any-service                          | + parent }
+    + any-service                          | + parent}
 
 	return $return_gpu
 }
@@ -563,7 +563,7 @@ proc wifi_config { } {
   |             + service ROM | label: wifi_config       | + child config_rom
   |             + service ROM | label: wifi.lib.so       | + parent | label: pc_wifi.lib.so
   |             + service ROM | label: wifi_firmware.tar | + parent | label: pc_wifi_firmware.tar
-  |             + any-service | + parent }
+  |             + any-service | + parent}
 
 	return $return_wifi
 }
@@ -579,7 +579,7 @@ proc nic_config { } {
   |           + binary pc_nic
   |           + route
   |             + service Uplink | + parent
-  |             + any-service    | + parent }
+  |             + any-service    | + parent}
 }
 
 
@@ -802,7 +802,7 @@ config | verbose: no | prio_levels: 4
   |   + attribute verbose | value: no
   |   + if
   |     + has_value | input: check_system | value:
-  |     + then } [restartable_drivers] {
+  |     + then} [restartable_drivers] {
   |     + else
   |       + inline
   + route

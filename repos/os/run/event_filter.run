@@ -262,12 +262,12 @@ config
   | + chargen
   |   + remap | + input usb
   |   + map
-  |     + key KEY_GRAVE | code: 0x0300 |  | . dead_grave
+  |     + key KEY_GRAVE | code: 0x0300 | . dead_grave
   |     + key KEY_A     | char: a
   |     + key KEY_E     | char: e
   |     + key KEY_X     | char: x
-  |   + sequence | first: 0x0300 | second: 0x0061 | code: 0x00e0 |  | . LATIN SMALL LETTER A WITH GRAVE
-  |   + sequence | first: 0x0300 | second: 0x0065 | code: 0x00e8 |  | . LATIN SMALL LETTER E WITH GRAVE
+  |   + sequence | first: 0x0300 | second: 0x0061 | code: 0x00e0 | . LATIN SMALL LETTER A WITH GRAVE
+  |   + sequence | first: 0x0300 | second: 0x0065 | code: 0x00e8 | . LATIN SMALL LETTER E WITH GRAVE
   + policy | label_suffix: usb | input: usb
 + sleep | ms: 250
 + usb
@@ -492,11 +492,11 @@ config
   + policy | label_suffix: usb | input: usb
 + sleep | ms: 100
 + usb
-  + touch   | x:  10 | y: 500 |  | . hits special area
+  + touch   | x:  10 | y: 500 | . hits special area
   + press   | code: BTN_TOUCH
   + touch-release
   + release | code: BTN_TOUCH
-  + touch   | x: 100 | y: 500 |  | . besides special area
+  + touch   | x: 100 | y: 500 | . besides special area
   + press   | code: BTN_TOUCH
   + touch-release
   + release | code: BTN_TOUCH

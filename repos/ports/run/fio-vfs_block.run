@@ -119,6 +119,10 @@ config | verbose: no
       + any-child
 
 + start sequence | caps: 1000 | ram: 1200M
+  .
+  . The 'aio-verify-randrw' test is currently limited to 1 job to prevent
+  . data corruption due to concurrent unaligned write accesses.
+  .
   + affinity | xpos: 2 | ypos: 0 | width: 2 | height: 1
   + config
 } [fio_config aio-iops-randread        randread  posixaio 64    4k 4 5  0 0] {
@@ -133,8 +137,6 @@ config | verbose: no
 } [fio_config aio-latency-randwrite    randwrite posixaio 1     4k 1 5  0 0] {
 } [fio_config aio-latency-mixed-randrw randrw    posixaio 1     4k 1 5  0 0] {
 } [fio_config aio-iops-mixed-randrw    randrw    posixaio 64    4k 1 5 75 0] {
-<!-- currently limited to 1 job to prevent data corruption due to concurrent
-     unaligned write accesses -->
 } [fio_config aio-verify-randrw        randrw    posixaio 1    512 1 5  0 1] {
   + route
     + service Block

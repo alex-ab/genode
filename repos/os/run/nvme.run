@@ -60,7 +60,7 @@ config | verbose: no
   + service CPU
   + service LOG
 
-+ default-route 
++ default-route
   + any-service
     + parent
     + any-child

@@ -263,10 +263,10 @@ append_if $use_gpu config {
 append config {
     + start intel_fb | caps: 1000 | ram: 128M
       + binary pc_intel_fb
-      + route }
+      + route}
 append_if $use_gpu config {
         + service Dma                       | + child intel_gpu
-        + service Platform                  | + child intel_gpu }
+        + service Platform                  | + child intel_gpu}
 append config {
         + service ROM     | label: config   | + child config_rom | label: fb.config
         + service Report                    | + child report_rom

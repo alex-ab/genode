@@ -35,7 +35,7 @@ schema config
   . be forwarded to the client with address 'to' using the same port number
   . or the port number specified by 'to_port'.
   .
-  + attr port    | type: port | default: 
+  + attr port    | type: port
   + attr to_port | type: port | default: 0
   + attr to      | type: ipv4 | default: 10.0.2.15
 
@@ -45,7 +45,7 @@ schema config
   . be forwarded to the client with address 'to' using the same port number
   . or the port number specified by 'to_port'.
   .
-  + attr port    | type: port | default:
+  + attr port    | type: port
   + attr to_port | type: port | default: 0
   + attr to      | type: ipv4 | default: 10.0.2.15
 

@@ -358,9 +358,6 @@ chargen
   + key KEY_DOT        | code: 0x00b7 | . ·
   + key KEY_102ND      | code: 0x007c | . |
 
-.
-. dead-key / compose sequences
-.
 + sequence | first: 0x0302 | second: 0x0020 | code: 0x005e  | . ^
 + sequence | first: 0x0302 | second: 0x0041 | code: 0x00c2  | . Â
 + sequence | first: 0x0302 | second: 0x0045 | code: 0x00ca  | . Ê

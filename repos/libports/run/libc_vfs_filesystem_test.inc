@@ -71,7 +71,7 @@ if {!$use_vfs_server} {
 if {[have_include "power_on/qemu"]} {
 	proc test_command { } { return "write-read | size: 1M | buffer_size: 8K" }
 } else {
-	proc test_command { } { }
+	proc test_command { } { return "none" }
 }
 
 install_config {
