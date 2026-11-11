@@ -665,11 +665,6 @@ class Vfs_ram::File_system : public Vfs::File_system
 			from_node->name(new_name);
 			to_dir->adopt(from_node);
 
-			_notify_watchers(from);
-			_notify_watchers(to);
-			_notify_compound_dir_watchers(from);
-			_notify_compound_dir_watchers(to);
-
 			return Rename_result::OK;
 		}
 

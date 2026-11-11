@@ -630,12 +630,6 @@ class Vfs_rump::File_system : public Vfs::File_system
 			case EACCES:
 				return Rename_result::DENIED;
 			}
-
-			_notify_watchers(from);
-			_notify_watchers(to);
-			_notify_compound_dir_watchers(from);
-			_notify_compound_dir_watchers(to);
-
 			return Rename_result::OK;
 		}
 

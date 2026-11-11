@@ -210,11 +210,23 @@ class Genode::Vfs::Root : public Env, private Env::Io, private Env::User
 		Follow_result follow  (auto &&... args) { return _fs.follow(args...); }
 		Unlink_result unlink  (auto &&... args) { return _fs.unlink(args...); }
 
-		Rename_result rename(char const *from, char const *to)
+		Rename_result rename(char const *from_cstring, char const *to_cstring)
 		{
-			return _without_attached_channels(from, [&] {
-				return _without_attached_channels(to, [&] {
-					return _fs.rename(from, to); }); });
+			Rename_result const result = _without_attached_channels(from_cstring, [&] {
+				return _without_attached_channels(to_cstring, [&] {
+					return _fs.rename(from_cstring, to_cstring); }); });
+
+			Span const from = Span::from_cstring(from_cstring),
+			           to   = Span::from_cstring(to_cstring);
+
+			auto notify = [&] (Span const &p) { _root_parent_fs.notify_watchers(p); };
+
+			notify(from);
+			notify(to);
+			with_compound_dir(from, [&] (Span const &dir) { notify(dir); });
+			with_compound_dir(to,   [&] (Span const &dir) { notify(dir); });
+
+			return result;
 		}
 
 		/**
