@@ -130,12 +130,12 @@ __SYS_(int, accept, (int libc_fd, sockaddr *addr, socklen_t *addrlen),
 				return socket_accept(socket, addr, addrlen).convert<int>(
 					[&] (Socket &accept_socket) {
 						return fds().with_space([&] (Fds::Space &space) {
-							File_descriptor &fd = *new (kernel_heap())
+							File_descriptor &new_fd = *new (kernel_heap())
 								File_descriptor(space, int(libc_id), accept_socket,
 							                    socket_path(accept_socket));
 
 							/* inherit the O_NONBLOCK flag if set */
-							socket_fcntl(accept_socket, fd, F_SETFL, fd.flags);
+							socket_fcntl(accept_socket, new_fd, F_SETFL, fd.flags);
 							return int(libc_id);
 						});
 					},
