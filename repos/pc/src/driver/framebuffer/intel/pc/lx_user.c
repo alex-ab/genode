@@ -948,7 +948,7 @@ static void _report_connectors(void * genode_data, bool const discrete)
 
 		char display_name[16] = { 0 };
 
-		unsigned brightness = 0;
+		unsigned brightness = INVALID_BRIGHTNESS;
 
 		/* read configuration for connector */
 		lx_emul_i915_connector_config(connector->name, &conf_mode);
@@ -959,12 +959,23 @@ static void _report_connectors(void * genode_data, bool const discrete)
 		if (connector->edid_blob_ptr)
 			display_name_from_edid(connector->edid_blob_ptr, display_name, sizeof(display_name));
 
-		brightness = get_brightness(dev_client,
-		                            &states[CONNECTOR_ID_MIRROR].fb_cmd,
-		                            connector, INVALID_BRIGHTNESS);
+		if (conf_mode.brightness) {
+			brightness = get_brightness(dev_client,
+			                            &states[connector->index].fb_cmd,
+			                            connector, INVALID_BRIGHTNESS);
 
-		if (!brightness && conf_mode.brightness)
-			brightness = conf_mode.brightness;
+			if (!brightness && conf_mode.brightness)
+				brightness = conf_mode.brightness;
+
+			/* heuristic to suppress reporting of failed brightness changes */
+			if (max(brightness, conf_mode.brightness) -
+			    min(brightness, conf_mode.brightness) > 50 /* percent */) {
+
+				printk(" suppress brightness report for '%s' due to %u vs %u\n",
+				       connector->name, brightness, conf_mode.brightness);
+				brightness = INVALID_BRIGHTNESS;
+			}
+		}
 
 		lx_emul_i915_report_connector(connector, genode_data,
 		                              connector->name,
