@@ -6,7 +6,7 @@ x shape default | x: 0 | y: 0
   .
   + color . | rgb: #000000
   + color ; | rgb: #000000 | alpha: 0.5
-  + color , | rgb: #000000 | alpha: 0.2
+  + color : | rgb: #000000 | alpha: 0.2
   + color # | rgb: #ffffff
   + pixels
     : ##
@@ -34,7 +34,7 @@ x shape default | x: 0 | y: 0
   .
   + color . | rgb: #000000
   + color ; | rgb: #000000 | alpha: 0.4
-  + color , | rgb: #000000 | alpha: 0.2
+  + color : | rgb: #000000 | alpha: 0.2
   + color # | rgb: #ffffff
   + pixels
     : ####
