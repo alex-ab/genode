@@ -13,6 +13,7 @@
  */
 
 /* Genode includes */
+#include <base/attached_ram_dataspace.h>
 #include <base/attached_rom_dataspace.h>
 #include <base/component.h>
 #include <base/heap.h>
@@ -24,6 +25,7 @@
 #include <cpu_session/connection.h>
 #include <cpu_thread/client.h>
 #include <cpu/memory_barrier.h>
+#include <region_map/client.h>
 
 /* compiler includes */
 #include <stdarg.h>
@@ -456,6 +458,66 @@ static void test_free_expanded_stack(Env &env)
 }
 
 
+static void test_fault_handler(Env &env)
+{
+	log("running '", __func__, "'");
+	log("\tcausing double fault and checking if core is still alive,\n"
+	    "\tcore will stop working upon failure and test will timeout");
+
+	struct Thread_fault : Thread
+	{
+		Thread_fault(Env &env)
+		: Thread(env, "faulter", Stack_size { 16*1024 })
+		{ }
+
+		void entry() override
+		{
+			int *page_fault = nullptr;
+			*page_fault += 1;
+		}
+	};
+
+	struct Fault_handler
+	{
+		Env    &_env;
+		Thread &_faulter;
+
+		Region_map_client _adress_space { _env.pd().address_space() };
+
+		Io_signal_handler<Fault_handler> _handler {
+			_env.ep(), *this, &Fault_handler::_handle };
+
+		unsigned _handeled { 2 };
+
+		Fault_handler(Env &env, Thread &faulter)
+		: _env(env), _faulter(faulter)
+		{
+			_adress_space.fault_handler(_handler);
+			_faulter.start();
+
+			/* handle faults */
+			while (_handeled > 0)
+				env.ep().wait_and_dispatch_one_io_signal();
+		}
+
+		void _handle()
+		{
+			_handeled--;
+
+			/* don't handle the fault and resume thread at the faulting IP */
+			Cpu_thread_client(_faulter.cap()).resume();
+		}
+	};
+
+	Thread_fault  faulter(env);
+	Fault_handler handler(env, faulter);
+
+	log("--- check core ---");
+	Attached_ram_dataspace (env.ram(), env.rm(), 0x1000);
+	log("--- core is alive ---");
+}
+
+
 void Component::construct(Env &env)
 {
 	log("--- thread test started ---");
@@ -469,8 +531,10 @@ void Component::construct(Env &env)
 		test_stack_alloc(env);
 		test_stack_alignment(env);
 		test_main_thread();
-		if (config.node().attribute_value("pause_resume", false))
+		if (config.node().attribute_value("pause_resume", false)) {
 			test_pause_resume(env);
+			test_fault_handler(env);
+		}
 
 		test_create_as_many_threads(env);
 		test_successive_create_destroy_threads(env);
