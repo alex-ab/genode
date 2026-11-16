@@ -479,7 +479,8 @@ void Region_map_component::fault(Rm_faulter &faulter, Region_map::Fault fault)
 	faulter.fault(*this, fault);
 
 	/* enqueue faulter */
-	_faulters.enqueue(faulter);
+	if (!faulter.enqueued())
+		_faulters.enqueue(faulter);
 
 	/* issue fault signal */
 	Signal_transmitter(_fault_sigh).submit();
