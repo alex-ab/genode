@@ -80,7 +80,7 @@ class Terminal::Color_palette
 				"#AA759F", /*  5  magenta        */
 				"#75B5AA", /*  6  cyan           */
 				"#D0D0D0", /*  7  white          */
-				"#101010", /*  8  bright black   */
+				"#000000", /*  8  bright black   */
 				"#AC4142", /*  9  bright red     */
 				"#90A959", /* 10  bright green   */
 				"#F4BF75", /* 11  bright yellow  */
