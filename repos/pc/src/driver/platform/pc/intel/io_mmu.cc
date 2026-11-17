@@ -318,7 +318,7 @@ bool Intel::Io_mmu::_enable_irq_remapping()
 	 * unremapped vector for requested MSI, we cannot take over control.
 	 */
 
-	if (read<Global_status::Ires>()) {
+	if (_irq_remapping_initially_enabled) {
 		warning("IRQ remapping is controlled by kernel for ", name());
 		return false;
 	}
@@ -493,7 +493,8 @@ Intel::Io_mmu::Io_mmu(Env                            &env,
   _domain_slab(domain_slab),
   _managed_root_table(_env, _table_allocator, _table_registry, !coherent_page_walk()),
   _default_mappings(_env, _table_allocator, _table_registry, !coherent_page_walk(),
-                    _sagaw_to_levels())
+                    _sagaw_to_levels()),
+  _irq_remapping_initially_enabled(read<Global_status::Ires>())
 {
 	if (_broken_device()) {
 		error(name, " reports invalid capability registers. Please disable VT-d/IOMMU.");

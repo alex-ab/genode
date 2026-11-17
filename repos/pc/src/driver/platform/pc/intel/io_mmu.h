@@ -198,6 +198,7 @@ class Intel::Io_mmu : private Attached_mmio<0x800>,
 		Default_mappings              _default_mappings;
 
 		bool                          _remap_irqs { false };
+		bool                          _irq_remapping_initially_enabled;
 
 		Constructible<Irq_connection> _fault_irq          { };
 		Signal_handler<Io_mmu>        _fault_handler      {
