@@ -21,7 +21,7 @@ deploy | info: Goa SDK
     + image | png: genode_logo.png | alpha: 50 | anchor: bottom_right
                                      xpos: -20 | ypos: -20
 
-+ child goa_sdk | pkg: cproc/pkg/goa_sdk/2026-11-10
++ child goa_sdk | pkg: cproc/pkg/goa_sdk/2026-11-16
   + connect
     + gui              | + child wm
     + nic              | + child network
