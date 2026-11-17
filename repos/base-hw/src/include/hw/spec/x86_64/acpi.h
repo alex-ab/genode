@@ -234,6 +234,10 @@ class Hw::Acpi::Fadt : public Table<SIZE_FADT>
 
 		struct Pm_tmr_len : Register< 91, 8> { };
 
+		struct Pm1a_evt_blk : Register < 56, 32> { };
+
+		struct Pm1b_evt_blk : Register < 60, 32> { };
+
 		struct Pm1a_cnt_blk : Register < 64, 32> {
 			struct Slp_typ : Bitfield < 10, 3> { };
 			struct Slp_ena : Bitfield < 13, 1> { };
@@ -246,10 +250,23 @@ class Hw::Acpi::Fadt : public Table<SIZE_FADT>
 		struct Gpe0_blk     : Register < 80, 32> { };
 		struct Gpe1_blk     : Register < 84, 32> { };
 
+		struct Pm1_evt_len  : Register < 88, 8> { };
+		struct Pm1_cnt_len  : Register < 89, 8> { };
+
 		struct Gpe0_blk_len : Register < 92, 8> { };
 		struct Gpe1_blk_len : Register < 93, 8> { };
 
-		struct Pm1_cnt_len  : Register < 89, 8> { };
+		struct Pm1a_evt_blk_ext : Register < 148, 32> {
+			struct Addressspace : Bitfield < 0, 8> { };
+			struct Width        : Bitfield < 8, 8> { };
+		};
+		struct Pm1a_evt_blk_ext_addr : Register < 148 + 4, 64> { };
+
+		struct Pm1b_evt_blk_ext : Register < 160, 32> {
+			struct Addressspace : Bitfield < 0, 8> { };
+			struct Width        : Bitfield < 8, 8> { };
+		};
+		struct Pm1b_evt_blk_ext_addr : Register < 160 + 4, 64> { };
 
 		struct Pm1a_cnt_blk_ext : Register < 172, 32> {
 			struct Addressspace : Bitfield < 0, 8> { };
@@ -434,12 +451,11 @@ class Hw::Acpi::Fadt : public Table<SIZE_FADT>
 					_outw(io_addr, Genode::uint16_t(value));
 					break;
 				case 32:
-					_outl(io_addr, Genode::uint32_t(value));
-					break;
 				case 64:
-					_outl(io_addr, Genode::uint32_t(value));
-					if (sizeof(value) == 8)
-						_outl(io_addr + 4, Genode::uint32_t(value >> 32));
+				case 96:
+				case 128:
+					for (auto i = 0u; i < width_bits / 32; i++)
+						_outl(uint16_t(io_addr + i * 4), uint32_t(value));
 					break;
 				default:
 					Genode::error("unsupported width for I/O OUT : ", width_bits);
@@ -497,22 +513,105 @@ class Hw::Acpi::Fadt : public Table<SIZE_FADT>
 			return facs;
 		}
 
+		void _clear_pm1_enable()
+		{
+			auto constexpr half_register = true;
+			auto constexpr half_offset   = true;
+			auto constexpr value         = 0ull;
+
+			_write<Pm1_evt_len, Pm1a_evt_blk,
+			       Pm1a_evt_blk_ext::Width,
+			       Pm1a_evt_blk_ext::Addressspace,
+			       Pm1a_evt_blk_ext_addr>(value, half_register, half_offset);
+
+			_write<Pm1_evt_len, Pm1b_evt_blk,
+			       Pm1b_evt_blk_ext::Width,
+			       Pm1b_evt_blk_ext::Addressspace,
+			       Pm1b_evt_blk_ext_addr>(value, half_register, half_offset);
+		}
+
+		auto _read_pm1_status()
+		{
+			auto constexpr half_register = true;
+
+			auto value = _read<Pm1_evt_len, Pm1a_evt_blk,
+			                   Pm1a_evt_blk_ext::Width,
+			                   Pm1a_evt_blk_ext::Addressspace,
+			                   Pm1a_evt_blk_ext_addr>(half_register);
+
+			return value |
+			       _read<Pm1_evt_len, Pm1b_evt_blk,
+			             Pm1b_evt_blk_ext::Width,
+			             Pm1b_evt_blk_ext::Addressspace,
+			             Pm1b_evt_blk_ext_addr>(half_register);
+		}
+
+		void prepare_pm1_for_suspend()
+		{
+			_clear_pm1_enable();
+
+			enum {
+				PM1_STATUS_POWER_BUTTON = 1ul <<  8,
+				PM1_STATUS_SLEEP_BUTTON = 1ul <<  9,
+				PM1_STATUS_RTC          = 1ul << 10,
+				PM1_STATUS_WAKEUP       = 1ul << 15,
+			};
+
+			auto const clear = PM1_STATUS_POWER_BUTTON
+			                 | PM1_STATUS_SLEEP_BUTTON
+			                 | PM1_STATUS_RTC;
+
+			unsigned value = PM1_STATUS_WAKEUP | (_read_pm1_status() & clear);
+
+			auto constexpr half_register = true;
+
+			_write<Pm1_evt_len, Pm1a_evt_blk,
+			       Pm1a_evt_blk_ext::Width, Pm1a_evt_blk_ext::Addressspace,
+			       Pm1a_evt_blk_ext_addr>(value, half_register);
+
+			_write<Pm1_evt_len, Pm1b_evt_blk,
+			       Pm1b_evt_blk_ext::Width, Pm1b_evt_blk_ext::Addressspace,
+			       Pm1b_evt_blk_ext_addr>(value, half_register);
+		}
+
+		void clear_gpe0_enable()
+		{
+			auto constexpr half_register = true;
+			auto constexpr half_offset   = true;
+
+			_write<Gpe0_blk_len, Gpe0_blk, Gpe0_blk_ext::Width,
+			       Gpe0_blk_ext::Addressspace, Gpe0_blk_ext_addr>(0ULL,
+			                                                      half_register,
+			                                                      half_offset);
+		}
+
+		void clear_gpe1_enable()
+		{
+			auto constexpr half_register = true;
+			auto constexpr half_offset   = true;
+
+			_write<Gpe1_blk_len, Gpe1_blk, Gpe1_blk_ext::Width,
+			       Gpe1_blk_ext::Addressspace, Gpe1_blk_ext_addr>(0ULL,
+			                                                      half_register,
+			                                                      half_offset);
+		}
+
 		void clear_gpe0_status()
 		{
 			auto constexpr half_register = true;
 
-			return _write<Gpe0_blk_len, Gpe0_blk, Gpe0_blk_ext::Width,
-			              Gpe0_blk_ext::Addressspace, Gpe0_blk_ext_addr>(~0ULL,
-			                                                             half_register);
+			_write<Gpe0_blk_len, Gpe0_blk, Gpe0_blk_ext::Width,
+			       Gpe0_blk_ext::Addressspace, Gpe0_blk_ext_addr>(~0ULL,
+			                                                      half_register);
 		}
 
 		void clear_gpe1_status()
 		{
 			auto constexpr half_register = true;
 
-			return _write<Gpe1_blk_len, Gpe1_blk, Gpe1_blk_ext::Width,
-			              Gpe1_blk_ext::Addressspace, Gpe1_blk_ext_addr>(~0ULL,
-			                                                             half_register);
+			_write<Gpe1_blk_len, Gpe1_blk, Gpe1_blk_ext::Width,
+			       Gpe1_blk_ext::Addressspace, Gpe1_blk_ext_addr>(~0ULL,
+			                                                      half_register);
 		}
 
 		void suspend(Genode::uint8_t typ_slp_a, Genode::uint8_t typ_slp_b)

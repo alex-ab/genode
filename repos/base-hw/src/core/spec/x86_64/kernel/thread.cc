@@ -116,7 +116,10 @@ void Cpu::Halt_job::Halt_job::load()
 			/* all CPUs signaled that they are stopped, trigger ACPI suspend */
 			Hw::Acpi::Fadt fadt(acpi_fadt_addr);
 
-			/* ack all GPEs, otherwise we may wakeup immediately */
+			/* handle all GPEs and PM status to avoid waking up immediately */
+			fadt.prepare_pm1_for_suspend();
+			fadt.clear_gpe0_enable();
+			fadt.clear_gpe1_enable();
 			fadt.clear_gpe0_status();
 			fadt.clear_gpe1_status();
 
