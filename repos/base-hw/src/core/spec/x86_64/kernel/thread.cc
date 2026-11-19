@@ -158,17 +158,6 @@ Cpu_suspend_result Core_thread::_call_cpu_suspend(unsigned sleep_type)
 	if (!acpi_fadt_addr || !cpu_count)
 		return Cpu_suspend_result::FAILED;
 
-	if (_stop_cpu.constructed()) {
-		if (_stop_cpu->cpus_left) {
-			Genode::raw("kernel: resume still ongoing");
-			return Cpu_suspend_result::FAILED;
-		}
-
-		/* remove & destruct Flush_and_stop_cpu object */
-		_stop_cpu.destruct();
-		return Cpu_suspend_result::OK;
-	}
-
 	auto const sleep_typ_a = uint8_t(sleep_type);
 	auto const sleep_typ_b = uint8_t(sleep_type >> 8);
 
